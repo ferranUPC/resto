@@ -14,7 +14,7 @@ Last updated: 2026-09-10
 
 | ID | Task | Status | Notes |
 |---|---|---|---|
-| E0.1 | Repo skeleton: hexagonal layout, packaging, ruff, pytest, CI | 🔄 | `src/resto/{domain,application,adapters,interface}` created; `pyproject.toml` + ruff + pytest green locally; CI workflow written but not yet verified on GitHub (no commit/push yet) |
+| E0.1 | Repo skeleton: hexagonal layout, packaging, ruff, pytest, CI | 🔄 | `src/resto/{domain,application,adapters,interface}` created; `pyproject.toml` + ruff + pytest green locally (11 passed, `ruff check .` clean) as of this review. `.github/workflows/ci.yml` exists but triggers on `push: branches: [main]` while the repo's actual default branch is `master` — 0 workflow runs recorded on GitHub as of this review, so CI has never actually executed. Needs the trigger branch fixed before this task can be called done (DoD requires "green CI", not just a workflow file) |
 | E0.2 | Pin SUMO version; reproducible environment; record in README | ⬜ | README has conda instructions only; SUMO version not pinned yet |
 | E0.3 | Contracts v1 as Pydantic models: all §2.2 schemas, JSON-schema export, round-trip tests | ⬜ | Domain entities (plain dataclasses, not Pydantic) for `Network`, `Scenario`, `Intervention`, `TraciPlan` exist ahead of schedule in `domain/`; the Pydantic boundary contracts for the rest of §2.2 are not started |
 | E0.4 | DatabaseMCP contract spec (tool names, I/O schemas, capability groups, error codes) | ⬜ | |
