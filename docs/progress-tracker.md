@@ -4,7 +4,7 @@ Tracks completion of every task in [`tfm-work-plan.md`](tfm-work-plan.md). Task 
 
 Status: ⬜ not started · 🔄 in progress · ✅ done (meets its Done/threshold from the DoD, not just "code exists")
 
-Last updated: 2026-09-10
+Last updated: 2026-09-11
 
 **Summary: 0 / 65 tasks done (0%) · 1 in progress** (E7.7 is Stretch, never scheduled — excluded from the count, per work plan §5)
 
@@ -14,8 +14,8 @@ Last updated: 2026-09-10
 
 | ID | Task | Status | Notes |
 |---|---|---|---|
-| E0.1 | Repo skeleton: hexagonal layout, packaging, ruff, pytest, CI | 🔄 | `src/resto/{domain,application,adapters,interface}` created; `pyproject.toml` + ruff + pytest green locally (11 passed, `ruff check .` clean) as of this review. `.github/workflows/ci.yml` exists but triggers on `push: branches: [main]` while the repo's actual default branch is `master` — 0 workflow runs recorded on GitHub as of this review, so CI has never actually executed. Needs the trigger branch fixed before this task can be called done (DoD requires "green CI", not just a workflow file) |
-| E0.2 | Pin SUMO version; reproducible environment; record in README | ⬜ | README has conda instructions only; SUMO version not pinned yet |
+| E0.1 | Repo skeleton: hexagonal layout, packaging, ruff, pytest, CI | 🔄 | No commits since last review (2026-09-10) — same state. `pyproject.toml` + ruff + pytest still green locally (11 passed, `ruff check .` clean). `.github/workflows/ci.yml` still triggers on `push: branches: [main]` against a `master` repo — still 0 workflow runs recorded on GitHub. Was due 10 Sep; now overdue by one day with no fix applied to the one-line branch bug flagged last review |
+| E0.2 | Pin SUMO version; reproducible environment; record in README | ⬜ | No change since last review. README still conda-instructions-only; no SUMO version pinned; no Docker/Postgres+pgvector service defined anywhere in the repo. Was due 10 Sep; now overdue by one day |
 | E0.3 | Contracts v1 as Pydantic models: all §2.2 schemas, JSON-schema export, round-trip tests | ⬜ | Domain entities (plain dataclasses, not Pydantic) for `Network`, `Scenario`, `Intervention`, `TraciPlan` exist ahead of schedule in `domain/`; the Pydantic boundary contracts for the rest of §2.2 are not started |
 | E0.4 | DatabaseMCP contract spec (tool names, I/O schemas, capability groups, error codes) | ⬜ | |
 | E0.5 | DEV-NET: grid + hand edits (bottleneck, signalised corridor) | ⬜ | |
