@@ -16,11 +16,14 @@ src/resto/
 
 ## Development
 
-Requires the `resto` conda environment.
+Requires the `resto` conda environment and **SUMO 1.27.1** (pinned — verify with `sumo --version` before running any simulation task; other versions may produce non-reproducible `tripinfo`/`edgedata` output).
 
 ```bash
 conda activate resto
+conda install -c conda-forge "sumo=1.27.1"
 pip install -e ".[dev]"
 pytest
 ruff check .
 ```
+
+`SUMO_HOME` must point at the conda environment's SUMO install (conda-forge's package sets this automatically on activation).
