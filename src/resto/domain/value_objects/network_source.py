@@ -10,3 +10,11 @@ NetworkSourceKind = Literal["place", "bbox", "file"]
 class NetworkSource:
     kind: NetworkSourceKind
     value: str
+
+    def __post_init__(self) -> None:
+        if not self.value:
+            raise ValueError("a NetworkSource requires a value")
+
+    @property
+    def needs_osm_snapshot(self) -> bool:
+        return self.kind in ("place", "bbox")
