@@ -8,22 +8,38 @@ See [`docs/tfm-architecture-and-dod.md`](docs/tfm-architecture-and-dod.md) (arch
 
 ```
 src/resto/
-  domain/         # entities, value objects, pure business rules — no framework deps
-  application/     # use cases, ports (abstract interfaces to the MCP adapters)
-  adapters/        # NetworkMCP / DatabaseMCP / TraciMCP implementations + I/O DTOs
-  interface/       # Input Parser, Output Composer, entrypoints
+  domain/          # entities, value objects, invariants, id policy — stdlib only
+  application/     # ports (LLM, SUMO, storage), use cases, agent tools, schemas.py (TypeAdapters)
+  adapters/        # llm/ (ToolAgent), sumo/ (netconvert, demand, runner, traci_api), sandbox/, web/, persistence/, tracing/
+  interface/       # CLI, MCP servers (NetworkMCP, DatabaseMCP, TraciMCP), report rendering
+eval/              # evaluation assets and harness (outside the hexagon)
 ```
+
+Architecture, domain model and per-module Definition of Done: `docs/tfm-architecture-and-dod.md` (v0.3).
+Superseded versions and working notes: `docs/_old/`.
 
 ## Development
 
-Requires the `resto` conda environment and **SUMO 1.27.1** (pinned — verify with `sumo --version` before running any simulation task; other versions may produce non-reproducible `tripinfo`/`edgedata` output).
+Requires the `resto` conda environment. **SUMO 1.27.1** is pinned for the whole thesis and is installed
+**from PyPI** (`eclipse-sumo`, `sumolib`, `traci`), not from conda-forge: it is a regular dependency in
+`pyproject.toml`, so `pip install -e .` brings the `sumo`, `netconvert`, `duarouter` … binaries into the
+environment's `bin/` and the Python libraries into `site-packages`.
 
 ```bash
+conda create -n resto python=3.13
 conda activate resto
-conda install -c conda-forge "sumo=1.27.1"
-pip install -e ".[dev]"
+pip install -e ".[dev]"        # add ",fast" for libsumo
 pytest
 ruff check .
+sumo --version                 # must print 1.27.1
 ```
 
-`SUMO_HOME` must point at the conda environment's SUMO install (conda-forge's package sets this automatically on activation).
+Notes:
+
+- `SUMO_HOME` is **not** required: `sumolib`/`traci` are importable directly and the binaries are on the
+  environment's PATH. The bundled tools (`randomTrips.py`, `routeSampler.py`, …) live at
+  `python -c "import sumo, os; print(os.path.join(sumo.__path__[0], 'tools'))"`.
+- If a `SUMO_HOME` from another SUMO install (e.g. the macOS framework under `/Library/Frameworks`) is set
+  in your shell profile, unset it inside this environment to avoid mixing versions.
+- Other SUMO versions may produce non-reproducible `tripinfo`/`edgedata` output; every `SimulationResult`
+  records `sumo_version` and must match 1.27.1.

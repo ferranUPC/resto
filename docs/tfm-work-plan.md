@@ -1,6 +1,8 @@
-# Agentic Traffic Simulation Framework — Work Plan (v0.1)
+# Agentic Traffic Simulation Framework — Work Plan (v0.2)
 
-Scope: reach **Done** on every module of the Architecture & DoD document (v0.2), plus the thesis document, between **Wed 9 Sep 2026** and **Thu 18 Feb 2027**. Stretch items are explicitly out of plan.
+Scope: reach **Done** on every module of the Architecture & DoD document (**v0.3**), plus the thesis document, between **Wed 9 Sep 2026** and **Thu 18 Feb 2027**. Stretch items are explicitly out of plan.
+
+v0.2 of this plan (2026-09-11) aligns task wording, outputs and a few estimates with architecture v0.3: all authoring modules are agents, `traci_api` scripts replace the `TraciPlan` interpreter, the Network Generator becomes the Network Author (create + derive), `Demand` becomes an aggregate calibrated in the loop, and the Input Parser is part of the Coordinator. Task ids, due dates and milestones are unchanged.
 
 ---
 
@@ -11,10 +13,10 @@ Scope: reach **Done** on every module of the Architecture & DoD document (v0.2),
 | Calendar span | 23 weeks (9 Sep → 18 Feb) |
 | Minus Christmas break (21 Dec → 3 Jan, low-intensity work only) | ≈ 21 working weeks |
 | Capacity at 40 h/week | ≈ 840 h |
-| Planned effort (sum of all tasks below) | 870 h |
-| Contingency | **none** (−30 h) |
+| Planned effort (sum of all tasks below) | 894 h |
+| Contingency | **none** (−54 h) |
 
-The plan is overcommitted by ~4 % and has no buffer. That is deliberate: it tells you where you are at every milestone. Section 5 lists, in order, which *Done* criteria to downgrade to *Minimal* if a milestone slips. Do not add Stretch work before M6.
+The plan is overcommitted by ~6 % and has no buffer (v0.1 was ~4 %; the extra 24 h are the agentic Network Author and Demand Generator, `traci_api`, and the Coordinator as a tool-using agent). That is deliberate: it tells you where you are at every milestone. Section 5 lists, in order, which *Done* criteria to downgrade to *Minimal* if a milestone slips. Do not add Stretch work before M6.
 
 ---
 
@@ -27,23 +29,23 @@ Estimates are in hours. "Due" is the end-of-day deadline. "DoD" points to the se
 | ID | Task | Output | h | Due |
 |---|---|---|---|---|
 | E0.1 | Repo skeleton: hexagonal layout (domain / application / adapters), packaging, ruff, pytest, CI | repo + green CI | 8 | 10 Sep |
-| E0.2 | Pin SUMO version; reproducible environment (Docker or pinned env, incl. a Postgres + `pgvector` service for E1.3); record in README | env + README | 4 | 10 Sep |
-| E0.3 | Contracts v1 as Pydantic models: all §2.2 schemas, JSON-schema export, round-trip tests | `contracts/` package | 16 | 14 Sep |
-| E0.4 | DatabaseMCP contract spec: tool names, I/O schemas, capability groups, error codes | `DATABASE_MCP_CONTRACT.md` | 8 | 15 Sep |
+| E0.2 | Pin SUMO 1.27.1 from PyPI as a `pyproject.toml` dependency (`eclipse-sumo`, `sumolib`, `traci`); reproducible environment incl. a Postgres + `pgvector` service for E1.3; record in README | env + README | 4 | 10 Sep |
+| E0.3 | Domain dataclasses for every aggregate, value object, typed task and agent draft of §2.3 (incl. `NetworkDraft`, `DemandDraft`, `ScenarioDraft`); `application/schemas.py` (TypeAdapters), JSON-schema export to files, round-trip tests | `domain/` + `schemas.py` | 16 | 14 Sep |
+| E0.4 | DatabaseMCP contract spec: tool names, I/O schemas, six capability groups (incl. `demands`, `results.query_edgedata`), error codes | `DATABASE_MCP_CONTRACT.md` | 8 | 15 Sep |
 | E0.5 | DEV-NET: `netgenerate` grid + hand edits (2→1 merge bottleneck, signalised corridor), documented | `dev-net.net.xml` + doc | 10 | 16 Sep |
-| E0.6 | Demand profiles `low` / `peak` / `incident` on DEV-NET, seeded; verify congestion levels (≈10–20 % edges congested at peak) | 3 route sets + verification notebook | 10 | 17 Sep |
+| E0.6 | Demand profiles `low` / `peak` / `incident` on DEV-NET, seeded, stored as trips + routes; synthetic counts at 3–5 control edges for calibration tests; verify congestion levels (≈10–20 % edges congested at peak) | 3 demand sets + counts + verification notebook | 10 | 17 Sep |
 | E0.7 | Trace logging: run id, step, tool call, artifacts, tokens → JSONL | `tracing/` | 8 | 18 Sep |
 | E0.8 | Architecture doc frozen as v1.0 + ADRs for the decisions in §7 | `docs/` | 6 | 18 Sep |
 
-### E1 — MCP servers (90 h) · 21 Sep → 2 Oct · DoD §4.9
+### E1 — MCP servers and `traci_api` (94 h) · 21 Sep → 2 Oct · DoD §4.9
 
 | ID | Task | Output | h | Due |
 |---|---|---|---|---|
 | E1.1 | NetworkMCP: `get_edge`, `get_lanes`, `get_neighbours`, `shortest_path`, `edges_in_bbox`, `capacity_estimate`, `get_tls`; ≥3 tests each incl. error case | server + tests | 20 | 24 Sep |
-| E1.2 | TraciMCP: `close_lane`, `open_lane`, `set_speed`, `set_tls_program`, `get_edge_occupancy`, `get_edge_speed`, `get_vehicle_count`, `step`; tests with SUMO in the loop | server + tests | 16 | 28 Sep |
-| E1.3 | DatabaseMCP reference implementation (Postgres + `pgvector` via SQLAlchemy Core, file store for large artifacts): `networks`, `scenarios`, `results`, `notes` (vector search via `pgvector`), `historical_demand` capability groups | server | 24 | 30 Sep |
-| E1.4 | `find_similar_scenario` (exact hash match, else intervention + `context_tags` overlap) and `search_notes` with `status`/`basis` filters; 10 + 5 test cases | tests | 12 | 1 Oct |
-| E1.5 | DatabaseMCP conformance suite runnable against any implementation | `conformance/` | 10 | 2 Oct |
+| E1.2 | `resto.traci_api`: primitives `close_lane`, `open_lane`, `set_speed`, `set_tls_program`, `get_edge_occupancy`, `get_edge_speed`, `get_vehicle_count`, `step`; declarative `at_time(...)` / `when(...)` / `run()`; `applied_actions` log with `origin`; TraciMCP server over the same primitives; tests with SUMO in the loop | module + server + tests | 20 | 28 Sep |
+| E1.3 | DatabaseMCP reference implementation (Postgres + `pgvector` via SQLAlchemy Core, filesystem artifact store): `networks`, `demands`, `scenarios`, `results` (incl. `query_edgedata`), `notes` (vector search via `pgvector`), `historical_demand` capability groups; in-process repository adapters + `mcp_client` adapter | server + adapters | 24 | 30 Sep |
+| E1.4 | `find_similar_scenario` (exact `scenario_id` match, else intervention + `context_tags` overlap), `search_notes` with `status`/`basis` filters, `query_edgedata` on windows/edge sets; 10 + 5 + 5 test cases | tests | 12 | 1 Oct |
+| E1.5 | DatabaseMCP conformance suite runnable against any implementation through the `mcp_client` adapter | `conformance/` | 10 | 2 Oct |
 | E1.6 | Capability-listing helper for the Coordinator; latency benchmark of every tool on DEV-NET | benchmark report | 8 | 2 Oct |
 
 ### E2 — Scenario Builder & Simulation Runner (110 h) · DoD §4.5, §4.6
@@ -51,13 +53,13 @@ Phase A (Minimal, 58 h): 5 Oct → 16 Oct. Phase B (Done, 52 h): 30 Nov → 11 D
 
 | ID | Task | Output | h | Due |
 |---|---|---|---|---|
-| E2.1 | Runner batch mode: run `sumocfg`, collect edgedata/tripinfo/summary, build `SimulationResult`, store; byte-identical reproducibility test (20 runs) | runner + tests | 12 | 8 Oct |
-| E2.2 | Builder Minimal: static `lane_closure` and `speed_limit` → rerouter / VSS `.add.xml` + `sumocfg`; id validation against NetworkMCP; SUMO load check | builder | 20 | 13 Oct |
-| E2.3 | Builder static: `edge_closure`, `signal_program` (WAUT), `demand_scale` (delegates to Demand Generator parameters) | builder | 14 | 16 Oct |
+| E2.1 | Runner batch mode: run `sumocfg` with a seed, collect edgedata/tripinfo/summary, build `SimulationResult` (`result_id` = hash of scenario + seed), store; ephemeral mode for `probe_run` / `calibration_run` (not stored); byte-identical reproducibility test (20 runs) | runner + tests | 12 | 8 Oct |
+| E2.2 | Builder Minimal (agent with writer tools): static `lane_closure` and `speed_limit` → rerouter / VSS `.add.xml` + `sumocfg`; `ScenarioDraft` → promotion (id validation against NetworkMCP, SUMO load check, `scenario_id` = request hash) | builder agent + writers | 20 | 13 Oct |
+| E2.3 | Builder static: time-bounded `edge_closure`, `signal_program` (WAUT), `demand_scale` (derived `Demand` with `scale`, mechanism `RegenerateDemand`) | builder | 14 | 16 Oct |
 | E2.4 | Effect-verification harness: per intervention type, read edgedata / `applied_actions` and assert the observable effect (§4.5) | `verify/` | 12 | 16 Oct |
-| E2.5 | `TraciPlan` schema + Runner interpreter (online mode): `at_time`, `when(metric, target, op, value)`, all §2.4 actions, `applied_actions` log; unit test per trigger/action; unsupported entries rejected pre-start | interpreter + tests | 24 | 4 Dec |
-| E2.6 | Builder dynamic strategy: condition → `TraciPlan` authoring; strategy-selection tests | builder | 14 | 8 Dec |
-| E2.7 | Builder bank (25–30 specs covering every §2.4 cell); run to ≥27/30; structural-determinism check over 3 runs; rejection of unsupported specs with reason | bank + report | 14 | 11 Dec |
+| E2.5 | Runner online mode: `ScriptSandbox` (AST lint — only `resto.traci_api` imports; `dry_run`; subprocess execution with the run seed), `applied_actions` with `origin`; 10 script test cases verified by reading state back through TraCI; scripts failing lint rejected before SUMO starts; crashing scripts → failed run with traceback | sandbox + online runner + tests | 24 | 4 Dec |
+| E2.6 | Builder scripts: `condition` → `when(...)` script; `custom` interventions (static mechanism if one fits, else free Python against `traci_api`); `rejected[]` with reason; mechanism-selection tests | builder | 14 | 8 Dec |
+| E2.7 | Builder bank (25–30 specs covering every §2.5 cell incl. `custom`); run to ≥27/30; structural-determinism check over 3 runs (static files + `declared_rules`); rejection of unsupported specs with reason | bank + report | 14 | 11 Dec |
 
 ### E3 — Evaluation assets & harness (70 h)
 
@@ -66,7 +68,7 @@ Phase A (Minimal, 58 h): 5 Oct → 16 Oct. Phase B (Done, 52 h): 30 Nov → 11 D
 | E3.1 | Scenario matrix DEV-NET / peak: 15–25 rows × 3 seeds, simulated and stored via DatabaseMCP | matrix in DB | 12 | 16 Oct |
 | E3.2 | Question templates (descriptive / diagnostic / counterfactual) + generator + programmatic gold answers from the matrix; ≥60 questions on DEV-NET | question bank | 16 | 23 Oct |
 | E3.3 | Metrics: exact match, Jaccard top-k, direction, magnitude band, Brier, abstention P/R; harness with repeated runs, mean ± std, report generation | `eval/` | 16 | 27 Oct |
-| E3.4 | Request bank: 50+ NL requests (10+ ambiguous) with gold `ExperimentRequest` and gold plan for a fixed DB state | request bank | 12 | 18 Nov |
+| E3.4 | Request bank: 50+ NL requests (10+ ambiguous) with gold `Question`, gold `StudyPlan` and expected `StepRecord` trace for a fixed DB state | request bank | 12 | 18 Nov |
 | E3.5 | Scenario matrix REAL-NET / peak | matrix in DB | 8 | 15 Jan |
 | E3.6 | Question bank REAL-NET (40+) | question bank | 6 | 18 Jan |
 
@@ -75,43 +77,43 @@ Phase A (DEV-NET, 110 h): 19 Oct → 13 Nov. Phase B (REAL-NET, 50 h): 18 Jan �
 
 | ID | Task | Output | h | Due |
 |---|---|---|---|---|
-| E4.1 | Refactor the existing v1 onto contracts; replace direct file parsing with NetworkMCP / DatabaseMCP tools; `evidence[]` on every answer | expert v2 | 16 | 22 Oct |
+| E4.1 | Refactor the existing v1 Expert onto the `ToolAgent` port (`ExpertTask` in, `ExpertAnswer` out); facts only through tools (`query_edgedata`, `get_result`, NetworkMCP), never from parsed files; `evidence[]` on every answer | expert v2 | 16 | 22 Oct |
 | E4.2 | Descriptive questions to Done on DEV-NET (≥90 %) | benchmark run | 14 | 27 Oct |
 | E4.3 | Diagnostic questions to Done (Jaccard ≥0.6; "why" rubric ≥70 %) | benchmark run | 18 | 2 Nov |
 | E4.4 | Counterfactual, forced mode: reasoning strategy over graph + facts, `confidence` and `basis` output; direction ≥75 %, band ≥50 % | benchmark run | 24 | 6 Nov |
-| E4.5 | Free mode: abstention policy, `proposed_experiment` generation; abstention recall ≥70 %, false requests ≤30 % | benchmark run | 14 | 10 Nov |
+| E4.5 | Free mode: abstention policy, `proposed_experiment` (a `Question`) generation; abstention recall ≥70 %, false requests ≤30 % | benchmark run | 14 | 10 Nov |
 | E4.6 | `ExpertNote` writing after each experiment, RAG over notes, `status` update on confirm/refute; knowledge-hygiene probes (20) | notes pipeline + tests | 16 | 12 Nov |
 | E4.7 | DEV-NET benchmark report: all §4.7 metrics, 3 runs, mean ± std → **M2** | report | 8 | 13 Nov |
 | E4.8 | Port to REAL-NET, tune, full benchmark (descriptive ≥85 %, Jaccard ≥0.5, direction ≥65 %) | report | 24 | 26 Jan |
 | E4.9 | Learning-effect experiment: store size 0 / 5 / 15 / 25, held-out interventions, confidence intervals, plot | figure + data | 18 | 29 Jan |
 | E4.10 | Calibration analysis (Brier, accuracy by `basis`) and ablation facts-only vs facts + notes | figures | 8 | 29 Jan |
 
-### E5 — Coordinator, Input Parser, Output Composer (100 h) · DoD §4.1, §4.2, §4.8
-Phase A (Minimal + loop, 54 h): 16 Nov → 27 Nov. Phase B (Done, 46 h): 1 Feb → 5 Feb.
+### E5 — Coordinator (incl. Input Parser), Output Composer (104 h) · DoD §4.1, §4.2, §4.8
+Phase A (Minimal + loop, 58 h): 16 Nov → 27 Nov. Phase B (Done, 46 h): 1 Feb → 5 Feb.
 
 | ID | Task | Output | h | Due |
 |---|---|---|---|---|
-| E5.1 | Input Parser: LLM → `ExperimentRequest`, retry-then-fail, ambiguity flagging; evaluate on request bank to Done (§4.1) | parser + report | 14 | 18 Nov |
-| E5.2 | Coordinator Minimal: planner for the 4 canonical DB states, sequential executor, state persistence per step | coordinator | 20 | 23 Nov |
-| E5.3 | Loop closure: `needs_simulation` → run proposed experiment → re-ask; GP-3 / GP-4 / GP-5 passing | tests | 14 | 26 Nov |
-| E5.4 | Output Composer Minimal: `ExpertAnswer` + experiments → Markdown with evidence table | composer | 6 | 27 Nov |
-| E5.5 | Coordinator Done: routing accuracy ≥90 % vs gold plans; zero redundant simulations; failure injection yields named failing step | report | 18 | 3 Feb |
+| E5.1 | Coordinator request understanding (former Input Parser): text → `Question`, retry-then-fail, `ambiguities[]` → `awaiting_user`; evaluate on request bank to Done (§4.1) | parser step + report | 14 | 18 Nov |
+| E5.2 | Coordinator Minimal: `ToolAgent` with the specialists' use cases as tools; mandatory `StudyPlan` before the first step; typed tasks per specialist; `Study` persisted after every `StepRecord`; guards in code (no re-run of an existing `result_id`, budget, `max_rounds`); the 4 canonical DB states | coordinator agent | 24 | 23 Nov |
+| E5.3 | Loop closure: `needs_simulation` → build + run the proposed experiment → re-ask, `max_rounds` respected; GP-3 / GP-4 / GP-5 passing | tests | 14 | 26 Nov |
+| E5.4 | Output Composer Minimal (agent): closed `Study` → `Report` (claims with `evidence_refs`) → Markdown with evidence table | composer | 6 | 27 Nov |
+| E5.5 | Coordinator Done: routing ≥90 % on both `StudyPlan` vs gold plan and `StepRecord` trace vs expected; zero redundant simulations (counter); failure injection (incl. agent budget exhausted) yields named failing step | report | 18 | 3 Feb |
 | E5.6 | Capability negotiation with DatabaseMCP; GP-10 | tests | 8 | 3 Feb |
 | E5.7 | Output Composer Done: automatic traceability checker (numbers ↔ artifacts); faithfulness rubric on 20 reports | checker + report | 12 | 5 Feb |
 | E5.8 | Stability: 3 repeated runs of Input Parser and Coordinator benchmarks | report | 8 | 5 Feb |
 
-### E6 — Network Generator, Demand Generator, REAL-NET (90 h) · DoD §4.3, §4.4
+### E6 — Network Author, Demand Generator, REAL-NET (106 h) · DoD §4.3, §4.4
 14 Dec → 18 Dec, low-intensity over the break, 4 Jan → 15 Jan.
 
 | ID | Task | Output | h | Due |
 |---|---|---|---|---|
-| E6.1 | Network Generator Minimal: place / bbox → OSM → `netconvert` → stored `Network` with source and parameters | generator | 12 | 16 Dec |
-| E6.2 | Demand Generator Minimal: parameters → `randomTrips` + `duarouter`, teleport ≤2 %, seeded, hash-deterministic | generator | 10 | 18 Dec |
-| E6.3 | REAL-NET: choose district (300–800 edges), hand-clean, **freeze**, document every fix (also usable as GEN error taxonomy) | `real-net.net.xml` + doc | 16 | 6 Jan |
-| E6.4 | Network Generator Done: sanity report (SCC ≥95 %, no zero-length, fringe reachability), 10/10 on GEN-LOCATIONS, topology modifications 10/10, idempotency | report | 18 | 11 Jan |
-| E6.5 | Demand Generator Done: target fidelity ±15 % DEV / ±25 % REAL at measurement edges; synthetic `historical_demand` dataset + history-driven generation; `fidelity` object | report | 22 | 14 Jan |
+| E6.1 | Network Author Minimal (agent): place / bbox → OSM snapshot → `netconvert` → `Network` with recipe; v1 tool catalogue (`netconvert` options, `remove_edge` / `add_edge` / `set_lanes` / `set_speed` on plain XML, `inspect_network`, `sanity_check`, `probe_run`); `NetworkDraft` promotion with replay check | agent + tools | 16 | 16 Dec |
+| E6.2 | Demand Generator Minimal (agent): parameters → `randomTrips` + `duarouter` → trips + routes stored via `demands`; teleport ≤2 %; seeded; replay-deterministic; `reroute_demand` (deterministic) | agent + tools | 10 | 18 Dec |
+| E6.3 | REAL-NET: choose district (300–800 edges), hand-clean on plain XML, **freeze**, log every fix as (type, plain file, attribute) → error taxonomy **and** Network Author tool backlog | `real-net.net.xml` + fix log | 16 | 6 Jan |
+| E6.4 | Network Author Done: sanity report (SCC ≥95 %, no zero-length, fringe reachability) + `probe_run` threshold, 10/10 on GEN-LOCATIONS; replay determinism (`replay(recipe)` == `content_hash`, 100 %); agent stability over 3 runs; derivation bank 10/10 (incl. `AddEdge`); catalogue extended from the E6.3 fix log where cheap | report | 24 | 11 Jan |
+| E6.5 | Demand Generator Done: calibration loop (`routeSampler` + `calibration_run`) reaching fidelity ±15 % DEV / ±25 % REAL at the control edges within 5 rounds, `Fidelity.evidence` resolvable; external datasets frozen as artifacts; synthetic `historical_demand` + history-driven generation; `reroute_demand` test on a derived network | report | 26 | 14 Jan |
 | E6.6 | Demand profiles `low` / `peak` / `incident` on REAL-NET | route sets | 6 | 15 Jan |
-| E6.7 | GP-8 (full pipeline from a new place name) passing | test | 6 | 15 Jan |
+| E6.7 | GP-8 (full pipeline from a new place name) and GP-11 (add an edge: derive → reroute → baseline vs treatment) passing | tests | 8 | 15 Jan |
 
 ### E7 — Integration (60 h) · DoD §5
 
@@ -119,9 +121,9 @@ Phase A (Minimal + loop, 54 h): 16 Nov → 27 Nov. Phase B (Done, 46 h): 1 Feb �
 |---|---|---|---|---|
 | E7.1 | Golden-path test framework: expected-trace assertions over the trace log; GP-1 … GP-5 | `golden/` | 10 | 27 Nov |
 | E7.2 | GP-6 (dynamic path) and GP-7 (compare) | tests | 6 | 11 Dec |
-| E7.3 | Failure-injection suite across all golden paths (netconvert, SUMO crash, invalid scenario, tool timeout) | tests | 10 | 4 Feb |
+| E7.3 | Failure-injection suite across all golden paths (netconvert, SUMO crash, invalid scenario, script lint/dry-run failure, tool timeout, agent budget exhausted) | tests | 10 | 4 Feb |
 | E7.4 | Cost / latency per golden path recorded; thresholds set from first measurement | table | 6 | 4 Feb |
-| E7.5 | Full run: 10/10 golden paths × 3; GP-2 reproducibility (identical hashes and conclusions) → **M6** | report | 10 | 5 Feb |
+| E7.5 | Full run: 11/11 golden paths × 3; GP-2 reproducibility (identical `result_id`s, hashes and conclusions) → **M6** | report | 10 | 5 Feb |
 | E7.6 | Code freeze: tag, README, reproducibility package (one command per experiment in the thesis) | release | 12 | 10 Feb |
 | E7.7 | *(Stretch, only if M6 is on time)* usability session with 2–3 DLR engineers | — | — | — |
 
@@ -149,9 +151,9 @@ Rule: a module's chapter section is drafted the week it reaches Done, while the 
 | **M1** | Fri 16 Oct | Tooling complete | All MCPs Done (§4.9); Builder & Runner Minimal; DEV-NET scenario matrix stored |
 | **M2** | Fri 13 Nov | **Expert Done on DEV-NET** | Benchmark report meets every §4.7 threshold except REAL-NET and learning effect |
 | **M3** | Fri 11 Dec | End-to-end loop | GP-1 … GP-7 pass; Builder & Runner Done. Natural point for a mid-stay review at DLR |
-| **M4** | Fri 15 Jan | Real network ready | REAL-NET frozen; generators Done; REAL-NET matrix and profiles stored; GP-8 |
+| **M4** | Fri 15 Jan | Real network ready | REAL-NET frozen with fix log; Network Author and Demand Generator Done; REAL-NET matrix and profiles stored; GP-8, GP-11 |
 | **M5** | Fri 29 Jan | **Thesis result** | Expert Done on REAL-NET; learning-effect curve with CIs; calibration and ablation figures |
-| **M6** | Fri 5 Feb | All modules Done | Coordinator, Input Parser, Output Composer Done; 10/10 golden paths × 3; failure injection |
+| **M6** | Fri 5 Feb | All modules Done | Coordinator (incl. request understanding), Output Composer Done; 11/11 golden paths × 3; failure injection |
 | **M7** | Thu 18 Feb | Delivery | Code frozen and tagged (10 Feb); thesis delivered |
 
 ---
@@ -176,17 +178,17 @@ Weeks start on Monday. "Fri PM writing" applies from 6 Nov.
 | W11 | 23–27 Nov | Coordinator + loop | E5.2, E5.3, E5.4, E7.1, E8.2 | |
 | W12 | 30 Nov–4 Dec | Runner online | E2.5 | |
 | W13 | 7–11 Dec | Builder Done | E2.6, E2.7, E7.2 | **M3** (11 Dec) |
-| W14 | 14–18 Dec | Generators Minimal | E6.1, E6.2, E8.3 | |
+| W14 | 14–18 Dec | Network Author & Demand Generator Minimal | E6.1, E6.2, E8.3 | |
 | — | 21 Dec–3 Jan | Break (low intensity) | E6.3 only (REAL-NET hand cleaning) | |
 | W15 | 4–8 Jan | REAL-NET | finish E6.3, start E6.4 | |
-| W16 | 11–15 Jan | Generators Done | E6.4–E6.7, E3.5 | **M4** (15 Jan) |
+| W16 | 11–15 Jan | Network Author & Demand Generator Done | E6.4–E6.7, E3.5 | **M4** (15 Jan) |
 | W17 | 18–22 Jan | Expert on REAL-NET | E3.6, E4.8 | |
 | W18 | 25–29 Jan | Thesis result | finish E4.8, E4.9, E4.10 | **M5** (29 Jan) |
 | W19 | 1–5 Feb | Integration + Done | E5.5–E5.8, E7.3–E7.5 | **M6** (5 Feb) |
 | W20 | 8–12 Feb | Writing | E7.6, E8.5, E8.6 | code freeze (10 Feb) |
 | W21 | 15–18 Feb | Writing | E8.7, E8.8 | **M7** (18 Feb) |
 
-Effort by month (approximate): Sep 130 h · Oct 175 h · Nov 175 h · Dec 110 h · Jan 160 h · Feb 120 h.
+Effort by month (approximate): Sep 134 h · Oct 175 h · Nov 179 h · Dec 114 h · Jan 172 h · Feb 120 h.
 
 ---
 
@@ -194,7 +196,9 @@ Effort by month (approximate): Sep 130 h · Oct 175 h · Nov 175 h · Dec 110 h 
 
 - E4 (Expert) cannot start benchmarking before E3.1–E3.3; E3.2 depends on E2.4's harness. If W5 slips, W6 absorbs it and E4.1 starts in parallel (it only needs E1).
 - E5.3 (loop) needs E2.1 (batch Runner) and E4.5 (free mode). Both are scheduled before it.
-- E2.5 (interpreter) is the only task in Phase B of E2 that has no fallback: without it GP-6 and the dynamic half of §4.5 cannot pass.
+- E2.5 (sandbox + online Runner) is the only task in Phase B of E2 that has no fallback: without it GP-6 and the script half of §4.5 cannot pass. It depends on E1.2 (`traci_api`), scheduled two months earlier.
+- E6.5 (calibration) and E6.1 (`probe_run`) both use the Runner as a tool: they depend on E2.1 (batch, ephemeral mode), scheduled in October.
+- E6.4's derivation bank and E6.7's GP-11 depend on E6.2's `reroute_demand`; keep E6.2 before E6.4 even if W14 slips.
 - E4.8 (Expert on REAL-NET) is blocked by E6.3 + E6.6 + E3.5. The Christmas break is used precisely to de-risk E6.3.
 - E8.5 (results chapter) needs E4.9 and E4.10 figures; that is why M5 is before M6.
 
@@ -205,11 +209,12 @@ Effort by month (approximate): Sep 130 h · Oct 175 h · Nov 175 h · Dec 110 h 
 Downgrade in this order, one step at a time, and record the downgrade in the thesis as a stated limitation:
 
 1. E7.7 (already Stretch) — never scheduled.
-2. E6.5 history-driven demand generation → keep parameter-driven only (`historical_demand` becomes an unimplemented optional capability; GP-10 still demonstrates negotiation).
-3. E4.10 ablation → keep calibration analysis only.
-4. E5.7 automatic traceability checker → manual rubric only.
-5. E6.4 GEN-LOCATIONS 10/10 → 6/6 locations.
-6. E2.7 Builder bank → drop `signal_program` dynamic variant.
+2. E6.4 / E6.5 agent tuning → keep the v1 tool catalogue with a single prompt; drop the *agent stability over 3 runs* criterion (replay determinism and the derivation bank stay).
+3. E6.5 history-driven demand generation → keep parameter-driven and count-calibrated only (`historical_demand` becomes an unimplemented optional capability; GP-10 still demonstrates negotiation).
+4. E4.10 ablation → keep calibration analysis only.
+5. E5.7 automatic traceability checker → manual rubric only.
+6. E6.4 GEN-LOCATIONS 10/10 → 6/6 locations.
+7. E2.7 Builder bank → drop the `custom` and `signal_program` script variants.
 
 What must **not** be cut: M2, M3, M5. Those three are the thesis.
 

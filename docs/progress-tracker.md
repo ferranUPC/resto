@@ -4,9 +4,9 @@ Tracks completion of every task in [`tfm-work-plan.md`](tfm-work-plan.md). Task 
 
 Status: ⬜ not started · 🔄 in progress · ✅ done (meets its Done/threshold from the DoD, not just "code exists")
 
-Last updated: 2026-09-11
+Last updated: 2026-09-11 (aligned with work plan v0.2 / architecture v0.3)
 
-**Summary: 0 / 65 tasks done (0%) · 1 in progress** (E7.7 is Stretch, never scheduled — excluded from the count, per work plan §5)
+**Summary: 0 / 65 tasks done (0%) · 4 in progress** (E7.7 is Stretch, never scheduled — excluded from the count, per work plan §5)
 
 ---
 
@@ -14,23 +14,23 @@ Last updated: 2026-09-11
 
 | ID | Task | Status | Notes |
 |---|---|---|---|
-| E0.1 | Repo skeleton: hexagonal layout, packaging, ruff, pytest, CI | 🔄 | No commits since last review (2026-09-10) — same state. `pyproject.toml` + ruff + pytest still green locally (11 passed, `ruff check .` clean). `.github/workflows/ci.yml` still triggers on `push: branches: [main]` against a `master` repo — still 0 workflow runs recorded on GitHub. Was due 10 Sep; now overdue by one day with no fix applied to the one-line branch bug flagged last review |
-| E0.2 | Pin SUMO version; reproducible environment; record in README | ⬜ | No change since last review. README still conda-instructions-only; no SUMO version pinned; no Docker/Postgres+pgvector service defined anywhere in the repo. Was due 10 Sep; now overdue by one day |
-| E0.3 | Contracts v1 as Pydantic models: all §2.2 schemas, JSON-schema export, round-trip tests | ⬜ | Domain entities (plain dataclasses, not Pydantic) for `Network`, `Scenario`, `Intervention`, `TraciPlan` exist ahead of schedule in `domain/`; the Pydantic boundary contracts for the rest of §2.2 are not started |
-| E0.4 | DatabaseMCP contract spec (tool names, I/O schemas, capability groups, error codes) | ⬜ | |
+| E0.1 | Repo skeleton: hexagonal layout, packaging, ruff, pytest, CI | 🔄 | 2026-09-11: layout restructured to architecture v0.3 (`domain/`, `application/{ports,use_cases,tools,schemas.py}`, `adapters/{llm,sumo,sandbox,web,persistence,tracing}`, `interface/{mcp,cli}`, `eval/`); placeholders for every module; 28 tests green, `ruff check .` clean. `ci.yml` already targets `master`; not yet pushed, so still no workflow run to confirm CI green |
+| E0.2 | Pin SUMO 1.27.1 from PyPI; reproducible environment incl. Postgres + `pgvector`; record in README | 🔄 | 2026-09-11: SUMO 1.27.1 pinned as `pyproject.toml` dependencies (`eclipse-sumo`, `sumolib`, `traci`; `libsumo` in extra `fast`), installed and verified in the `resto` env; README rewritten. Missing: Postgres + `pgvector` service definition (Docker/compose) for E1.3 |
+| E0.3 | Domain dataclasses (aggregates, value objects, tasks, drafts) + `schemas.py` TypeAdapters, JSON-schema export, round-trip tests | 🔄 | 2026-09-11: six aggregates and ~25 value objects with invariants in `domain/`; `application/schemas.py` builds TypeAdapters for 14 boundary types with round-trip + invariant tests. Missing: `NetworkDraft` / `DemandDraft` / `ScenarioDraft` dataclasses, JSON-schema export to files, round-trip test per remaining type |
+| E0.4 | DatabaseMCP contract spec (six capability groups incl. `demands`, `query_edgedata`; error codes) | ⬜ | Repository ports already define the tool surface in `application/ports/repositories.py`; the spec document is not written |
 | E0.5 | DEV-NET: grid + hand edits (bottleneck, signalised corridor) | ⬜ | |
-| E0.6 | Demand profiles low/peak/incident on DEV-NET, seeded | ⬜ | |
+| E0.6 | Demand profiles low/peak/incident on DEV-NET (trips + routes) + synthetic counts at control edges | ⬜ | |
 | E0.7 | Trace logging: run id, step, tool call, artifacts, tokens → JSONL | ⬜ | |
-| E0.8 | Architecture doc frozen as v1.0 + ADRs for §7 decisions | ⬜ | §7 already has the Postgres/pgvector decision recorded; doc not yet frozen/tagged v1.0 |
+| E0.8 | Architecture doc frozen as v1.0 + ADRs for §7 decisions | 🔄 | 2026-09-11: architecture rewritten as v0.3 (English) with the domain model, agent contracts and §7 decisions; v0.2 archived in `docs/_old/`. Missing: freeze as v1.0 + ADRs |
 
-## E1 — MCP servers (6 tasks) · due 2 Oct · DoD §4.9
+## E1 — MCP servers and `traci_api` (6 tasks) · due 2 Oct · DoD §4.9
 
 | ID | Task | Status | Notes |
 |---|---|---|---|
 | E1.1 | NetworkMCP (7 read tools + tests incl. error case) | ⬜ | |
-| E1.2 | TraciMCP (8 primitives + tests with SUMO in the loop) | ⬜ | |
-| E1.3 | DatabaseMCP reference impl (Postgres + `pgvector` via SQLAlchemy Core, file store) | ⬜ | |
-| E1.4 | `find_similar_scenario` + `search_notes` (10 + 5 test cases) | ⬜ | |
+| E1.2 | `traci_api` (8 primitives + `at_time`/`when` + `applied_actions`) and TraciMCP over it | ⬜ | Placeholder modules `adapters/sumo/traci_api.py`, `interface/mcp/traci_server.py` |
+| E1.3 | DatabaseMCP reference impl (Postgres + `pgvector`, six capabilities incl. `demands`) + `mcp_client` adapter | ⬜ | |
+| E1.4 | `find_similar_scenario` + `search_notes` + `query_edgedata` (10 + 5 + 5 test cases) | ⬜ | |
 | E1.5 | DatabaseMCP conformance suite | ⬜ | |
 | E1.6 | Capability-listing helper for Coordinator; latency benchmark | ⬜ | |
 
@@ -38,13 +38,13 @@ Last updated: 2026-09-11
 
 | ID | Task | Status | Notes |
 |---|---|---|---|
-| E2.1 | Runner batch mode + reproducibility test (20 runs) | ⬜ | |
-| E2.2 | Builder Minimal: static `lane_closure`/`speed_limit` → `.add.xml` + `sumocfg` | ⬜ | Discussed design (mechanism-per-writer, dispatch via `supports()`), not implemented |
+| E2.1 | Runner batch mode (+ ephemeral mode for probe/calibration) + reproducibility test (20 runs) | ⬜ | |
+| E2.2 | Builder Minimal (agent + writer tools): static `lane_closure`/`speed_limit` → `.add.xml` + `sumocfg` | ⬜ | Design settled in architecture v0.3 (writers as tools of the Builder agent, `ScenarioDraft` promotion); `AdditionalFileWriter` port and writer placeholders exist |
 | E2.3 | Builder static: `edge_closure`, `signal_program` (WAUT), `demand_scale` | ⬜ | |
 | E2.4 | Effect-verification harness | ⬜ | |
-| E2.5 | `TraciPlan` interpreter (online mode) + unit tests per trigger/action | ⬜ | |
-| E2.6 | Builder dynamic strategy: condition → `TraciPlan` authoring | ⬜ | |
-| E2.7 | Builder bank (25–30 specs) run to ≥27/30 | ⬜ | |
+| E2.5 | Runner online mode: `ScriptSandbox` (lint, dry-run, subprocess) + 10 script test cases | ⬜ | Replaces the v0.2 `TraciPlan` interpreter |
+| E2.6 | Builder scripts: `condition` → `when(...)`, `custom` interventions, `rejected[]` | ⬜ | |
+| E2.7 | Builder bank (25–30 specs incl. `custom`) run to ≥27/30 | ⬜ | |
 
 ## E3 — Evaluation assets & harness (6 tasks)
 
@@ -53,7 +53,7 @@ Last updated: 2026-09-11
 | E3.1 | Scenario matrix DEV-NET/peak (15–25 rows × 3 seeds) | ⬜ | |
 | E3.2 | Question templates + generator + gold answers (≥60 on DEV-NET) | ⬜ | |
 | E3.3 | Metrics harness (exact match, Jaccard, direction, band, Brier, abstention P/R) | ⬜ | |
-| E3.4 | Request bank (50+ NL requests, 10+ ambiguous) | ⬜ | |
+| E3.4 | Request bank (50+ NL requests, 10+ ambiguous; gold `Question` + `StudyPlan` + trace) | ⬜ | |
 | E3.5 | Scenario matrix REAL-NET/peak | ⬜ | |
 | E3.6 | Question bank REAL-NET (40+) | ⬜ | |
 
@@ -61,7 +61,7 @@ Last updated: 2026-09-11
 
 | ID | Task | Status | Notes |
 |---|---|---|---|
-| E4.1 | Refactor v1 onto contracts; NetworkMCP/DatabaseMCP tools; `evidence[]` | ⬜ | |
+| E4.1 | Refactor v1 Expert onto `ToolAgent` (`ExpertTask` → `ExpertAnswer`); facts via tools; `evidence[]` | ⬜ | |
 | E4.2 | Descriptive questions to Done on DEV-NET (≥90%) | ⬜ | |
 | E4.3 | Diagnostic questions to Done (Jaccard ≥0.6; "why" rubric ≥70%) | ⬜ | |
 | E4.4 | Counterfactual, forced mode (direction ≥75%, band ≥50%) | ⬜ | |
@@ -72,30 +72,30 @@ Last updated: 2026-09-11
 | E4.9 | Learning-effect experiment (0/5/15/25, CIs, plot) | ⬜ | |
 | E4.10 | Calibration analysis + ablation | ⬜ | |
 
-## E5 — Coordinator, Input Parser, Output Composer (8 tasks) · DoD §4.1, §4.2, §4.8
+## E5 — Coordinator (incl. Input Parser), Output Composer (8 tasks) · DoD §4.1, §4.2, §4.8
 
 | ID | Task | Status | Notes |
 |---|---|---|---|
-| E5.1 | Input Parser: LLM → `ExperimentRequest`, retry-then-fail, ambiguity flagging | ⬜ | |
-| E5.2 | Coordinator Minimal: planner for 4 canonical DB states | ⬜ | |
-| E5.3 | Loop closure: `needs_simulation` → run → re-ask; GP-3/4/5 | ⬜ | `BuildAndRunExperimentUseCase` stub created in `application/use_cases/` (empty, `NotImplementedError`) |
-| E5.4 | Output Composer Minimal: `ExpertAnswer` + experiments → Markdown | ⬜ | |
-| E5.5 | Coordinator Done: routing ≥90%, zero redundant sims, failure injection | ⬜ | |
+| E5.1 | Coordinator request understanding: text → `Question`, retry-then-fail, `ambiguities[]` → `awaiting_user` | ⬜ | |
+| E5.2 | Coordinator Minimal: `ToolAgent` with specialists as tools, `StudyPlan` first, `Study` persisted per step, guards in code | ⬜ | |
+| E5.3 | Loop closure: `needs_simulation` → run → re-ask, `max_rounds`; GP-3/4/5 | ⬜ | `run_study` placeholder in `application/use_cases/`; `Study` invariants (`max_rounds`, forced mode, ambiguity) already enforced in the domain and tested |
+| E5.4 | Output Composer Minimal (agent): closed `Study` → `Report` → Markdown | ⬜ | |
+| E5.5 | Coordinator Done: routing ≥90% (plan + trace), zero redundant sims, failure injection | ⬜ | |
 | E5.6 | Capability negotiation with DatabaseMCP; GP-10 | ⬜ | |
 | E5.7 | Output Composer Done: automatic traceability checker | ⬜ | |
 | E5.8 | Stability: 3 repeated runs of Input Parser + Coordinator benchmarks | ⬜ | |
 
-## E6 — Network Generator, Demand Generator, REAL-NET (7 tasks) · DoD §4.3, §4.4
+## E6 — Network Author, Demand Generator, REAL-NET (7 tasks) · DoD §4.3, §4.4
 
 | ID | Task | Status | Notes |
 |---|---|---|---|
-| E6.1 | Network Generator Minimal: place/bbox → OSM → `netconvert` | ⬜ | |
-| E6.2 | Demand Generator Minimal: `randomTrips` + `duarouter`, teleport ≤2% | ⬜ | |
-| E6.3 | REAL-NET: choose district, hand-clean, freeze, document fixes | ⬜ | |
-| E6.4 | Network Generator Done (sanity report, 10/10 GEN-LOCATIONS, idempotency) | ⬜ | |
-| E6.5 | Demand Generator Done (fidelity ±15%/±25%, history-driven) | ⬜ | |
+| E6.1 | Network Author Minimal (agent): OSM snapshot → `netconvert` → `Network` with recipe; v1 tool catalogue + `probe_run` | ⬜ | Domain side done (`NetworkRecipe`, `TopologyModification`, `ProbeReport`); ports `OsmSource`, `NetconvertRunner`, `PlainNetEditor` defined |
+| E6.2 | Demand Generator Minimal (agent): `randomTrips` + `duarouter` → trips + routes; `reroute_demand` | ⬜ | |
+| E6.3 | REAL-NET: choose district, hand-clean on plain XML, freeze, log every fix (type, file, attribute) | ⬜ | |
+| E6.4 | Network Author Done (sanity + probe, 10/10 GEN-LOCATIONS, replay determinism, agent stability, derivation bank) | ⬜ | |
+| E6.5 | Demand Generator Done (calibration loop to fidelity ±15%/±25% with evidence, history-driven, reroute test) | ⬜ | |
 | E6.6 | Demand profiles low/peak/incident on REAL-NET | ⬜ | |
-| E6.7 | GP-8 (full pipeline from a new place name) passing | ⬜ | |
+| E6.7 | GP-8 (new place name) and GP-11 (add an edge) passing | ⬜ | |
 
 ## E7 — Integration (7 tasks, 1 Stretch) · DoD §5
 
@@ -103,9 +103,9 @@ Last updated: 2026-09-11
 |---|---|---|---|
 | E7.1 | Golden-path test framework; GP-1…GP-5 | ⬜ | |
 | E7.2 | GP-6 (dynamic path) and GP-7 (compare) | ⬜ | |
-| E7.3 | Failure-injection suite across golden paths | ⬜ | |
+| E7.3 | Failure-injection suite across golden paths (incl. script lint/dry-run, agent budget) | ⬜ | |
 | E7.4 | Cost/latency per golden path recorded | ⬜ | |
-| E7.5 | Full run: 10/10 golden paths × 3 → **M6** | ⬜ | |
+| E7.5 | Full run: 11/11 golden paths × 3 → **M6** | ⬜ | |
 | E7.6 | Code freeze: tag, README, reproducibility package | ⬜ | |
 | E7.7 | *(Stretch)* usability session with 2–3 DLR engineers | ⬜ | Not counted — only attempted if M6 lands on time |
 
