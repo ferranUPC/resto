@@ -4,9 +4,9 @@ Tracks completion of every task in [`tfm-work-plan.md`](tfm-work-plan.md). Task 
 
 Status: ⬜ not started · 🔄 in progress · ✅ done (meets its Done/threshold from the DoD, not just "code exists")
 
-Last updated: 2026-09-11 (aligned with work plan v0.2 / architecture v0.3)
+Last updated: 2026-09-13 (aligned with work plan v0.2 / architecture v0.3 + uncommitted amendment §9 A1)
 
-**Summary: 0 / 65 tasks done (0%) · 4 in progress** (E7.7 is Stretch, never scheduled — excluded from the count, per work plan §5)
+**Summary: 1 / 65 tasks done (1.5%) · 4 in progress** (E7.7 is Stretch, never scheduled — excluded from the count, per work plan §5)
 
 ---
 
@@ -14,14 +14,14 @@ Last updated: 2026-09-11 (aligned with work plan v0.2 / architecture v0.3)
 
 | ID | Task | Status | Notes |
 |---|---|---|---|
-| E0.1 | Repo skeleton: hexagonal layout, packaging, ruff, pytest, CI | 🔄 | 2026-09-11: layout restructured to architecture v0.3 (`domain/`, `application/{ports,use_cases,tools,schemas.py}`, `adapters/{llm,sumo,sandbox,web,persistence,tracing}`, `interface/{mcp,cli}`, `eval/`); placeholders for every module; 28 tests green, `ruff check .` clean. `ci.yml` already targets `master`; not yet pushed, so still no workflow run to confirm CI green |
-| E0.2 | Pin SUMO 1.27.1 from PyPI; reproducible environment incl. Postgres + `pgvector`; record in README | 🔄 | 2026-09-11: SUMO 1.27.1 pinned as `pyproject.toml` dependencies (`eclipse-sumo`, `sumolib`, `traci`; `libsumo` in extra `fast`), installed and verified in the `resto` env; README rewritten. Missing: Postgres + `pgvector` service definition (Docker/compose) for E1.3 |
-| E0.3 | Domain dataclasses (aggregates, value objects, tasks, drafts) + `schemas.py` TypeAdapters, JSON-schema export, round-trip tests | 🔄 | 2026-09-11: six aggregates and ~25 value objects with invariants in `domain/`; `application/schemas.py` builds TypeAdapters for 14 boundary types with round-trip + invariant tests. Missing: `NetworkDraft` / `DemandDraft` / `ScenarioDraft` dataclasses, JSON-schema export to files, round-trip test per remaining type |
-| E0.4 | DatabaseMCP contract spec (six capability groups incl. `demands`, `query_edgedata`; error codes) | ⬜ | Repository ports already define the tool surface in `application/ports/repositories.py`; the spec document is not written |
+| E0.1 | Repo skeleton: hexagonal layout, packaging, ruff, pytest, CI | ✅ | 2026-09-11: layout restructured to architecture v0.3 (`domain/`, `application/{ports,use_cases,tools,schemas.py}`, `adapters/{llm,sumo,sandbox,web,persistence,tracing}`, `interface/{mcp,cli}`, `eval/`); placeholders for every module; 28 tests green, `ruff check .` clean. `ci.yml` already targets `master`; not yet pushed, so still no workflow run to confirm CI green. 2026-09-13: pushed; `gh run list` shows 3 CI runs on `master` (`1d1578b`, `a0e1fa2`, `554086c`), all `success` → output "repo + green CI" met (closed 11 Sep, 1 day after its 10 Sep due date) |
+| E0.2 | Pin SUMO 1.27.1 from PyPI; reproducible environment incl. Postgres + `pgvector`; record in README | 🔄 | 2026-09-11: SUMO 1.27.1 pinned as `pyproject.toml` dependencies (`eclipse-sumo`, `sumolib`, `traci`; `libsumo` in extra `fast`), installed and verified in the `resto` env; README rewritten. Missing: Postgres + `pgvector` service definition (Docker/compose) for E1.3. 2026-09-13: *uncommitted* architecture §9 amendment A1 swaps the DatabaseMCP reference backend to SQLite + in-process cosine and drops the Postgres service from E0.2; README mentions the new `schemas/` dir. Stays 🔄 until A1 is committed and `tfm-work-plan.md` E0.2/E1.3 are re-scoped — at that point nothing remains open |
+| E0.3 | Domain dataclasses (aggregates, value objects, tasks, drafts) + `schemas.py` TypeAdapters, JSON-schema export, round-trip tests | 🔄 | 2026-09-11: six aggregates and ~25 value objects with invariants in `domain/`; `application/schemas.py` builds TypeAdapters for 14 boundary types with round-trip + invariant tests. Missing: `NetworkDraft` / `DemandDraft` / `ScenarioDraft` dataclasses, JSON-schema export to files, round-trip test per remaining type. 2026-09-13: all three gaps closed **in the working tree only (uncommitted, not CI-verified)**: `domain/value_objects/drafts.py` (`NetworkDraft`, `DemandDraft`, `ScenarioDraft`, `ExpertNoteDraft`) + `test_drafts.py`; `write_json_schemas` + 18 files in `schemas/` with a drift test; `test_serialisation.py` round-trips every `resto.domain` dataclass and fails if one lacks a sample; Builder pairing rule factored into `mechanism.check_mechanisms_match`. `pytest` 179 passed, ruff clean locally. Flips to ✅ once committed and CI is green |
+| E0.4 | DatabaseMCP contract spec (six capability groups incl. `demands`, `query_edgedata`; error codes) | 🔄 | Repository ports already define the tool surface in `application/ports/repositories.py`; the spec document is not written. 2026-09-13: `docs/DATABASE_MCP_CONTRACT.md` "v1.0-draft" exists (353 lines, **untracked**): negotiation, identity/idempotency, six capability groups (§5.1–5.6), error codes (§7), conformance checklist (§8), SQLite reference impl (§9). Not ✅: untracked, still labelled draft, and §10 lists 3 open points (`find_network(name=…)` mismatch, embedding ownership, `historical_demand` shape) |
 | E0.5 | DEV-NET: grid + hand edits (bottleneck, signalised corridor) | ⬜ | |
 | E0.6 | Demand profiles low/peak/incident on DEV-NET (trips + routes) + synthetic counts at control edges | ⬜ | |
 | E0.7 | Trace logging: run id, step, tool call, artifacts, tokens → JSONL | ⬜ | |
-| E0.8 | Architecture doc frozen as v1.0 + ADRs for §7 decisions | 🔄 | 2026-09-11: architecture rewritten as v0.3 (English) with the domain model, agent contracts and §7 decisions; v0.2 archived in `docs/_old/`. Missing: freeze as v1.0 + ADRs |
+| E0.8 | Architecture doc frozen as v1.0 + ADRs for §7 decisions | 🔄 | 2026-09-11: architecture rewritten as v0.3 (English) with the domain model, agent contracts and §7 decisions; v0.2 archived in `docs/_old/`. Missing: freeze as v1.0 + ADRs. 2026-09-13: *uncommitted* §9 "Amendments after v0.3" with A1 (SQLite reference backend); body not yet reconciled, no ADR files, no v1.0 |
 
 ## E1 — MCP servers and `traci_api` (6 tasks) · due 2 Oct · DoD §4.9
 
@@ -29,7 +29,7 @@ Last updated: 2026-09-11 (aligned with work plan v0.2 / architecture v0.3)
 |---|---|---|---|
 | E1.1 | NetworkMCP (7 read tools + tests incl. error case) | ⬜ | |
 | E1.2 | `traci_api` (8 primitives + `at_time`/`when` + `applied_actions`) and TraciMCP over it | ⬜ | Placeholder modules `adapters/sumo/traci_api.py`, `interface/mcp/traci_server.py` |
-| E1.3 | DatabaseMCP reference impl (Postgres + `pgvector`, six capabilities incl. `demands`) + `mcp_client` adapter | ⬜ | |
+| E1.3 | DatabaseMCP reference impl (Postgres + `pgvector`, six capabilities incl. `demands`) + `mcp_client` adapter | ⬜ | 2026-09-13: proposed re-scope to SQLite + in-process cosine (uncommitted architecture §9 A1, contract §9); work plan not yet updated |
 | E1.4 | `find_similar_scenario` + `search_notes` + `query_edgedata` (10 + 5 + 5 test cases) | ⬜ | |
 | E1.5 | DatabaseMCP conformance suite | ⬜ | |
 | E1.6 | Capability-listing helper for Coordinator; latency benchmark | ⬜ | |
