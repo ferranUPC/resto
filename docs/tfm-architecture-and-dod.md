@@ -325,7 +325,7 @@ With `intent = describe` on existing results: 1 → `ask_expert` → 4, zero exp
 
 | Capability | Tools | Required? |
 |---|---|---|
-| `networks` | `store_network`, `get_network`, `list_networks`, `find_network(source, name, derived_from)` | yes |
+| `networks` | `store_network`, `get_network`, `list_networks`, `find_network(source, derived_from, label)` | yes |
 | `demands` | `store_demand`, `get_demand`, `list_demands(network_id)` | yes |
 | `scenarios` | `store_scenario`, `get_scenario`, `find_similar_scenario(network_id, interventions, context_tags)` | yes |
 | `results` | `store_result`, `get_result`, `list_results(scenario_id)`, `query_edgedata(result_id, edge_ids, window)` | yes |
@@ -585,3 +585,103 @@ New in v0.3 (2026-09-11):
 - Whether `when(...)` needs compound conditions and reversal (`open_lane` when the condition stops holding) as declarative primitives, or whether free Python in the script is enough for v1.
 - How the "why" of diagnostic questions is graded: rubric by you, LLM-as-judge with a rubric, or both with agreement reported.
 - Whether the Coordinator should be allowed to re-ask a specialist with a corrected task more than once before failing the step (currently: once).
+
+---
+
+## 9. Amendments after v0.3
+
+Decisions taken after v0.3 was written and before the v1.0 freeze (E0.8). Each one states what it
+supersedes; the body of the document is reconciled with them at the freeze.
+
+### A1 — DatabaseMCP reference implementation: SQLite + in-memory cosine, not Postgres + `pgvector` (2026-09-11)
+
+The reference implementation of the DatabaseMCP contract is **SQLite plus cosine similarity computed in
+process** (embeddings stored as a blob column, similarity in `numpy`). Postgres + `pgvector` is deferred,
+not cancelled.
+
+Supersedes: the storage line of the diagram in §2.1, the reference-implementation sentence in §2.4
+(*DatabaseMCP*), and the corresponding bullet in §7 (*Kept from v0.1/v0.2*). Inverts the §4.9 Stretch item:
+the second backend to pass the conformance suite becomes Postgres + `pgvector`, not SQLite.
+
+Rationale:
+
+- `pgvector` exists in this design for exactly one port method, `NoteRepository.search`. The largest note
+  corpus the thesis ever queries is the learning-effect experiment (§4.7, E4.9) at **25 notes**. Exact
+  cosine over 25 embeddings is a `numpy` dot product; an approximate-nearest-neighbour index is machinery
+  for a scale this thesis never reaches.
+- The remaining five capability groups are ordinary relational work — `query_edgedata` over the scenario
+  matrix, `find_similar_scenario` by intervention and `context_tags` overlap, id lookups for the
+  "zero redundant simulations" guarantee. SQLite serves all of them at the volumes of §3.
+- The 24 h of E1.3 buy an engineering claim (a production-grade reference backend), not a thesis result.
+  M2, M3 and M5 are what must not be cut (work plan §5); with the plan overcommitted by ~6 % and no
+  contingency, this is the cheapest hour saving that costs no evaluation.
+
+What does **not** change: the DatabaseMCP contract itself. Same six capability groups, same tool names and
+I/O schemas, same error codes, same conformance suite (E1.5), same two consumption paths (in-process
+repository adapters and `mcp_client`). The backend swap must be invisible above the repository ports of
+`application/ports/repositories.py` — that invisibility is the claim the contract makes, and keeping the
+SQLite implementation conformant is what proves it. Large artifacts stay in the filesystem artifact store,
+referenced by `ArtifactRef`, exactly as before.
+
+When Postgres returns: when a note corpus outgrows linear scan (order 10³ notes), when edgedata volume or
+concurrent access outgrows SQLite, or for a real deployment at DLR. Because it is then the *second*
+implementation of a contract that already has a conformance suite, it is additive work with a ready-made
+acceptance test — which is the strongest evidence the pluggable-backend claim was true.
+
+Tasks affected (to be reflected in `tfm-work-plan.md` at the next Friday ritual): E0.2 drops the
+Postgres + `pgvector` service from the reproducible environment (no Docker service needed); E1.3 becomes
+"DatabaseMCP reference implementation (SQLite + cosine)" with a reduced estimate; E1.5's conformance suite
+is unchanged and becomes the gate for any later Postgres backend.
+
+### A2 — `Network.label`, and a domain-pure note-ranking algorithm (2026-09-14)
+
+Resolves DATABASE_MCP_CONTRACT.md §10, open points 1 and 2.
+
+**`Network.label`.** `Network` gains an optional `label: str | None` field: a human-facing, opaque
+handle, not part of `network_id` (still the content hash of the `.net.xml`). It resolves open
+point 1 by adding the human label §10 already flagged as the more useful fix, rather than dropping
+the `name` mention from §2.3/§2.4. No `NetworkGroup` aggregate is introduced: grouping (e.g. every
+network derived from one base network for a what-if study — the motivating case is a set of edits
+on a "Berlin" network, each stored as its own `Network` with a label like
+`"berlin/remove_edge_118"`) is expressed as a naming convention inside `label` itself, the way an
+object store treats a key as an opaque path it never parses, rather than as a modelled parent-child
+relationship. A `NetworkGroup` aggregate would need its own identity, repository and lifecycle
+rules for a need `label` plus prefix matching already covers — the same reasoning as A1 against
+building infrastructure a TFM-scale corpus never requires. Because `label` carries no identity
+claim, it is exempt from the §3 conflict rule the same way `ExpertNote`'s id is: a repeated
+`store_network` for an existing id with the same `net_xml` content hash but a different `label` is
+an update, not a `CONFLICT`.
+
+Supersedes: the `find_network(source, name, derived_from)` row of the §2.4 capability table —
+already corrected in place to `find_network(source, derived_from, label)`, unlike A1's amendments
+this reconciles immediately rather than waiting for the v1.0 freeze, since it is a one-line,
+non-controversial fix. DATABASE_MCP_CONTRACT.md §5.1/§3 updated to match. Code: `Network`
+(`domain/entities/network.py`) and `NetworkRepository.find` (`application/ports/repositories.py`)
+already carry the field.
+
+**Note ranking is a fixed, domain-pure algorithm.** Open point 2 conflated two things that vary for
+different reasons: the embedding model (genuinely server-owned — `search_notes` takes text, so
+different backends may legitimately embed differently) and the ranking step that turns vectors into
+an ordered, scored list (which had been left implicitly server-owned too, for no good reason — two
+backends embedding identically could still disagree on how to rank the result). This amendment
+fixes only the second: `domain.services.note_ranking.rank_notes` (cosine similarity, ties broken by
+`note_id` ascending per §6) is now the one algorithm every conformant DatabaseMCP implementation
+must reproduce, checked by the conformance suite (E1.5) against fixed vector fixtures — independent
+of any embedder, so the check needs no model to run.
+
+The reason this doesn't create a `domain/` → infrastructure dependency: `rank_notes` operates on
+`Vector = tuple[float, ...]`, plain data, never on text and never on a model. Producing a `Vector`
+from `ExpertNote.text` is the actual infrastructure-dependent step, and it stays exactly where the
+architecture already puts such things — behind a port, `application.ports.embedding.Embedder` —
+which `domain/` does not import. This is the same split `domain/services/ids.py` already makes for
+id policy (pure hashing in domain, the artifacts being hashed produced elsewhere); note ranking is
+the same pattern applied to retrieval. The embedding-model half of open point 2 remains open exactly
+as before: the reference implementation pins one model for its own run-to-run reproducibility, but a
+third-party backend may choose a different one and stays conformant, at the cost of its rankings not
+being numerically comparable to the reference's — stated as a limitation in the thesis (E4.9).
+
+Supersedes: nothing structural — `NoteRepository.search`'s signature (§2.4) and the DatabaseMCP
+contract's tool surface (§5.5) are unchanged; this only pins an algorithm that was previously
+unspecified. Code: `domain/services/note_ranking.py` (`Vector`, `ScoredNote`, `cosine_similarity`,
+`rank_notes`) and `application/ports/embedding.py` (`Embedder`) exist as typed placeholders ahead of
+E1.3/E1.5 implementing them for real.
