@@ -74,6 +74,9 @@ target/
 # Jupyter Notebook
 .ipynb_checkpoints
 
+# eval/dev-net/demand/generate_demand.sh + verification.ipynb re-create this on every run
+eval/dev-net/demand/_runs/
+
 # IPython
 profile_default/
 ipython_config.py
