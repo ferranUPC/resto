@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- generated on 2026-09-14T09:39:18.371146+01:00 by Eclipse SUMO netconvert 1.27.1
+<netconvertConfiguration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/netconvertConfiguration.xsd">
+
+    <input>
+        <node-files value="dev-net.nod.xml"/>
+        <edge-files value="dev-net.edg.xml"/>
+        <connection-files value="dev-net.con.xml"/>
+    </input>
+
+    <output>
+        <output-file value="dev-net.net.xml"/>
+        <plain-output-prefix value="dev-net"/>
+    </output>
+
+    <tls_building>
+        <tls.set value="A2,B2,C2,D2,E2"/>
+    </tls_building>
+
+    <junctions>
+        <no-turnarounds value="true"/>
+    </junctions>
+
+</netconvertConfiguration>
+-->
+
+<nodes version="1.20" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/nodes_file.xsd">
+    <location netOffset="0.00,0.00" convBoundary="0.00,0.00,800.00,800.00" origBoundary="0.00,0.00,800.00,800.00" projParameter="!"/>
+
+    <node id="A0" x="0.00" y="0.00" type="priority"/>
+    <node id="A1" x="0.00" y="200.00" type="priority"/>
+    <node id="A2" x="0.00" y="400.00" type="traffic_light" tl="A2"/>
+    <node id="A3" x="0.00" y="600.00" type="priority"/>
+    <node id="A4" x="0.00" y="800.00" type="priority"/>
+    <node id="B0" x="200.00" y="0.00" type="priority"/>
+    <node id="B1" x="200.00" y="200.00" type="priority"/>
+    <node id="B2" x="200.00" y="400.00" type="traffic_light" tl="B2"/>
+    <node id="B3" x="200.00" y="600.00" type="priority"/>
+    <node id="B4" x="200.00" y="800.00" type="priority"/>
+    <node id="C0" x="400.00" y="0.00" type="priority"/>
+    <node id="C1" x="400.00" y="200.00" type="priority"/>
+    <node id="C2" x="400.00" y="400.00" type="traffic_light" tl="C2"/>
+    <node id="C3" x="400.00" y="600.00" type="priority"/>
+    <node id="C4" x="400.00" y="800.00" type="priority"/>
+    <node id="D0" x="600.00" y="0.00" type="priority"/>
+    <node id="D1" x="600.00" y="200.00" type="priority"/>
+    <node id="D2" x="600.00" y="400.00" type="traffic_light" tl="D2"/>
+    <node id="D3" x="600.00" y="600.00" type="priority"/>
+    <node id="D4" x="600.00" y="800.00" type="priority"/>
+    <node id="E0" x="800.00" y="0.00" type="priority"/>
+    <node id="E1" x="800.00" y="200.00" type="priority"/>
+    <node id="E2" x="800.00" y="400.00" type="traffic_light" tl="E2"/>
+    <node id="E3" x="800.00" y="600.00" type="priority"/>
+    <node id="E4" x="800.00" y="800.00" type="priority"/>
+</nodes>
