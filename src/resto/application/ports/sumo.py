@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
 from resto.domain.value_objects.artifact_ref import ArtifactRef
+from resto.domain.value_objects.kpis import Kpis
 from resto.domain.value_objects.topology_modification import TopologyModification
 
 
@@ -49,15 +51,28 @@ class DemandTools(Protocol):
     ) -> ArtifactRef: ...
 
 
+@dataclass(frozen=True, slots=True)
+class RunOutput:
+    """What one `sumo` execution left behind (ADR-0017). `artifacts` always includes the run cfg
+    SUMO was started with (kind `sumocfg`); on success it also holds `edgedata`, `tripinfo`,
+    `summary` and `statistics`, and `kpis` is read from the latter. `error` is SUMO's own
+    message."""
+
+    ok: bool
+    error: str | None
+    artifacts: tuple[ArtifactRef, ...]
+    wall_clock_s: float
+    kpis: Kpis | None = None
+
+    def __post_init__(self) -> None:
+        if self.ok and self.kpis is None:
+            raise ValueError("a successful run must carry KPIs")
+        if not self.ok and not self.error:
+            raise ValueError("a failed run must carry the SUMO error message")
+
+
 class SumoRunner(Protocol):
     def run_batch(self, sumocfg: ArtifactRef, seed: int, out_dir: Path) -> RunOutput: ...
     def run_online(
         self, sumocfg: ArtifactRef, script: ArtifactRef, seed: int, out_dir: Path
     ) -> RunOutput: ...
-
-
-class RunOutput(Protocol):
-    ok: bool
-    error: str | None
-    artifacts: tuple[ArtifactRef, ...]
-    wall_clock_s: float
