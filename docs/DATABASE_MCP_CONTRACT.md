@@ -1,12 +1,12 @@
-# DatabaseMCP — Contract Specification v1.0-draft
+# DatabaseMCP — Contract Specification v1.0
 
 The storage contract of the RESTO framework (architecture §2.4). It is a **standard with a
 pluggable backend**: the framework ships a reference implementation, and any third party may
 supply their own as long as it exposes these tool names, these payloads and these semantics.
 
-Status: draft, frozen as **v1.0** together with the architecture document (E0.8). Until then,
-this file is authoritative for tool names, payloads, semantics and error codes; the architecture
-document is authoritative for *why* the model looks like this.
+Status: **v1.0, frozen** together with the architecture document (E0.8, 2026-09-14). This file
+is authoritative for tool names, payloads, semantics and error codes; the architecture document
+is authoritative for *why* the model looks like this.
 
 Scope:
 
@@ -66,6 +66,15 @@ members. An implementation that drops `probe_report`, reorders `calibration_roun
 Servers **must** reject a payload that does not validate against its schema with
 `INVALID_ARGUMENT` (§7) rather than storing it partially.
 
+**Result shape on the wire.** Tool results are returned as MCP `structuredContent` (with a
+matching `outputSchema` in `tools/list`). A return type that is not a JSON object at the top
+level - a list, a nullable entity, a mapping with arbitrary keys - is wrapped as
+`{"result": <value>}`, and the published `outputSchema` reflects that wrapper (`properties ==
+{"result": ...}`, `required == ["result"]`); this is what the Python MCP SDK does for the reference
+server, and the `mcp_client` adapter unwraps by inspecting that schema. A server that returns no
+`structuredContent` must put the same JSON in its first text content block instead; the client
+falls back to parsing it.
+
 ---
 
 ## 3. Identity and idempotency
@@ -113,7 +122,9 @@ A DatabaseMCP implementation:
 The single exception is `query_edgedata` (§5.4), which by definition reads the edgedata a result
 produced. An implementation may satisfy it by parsing the referenced artifact on demand or by
 having ingested the measures at `store_result` time; the contract fixes the answer, not the
-method.
+method. Note the deployment consequence: an implementation that parses on demand must be able to
+open `ArtifactRef.path` itself, i.e. it must share the framework's filesystem (the reference
+implementation does exactly this). A server on another host has to ingest at `store_result` time.
 
 ---
 
@@ -305,6 +316,12 @@ would read as agent instability.
 ## 7. Error codes
 
 Errors are returned as MCP tool errors carrying a stable `code` and a human-readable `message`.
+
+**Wire shape.** MCP's tool-error result carries text, not a structured code field, so the code
+travels as a prefix of the error text: `"<CODE>: <message>"` (e.g. `"CONFLICT: network abc
+already exists with different content"`). A client parses the code as the text before the first
+`": "`. The reference server emits exactly this and the `mcp_client` adapter parses exactly this;
+a third-party server must use the same prefix or its errors surface as plain `RuntimeError`s.
 
 | Code | When | Retryable |
 |---|---|---|
