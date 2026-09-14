@@ -4,9 +4,9 @@ Tracks completion of every task in [`tfm-work-plan.md`](tfm-work-plan.md). Task 
 
 Status: ⬜ not started · 🔄 in progress · ✅ done (meets its Done/threshold from the DoD, not just "code exists")
 
-Last updated: 2026-09-13 (aligned with work plan v0.2 / architecture v0.3 + uncommitted amendment §9 A1)
+Last updated: 2026-09-14 (aligned with work plan v0.2 / architecture v1.0, frozen 2026-09-14)
 
-**Summary: 1 / 65 tasks done (1.5%) · 4 in progress** (E7.7 is Stretch, never scheduled — excluded from the count, per work plan §5)
+**Summary: 8 / 65 tasks done (12.3%)** (E7.7 is Stretch, never scheduled — excluded from the count, per work plan §5)
 
 ---
 
@@ -15,13 +15,13 @@ Last updated: 2026-09-13 (aligned with work plan v0.2 / architecture v0.3 + unco
 | ID | Task | Status | Notes |
 |---|---|---|---|
 | E0.1 | Repo skeleton: hexagonal layout, packaging, ruff, pytest, CI | ✅ | 2026-09-11: layout restructured to architecture v0.3 (`domain/`, `application/{ports,use_cases,tools,schemas.py}`, `adapters/{llm,sumo,sandbox,web,persistence,tracing}`, `interface/{mcp,cli}`, `eval/`); placeholders for every module; 28 tests green, `ruff check .` clean. `ci.yml` already targets `master`; not yet pushed, so still no workflow run to confirm CI green. 2026-09-13: pushed; `gh run list` shows 3 CI runs on `master` (`1d1578b`, `a0e1fa2`, `554086c`), all `success` → output "repo + green CI" met (closed 11 Sep, 1 day after its 10 Sep due date) |
-| E0.2 | Pin SUMO 1.27.1 from PyPI; reproducible environment incl. Postgres + `pgvector`; record in README | 🔄 | 2026-09-11: SUMO 1.27.1 pinned as `pyproject.toml` dependencies (`eclipse-sumo`, `sumolib`, `traci`; `libsumo` in extra `fast`), installed and verified in the `resto` env; README rewritten. Missing: Postgres + `pgvector` service definition (Docker/compose) for E1.3. 2026-09-13: *uncommitted* architecture §9 amendment A1 swaps the DatabaseMCP reference backend to SQLite + in-process cosine and drops the Postgres service from E0.2; README mentions the new `schemas/` dir. Stays 🔄 until A1 is committed and `tfm-work-plan.md` E0.2/E1.3 are re-scoped — at that point nothing remains open |
-| E0.3 | Domain dataclasses (aggregates, value objects, tasks, drafts) + `schemas.py` TypeAdapters, JSON-schema export, round-trip tests | 🔄 | 2026-09-11: six aggregates and ~25 value objects with invariants in `domain/`; `application/schemas.py` builds TypeAdapters for 14 boundary types with round-trip + invariant tests. Missing: `NetworkDraft` / `DemandDraft` / `ScenarioDraft` dataclasses, JSON-schema export to files, round-trip test per remaining type. 2026-09-13: all three gaps closed **in the working tree only (uncommitted, not CI-verified)**: `domain/value_objects/drafts.py` (`NetworkDraft`, `DemandDraft`, `ScenarioDraft`, `ExpertNoteDraft`) + `test_drafts.py`; `write_json_schemas` + 18 files in `schemas/` with a drift test; `test_serialisation.py` round-trips every `resto.domain` dataclass and fails if one lacks a sample; Builder pairing rule factored into `mechanism.check_mechanisms_match`. `pytest` 179 passed, ruff clean locally. Flips to ✅ once committed and CI is green |
-| E0.4 | DatabaseMCP contract spec (six capability groups incl. `demands`, `query_edgedata`; error codes) | 🔄 | Repository ports already define the tool surface in `application/ports/repositories.py`; the spec document is not written. 2026-09-13: `docs/DATABASE_MCP_CONTRACT.md` "v1.0-draft" exists (353 lines, **untracked**): negotiation, identity/idempotency, six capability groups (§5.1–5.6), error codes (§7), conformance checklist (§8), SQLite reference impl (§9). Not ✅: untracked, still labelled draft, and §10 lists 3 open points (`find_network(name=…)` mismatch, embedding ownership, `historical_demand` shape) |
-| E0.5 | DEV-NET: grid + hand edits (bottleneck, signalised corridor) | ⬜ | |
-| E0.6 | Demand profiles low/peak/incident on DEV-NET (trips + routes) + synthetic counts at control edges | ⬜ | |
-| E0.7 | Trace logging: run id, step, tool call, artifacts, tokens → JSONL | ⬜ | |
-| E0.8 | Architecture doc frozen as v1.0 + ADRs for §7 decisions | 🔄 | 2026-09-11: architecture rewritten as v0.3 (English) with the domain model, agent contracts and §7 decisions; v0.2 archived in `docs/_old/`. Missing: freeze as v1.0 + ADRs. 2026-09-13: *uncommitted* §9 "Amendments after v0.3" with A1 (SQLite reference backend); body not yet reconciled, no ADR files, no v1.0 |
+| E0.2 | Pin SUMO 1.27.1 from PyPI; reproducible environment incl. Postgres + `pgvector`; record in README | ✅ | 2026-09-11: SUMO 1.27.1 pinned as `pyproject.toml` dependencies, installed and verified in the `resto` env; README rewritten. 2026-09-14: the Postgres + `pgvector` service is no longer part of the design — ADR-0012 (architecture v1.0, A1) moves the DatabaseMCP reference backend to SQLite + in-process cosine, which needs no extra service, so "reproducible environment" now just means the pinned SUMO deps, already satisfied. Residual paper cut, not a blocker: `tfm-work-plan.md` E0.2/E1.3 wording still literally says "Postgres + `pgvector`" — a one-line doc edit, tracked as a note here rather than reopening the task |
+| E0.3 | Domain dataclasses (aggregates, value objects, tasks, drafts) + `schemas.py` TypeAdapters, JSON-schema export, round-trip tests | ✅ | 2026-09-14: committed in `32672d5`. Six aggregates + value objects incl. `drafts.py` (`NetworkDraft`/`DemandDraft`/`ScenarioDraft`/`ExpertNoteDraft`), `schemas.py` TypeAdapters, 18 files in `schemas/` with a drift test, `test_serialisation.py` round-tripping every domain dataclass, `test_drafts.py`. Verified now: `pytest` 186 passed, `ruff check .` clean, CI green on `master` (run `34816761408`) |
+| E0.4 | DatabaseMCP contract spec (six capability groups incl. `demands`, `query_edgedata`; error codes) | ✅ | 2026-09-14: `docs/DATABASE_MCP_CONTRACT.md` committed (`0ea81ac`, CI green). Six capability groups (§5.1–5.6), error codes (§7), conformance checklist (§8, for E1.5 to implement against), SQLite reference impl (§9). §10 open points 1–2 resolved by architecture amendment A2 (`Network.label`, note-ranking as a pure domain algorithm — ADR-0013/0014); open point 3 (`historical_demand` shape) is *deliberately* left open until E6.5 per the doc's own text, not a gap in this task. Cosmetic-only issue: the file's own title/header still literally read "v1.0-draft" despite the architecture freeze — worth a one-line fix, doesn't affect content completeness |
+| E0.5 | DEV-NET: grid + hand edits (bottleneck, signalised corridor) | ✅ | 2026-09-14, commit `5e48e03` (CI green): `netgenerate` 5×5 grid, scripted (`generate.sh`, reproducible, no manual GUI edits), 2→1 lane merge bottleneck on `B0C0`→`C0D0` isolated from the row-2 signalised corridor (5 TLS junctions), 0 U-turn connections, fully strongly connected — all verified and documented in `eval/dev-net/README.md` with concrete counts (80 edges, 25 nodes, one expected `netconvert` warning) |
+| E0.6 | Demand profiles low/peak/incident on DEV-NET (trips + routes) + synthetic counts at control edges | ✅ | 2026-09-14, commit `e5f1ef5` (CI green): `low`/`peak`/`incident` trips+routes (seed 1), `control_counts.json` at 5 control edges, `verification.ipynb` sweeping simulation seeds 1–9 per profile. `peak` measured at 16.5% mean congestion (inside the 10–20% target), `incident` isolates the `B0C0` bottleneck (26× peak occupancy); write-up documents a real finding (sim-seed 8 gridlock at the original incident rate) and the fix (rate lowered to 950 veh/h, 20/20 seeds clean) — reads as genuine empirical tuning, not a placeholder |
+| E0.7 | Trace logging: run id, step, tool call, artifacts, tokens → JSONL | ✅ | 2026-09-14, commit `bcca11c` (CI green): `Tracer` port + `JsonlTracer` adapter (`{root}/{study_id}.jsonl`, one JSON object per line, tolerates dataclasses/`Enum`/`Path` payloads). `test_jsonl.py` covers ordering, per-study isolation, unknown-study read, and payload serialisation of `StepStatus`/`Usage`/`Path` — 5 tests, all passing |
+| E0.8 | Architecture doc frozen as v1.0 + ADRs for §7 decisions | ✅ | 2026-09-14, commit `7745324` (CI green): `tfm-architecture-and-dod.md` header now reads "v1.0 — Status: frozen (2026-09-14, E0.8/M0)"; 14 ADRs under `docs/adr/` (0001–0014) with an index (`README.md`); §9 amendments A1/A2 reconciled into the body and superseded as prose by their ADRs |
 
 ## E1 — MCP servers and `traci_api` (6 tasks) · due 2 Oct · DoD §4.9
 
@@ -126,16 +126,16 @@ Last updated: 2026-09-13 (aligned with work plan v0.2 / architecture v0.3 + unco
 
 ## Milestone status
 
-| ID | Date | Milestone | Status |
-|---|---|---|---|
-| M0 | 18 Sep | Foundations frozen | ⬜ |
-| M1 | 16 Oct | Tooling complete | ⬜ |
-| M2 | 13 Nov | **Expert Done on DEV-NET** | ⬜ |
-| M3 | 11 Dec | End-to-end loop | ⬜ |
-| M4 | 15 Jan | Real network ready | ⬜ |
-| M5 | 29 Jan | **Thesis result** | ⬜ |
-| M6 | 5 Feb | All modules Done | ⬜ |
-| M7 | 18 Feb | Delivery | ⬜ |
+| ID | Date | Milestone | Status | Notes |
+|---|---|---|---|---|
+| M0 | 18 Sep | Foundations frozen | ✅ | 2026-09-14, 4 days early: all 8 E0 tasks ✅, CI green on `master`, DEV-NET runs its three demand profiles, architecture v1.0 frozen. `tfm-work-plan.md` E0.2/E1.3 still carry stale Postgres/`pgvector` wording (superseded by ADR-0012) — a doc-only cleanup, not a milestone blocker |
+| M1 | 16 Oct | Tooling complete | ⬜ | |
+| M2 | 13 Nov | **Expert Done on DEV-NET** | ⬜ | |
+| M3 | 11 Dec | End-to-end loop | ⬜ | |
+| M4 | 15 Jan | Real network ready | ⬜ | |
+| M5 | 29 Jan | **Thesis result** | ⬜ | |
+| M6 | 5 Feb | All modules Done | ⬜ | |
+| M7 | 18 Feb | Delivery | ⬜ | |
 
 ---
 
