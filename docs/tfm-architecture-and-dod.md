@@ -1,6 +1,15 @@
-# Agentic Traffic Simulation Framework — Architecture & Definition of Done (v0.3)
+# Agentic Traffic Simulation Framework — Architecture & Definition of Done (v1.0)
 
-Status: third iteration. Supersedes v0.2 (kept in [`_old/tfm-architecture-and-dod-v0.2.md`](_old/tfm-architecture-and-dod-v0.2.md)). The reasoning behind every change is recorded in [`_old/domain-model-proposal-2026-09-11.md`](_old/domain-model-proposal-2026-09-11.md).
+Status: **frozen** (2026-09-14, E0.8/M0). Supersedes v0.3, which supersedes v0.2 (kept in
+[`_old/tfm-architecture-and-dod-v0.2.md`](_old/tfm-architecture-and-dod-v0.2.md)). The reasoning behind
+every change up to v0.3 is recorded in
+[`_old/domain-model-proposal-2026-09-11.md`](_old/domain-model-proposal-2026-09-11.md). From v1.0 onward,
+architecturally significant decisions are recorded as individual ADRs in [`adr/`](adr/README.md) instead of
+as prose changelog entries; §7 below indexes them. "Frozen" means the design stops churning for its own
+sake, not that it is beyond revision: a decision changes by adding a new ADR that supersedes an old one,
+the same discipline the two amendments in this document's history (§9) were a manual, pre-ADR version of.
+Open questions (§8) are explicitly not blockers to the freeze — they are scoped follow-up work, not
+unresolved architecture.
 
 Changes vs v0.2:
 
@@ -12,7 +21,7 @@ Changes vs v0.2:
 - **Network derivation.** Anything that needs a different `.net.xml` (add/remove an edge, change lanes) is a `TopologyModification` applied by the Network Author to derive a new `Network`; it is not a scenario intervention.
 - **One dynamic mechanism.** The declarative `TraciPlan` and its interpreter are gone. Dynamic interventions are Python scripts against a small `resto.traci_api` that itself offers the declarative primitives `at_time(...)` and `when(...)`; a script that only uses them *is* the old plan. `Intervention` gains a `custom` type as the escape hatch.
 - **`seed` moves from `Scenario` to `SimulationResult`** (one scenario, several seeded runs, as the scenario matrix always assumed).
-- **MCP is transport, not a layer.** MCP servers live in `interface/mcp/` and wrap application ports; SUMO, Postgres and the LLM client live in `adapters/`.
+- **MCP is transport, not a layer.** MCP servers live in `interface/mcp/` and wrap application ports; SUMO, the database and the LLM client live in `adapters/`.
 - **One data model.** Domain types are stdlib dataclasses validated and serialised with `pydantic.TypeAdapter` at the boundaries. No parallel `contracts/` package, no mappers.
 - **Environment.** SUMO 1.27.1 is installed from PyPI as a regular dependency (`eclipse-sumo`, `sumolib`, `traci`); no `SUMO_HOME` needed.
 
@@ -29,7 +38,7 @@ All *(threshold)* values remain placeholders until first measurements.
 5. **Decisions as data.** Whatever an agent decides is recorded in a form that code can re-apply without the agent: a network recipe, a demand spec with frozen sources, a script. Determinism is then a property of the replay, and the agent's step is evaluated statistically (repeated runs).
 6. **Simulation is the ground truth.** SUMO decides what is true. Agents are evaluated against simulation, never against other agents.
 7. **Every answer carries evidence.** No module produces a claim that cannot be traced to an artifact or a query.
-8. **Ports and adapters, lightly.** Three ports matter — the LLM, SUMO, storage — because they are what lets tests run without an API key, without SUMO and without Postgres, and what makes DatabaseMCP pluggable. No further ceremony (no interactors, presenters or per-layer DTOs).
+8. **Ports and adapters, lightly.** Three ports matter — the LLM, SUMO, storage — because they are what lets tests run without an API key, without SUMO and without a database, and what makes DatabaseMCP pluggable. No further ceremony (no interactors, presenters or per-layer DTOs).
 
 ---
 
@@ -63,7 +72,7 @@ Two taxonomies that must not be confused: the **functional modules** below (what
 └─────────────────────────────────────────────────────────────────────────┘
 ┌──────────────────────────── Ports & adapters ───────────────────────────┐
 │  LLM (Anthropic) · SUMO (netconvert, duarouter, routeSampler, sumo,     │
-│  traci) · storage (Postgres + pgvector, filesystem artifact store)      │
+│  traci) · storage (SQLite + in-process cosine, filesystem artifact store)│
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -213,6 +222,7 @@ classDiagram
     class Network {
         +network_id
         +content_hash
+        +label
         +derived_from
     }
     class Demand {
@@ -321,7 +331,7 @@ With `intent = describe` on existing results: 1 → `ask_expert` → 4, zero exp
 
 **NetworkMCP.** Read-only queries on a `.net.xml` via `sumolib`: `get_edge`, `get_lanes`, `get_neighbours`, `shortest_path`, `edges_in_bbox`, `capacity_estimate`, `get_tls`. Pure functions.
 
-**DatabaseMCP.** A **standard contract** with a pluggable backend; the framework ships a Postgres + `pgvector` reference implementation and a conformance suite. The framework consumes it through repository ports with two adapters: in-process (`persistence/postgres/`) and `persistence/mcp_client.py` against an external server; `interface/mcp/database_server.py` exposes the reference implementation.
+**DatabaseMCP.** A **standard contract** with a pluggable backend; the framework ships a SQLite + in-process cosine reference implementation (ADR-0012) and a conformance suite. The framework consumes it through repository ports with two adapters: in-process (`persistence/sqlite/`) and `persistence/mcp_client.py` against an external server; `interface/mcp/database_server.py` exposes the reference implementation.
 
 | Capability | Tools | Required? |
 |---|---|---|
@@ -357,9 +367,9 @@ src/resto/
     constants.py        SUMO_VERSION = "1.27.1"
     entities/           study.py  network.py  demand.py  scenario.py  simulation_result.py  expert_note.py
     value_objects/      one module per value object of §2.3 (incl. tasks.py for the typed tasks)
-    services/           content_hash.py  ids.py
+    services/           content_hash.py  ids.py  note_ranking.py
   application/
-    ports/              llm.py  sumo.py  repositories.py  network_query.py  writers.py  sandbox.py  web.py  tracing.py
+    ports/              llm.py  sumo.py  repositories.py  network_query.py  writers.py  sandbox.py  web.py  tracing.py  embedding.py
     use_cases/          run_study.py  generate_network.py  derive_network.py  generate_demand.py  reroute_demand.py
                         build_scenario.py  run_simulation.py  ask_expert.py  write_note.py  compose_report.py
     tools/              one module per agent: its tools as typed functions
@@ -369,7 +379,7 @@ src/resto/
     sumo/               netconvert.py  plain_edit.py  demand.py  runner.py  traci_api.py  netxml.py  writers/
     sandbox/            subprocess_sandbox.py
     web/                search.py  fetch.py
-    persistence/        postgres/  filesystem.py  memory.py  mcp_client.py
+    persistence/        sqlite/  filesystem.py  memory.py  mcp_client.py
     tracing/            jsonl.py
   interface/
     mcp/                network_server.py  database_server.py  traci_server.py
@@ -501,7 +511,7 @@ Unchanged from v0.2 in metrics and thresholds: descriptive ≥ 90 % DEV / ≥ 85
   - `search_notes` respects `status` / `basis` filters; 5 test cases.
   - Round-trip tests (`validate_json(dump_json(x)) == x`) for every domain type; invariants fire during validation.
   - Latency: single call < 1 s DEV-NET, < 5 s REAL-NET *(threshold)*.
-- **Stretch**: a second DatabaseMCP backend (SQLite or file-based) passing the conformance suite.
+- **Stretch**: a second DatabaseMCP backend (Postgres + `pgvector`) passing the conformance suite (ADR-0012).
 
 ---
 
@@ -551,31 +561,42 @@ Work-plan tasks affected by v0.3 (to be reflected in `tfm-work-plan.md` at the n
 
 ## 7. Decisions taken
 
+Every decision below that has real alternatives and consequences — not just a parameter value — is recorded
+in full as an ADR under [`adr/`](adr/README.md); this section is the historical log of *when* each was
+taken and stays in place because it also carries decisions that don't warrant a standalone ADR (a fixed
+catalogue, a flag's meaning, a default that will move once E7.4 has measurements). Where an ADR exists it
+is the source of truth for the rationale and alternatives considered; this section states the decision and
+points to it.
+
 Kept from v0.1/v0.2:
 
-- Interventions for v1: `lane_closure`, `edge_closure` (time-bounded), `speed_limit`, `demand_scale`, `signal_program`; v0.3 adds `custom`.
-- `forced` is a user flag (user does not want to spend simulation resources).
-- Expert knowledge model: facts via tools, opinions via RAG over `ExpertNote`s with `provenance`, `basis` and verification `status`; `context_tags` structured in `Scenario`.
-- REAL-NET hand-cleaned once and frozen; the Network Author is evaluated separately on GEN-LOCATIONS.
-- DatabaseMCP reference implementation: Postgres + `pgvector` via SQLAlchemy Core; large artifacts in the filesystem, referenced by path/hash.
-- Scenario Builder static mechanisms: one deterministic writer per mechanism (`RerouterWriter`, `VssWriter`, `TlsProgramWriter`, `TazWriter`) behind an `AdditionalFileWriter` port; in v0.3 the writers are tools of the Builder agent rather than a dispatch table, and rejection with a reason is `rejected[]` in the draft.
-- SUMO version pinned for the whole thesis: **1.27.1**; every `SimulationResult.sumo_version` must match it.
+- Interventions for v1: `lane_closure`, `edge_closure` (time-bounded), `speed_limit`, `demand_scale`, `signal_program`; v0.3 adds `custom`. *(no ADR — scope list, not an architecture trade-off)*
+- `forced` is a user flag (user does not want to spend simulation resources). *(no ADR)*
+- Expert knowledge model: facts via tools, opinions via RAG over `ExpertNote`s with `provenance`, `basis` and verification `status`; `context_tags` structured in `Scenario`. → [ADR-0011](adr/0011-network-expert-knowledge-model.md)
+- REAL-NET hand-cleaned once and frozen; the Network Author is evaluated separately on GEN-LOCATIONS. *(no ADR — evaluation-asset methodology, §3)*
+- DatabaseMCP reference implementation: **SQLite + in-process cosine** (A1, superseding the original Postgres + `pgvector` choice this bullet held through v0.3); large artifacts in the filesystem, referenced by path/hash. → [ADR-0012](adr/0012-databasemcp-reference-backend-sqlite.md)
+- Scenario Builder static mechanisms: one deterministic writer per mechanism (`RerouterWriter`, `VssWriter`, `TlsProgramWriter`, `TazWriter`) behind an `AdditionalFileWriter` port; in v0.3 the writers are tools of the Builder agent rather than a dispatch table, and rejection with a reason is `rejected[]` in the draft. → [ADR-0007](adr/0007-scenario-builder-static-mechanism-writers.md)
+- SUMO version pinned for the whole thesis: **1.27.1**; every `SimulationResult.sumo_version` must match it. → [ADR-0010](adr/0010-sumo-version-pin.md)
 
 New in v0.3 (2026-09-11):
 
-- All authoring modules are tool-using agents behind one `ToolAgent` port; only the Runner is code. The Input Parser is part of the Coordinator.
-- Agents return drafts; promotion is code; agents never write ids, hashes, `status` or `provenance`.
-- Decisions as data: network recipe (OSM snapshot + `netconvert` options + plain-XML edits), demand spec with frozen sources, scenario mechanisms + script. Determinism criteria are stated on the replay; agent steps are evaluated statistically.
-- Network editing only through typed tools on plain XML; never on the compiled `.net.xml`. Catalogue v1 = `netconvert` options + `remove_edge`/`add_edge`/`set_lanes`/`set_speed` + `probe_run`; grows from the REAL-NET fix log.
-- The user asks a `Question` (no hypothesis required); a `Study` is the root aggregate; `Experiment` is a value object inside it; `Study` is stored through a framework port, outside the DatabaseMCP contract.
-- `Demand` is an aggregate (trips + routes per network) with a required `demands` capability; calibration against counts uses `routeSampler` and short simulations in the loop; `reroute_demand` is deterministic.
-- Network derivation (`derived_from`, `TopologyModification` incl. `AddEdge`) is the Network Author's job; the rule is "different `.net.xml` → Network Author, same network → Builder".
-- One dynamic mechanism: scripts against `resto.traci_api` with `at_time`/`when`; the `TraciPlan` interpreter is dropped; scripts are linted, dry-run, sandboxed and logged.
-- Identity: content hash for `Network`/`Demand`; request hash for `Scenario`; scenario + seed hash for `SimulationResult`; UUID for `Study`/`ExpertNote`. `seed` lives in `SimulationResult`.
-- Defaults: `NetworkTask.max_rounds = 5`, `DemandTask.max_calibration_rounds = 5`, `Study.max_rounds = 3`; revisited after first measurements (E7.4).
-- MCP servers in `interface/mcp/`; SUMO, storage and LLM adapters in `adapters/`; the framework consumes DatabaseMCP through repository ports with an in-process and an MCP-client adapter.
-- One data model: stdlib dataclasses in `domain/`, `pydantic.TypeAdapter` in `application/schemas.py`; no `contracts/` package.
-- Environment: SUMO 1.27.1 from PyPI (`eclipse-sumo`, `sumolib`, `traci`; `libsumo` optional) as `pyproject.toml` dependencies; no `SUMO_HOME`.
+- All authoring modules are tool-using agents behind one `ToolAgent` port; only the Runner is code. The Input Parser is part of the Coordinator. Agents return drafts; promotion is code; agents never write ids, hashes, `status` or `provenance`. → [ADR-0001](adr/0001-tool-agent-port-and-draft-promotion.md)
+- Decisions as data: network recipe (OSM snapshot + `netconvert` options + plain-XML edits), demand spec with frozen sources, scenario mechanisms + script. Determinism criteria are stated on the replay; agent steps are evaluated statistically. *(the instance of this principle for each module is its own ADR: network recipe → ADR-0003, demand spec → ADR-0006, scripts → ADR-0005)*
+- Network editing only through typed tools on plain XML; never on the compiled `.net.xml`. Catalogue v1 = `netconvert` options + `remove_edge`/`add_edge`/`set_lanes`/`set_speed` + `probe_run`; grows from the REAL-NET fix log. → [ADR-0003](adr/0003-network-edits-via-typed-tools-on-plain-xml.md)
+- The user asks a `Question` (no hypothesis required); a `Study` is the root aggregate; `Experiment` is a value object inside it; `Study` is stored through a framework port, outside the DatabaseMCP contract. Identity: content hash for `Network`/`Demand`; request hash for `Scenario`; scenario + seed hash for `SimulationResult`; UUID for `Study`/`ExpertNote`. → [ADR-0002](adr/0002-domain-model-aggregates-and-identity-policy.md)
+- `Demand` is an aggregate (trips + routes per network) with a required `demands` capability; calibration against counts uses `routeSampler` and short simulations in the loop; `reroute_demand` is deterministic. → [ADR-0006](adr/0006-demand-as-aggregate-with-calibration-loop.md)
+- Network derivation (`derived_from`, `TopologyModification` incl. `AddEdge`) is the Network Author's job; the rule is "different `.net.xml` → Network Author, same network → Builder". → [ADR-0004](adr/0004-network-author-vs-scenario-builder-boundary.md)
+- One dynamic mechanism: scripts against `resto.traci_api` with `at_time`/`when`; the `TraciPlan` interpreter is dropped; scripts are linted, dry-run, sandboxed and logged. → [ADR-0005](adr/0005-traci-api-scripts-as-the-single-dynamic-mechanism.md)
+- Defaults: `NetworkTask.max_rounds = 5`, `DemandTask.max_calibration_rounds = 5`, `Study.max_rounds = 3`; revisited after first measurements (E7.4). *(no ADR — parameter, not architecture)*
+- MCP servers in `interface/mcp/`; SUMO, storage and LLM adapters in `adapters/`; the framework consumes DatabaseMCP through repository ports with an in-process and an MCP-client adapter. → [ADR-0009](adr/0009-mcp-as-transport-not-a-layer.md)
+- One data model: stdlib dataclasses in `domain/`, `pydantic.TypeAdapter` in `application/schemas.py`; no `contracts/` package. → [ADR-0008](adr/0008-stdlib-dataclasses-with-typeadapter-boundary.md)
+- Environment: SUMO 1.27.1 from PyPI (`eclipse-sumo`, `sumolib`, `traci`; `libsumo` optional) as `pyproject.toml` dependencies; no `SUMO_HOME`. → [ADR-0010](adr/0010-sumo-version-pin.md)
+
+Amendments after v0.3, reconciled into the body above at the v1.0 freeze (history kept in §9):
+
+- A1 (2026-09-11) — DatabaseMCP reference backend swapped from Postgres + `pgvector` to SQLite + in-process cosine. → [ADR-0012](adr/0012-databasemcp-reference-backend-sqlite.md)
+- A2 (2026-09-14) — `Network.label` added, no `NetworkGroup` aggregate. → [ADR-0013](adr/0013-network-label-no-network-group-aggregate.md)
+- A2 (2026-09-14) — note ranking fixed as a domain-pure algorithm; embedding model stays server-owned. → [ADR-0014](adr/0014-note-ranking-domain-pure-algorithm.md)
 
 ---
 
@@ -588,100 +609,28 @@ New in v0.3 (2026-09-11):
 
 ---
 
-## 9. Amendments after v0.3
+## 9. Amendments after v0.3 (history — reconciled into the body at the v1.0 freeze)
 
-Decisions taken after v0.3 was written and before the v1.0 freeze (E0.8). Each one states what it
-supersedes; the body of the document is reconciled with them at the freeze.
+Two decisions were taken after v0.3 was written and before the v1.0 freeze (E0.8). Both are now fully
+reconciled into the body (§2.1, §2.3, §2.4, §2.6, §4.9, §7) and superseded as prose by their ADRs, which
+carry the full rationale, alternatives and consequences kept here through v1.0's writing:
 
-### A1 — DatabaseMCP reference implementation: SQLite + in-memory cosine, not Postgres + `pgvector` (2026-09-11)
-
-The reference implementation of the DatabaseMCP contract is **SQLite plus cosine similarity computed in
-process** (embeddings stored as a blob column, similarity in `numpy`). Postgres + `pgvector` is deferred,
-not cancelled.
-
-Supersedes: the storage line of the diagram in §2.1, the reference-implementation sentence in §2.4
-(*DatabaseMCP*), and the corresponding bullet in §7 (*Kept from v0.1/v0.2*). Inverts the §4.9 Stretch item:
-the second backend to pass the conformance suite becomes Postgres + `pgvector`, not SQLite.
-
-Rationale:
-
-- `pgvector` exists in this design for exactly one port method, `NoteRepository.search`. The largest note
-  corpus the thesis ever queries is the learning-effect experiment (§4.7, E4.9) at **25 notes**. Exact
-  cosine over 25 embeddings is a `numpy` dot product; an approximate-nearest-neighbour index is machinery
-  for a scale this thesis never reaches.
-- The remaining five capability groups are ordinary relational work — `query_edgedata` over the scenario
-  matrix, `find_similar_scenario` by intervention and `context_tags` overlap, id lookups for the
-  "zero redundant simulations" guarantee. SQLite serves all of them at the volumes of §3.
-- The 24 h of E1.3 buy an engineering claim (a production-grade reference backend), not a thesis result.
-  M2, M3 and M5 are what must not be cut (work plan §5); with the plan overcommitted by ~6 % and no
-  contingency, this is the cheapest hour saving that costs no evaluation.
-
-What does **not** change: the DatabaseMCP contract itself. Same six capability groups, same tool names and
-I/O schemas, same error codes, same conformance suite (E1.5), same two consumption paths (in-process
-repository adapters and `mcp_client`). The backend swap must be invisible above the repository ports of
-`application/ports/repositories.py` — that invisibility is the claim the contract makes, and keeping the
-SQLite implementation conformant is what proves it. Large artifacts stay in the filesystem artifact store,
-referenced by `ArtifactRef`, exactly as before.
-
-When Postgres returns: when a note corpus outgrows linear scan (order 10³ notes), when edgedata volume or
-concurrent access outgrows SQLite, or for a real deployment at DLR. Because it is then the *second*
-implementation of a contract that already has a conformance suite, it is additive work with a ready-made
-acceptance test — which is the strongest evidence the pluggable-backend claim was true.
-
-Tasks affected (to be reflected in `tfm-work-plan.md` at the next Friday ritual): E0.2 drops the
-Postgres + `pgvector` service from the reproducible environment (no Docker service needed); E1.3 becomes
-"DatabaseMCP reference implementation (SQLite + cosine)" with a reduced estimate; E1.5's conformance suite
-is unchanged and becomes the gate for any later Postgres backend.
-
-### A2 — `Network.label`, and a domain-pure note-ranking algorithm (2026-09-14)
-
-Resolves DATABASE_MCP_CONTRACT.md §10, open points 1 and 2.
-
-**`Network.label`.** `Network` gains an optional `label: str | None` field: a human-facing, opaque
-handle, not part of `network_id` (still the content hash of the `.net.xml`). It resolves open
-point 1 by adding the human label §10 already flagged as the more useful fix, rather than dropping
-the `name` mention from §2.3/§2.4. No `NetworkGroup` aggregate is introduced: grouping (e.g. every
-network derived from one base network for a what-if study — the motivating case is a set of edits
-on a "Berlin" network, each stored as its own `Network` with a label like
-`"berlin/remove_edge_118"`) is expressed as a naming convention inside `label` itself, the way an
-object store treats a key as an opaque path it never parses, rather than as a modelled parent-child
-relationship. A `NetworkGroup` aggregate would need its own identity, repository and lifecycle
-rules for a need `label` plus prefix matching already covers — the same reasoning as A1 against
-building infrastructure a TFM-scale corpus never requires. Because `label` carries no identity
-claim, it is exempt from the §3 conflict rule the same way `ExpertNote`'s id is: a repeated
-`store_network` for an existing id with the same `net_xml` content hash but a different `label` is
-an update, not a `CONFLICT`.
-
-Supersedes: the `find_network(source, name, derived_from)` row of the §2.4 capability table —
-already corrected in place to `find_network(source, derived_from, label)`, unlike A1's amendments
-this reconciles immediately rather than waiting for the v1.0 freeze, since it is a one-line,
-non-controversial fix. DATABASE_MCP_CONTRACT.md §5.1/§3 updated to match. Code: `Network`
-(`domain/entities/network.py`) and `NetworkRepository.find` (`application/ports/repositories.py`)
-already carry the field.
-
-**Note ranking is a fixed, domain-pure algorithm.** Open point 2 conflated two things that vary for
-different reasons: the embedding model (genuinely server-owned — `search_notes` takes text, so
-different backends may legitimately embed differently) and the ranking step that turns vectors into
-an ordered, scored list (which had been left implicitly server-owned too, for no good reason — two
-backends embedding identically could still disagree on how to rank the result). This amendment
-fixes only the second: `domain.services.note_ranking.rank_notes` (cosine similarity, ties broken by
-`note_id` ascending per §6) is now the one algorithm every conformant DatabaseMCP implementation
-must reproduce, checked by the conformance suite (E1.5) against fixed vector fixtures — independent
-of any embedder, so the check needs no model to run.
-
-The reason this doesn't create a `domain/` → infrastructure dependency: `rank_notes` operates on
-`Vector = tuple[float, ...]`, plain data, never on text and never on a model. Producing a `Vector`
-from `ExpertNote.text` is the actual infrastructure-dependent step, and it stays exactly where the
-architecture already puts such things — behind a port, `application.ports.embedding.Embedder` —
-which `domain/` does not import. This is the same split `domain/services/ids.py` already makes for
-id policy (pure hashing in domain, the artifacts being hashed produced elsewhere); note ranking is
-the same pattern applied to retrieval. The embedding-model half of open point 2 remains open exactly
-as before: the reference implementation pins one model for its own run-to-run reproducibility, but a
-third-party backend may choose a different one and stays conformant, at the cost of its rankings not
-being numerically comparable to the reference's — stated as a limitation in the thesis (E4.9).
-
-Supersedes: nothing structural — `NoteRepository.search`'s signature (§2.4) and the DatabaseMCP
-contract's tool surface (§5.5) are unchanged; this only pins an algorithm that was previously
-unspecified. Code: `domain/services/note_ranking.py` (`Vector`, `ScoredNote`, `cosine_similarity`,
-`rank_notes`) and `application/ports/embedding.py` (`Embedder`) exist as typed placeholders ahead of
-E1.3/E1.5 implementing them for real.
+- **A1** (2026-09-11) — DatabaseMCP reference implementation is SQLite + in-process cosine, not
+  Postgres + `pgvector`. Rationale: `pgvector` exists in this design for one port method
+  (`NoteRepository.search`) whose largest corpus is 25 notes (E4.9) — exact cosine over 25 vectors needs no
+  ANN index; the other five capability groups are ordinary relational work SQLite serves at this thesis's
+  volumes (§3); the 24 h of E1.3 bought an engineering claim, not a thesis result, against an
+  already-overcommitted plan. The contract itself (six capability groups, tool names, I/O schemas, error
+  codes, conformance suite) is unchanged — the backend swap is invisible above
+  `application/ports/repositories.py`, which is the pluggable-backend claim the contract makes. Postgres
+  returns as the *second* backend against the conformance suite (§4.9 Stretch), when a corpus outgrows
+  linear scan or for a real DLR deployment. Full text: [ADR-0012](adr/0012-databasemcp-reference-backend-sqlite.md).
+- **A2** (2026-09-14) — resolves DATABASE_MCP_CONTRACT.md §10 open points 1 and 2. `Network` gains an
+  optional `label: str | None`, a human-facing opaque handle outside `network_id` and outside the §3
+  conflict rule, with no `NetworkGroup` aggregate (a naming convention inside `label`, e.g.
+  `"berlin/remove_edge_118"`, covers the grouping need). Note ranking (`domain.services.note_ranking.rank_notes`,
+  cosine similarity on plain `Vector` tuples, ties broken by `note_id`) is fixed as the one algorithm every
+  conformant DatabaseMCP implementation must reproduce, checked against fixture vectors independent of any
+  embedder; the embedding model itself stays server-owned since `search_notes` takes text, not a vector.
+  Full text: [ADR-0013](adr/0013-network-label-no-network-group-aggregate.md) and
+  [ADR-0014](adr/0014-note-ranking-domain-pure-algorithm.md).
