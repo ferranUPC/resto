@@ -168,13 +168,17 @@ different network is a separate `Demand` with `derived_from` set, and is listed 
 |---|---|---|
 | `store_scenario` | `scenario: Scenario` | `{ "scenario_id": str }` |
 | `get_scenario` | `scenario_id: str` | `Scenario \| null` |
-| `find_similar_scenario` | `network_id: str`, `interventions: Intervention[]`, `context_tags: str[]`, `limit: int = 10` | `{ "scenario": Scenario, "score": float }[]` |
+| `find_similar_scenario` | `network_id: str`, `demand_id: str`, `interventions: Intervention[]`, `context_tags: str[]`, `limit: int = 10` | `{ "scenario": Scenario, "score": float }[]` |
 
 `find_similar_scenario` must:
 
-1. **Short-circuit on identity.** If a scenario with the `scenario_id` these arguments hash to
-   exists, return it alone with `score = 1.0`. This is the path the "zero redundant simulations"
-   guarantee runs through, so it must not be approximated.
+1. **Short-circuit on identity.** Compute `scenario_id_for(network_id, demand_id, interventions,
+   context_tags)` (the same hash `store_scenario` uses, §3) and look it up directly. If it exists,
+   return it alone with `score = 1.0`, bypassing step 2 entirely. This is the path the "zero
+   redundant simulations" guarantee runs through, so it must not be approximated — `demand_id` is
+   therefore a required argument (not optional), since the hash cannot be computed without it.
+   `demand_id` plays no part in step 2's scoring below: the ranking is deliberately about
+   intervention/context *shape*, independent of which demand happened to be used.
 2. Otherwise rank candidates **within `network_id` only** by
 
    ```

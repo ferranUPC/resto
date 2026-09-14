@@ -16,6 +16,7 @@ reproduce. Turning `ExpertNote.text` into a `Vector` is infrastructure and lives
 
 from __future__ import annotations
 
+import math
 from collections.abc import Sequence
 from dataclasses import dataclass
 
@@ -35,10 +36,17 @@ class ScoredNote:
 def cosine_similarity(a: Vector, b: Vector) -> float:
     """Cosine similarity between two embedding vectors of equal dimension.
 
-    Placeholder: dot product over the product of norms; convention for the zero-vector edge case
-    (score 0.0 rather than a division by zero) still needs to be pinned when this is implemented.
+    Convention (pinned here): a zero vector has no direction, so any pair involving one scores
+    `0.0` rather than dividing by zero - it is neither "similar" nor "opposite" to anything.
     """
-    raise NotImplementedError("cosine_similarity: see docs/DATABASE_MCP_CONTRACT.md §5.5")
+    if len(a) != len(b):
+        raise ValueError(f"vectors must have equal dimension, got {len(a)} and {len(b)}")
+    norm_a = math.sqrt(sum(x * x for x in a))
+    norm_b = math.sqrt(sum(x * x for x in b))
+    if norm_a == 0.0 or norm_b == 0.0:
+        return 0.0
+    dot = sum(x * y for x, y in zip(a, b, strict=True))
+    return dot / (norm_a * norm_b)
 
 
 def rank_notes(
@@ -48,10 +56,13 @@ def rank_notes(
 ) -> list[ScoredNote]:
     """Rank candidates by similarity to `query_vector`, highest score first.
 
-    Ties must break by `note_id` ascending (contract §6 determinism rule) so a listing is
-    reproducible across identical calls regardless of backend. Filtering (`status`, `basis`,
-    `context_tags` — contract §5.5) happens before this is called; this function only ranks.
-
-    Placeholder: see docs/DATABASE_MCP_CONTRACT.md §5.5 and architecture §9 amendment A2.
+    Ties break by `note_id` ascending (contract §6 determinism rule) so a listing is reproducible
+    across identical calls regardless of backend. Filtering (`status`, `basis`, `context_tags` -
+    contract §5.5) happens before this is called; this function only ranks.
     """
-    raise NotImplementedError("rank_notes: see docs/DATABASE_MCP_CONTRACT.md §5.5")
+    scored = [
+        ScoredNote(note=note, score=cosine_similarity(query_vector, vector))
+        for note, vector in candidates
+    ]
+    scored.sort(key=lambda s: (-s.score, s.note.note_id))
+    return scored[:limit]

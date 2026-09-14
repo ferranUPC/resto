@@ -37,8 +37,13 @@ class ScenarioRepository(Protocol):
     def store(self, scenario: Scenario) -> None: ...
     def get(self, scenario_id: str) -> Scenario | None: ...
     def find_similar(
-        self, network_id: str, interventions: Iterable[Intervention], context_tags: Iterable[str]
-    ) -> Sequence[Scenario]: ...
+        self,
+        network_id: str,
+        demand_id: str,
+        interventions: Iterable[Intervention],
+        context_tags: Iterable[str],
+        limit: int = 10,
+    ) -> Sequence[tuple[Scenario, float]]: ...
 
 
 class ResultRepository(Protocol):
@@ -53,8 +58,12 @@ class ResultRepository(Protocol):
 class NoteRepository(Protocol):
     def store(self, note: ExpertNote) -> None: ...
     def search(
-        self, query: str, network_id: str, filters: Mapping[str, Any]
-    ) -> Sequence[ExpertNote]: ...
+        self,
+        query: str,
+        network_id: str,
+        filters: Mapping[str, Any],
+        limit: int = 10,
+    ) -> Sequence[tuple[ExpertNote, float]]: ...
     def update_status(self, note_id: str, status: NoteStatus) -> None: ...
 
 

@@ -27,3 +27,4 @@ numbered in the order they were taken.
 | [0013](0013-network-label-no-network-group-aggregate.md) | `Network.label`; no `NetworkGroup` aggregate | 2026-09-14 | Accepted |
 | [0014](0014-note-ranking-domain-pure-algorithm.md) | Note ranking is a fixed, domain-pure algorithm | 2026-09-14 | Accepted |
 | [0015](0015-capacity-estimate-greenshields-with-sumo-default-jam-density.md) | `capacity_estimate` — Greenshields estimate, jam density derived from SUMO's default vehicle length/minGap | 2026-09-14 | Accepted |
+| [0016](0016-hashing-embedder-for-databasemcp-reference-notes.md) | Reference `Embedder` is a deterministic hashing/bag-of-words vectorizer, not a real embedding model | 2026-09-14 | Accepted |
