@@ -26,3 +26,4 @@ numbered in the order they were taken.
 | [0012](0012-databasemcp-reference-backend-sqlite.md) | DatabaseMCP reference backend — SQLite + in-process cosine, not Postgres + `pgvector` | 2026-09-11 | Accepted — supersedes the original Postgres + `pgvector` choice |
 | [0013](0013-network-label-no-network-group-aggregate.md) | `Network.label`; no `NetworkGroup` aggregate | 2026-09-14 | Accepted |
 | [0014](0014-note-ranking-domain-pure-algorithm.md) | Note ranking is a fixed, domain-pure algorithm | 2026-09-14 | Accepted |
+| [0015](0015-capacity-estimate-greenshields-with-sumo-default-jam-density.md) | `capacity_estimate` — Greenshields estimate, jam density derived from SUMO's default vehicle length/minGap | 2026-09-14 | Accepted |

@@ -13,6 +13,7 @@ dependencies = [
     "eclipse-sumo==1.27.1",
     "sumolib==1.27.1",
     "traci==1.27.1",
+    "mcp>=2,<3",  # v2 renamed FastMCP -> mcp.server.mcpserver.MCPServer; code here targets v2's API
 ]
 
 [project.optional-dependencies]
