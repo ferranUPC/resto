@@ -1,0 +1,153 @@
+{
+  "$defs": {
+    "ArtifactRef": {
+      "description": "Reference to a file in the artifact store, identified by content hash.",
+      "properties": {
+        "content_hash": {
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "path": {
+          "format": "path",
+          "title": "Path",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "content_hash",
+        "kind"
+      ],
+      "title": "ArtifactRef",
+      "type": "object"
+    },
+    "DemandProfile": {
+      "enum": [
+        "low",
+        "peak",
+        "incident",
+        "custom"
+      ],
+      "title": "DemandProfile",
+      "type": "string"
+    },
+    "ExternalDatasetSource": {
+      "description": "Data the Demand Generator found outside, frozen as an artifact so the demand is\nreproducible even if the URL changes.",
+      "properties": {
+        "kind": {
+          "const": "external_dataset",
+          "default": "external_dataset",
+          "title": "Kind",
+          "type": "string"
+        },
+        "snapshot": {
+          "$ref": "#/$defs/ArtifactRef"
+        },
+        "transformation": {
+          "title": "Transformation",
+          "type": "string"
+        },
+        "url": {
+          "title": "Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "url",
+        "snapshot",
+        "transformation"
+      ],
+      "title": "ExternalDatasetSource",
+      "type": "object"
+    },
+    "HistoricalDbSource": {
+      "properties": {
+        "kind": {
+          "const": "historical_db",
+          "default": "historical_db",
+          "title": "Kind",
+          "type": "string"
+        },
+        "query": {
+          "additionalProperties": true,
+          "title": "Query",
+          "type": "object"
+        }
+      },
+      "title": "HistoricalDbSource",
+      "type": "object"
+    },
+    "ParametersSource": {
+      "properties": {
+        "kind": {
+          "const": "parameters",
+          "default": "parameters",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "title": "ParametersSource",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "control_edges": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Control Edges",
+      "type": "array"
+    },
+    "max_calibration_rounds": {
+      "default": 5,
+      "title": "Max Calibration Rounds",
+      "type": "integer"
+    },
+    "network_id": {
+      "title": "Network Id",
+      "type": "string"
+    },
+    "profile": {
+      "$ref": "#/$defs/DemandProfile"
+    },
+    "seed": {
+      "title": "Seed",
+      "type": "integer"
+    },
+    "sources": {
+      "default": [],
+      "items": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ParametersSource"
+          },
+          {
+            "$ref": "#/$defs/HistoricalDbSource"
+          },
+          {
+            "$ref": "#/$defs/ExternalDatasetSource"
+          }
+        ]
+      },
+      "title": "Sources",
+      "type": "array"
+    },
+    "tolerance": {
+      "default": 0.15,
+      "title": "Tolerance",
+      "type": "number"
+    }
+  },
+  "required": [
+    "network_id",
+    "profile",
+    "seed"
+  ],
+  "title": "DemandTask",
+  "type": "object"
+}

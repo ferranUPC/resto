@@ -1,0 +1,66 @@
+{
+  "$defs": {
+    "PlanStep": {
+      "properties": {
+        "depends_on": {
+          "default": [],
+          "items": {
+            "type": "integer"
+          },
+          "title": "Depends On",
+          "type": "array"
+        },
+        "expected_artifacts": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Expected Artifacts",
+          "type": "array"
+        },
+        "inputs": {
+          "additionalProperties": true,
+          "title": "Inputs",
+          "type": "object"
+        },
+        "module": {
+          "title": "Module",
+          "type": "string"
+        }
+      },
+      "required": [
+        "module"
+      ],
+      "title": "PlanStep",
+      "type": "object"
+    }
+  },
+  "description": "Emitted by the Coordinator before its first tool call; measured against gold plans.",
+  "properties": {
+    "rationale": {
+      "title": "Rationale",
+      "type": "string"
+    },
+    "reuse_decisions": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Reuse Decisions",
+      "type": "array"
+    },
+    "steps": {
+      "items": {
+        "$ref": "#/$defs/PlanStep"
+      },
+      "title": "Steps",
+      "type": "array"
+    }
+  },
+  "required": [
+    "steps",
+    "rationale"
+  ],
+  "title": "StudyPlan",
+  "type": "object"
+}

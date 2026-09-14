@@ -1,0 +1,76 @@
+{
+  "$defs": {
+    "Basis": {
+      "enum": [
+        "observed",
+        "inferred",
+        "extrapolated"
+      ],
+      "title": "Basis",
+      "type": "string"
+    },
+    "Evidence": {
+      "properties": {
+        "excerpt": {
+          "default": "",
+          "title": "Excerpt",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/EvidenceKind"
+        },
+        "ref": {
+          "title": "Ref",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "ref"
+      ],
+      "title": "Evidence",
+      "type": "object"
+    },
+    "EvidenceKind": {
+      "enum": [
+        "artifact",
+        "query"
+      ],
+      "title": "EvidenceKind",
+      "type": "string"
+    }
+  },
+  "description": "Network Expert output after an experiment: the prose only.\n\n`provenance`, `status`, `note_id` and the references to network/scenario/study are written\nby `write_note`, which knows the experiment the note came from.",
+  "properties": {
+    "basis": {
+      "$ref": "#/$defs/Basis"
+    },
+    "context_tags": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Context Tags",
+      "type": "array",
+      "uniqueItems": true
+    },
+    "evidence": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Evidence"
+      },
+      "title": "Evidence",
+      "type": "array"
+    },
+    "text": {
+      "title": "Text",
+      "type": "string"
+    }
+  },
+  "required": [
+    "text",
+    "basis"
+  ],
+  "title": "ExpertNoteDraft",
+  "type": "object"
+}

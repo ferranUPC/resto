@@ -1,0 +1,367 @@
+{
+  "$defs": {
+    "AddEdge": {
+      "properties": {
+        "from_junction": {
+          "title": "From Junction",
+          "type": "string"
+        },
+        "kind": {
+          "const": "add_edge",
+          "default": "add_edge",
+          "title": "Kind",
+          "type": "string"
+        },
+        "lanes": {
+          "title": "Lanes",
+          "type": "integer"
+        },
+        "speed": {
+          "title": "Speed",
+          "type": "number"
+        },
+        "to_junction": {
+          "title": "To Junction",
+          "type": "string"
+        }
+      },
+      "required": [
+        "from_junction",
+        "to_junction",
+        "lanes",
+        "speed"
+      ],
+      "title": "AddEdge",
+      "type": "object"
+    },
+    "ArtifactRef": {
+      "description": "Reference to a file in the artifact store, identified by content hash.",
+      "properties": {
+        "content_hash": {
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "path": {
+          "format": "path",
+          "title": "Path",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "content_hash",
+        "kind"
+      ],
+      "title": "ArtifactRef",
+      "type": "object"
+    },
+    "NetworkRecipe": {
+      "description": "Everything needed to rebuild a network without an LLM: OSM snapshot + netconvert\noptions + plain-XML edits. Exactly one of `source` / `base_network_id`.",
+      "properties": {
+        "base_network_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Base Network Id"
+        },
+        "netconvert_options": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Netconvert Options",
+          "type": "array"
+        },
+        "osm_snapshot": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArtifactRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "plain_edits": {
+          "default": [],
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RemoveEdge"
+              },
+              {
+                "$ref": "#/$defs/AddEdge"
+              },
+              {
+                "$ref": "#/$defs/SetLanes"
+              },
+              {
+                "$ref": "#/$defs/SetSpeed"
+              }
+            ]
+          },
+          "title": "Plain Edits",
+          "type": "array"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NetworkSource"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "NetworkRecipe",
+      "type": "object"
+    },
+    "NetworkSource": {
+      "properties": {
+        "kind": {
+          "enum": [
+            "place",
+            "bbox",
+            "file"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
+      ],
+      "title": "NetworkSource",
+      "type": "object"
+    },
+    "ProbeReport": {
+      "description": "Outcome of the Network Author's `probe_run`: light random demand on the network.",
+      "properties": {
+        "collisions": {
+          "title": "Collisions",
+          "type": "integer"
+        },
+        "evidence": {
+          "$ref": "#/$defs/ArtifactRef"
+        },
+        "hot_edges": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Hot Edges",
+          "type": "array"
+        },
+        "not_arrived": {
+          "title": "Not Arrived",
+          "type": "integer"
+        },
+        "teleports": {
+          "title": "Teleports",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "teleports",
+        "collisions",
+        "not_arrived",
+        "hot_edges",
+        "evidence"
+      ],
+      "title": "ProbeReport",
+      "type": "object"
+    },
+    "RemoveEdge": {
+      "properties": {
+        "edge_id": {
+          "title": "Edge Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "remove_edge",
+          "default": "remove_edge",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "edge_id"
+      ],
+      "title": "RemoveEdge",
+      "type": "object"
+    },
+    "SanityReport": {
+      "properties": {
+        "all_reachable_from_fringe": {
+          "title": "All Reachable From Fringe",
+          "type": "boolean"
+        },
+        "largest_scc_ratio": {
+          "title": "Largest Scc Ratio",
+          "type": "number"
+        },
+        "zero_length_edges": {
+          "title": "Zero Length Edges",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "largest_scc_ratio",
+        "zero_length_edges",
+        "all_reachable_from_fringe"
+      ],
+      "title": "SanityReport",
+      "type": "object"
+    },
+    "SetLanes": {
+      "properties": {
+        "edge_id": {
+          "title": "Edge Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "set_lanes",
+          "default": "set_lanes",
+          "title": "Kind",
+          "type": "string"
+        },
+        "lanes": {
+          "title": "Lanes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "edge_id",
+        "lanes"
+      ],
+      "title": "SetLanes",
+      "type": "object"
+    },
+    "SetSpeed": {
+      "properties": {
+        "edge_id": {
+          "title": "Edge Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "set_speed",
+          "default": "set_speed",
+          "title": "Kind",
+          "type": "string"
+        },
+        "speed": {
+          "title": "Speed",
+          "type": "number"
+        }
+      },
+      "required": [
+        "edge_id",
+        "speed"
+      ],
+      "title": "SetSpeed",
+      "type": "object"
+    },
+    "UnresolvedIssue": {
+      "description": "A defect the Network Author found but had no tool to fix (architecture \u00a72.4).\n\nDoubles as the tool backlog: `needed_tool` is what the v1 catalogue was missing.",
+      "properties": {
+        "element_id": {
+          "title": "Element Id",
+          "type": "string"
+        },
+        "element_kind": {
+          "enum": [
+            "edge",
+            "junction",
+            "connection",
+            "tls"
+          ],
+          "title": "Element Kind",
+          "type": "string"
+        },
+        "issue": {
+          "title": "Issue",
+          "type": "string"
+        },
+        "needed_tool": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Needed Tool"
+        }
+      },
+      "required": [
+        "element_kind",
+        "element_id",
+        "issue"
+      ],
+      "title": "UnresolvedIssue",
+      "type": "object"
+    }
+  },
+  "description": "Network Author output. The recipe is what makes the network replayable without an LLM.",
+  "properties": {
+    "net_artifact": {
+      "$ref": "#/$defs/ArtifactRef"
+    },
+    "probe_report": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ProbeReport"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "rationale": {
+      "title": "Rationale",
+      "type": "string"
+    },
+    "recipe": {
+      "$ref": "#/$defs/NetworkRecipe"
+    },
+    "sanity_report": {
+      "$ref": "#/$defs/SanityReport"
+    },
+    "unresolved": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/UnresolvedIssue"
+      },
+      "title": "Unresolved",
+      "type": "array"
+    }
+  },
+  "required": [
+    "recipe",
+    "net_artifact",
+    "sanity_report",
+    "rationale"
+  ],
+  "title": "NetworkDraft",
+  "type": "object"
+}

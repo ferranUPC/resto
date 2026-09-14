@@ -13,10 +13,17 @@ src/resto/
   adapters/        # llm/ (ToolAgent), sumo/ (netconvert, demand, runner, traci_api), sandbox/, web/, persistence/, tracing/
   interface/       # CLI, MCP servers (NetworkMCP, DatabaseMCP, TraciMCP), report rendering
 eval/              # evaluation assets and harness (outside the hexagon)
+schemas/           # published JSON schemas, generated from the domain (see below)
 ```
 
-Architecture, domain model and per-module Definition of Done: `docs/tfm-architecture-and-dod.md` (v0.3).
+Architecture, domain model and per-module Definition of Done: `docs/tfm-architecture-and-dod.md` (v0.3),
+with decisions taken after it was written in its §9 (amendments).
+Storage contract for third-party backends: [`docs/DATABASE_MCP_CONTRACT.md`](docs/DATABASE_MCP_CONTRACT.md).
 Superseded versions and working notes: `docs/_old/`.
+
+The JSON schemas in `schemas/` are generated, never edited by hand — regenerate them with
+`python -m resto.application.schemas schemas` after changing a domain type, or the test that
+compares them against the code will fail.
 
 ## Development
 

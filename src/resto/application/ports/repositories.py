@@ -20,7 +20,10 @@ class NetworkRepository(Protocol):
     def get(self, network_id: str) -> Network | None: ...
     def list(self) -> Sequence[Network]: ...
     def find(
-        self, source: str | None = None, derived_from: str | None = None
+        self,
+        source: str | None = None,
+        derived_from: str | None = None,
+        label: str | None = None,
     ) -> Sequence[Network]: ...
 
 

@@ -1,0 +1,285 @@
+{
+  "$defs": {
+    "Condition": {
+      "description": "Runtime predicate `metric(target) op value` evaluated by the script's `when(...)`.",
+      "properties": {
+        "metric": {
+          "$ref": "#/$defs/Metric"
+        },
+        "op": {
+          "$ref": "#/$defs/Operator"
+        },
+        "target": {
+          "title": "Target",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "number"
+        }
+      },
+      "required": [
+        "metric",
+        "target",
+        "op",
+        "value"
+      ],
+      "title": "Condition",
+      "type": "object"
+    },
+    "EdgeTarget": {
+      "properties": {
+        "edge_id": {
+          "title": "Edge Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "edge",
+          "default": "edge",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "edge_id"
+      ],
+      "title": "EdgeTarget",
+      "type": "object"
+    },
+    "Intervention": {
+      "description": "Something that happens *during* a simulation on an unchanged network.\n\nPermanent topology changes are not interventions: see TopologyModification.",
+      "properties": {
+        "condition": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Condition"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "expected_effect": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Effect"
+        },
+        "params": {
+          "additionalProperties": true,
+          "title": "Params",
+          "type": "object"
+        },
+        "target": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EdgeTarget"
+            },
+            {
+              "$ref": "#/$defs/LaneTarget"
+            },
+            {
+              "$ref": "#/$defs/TlsTarget"
+            },
+            {
+              "$ref": "#/$defs/TazTarget"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Target"
+        },
+        "type": {
+          "$ref": "#/$defs/InterventionType"
+        },
+        "window": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TimeWindow"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "type",
+        "target"
+      ],
+      "title": "Intervention",
+      "type": "object"
+    },
+    "InterventionType": {
+      "enum": [
+        "lane_closure",
+        "edge_closure",
+        "speed_limit",
+        "demand_scale",
+        "signal_program",
+        "custom"
+      ],
+      "title": "InterventionType",
+      "type": "string"
+    },
+    "LaneTarget": {
+      "properties": {
+        "edge_id": {
+          "title": "Edge Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "lane",
+          "default": "lane",
+          "title": "Kind",
+          "type": "string"
+        },
+        "lane_index": {
+          "title": "Lane Index",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "edge_id",
+        "lane_index"
+      ],
+      "title": "LaneTarget",
+      "type": "object"
+    },
+    "Metric": {
+      "enum": [
+        "occupancy",
+        "speed",
+        "vehicle_count"
+      ],
+      "title": "Metric",
+      "type": "string"
+    },
+    "Operator": {
+      "enum": [
+        ">",
+        ">=",
+        "<",
+        "<="
+      ],
+      "title": "Operator",
+      "type": "string"
+    },
+    "TazTarget": {
+      "properties": {
+        "kind": {
+          "const": "taz",
+          "default": "taz",
+          "title": "Kind",
+          "type": "string"
+        },
+        "taz_id": {
+          "title": "Taz Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "taz_id"
+      ],
+      "title": "TazTarget",
+      "type": "object"
+    },
+    "TimeWindow": {
+      "description": "Simulation-time interval in seconds, [start, end).",
+      "properties": {
+        "end": {
+          "title": "End",
+          "type": "number"
+        },
+        "start": {
+          "title": "Start",
+          "type": "number"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ],
+      "title": "TimeWindow",
+      "type": "object"
+    },
+    "TlsTarget": {
+      "properties": {
+        "kind": {
+          "const": "tls",
+          "default": "tls",
+          "title": "Kind",
+          "type": "string"
+        },
+        "tls_id": {
+          "title": "Tls Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "tls_id"
+      ],
+      "title": "TlsTarget",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "allow_script": {
+      "default": true,
+      "title": "Allow Script",
+      "type": "boolean"
+    },
+    "context_tags": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Context Tags",
+      "type": "array",
+      "uniqueItems": true
+    },
+    "demand_id": {
+      "title": "Demand Id",
+      "type": "string"
+    },
+    "interventions": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Intervention"
+      },
+      "title": "Interventions",
+      "type": "array"
+    },
+    "network_id": {
+      "title": "Network Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "network_id",
+    "demand_id"
+  ],
+  "title": "ScenarioTask",
+  "type": "object"
+}

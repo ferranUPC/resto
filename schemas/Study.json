@@ -1,0 +1,963 @@
+{
+  "$defs": {
+    "AddEdge": {
+      "properties": {
+        "from_junction": {
+          "title": "From Junction",
+          "type": "string"
+        },
+        "kind": {
+          "const": "add_edge",
+          "default": "add_edge",
+          "title": "Kind",
+          "type": "string"
+        },
+        "lanes": {
+          "title": "Lanes",
+          "type": "integer"
+        },
+        "speed": {
+          "title": "Speed",
+          "type": "number"
+        },
+        "to_junction": {
+          "title": "To Junction",
+          "type": "string"
+        }
+      },
+      "required": [
+        "from_junction",
+        "to_junction",
+        "lanes",
+        "speed"
+      ],
+      "title": "AddEdge",
+      "type": "object"
+    },
+    "Basis": {
+      "enum": [
+        "observed",
+        "inferred",
+        "extrapolated"
+      ],
+      "title": "Basis",
+      "type": "string"
+    },
+    "Claim": {
+      "properties": {
+        "evidence_refs": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Refs",
+          "type": "array"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        }
+      },
+      "required": [
+        "text",
+        "evidence_refs"
+      ],
+      "title": "Claim",
+      "type": "object"
+    },
+    "Condition": {
+      "description": "Runtime predicate `metric(target) op value` evaluated by the script's `when(...)`.",
+      "properties": {
+        "metric": {
+          "$ref": "#/$defs/Metric"
+        },
+        "op": {
+          "$ref": "#/$defs/Operator"
+        },
+        "target": {
+          "title": "Target",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "number"
+        }
+      },
+      "required": [
+        "metric",
+        "target",
+        "op",
+        "value"
+      ],
+      "title": "Condition",
+      "type": "object"
+    },
+    "EdgeTarget": {
+      "properties": {
+        "edge_id": {
+          "title": "Edge Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "edge",
+          "default": "edge",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "edge_id"
+      ],
+      "title": "EdgeTarget",
+      "type": "object"
+    },
+    "Evidence": {
+      "properties": {
+        "excerpt": {
+          "default": "",
+          "title": "Excerpt",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/EvidenceKind"
+        },
+        "ref": {
+          "title": "Ref",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "ref"
+      ],
+      "title": "Evidence",
+      "type": "object"
+    },
+    "EvidenceKind": {
+      "enum": [
+        "artifact",
+        "query"
+      ],
+      "title": "EvidenceKind",
+      "type": "string"
+    },
+    "Experiment": {
+      "description": "One scenario and its seeded runs, inside a Study.",
+      "properties": {
+        "purpose": {
+          "title": "Purpose",
+          "type": "string"
+        },
+        "result_ids": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Result Ids",
+          "type": "array"
+        },
+        "role": {
+          "$ref": "#/$defs/ExperimentRole"
+        },
+        "scenario_id": {
+          "title": "Scenario Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "scenario_id",
+        "role",
+        "purpose"
+      ],
+      "title": "Experiment",
+      "type": "object"
+    },
+    "ExperimentRole": {
+      "enum": [
+        "baseline",
+        "treatment",
+        "comparison"
+      ],
+      "title": "ExperimentRole",
+      "type": "string"
+    },
+    "ExpertAnswer": {
+      "properties": {
+        "answer": {
+          "title": "Answer",
+          "type": "string"
+        },
+        "basis": {
+          "$ref": "#/$defs/Basis"
+        },
+        "confidence": {
+          "title": "Confidence",
+          "type": "number"
+        },
+        "evidence": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "needs_simulation": {
+          "default": false,
+          "title": "Needs Simulation",
+          "type": "boolean"
+        },
+        "proposed_experiment": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Question"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "answer",
+        "basis",
+        "confidence"
+      ],
+      "title": "ExpertAnswer",
+      "type": "object"
+    },
+    "ExpertRound": {
+      "description": "One iteration of the Expert <-> Simulation loop inside a Study.",
+      "properties": {
+        "answer": {
+          "$ref": "#/$defs/ExpertAnswer"
+        },
+        "question": {
+          "title": "Question",
+          "type": "string"
+        },
+        "triggered_experiments": {
+          "default": [],
+          "items": {
+            "type": "integer"
+          },
+          "title": "Triggered Experiments",
+          "type": "array"
+        }
+      },
+      "required": [
+        "question",
+        "answer"
+      ],
+      "title": "ExpertRound",
+      "type": "object"
+    },
+    "Intent": {
+      "enum": [
+        "describe",
+        "diagnose",
+        "counterfactual",
+        "compare",
+        "run"
+      ],
+      "title": "Intent",
+      "type": "string"
+    },
+    "Intervention": {
+      "description": "Something that happens *during* a simulation on an unchanged network.\n\nPermanent topology changes are not interventions: see TopologyModification.",
+      "properties": {
+        "condition": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Condition"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "expected_effect": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Effect"
+        },
+        "params": {
+          "additionalProperties": true,
+          "title": "Params",
+          "type": "object"
+        },
+        "target": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EdgeTarget"
+            },
+            {
+              "$ref": "#/$defs/LaneTarget"
+            },
+            {
+              "$ref": "#/$defs/TlsTarget"
+            },
+            {
+              "$ref": "#/$defs/TazTarget"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Target"
+        },
+        "type": {
+          "$ref": "#/$defs/InterventionType"
+        },
+        "window": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TimeWindow"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "type",
+        "target"
+      ],
+      "title": "Intervention",
+      "type": "object"
+    },
+    "InterventionType": {
+      "enum": [
+        "lane_closure",
+        "edge_closure",
+        "speed_limit",
+        "demand_scale",
+        "signal_program",
+        "custom"
+      ],
+      "title": "InterventionType",
+      "type": "string"
+    },
+    "LaneTarget": {
+      "properties": {
+        "edge_id": {
+          "title": "Edge Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "lane",
+          "default": "lane",
+          "title": "Kind",
+          "type": "string"
+        },
+        "lane_index": {
+          "title": "Lane Index",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "edge_id",
+        "lane_index"
+      ],
+      "title": "LaneTarget",
+      "type": "object"
+    },
+    "Metric": {
+      "enum": [
+        "occupancy",
+        "speed",
+        "vehicle_count"
+      ],
+      "title": "Metric",
+      "type": "string"
+    },
+    "Mode": {
+      "enum": [
+        "free",
+        "forced"
+      ],
+      "title": "Mode",
+      "type": "string"
+    },
+    "Operator": {
+      "enum": [
+        ">",
+        ">=",
+        "<",
+        "<="
+      ],
+      "title": "Operator",
+      "type": "string"
+    },
+    "PlanStep": {
+      "properties": {
+        "depends_on": {
+          "default": [],
+          "items": {
+            "type": "integer"
+          },
+          "title": "Depends On",
+          "type": "array"
+        },
+        "expected_artifacts": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Expected Artifacts",
+          "type": "array"
+        },
+        "inputs": {
+          "additionalProperties": true,
+          "title": "Inputs",
+          "type": "object"
+        },
+        "module": {
+          "title": "Module",
+          "type": "string"
+        }
+      },
+      "required": [
+        "module"
+      ],
+      "title": "PlanStep",
+      "type": "object"
+    },
+    "Question": {
+      "description": "What the user asked, as understood by the Coordinator. A plain doubt is\n`describe`/`diagnose`; a hypothesis is `counterfactual`/`compare`.",
+      "properties": {
+        "ambiguities": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Ambiguities",
+          "type": "array"
+        },
+        "context_tags": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Context Tags",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "demand_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Demand Ref"
+        },
+        "intent": {
+          "$ref": "#/$defs/Intent"
+        },
+        "interventions": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Intervention"
+          },
+          "title": "Interventions",
+          "type": "array"
+        },
+        "metrics_of_interest": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Metrics Of Interest",
+          "type": "array"
+        },
+        "mode": {
+          "$ref": "#/$defs/Mode",
+          "default": "free"
+        },
+        "network_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Network Ref"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "time_window": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TimeWindow"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "topology_changes": {
+          "default": [],
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RemoveEdge"
+              },
+              {
+                "$ref": "#/$defs/AddEdge"
+              },
+              {
+                "$ref": "#/$defs/SetLanes"
+              },
+              {
+                "$ref": "#/$defs/SetSpeed"
+              }
+            ]
+          },
+          "title": "Topology Changes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "text",
+        "intent"
+      ],
+      "title": "Question",
+      "type": "object"
+    },
+    "RemoveEdge": {
+      "properties": {
+        "edge_id": {
+          "title": "Edge Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "remove_edge",
+          "default": "remove_edge",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "edge_id"
+      ],
+      "title": "RemoveEdge",
+      "type": "object"
+    },
+    "Report": {
+      "properties": {
+        "basis": {
+          "$ref": "#/$defs/Basis"
+        },
+        "claims": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Claim"
+          },
+          "title": "Claims",
+          "type": "array"
+        },
+        "limitations": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Limitations",
+          "type": "array"
+        },
+        "mode": {
+          "$ref": "#/$defs/Mode"
+        },
+        "sections": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ReportSection"
+          },
+          "title": "Sections",
+          "type": "array"
+        },
+        "summary": {
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "summary",
+        "mode",
+        "basis"
+      ],
+      "title": "Report",
+      "type": "object"
+    },
+    "ReportSection": {
+      "properties": {
+        "body": {
+          "title": "Body",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "body"
+      ],
+      "title": "ReportSection",
+      "type": "object"
+    },
+    "SetLanes": {
+      "properties": {
+        "edge_id": {
+          "title": "Edge Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "set_lanes",
+          "default": "set_lanes",
+          "title": "Kind",
+          "type": "string"
+        },
+        "lanes": {
+          "title": "Lanes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "edge_id",
+        "lanes"
+      ],
+      "title": "SetLanes",
+      "type": "object"
+    },
+    "SetSpeed": {
+      "properties": {
+        "edge_id": {
+          "title": "Edge Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "set_speed",
+          "default": "set_speed",
+          "title": "Kind",
+          "type": "string"
+        },
+        "speed": {
+          "title": "Speed",
+          "type": "number"
+        }
+      },
+      "required": [
+        "edge_id",
+        "speed"
+      ],
+      "title": "SetSpeed",
+      "type": "object"
+    },
+    "StepRecord": {
+      "description": "One tool call made by the Coordinator, with the typed task it sent (as data).",
+      "properties": {
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error"
+        },
+        "produced_ids": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Produced Ids",
+          "type": "array"
+        },
+        "status": {
+          "$ref": "#/$defs/StepStatus"
+        },
+        "task": {
+          "additionalProperties": true,
+          "title": "Task",
+          "type": "object"
+        },
+        "tool": {
+          "title": "Tool",
+          "type": "string"
+        },
+        "usage": {
+          "$ref": "#/$defs/Usage"
+        }
+      },
+      "required": [
+        "tool",
+        "status"
+      ],
+      "title": "StepRecord",
+      "type": "object"
+    },
+    "StepStatus": {
+      "enum": [
+        "ok",
+        "failed",
+        "skipped"
+      ],
+      "title": "StepStatus",
+      "type": "string"
+    },
+    "StudyPlan": {
+      "description": "Emitted by the Coordinator before its first tool call; measured against gold plans.",
+      "properties": {
+        "rationale": {
+          "title": "Rationale",
+          "type": "string"
+        },
+        "reuse_decisions": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Reuse Decisions",
+          "type": "array"
+        },
+        "steps": {
+          "items": {
+            "$ref": "#/$defs/PlanStep"
+          },
+          "title": "Steps",
+          "type": "array"
+        }
+      },
+      "required": [
+        "steps",
+        "rationale"
+      ],
+      "title": "StudyPlan",
+      "type": "object"
+    },
+    "StudyStatus": {
+      "enum": [
+        "planning",
+        "running",
+        "awaiting_user",
+        "completed",
+        "failed"
+      ],
+      "title": "StudyStatus",
+      "type": "string"
+    },
+    "TazTarget": {
+      "properties": {
+        "kind": {
+          "const": "taz",
+          "default": "taz",
+          "title": "Kind",
+          "type": "string"
+        },
+        "taz_id": {
+          "title": "Taz Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "taz_id"
+      ],
+      "title": "TazTarget",
+      "type": "object"
+    },
+    "TimeWindow": {
+      "description": "Simulation-time interval in seconds, [start, end).",
+      "properties": {
+        "end": {
+          "title": "End",
+          "type": "number"
+        },
+        "start": {
+          "title": "Start",
+          "type": "number"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ],
+      "title": "TimeWindow",
+      "type": "object"
+    },
+    "TlsTarget": {
+      "properties": {
+        "kind": {
+          "const": "tls",
+          "default": "tls",
+          "title": "Kind",
+          "type": "string"
+        },
+        "tls_id": {
+          "title": "Tls Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "tls_id"
+      ],
+      "title": "TlsTarget",
+      "type": "object"
+    },
+    "Usage": {
+      "properties": {
+        "input_tokens": {
+          "default": 0,
+          "title": "Input Tokens",
+          "type": "integer"
+        },
+        "output_tokens": {
+          "default": 0,
+          "title": "Output Tokens",
+          "type": "integer"
+        },
+        "simulations": {
+          "default": 0,
+          "title": "Simulations",
+          "type": "integer"
+        }
+      },
+      "title": "Usage",
+      "type": "object"
+    }
+  },
+  "description": "Root of one user request: the question, the plan, every step taken, the experiments\nrun, the Expert rounds and the final report. Framework run-time state, stored through\nStudyRepository (not part of the DatabaseMCP contract).",
+  "properties": {
+    "experiments": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Experiment"
+      },
+      "title": "Experiments",
+      "type": "array"
+    },
+    "max_rounds": {
+      "default": 3,
+      "title": "Max Rounds",
+      "type": "integer"
+    },
+    "network_ids": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Network Ids",
+      "type": "array"
+    },
+    "note_ids": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Note Ids",
+      "type": "array"
+    },
+    "plan": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/StudyPlan"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "question": {
+      "$ref": "#/$defs/Question"
+    },
+    "report": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Report"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "rounds": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ExpertRound"
+      },
+      "title": "Rounds",
+      "type": "array"
+    },
+    "status": {
+      "$ref": "#/$defs/StudyStatus",
+      "default": "planning"
+    },
+    "steps": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/StepRecord"
+      },
+      "title": "Steps",
+      "type": "array"
+    },
+    "study_id": {
+      "title": "Study Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "study_id",
+    "question"
+  ],
+  "title": "Study",
+  "type": "object"
+}

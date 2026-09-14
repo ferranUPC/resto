@@ -1,0 +1,45 @@
+{
+  "$defs": {
+    "Mode": {
+      "enum": [
+        "free",
+        "forced"
+      ],
+      "title": "Mode",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "mode": {
+      "$ref": "#/$defs/Mode"
+    },
+    "network_id": {
+      "title": "Network Id",
+      "type": "string"
+    },
+    "notes_allowed": {
+      "default": true,
+      "title": "Notes Allowed",
+      "type": "boolean"
+    },
+    "question": {
+      "title": "Question",
+      "type": "string"
+    },
+    "result_ids": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Result Ids",
+      "type": "array"
+    }
+  },
+  "required": [
+    "question",
+    "mode",
+    "network_id"
+  ],
+  "title": "ExpertTask",
+  "type": "object"
+}

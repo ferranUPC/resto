@@ -1,0 +1,115 @@
+{
+  "$defs": {
+    "Basis": {
+      "enum": [
+        "observed",
+        "inferred",
+        "extrapolated"
+      ],
+      "title": "Basis",
+      "type": "string"
+    },
+    "Claim": {
+      "properties": {
+        "evidence_refs": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Refs",
+          "type": "array"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        }
+      },
+      "required": [
+        "text",
+        "evidence_refs"
+      ],
+      "title": "Claim",
+      "type": "object"
+    },
+    "Mode": {
+      "enum": [
+        "free",
+        "forced"
+      ],
+      "title": "Mode",
+      "type": "string"
+    },
+    "ReportSection": {
+      "properties": {
+        "body": {
+          "title": "Body",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "body"
+      ],
+      "title": "ReportSection",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "basis": {
+      "$ref": "#/$defs/Basis"
+    },
+    "claims": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Claim"
+      },
+      "title": "Claims",
+      "type": "array"
+    },
+    "limitations": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Limitations",
+      "type": "array"
+    },
+    "mode": {
+      "$ref": "#/$defs/Mode"
+    },
+    "sections": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ReportSection"
+      },
+      "title": "Sections",
+      "type": "array"
+    },
+    "summary": {
+      "title": "Summary",
+      "type": "string"
+    }
+  },
+  "required": [
+    "summary",
+    "mode",
+    "basis"
+  ],
+  "title": "Report",
+  "type": "object"
+}

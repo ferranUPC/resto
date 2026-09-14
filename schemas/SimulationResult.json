@@ -1,0 +1,204 @@
+{
+  "$defs": {
+    "ActionOrigin": {
+      "enum": [
+        "rule",
+        "code"
+      ],
+      "title": "ActionOrigin",
+      "type": "string"
+    },
+    "AppliedAction": {
+      "properties": {
+        "action": {
+          "title": "Action",
+          "type": "string"
+        },
+        "origin": {
+          "$ref": "#/$defs/ActionOrigin"
+        },
+        "params": {
+          "additionalProperties": true,
+          "title": "Params",
+          "type": "object"
+        },
+        "step": {
+          "title": "Step",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "step",
+        "action",
+        "origin"
+      ],
+      "title": "AppliedAction",
+      "type": "object"
+    },
+    "ArtifactRef": {
+      "description": "Reference to a file in the artifact store, identified by content hash.",
+      "properties": {
+        "content_hash": {
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "path": {
+          "format": "path",
+          "title": "Path",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "content_hash",
+        "kind"
+      ],
+      "title": "ArtifactRef",
+      "type": "object"
+    },
+    "Kpis": {
+      "properties": {
+        "arrived": {
+          "title": "Arrived",
+          "type": "integer"
+        },
+        "departed": {
+          "title": "Departed",
+          "type": "integer"
+        },
+        "mean_delay": {
+          "title": "Mean Delay",
+          "type": "number"
+        },
+        "mean_travel_time": {
+          "title": "Mean Travel Time",
+          "type": "number"
+        },
+        "teleports": {
+          "title": "Teleports",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "mean_delay",
+        "mean_travel_time",
+        "teleports",
+        "departed",
+        "arrived"
+      ],
+      "title": "Kpis",
+      "type": "object"
+    },
+    "RunMode": {
+      "enum": [
+        "batch",
+        "online"
+      ],
+      "title": "RunMode",
+      "type": "string"
+    },
+    "RunStatus": {
+      "enum": [
+        "ok",
+        "failed"
+      ],
+      "title": "RunStatus",
+      "type": "string"
+    }
+  },
+  "description": "One seeded execution of a Scenario. `result_id` = hash(scenario_id, seed, mode,\nsumo_version); `content_hash` covers the produced artifacts (reproducibility check).",
+  "properties": {
+    "applied_actions": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/AppliedAction"
+      },
+      "title": "Applied Actions",
+      "type": "array"
+    },
+    "artifacts": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ArtifactRef"
+      },
+      "title": "Artifacts",
+      "type": "array"
+    },
+    "content_hash": {
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "error": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Error"
+    },
+    "kpis": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Kpis"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "mode": {
+      "$ref": "#/$defs/RunMode"
+    },
+    "result_id": {
+      "title": "Result Id",
+      "type": "string"
+    },
+    "scenario_id": {
+      "title": "Scenario Id",
+      "type": "string"
+    },
+    "seed": {
+      "title": "Seed",
+      "type": "integer"
+    },
+    "status": {
+      "$ref": "#/$defs/RunStatus"
+    },
+    "sumo_version": {
+      "default": "1.27.1",
+      "title": "Sumo Version",
+      "type": "string"
+    },
+    "wall_clock_s": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Wall Clock S"
+    }
+  },
+  "required": [
+    "result_id",
+    "scenario_id",
+    "seed",
+    "mode",
+    "status",
+    "content_hash"
+  ],
+  "title": "SimulationResult",
+  "type": "object"
+}

@@ -1,0 +1,90 @@
+{
+  "$defs": {
+    "Basis": {
+      "enum": [
+        "observed",
+        "inferred",
+        "extrapolated"
+      ],
+      "title": "Basis",
+      "type": "string"
+    },
+    "NoteStatus": {
+      "enum": [
+        "unverified",
+        "confirmed",
+        "refuted"
+      ],
+      "title": "NoteStatus",
+      "type": "string"
+    },
+    "Provenance": {
+      "enum": [
+        "simulation",
+        "opinion"
+      ],
+      "title": "Provenance",
+      "type": "string"
+    }
+  },
+  "description": "Prose written by the Expert after an experiment, retrieved by RAG later.\n`provenance` and `status` are set by code, never by the agent.",
+  "properties": {
+    "basis": {
+      "$ref": "#/$defs/Basis"
+    },
+    "context_tags": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Context Tags",
+      "type": "array",
+      "uniqueItems": true
+    },
+    "network_id": {
+      "title": "Network Id",
+      "type": "string"
+    },
+    "note_id": {
+      "title": "Note Id",
+      "type": "string"
+    },
+    "provenance": {
+      "$ref": "#/$defs/Provenance"
+    },
+    "scenario_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Scenario Id"
+    },
+    "status": {
+      "$ref": "#/$defs/NoteStatus",
+      "default": "unverified"
+    },
+    "study_id": {
+      "title": "Study Id",
+      "type": "string"
+    },
+    "text": {
+      "title": "Text",
+      "type": "string"
+    }
+  },
+  "required": [
+    "note_id",
+    "network_id",
+    "study_id",
+    "text",
+    "provenance",
+    "basis"
+  ],
+  "title": "ExpertNote",
+  "type": "object"
+}

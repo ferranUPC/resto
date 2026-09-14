@@ -1,0 +1,199 @@
+{
+  "$defs": {
+    "AddEdge": {
+      "properties": {
+        "from_junction": {
+          "title": "From Junction",
+          "type": "string"
+        },
+        "kind": {
+          "const": "add_edge",
+          "default": "add_edge",
+          "title": "Kind",
+          "type": "string"
+        },
+        "lanes": {
+          "title": "Lanes",
+          "type": "integer"
+        },
+        "speed": {
+          "title": "Speed",
+          "type": "number"
+        },
+        "to_junction": {
+          "title": "To Junction",
+          "type": "string"
+        }
+      },
+      "required": [
+        "from_junction",
+        "to_junction",
+        "lanes",
+        "speed"
+      ],
+      "title": "AddEdge",
+      "type": "object"
+    },
+    "NetworkSource": {
+      "properties": {
+        "kind": {
+          "enum": [
+            "place",
+            "bbox",
+            "file"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
+      ],
+      "title": "NetworkSource",
+      "type": "object"
+    },
+    "RemoveEdge": {
+      "properties": {
+        "edge_id": {
+          "title": "Edge Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "remove_edge",
+          "default": "remove_edge",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "edge_id"
+      ],
+      "title": "RemoveEdge",
+      "type": "object"
+    },
+    "SetLanes": {
+      "properties": {
+        "edge_id": {
+          "title": "Edge Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "set_lanes",
+          "default": "set_lanes",
+          "title": "Kind",
+          "type": "string"
+        },
+        "lanes": {
+          "title": "Lanes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "edge_id",
+        "lanes"
+      ],
+      "title": "SetLanes",
+      "type": "object"
+    },
+    "SetSpeed": {
+      "properties": {
+        "edge_id": {
+          "title": "Edge Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "set_speed",
+          "default": "set_speed",
+          "title": "Kind",
+          "type": "string"
+        },
+        "speed": {
+          "title": "Speed",
+          "type": "number"
+        }
+      },
+      "required": [
+        "edge_id",
+        "speed"
+      ],
+      "title": "SetSpeed",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "base_network_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Base Network Id"
+    },
+    "goals": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Goals",
+      "type": "array"
+    },
+    "max_rounds": {
+      "default": 5,
+      "title": "Max Rounds",
+      "type": "integer"
+    },
+    "min_scc_ratio": {
+      "default": 0.95,
+      "title": "Min Scc Ratio",
+      "type": "number"
+    },
+    "modifications": {
+      "default": [],
+      "items": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/RemoveEdge"
+          },
+          {
+            "$ref": "#/$defs/AddEdge"
+          },
+          {
+            "$ref": "#/$defs/SetLanes"
+          },
+          {
+            "$ref": "#/$defs/SetSpeed"
+          }
+        ]
+      },
+      "title": "Modifications",
+      "type": "array"
+    },
+    "probe_teleport_threshold": {
+      "default": 0,
+      "title": "Probe Teleport Threshold",
+      "type": "integer"
+    },
+    "source": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/NetworkSource"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "title": "NetworkTask",
+  "type": "object"
+}

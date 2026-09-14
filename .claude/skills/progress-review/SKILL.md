@@ -36,3 +36,6 @@ Runs a check of real progress on the RESTO TFM against the plan, and records an 
 - Stage and commit `docs/progress-tracker.md` and the new `docs/feasability-analisis/{yyyy-mm-dd}.md`, with a short commit message naming the review date (e.g. `Progress review 2026-09-17`).
 - Push to `origin` so the review survives beyond this run's environment — this was explicitly requested for this skill (unattended runs must not leave unpersisted local-only changes).
 - If the push fails (e.g. diverged branch), do not force-push — pull/rebase first, and if that's not resolvable automatically, leave the commit local and say so clearly in the run's output rather than doing anything destructive.
+
+# Note
+Take into account that in worse case scenario, I still have till end of may to finish correcting some things (not full-time work, but still some time partially end the work).

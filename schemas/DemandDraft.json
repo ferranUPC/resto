@@ -1,0 +1,295 @@
+{
+  "$defs": {
+    "ArtifactRef": {
+      "description": "Reference to a file in the artifact store, identified by content hash.",
+      "properties": {
+        "content_hash": {
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "path": {
+          "format": "path",
+          "title": "Path",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "content_hash",
+        "kind"
+      ],
+      "title": "ArtifactRef",
+      "type": "object"
+    },
+    "CalibrationRound": {
+      "properties": {
+        "max_relative_error": {
+          "title": "Max Relative Error",
+          "type": "number"
+        },
+        "params": {
+          "additionalProperties": true,
+          "title": "Params",
+          "type": "object"
+        },
+        "round": {
+          "title": "Round",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "round",
+        "max_relative_error"
+      ],
+      "title": "CalibrationRound",
+      "type": "object"
+    },
+    "DemandProfile": {
+      "enum": [
+        "low",
+        "peak",
+        "incident",
+        "custom"
+      ],
+      "title": "DemandProfile",
+      "type": "string"
+    },
+    "DemandSpec": {
+      "properties": {
+        "profile": {
+          "$ref": "#/$defs/DemandProfile"
+        },
+        "sampler_options": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Sampler Options",
+          "type": "array"
+        },
+        "scale": {
+          "default": 1.0,
+          "title": "Scale",
+          "type": "number"
+        },
+        "seed": {
+          "title": "Seed",
+          "type": "integer"
+        },
+        "vehicles_per_hour": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Vehicles Per Hour"
+        },
+        "window": {
+          "$ref": "#/$defs/TimeWindow"
+        }
+      },
+      "required": [
+        "profile",
+        "window",
+        "seed"
+      ],
+      "title": "DemandSpec",
+      "type": "object"
+    },
+    "EdgeFidelity": {
+      "properties": {
+        "achieved": {
+          "title": "Achieved",
+          "type": "number"
+        },
+        "edge_id": {
+          "title": "Edge Id",
+          "type": "string"
+        },
+        "target": {
+          "title": "Target",
+          "type": "number"
+        }
+      },
+      "required": [
+        "edge_id",
+        "target",
+        "achieved"
+      ],
+      "title": "EdgeFidelity",
+      "type": "object"
+    },
+    "ExternalDatasetSource": {
+      "description": "Data the Demand Generator found outside, frozen as an artifact so the demand is\nreproducible even if the URL changes.",
+      "properties": {
+        "kind": {
+          "const": "external_dataset",
+          "default": "external_dataset",
+          "title": "Kind",
+          "type": "string"
+        },
+        "snapshot": {
+          "$ref": "#/$defs/ArtifactRef"
+        },
+        "transformation": {
+          "title": "Transformation",
+          "type": "string"
+        },
+        "url": {
+          "title": "Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "url",
+        "snapshot",
+        "transformation"
+      ],
+      "title": "ExternalDatasetSource",
+      "type": "object"
+    },
+    "Fidelity": {
+      "description": "Target vs achieved counts at the control edges, backed by the edgedata of the last\ncalibration run.",
+      "properties": {
+        "evidence": {
+          "$ref": "#/$defs/ArtifactRef"
+        },
+        "per_edge": {
+          "items": {
+            "$ref": "#/$defs/EdgeFidelity"
+          },
+          "title": "Per Edge",
+          "type": "array"
+        },
+        "tolerance": {
+          "title": "Tolerance",
+          "type": "number"
+        }
+      },
+      "required": [
+        "per_edge",
+        "tolerance",
+        "evidence"
+      ],
+      "title": "Fidelity",
+      "type": "object"
+    },
+    "HistoricalDbSource": {
+      "properties": {
+        "kind": {
+          "const": "historical_db",
+          "default": "historical_db",
+          "title": "Kind",
+          "type": "string"
+        },
+        "query": {
+          "additionalProperties": true,
+          "title": "Query",
+          "type": "object"
+        }
+      },
+      "title": "HistoricalDbSource",
+      "type": "object"
+    },
+    "ParametersSource": {
+      "properties": {
+        "kind": {
+          "const": "parameters",
+          "default": "parameters",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "title": "ParametersSource",
+      "type": "object"
+    },
+    "TimeWindow": {
+      "description": "Simulation-time interval in seconds, [start, end).",
+      "properties": {
+        "end": {
+          "title": "End",
+          "type": "number"
+        },
+        "start": {
+          "title": "Start",
+          "type": "number"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ],
+      "title": "TimeWindow",
+      "type": "object"
+    }
+  },
+  "description": "Demand Generator output: trips plus routes computed for one network.",
+  "properties": {
+    "calibration_rounds": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/CalibrationRound"
+      },
+      "title": "Calibration Rounds",
+      "type": "array"
+    },
+    "fidelity": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Fidelity"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "rationale": {
+      "title": "Rationale",
+      "type": "string"
+    },
+    "routes_artifact": {
+      "$ref": "#/$defs/ArtifactRef"
+    },
+    "sources": {
+      "default": [],
+      "items": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ParametersSource"
+          },
+          {
+            "$ref": "#/$defs/HistoricalDbSource"
+          },
+          {
+            "$ref": "#/$defs/ExternalDatasetSource"
+          }
+        ]
+      },
+      "title": "Sources",
+      "type": "array"
+    },
+    "spec": {
+      "$ref": "#/$defs/DemandSpec"
+    },
+    "trips_artifact": {
+      "$ref": "#/$defs/ArtifactRef"
+    }
+  },
+  "required": [
+    "spec",
+    "trips_artifact",
+    "routes_artifact",
+    "rationale"
+  ],
+  "title": "DemandDraft",
+  "type": "object"
+}

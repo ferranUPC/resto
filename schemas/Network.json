@@ -1,0 +1,346 @@
+{
+  "$defs": {
+    "AddEdge": {
+      "properties": {
+        "from_junction": {
+          "title": "From Junction",
+          "type": "string"
+        },
+        "kind": {
+          "const": "add_edge",
+          "default": "add_edge",
+          "title": "Kind",
+          "type": "string"
+        },
+        "lanes": {
+          "title": "Lanes",
+          "type": "integer"
+        },
+        "speed": {
+          "title": "Speed",
+          "type": "number"
+        },
+        "to_junction": {
+          "title": "To Junction",
+          "type": "string"
+        }
+      },
+      "required": [
+        "from_junction",
+        "to_junction",
+        "lanes",
+        "speed"
+      ],
+      "title": "AddEdge",
+      "type": "object"
+    },
+    "ArtifactRef": {
+      "description": "Reference to a file in the artifact store, identified by content hash.",
+      "properties": {
+        "content_hash": {
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "path": {
+          "format": "path",
+          "title": "Path",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "content_hash",
+        "kind"
+      ],
+      "title": "ArtifactRef",
+      "type": "object"
+    },
+    "NetworkRecipe": {
+      "description": "Everything needed to rebuild a network without an LLM: OSM snapshot + netconvert\noptions + plain-XML edits. Exactly one of `source` / `base_network_id`.",
+      "properties": {
+        "base_network_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Base Network Id"
+        },
+        "netconvert_options": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Netconvert Options",
+          "type": "array"
+        },
+        "osm_snapshot": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArtifactRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "plain_edits": {
+          "default": [],
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RemoveEdge"
+              },
+              {
+                "$ref": "#/$defs/AddEdge"
+              },
+              {
+                "$ref": "#/$defs/SetLanes"
+              },
+              {
+                "$ref": "#/$defs/SetSpeed"
+              }
+            ]
+          },
+          "title": "Plain Edits",
+          "type": "array"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NetworkSource"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "NetworkRecipe",
+      "type": "object"
+    },
+    "NetworkSource": {
+      "properties": {
+        "kind": {
+          "enum": [
+            "place",
+            "bbox",
+            "file"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
+      ],
+      "title": "NetworkSource",
+      "type": "object"
+    },
+    "ProbeReport": {
+      "description": "Outcome of the Network Author's `probe_run`: light random demand on the network.",
+      "properties": {
+        "collisions": {
+          "title": "Collisions",
+          "type": "integer"
+        },
+        "evidence": {
+          "$ref": "#/$defs/ArtifactRef"
+        },
+        "hot_edges": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Hot Edges",
+          "type": "array"
+        },
+        "not_arrived": {
+          "title": "Not Arrived",
+          "type": "integer"
+        },
+        "teleports": {
+          "title": "Teleports",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "teleports",
+        "collisions",
+        "not_arrived",
+        "hot_edges",
+        "evidence"
+      ],
+      "title": "ProbeReport",
+      "type": "object"
+    },
+    "RemoveEdge": {
+      "properties": {
+        "edge_id": {
+          "title": "Edge Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "remove_edge",
+          "default": "remove_edge",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "edge_id"
+      ],
+      "title": "RemoveEdge",
+      "type": "object"
+    },
+    "SanityReport": {
+      "properties": {
+        "all_reachable_from_fringe": {
+          "title": "All Reachable From Fringe",
+          "type": "boolean"
+        },
+        "largest_scc_ratio": {
+          "title": "Largest Scc Ratio",
+          "type": "number"
+        },
+        "zero_length_edges": {
+          "title": "Zero Length Edges",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "largest_scc_ratio",
+        "zero_length_edges",
+        "all_reachable_from_fringe"
+      ],
+      "title": "SanityReport",
+      "type": "object"
+    },
+    "SetLanes": {
+      "properties": {
+        "edge_id": {
+          "title": "Edge Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "set_lanes",
+          "default": "set_lanes",
+          "title": "Kind",
+          "type": "string"
+        },
+        "lanes": {
+          "title": "Lanes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "edge_id",
+        "lanes"
+      ],
+      "title": "SetLanes",
+      "type": "object"
+    },
+    "SetSpeed": {
+      "properties": {
+        "edge_id": {
+          "title": "Edge Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "set_speed",
+          "default": "set_speed",
+          "title": "Kind",
+          "type": "string"
+        },
+        "speed": {
+          "title": "Speed",
+          "type": "number"
+        }
+      },
+      "required": [
+        "edge_id",
+        "speed"
+      ],
+      "title": "SetSpeed",
+      "type": "object"
+    }
+  },
+  "description": "A compiled SUMO network. `network_id` is the content hash of the .net.xml;\n`recipe` rebuilds it without an LLM.\n\n`label` is a human-facing, opaque handle (DATABASE_MCP_CONTRACT.md \u00a710, open point 1) \u2014 e.g.\n`\"berlin/remove_edge_118\"` for a network derived from a \"berlin\" one. It carries no identity\nclaim: it is not part of `network_id`, and unlike `net_xml`/`recipe`/`sanity_report` a repeat\n`store_network` may update it on an existing id without that being a CONFLICT (contract \u00a73).\nHierarchy implied by a `/` in the string is a naming convention only \u2014 domain does not parse\nor enforce it, the same way an object store treats a key as an opaque path.",
+  "properties": {
+    "derived_from": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Derived From"
+    },
+    "label": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Label"
+    },
+    "net_xml": {
+      "$ref": "#/$defs/ArtifactRef"
+    },
+    "network_id": {
+      "title": "Network Id",
+      "type": "string"
+    },
+    "probe_report": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ProbeReport"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "recipe": {
+      "$ref": "#/$defs/NetworkRecipe"
+    },
+    "sanity_report": {
+      "$ref": "#/$defs/SanityReport"
+    },
+    "sumo_version": {
+      "default": "1.27.1",
+      "title": "Sumo Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "network_id",
+    "net_xml",
+    "recipe",
+    "sanity_report"
+  ],
+  "title": "Network",
+  "type": "object"
+}
