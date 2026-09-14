@@ -9,13 +9,22 @@ from __future__ import annotations
 import asyncio
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 from mcp.server.mcpserver.exceptions import UnexpectedToolError
+from mcp.types import CallToolResult
 
 from resto.adapters.sumo.netxml import SumolibNetworkQuery
 from resto.application.ports.network_query import NetworkQuery
 from resto.interface.mcp.network_server import build_server
+
+
+def _structured(result: object) -> Any:
+    """`MCPServer.call_tool` is typed as `CallToolResult | InputRequiredResult`; these tests
+    never elicit input, so narrow to the result's structured payload."""
+    assert isinstance(result, CallToolResult)
+    return result.structured_content
 
 DEV_NET = Path(__file__).resolve().parents[4] / "eval" / "dev-net" / "dev-net.net.xml"
 
@@ -63,7 +72,7 @@ def test_build_server_call_tool_returns_the_network_query_result(query: NetworkQ
     result = asyncio.run(server.call_tool("get_edge", {"edge_id": "A0A1"}))
 
     # MCP results round-trip through JSON (tuples -> lists), so compare post-round-trip.
-    assert result.structured_content["result"] == json.loads(json.dumps(query.get_edge("A0A1")))
+    assert _structured(result)["result"] == json.loads(json.dumps(query.get_edge("A0A1")))
 
 
 def test_build_server_call_tool_unknown_id_is_reported_as_a_tool_error(

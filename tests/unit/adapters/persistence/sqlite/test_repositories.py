@@ -7,6 +7,7 @@ stored entity is a real, invariant-valid instance rather than a hand-rolled shor
 from __future__ import annotations
 
 import dataclasses
+import sqlite3
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -23,10 +24,12 @@ from resto.adapters.persistence.sqlite.repositories import (
 )
 from resto.application.ports.errors import ConflictError, InvalidArgumentError, NotFoundError
 from resto.domain.entities.expert_note import NoteStatus
+from resto.domain.entities.scenario import Scenario
 from resto.domain.services.ids import scenario_id_for
 from resto.domain.value_objects.artifact_ref import ArtifactRef
 from resto.domain.value_objects.intervention import Intervention, InterventionType
 from resto.domain.value_objects.intervention_target import LaneTarget
+from resto.domain.value_objects.mechanism import StaticFileMechanism
 from resto.domain.value_objects.time_window import TimeWindow
 from tests.unit.domain._fixtures import artifact
 from tests.unit.domain._samples import demand, expert_note, network, scenario, simulation_result
@@ -43,7 +46,7 @@ _EDGEDATA_FIXTURE = """<?xml version="1.0"?>
 
 
 @pytest.fixture
-def conn() -> Iterator[object]:
+def conn() -> Iterator[sqlite3.Connection]:
     c = connect(":memory:")
     yield c
     c.close()
@@ -52,7 +55,7 @@ def conn() -> Iterator[object]:
 # --- networks: idempotency, label exemption, find() --------------------------------------------
 
 
-def test_network_store_then_get_round_trips(conn: object) -> None:
+def test_network_store_then_get_round_trips(conn: sqlite3.Connection) -> None:
     repo = SqliteNetworkRepository(conn)
     net = network()
 
@@ -61,11 +64,11 @@ def test_network_store_then_get_round_trips(conn: object) -> None:
     assert repo.get(net.network_id) == net
 
 
-def test_network_get_unknown_id_returns_none_not_an_error(conn: object) -> None:
+def test_network_get_unknown_id_returns_none_not_an_error(conn: sqlite3.Connection) -> None:
     assert SqliteNetworkRepository(conn).get("nope") is None
 
 
-def test_network_store_is_idempotent_on_identical_content(conn: object) -> None:
+def test_network_store_is_idempotent_on_identical_content(conn: sqlite3.Connection) -> None:
     repo = SqliteNetworkRepository(conn)
     net = network()
 
@@ -75,7 +78,7 @@ def test_network_store_is_idempotent_on_identical_content(conn: object) -> None:
     assert repo.get(net.network_id) == net
 
 
-def test_network_store_different_content_same_id_is_conflict(conn: object) -> None:
+def test_network_store_different_content_same_id_is_conflict(conn: sqlite3.Connection) -> None:
     repo = SqliteNetworkRepository(conn)
     net = network()
     repo.store(net)
@@ -87,7 +90,7 @@ def test_network_store_different_content_same_id_is_conflict(conn: object) -> No
 
 
 def test_network_store_same_id_different_label_updates_in_place_not_a_conflict(
-    conn: object,
+    conn: sqlite3.Connection,
 ) -> None:
     repo = SqliteNetworkRepository(conn)
     net = network()
@@ -96,10 +99,11 @@ def test_network_store_same_id_different_label_updates_in_place_not_a_conflict(
     relabelled = dataclasses.replace(net, label="a-new-label")
     repo.store(relabelled)
 
-    assert repo.get(net.network_id).label == "a-new-label"
+    found = repo.get(net.network_id)
+    assert found is not None and found.label == "a-new-label"
 
 
-def test_network_find_filters_by_label(conn: object) -> None:
+def test_network_find_filters_by_label(conn: sqlite3.Connection) -> None:
     repo = SqliteNetworkRepository(conn)
     net = network()
     other = dataclasses.replace(
@@ -111,7 +115,7 @@ def test_network_find_filters_by_label(conn: object) -> None:
     assert [n.network_id for n in repo.find(label=net.label)] == [net.network_id]
 
 
-def test_network_list_orders_by_id_ascending(conn: object) -> None:
+def test_network_list_orders_by_id_ascending(conn: sqlite3.Connection) -> None:
     repo = SqliteNetworkRepository(conn)
     net = network()
     other = dataclasses.replace(
@@ -136,11 +140,13 @@ def _lane_closure(edge_id: str, lane_index: int = 1) -> Intervention:
 
 def _static_scenario(
     scenario_id: str, interventions: tuple[Intervention, ...], context_tags: frozenset[str]
-) -> object:
+) -> Scenario:
     """A minimal valid Scenario: one StaticFileMechanism per (static) intervention, no script."""
     base = scenario()
+    static = base.mechanisms[0]
+    assert isinstance(static, StaticFileMechanism)
     mechanisms = tuple(
-        dataclasses.replace(base.mechanisms[0], path=artifact(f"{scenario_id}.add.xml").path)
+        dataclasses.replace(static, path=artifact(f"{scenario_id}.add.xml").path)
         for _ in interventions
     )
     return dataclasses.replace(
@@ -153,7 +159,9 @@ def _static_scenario(
     )
 
 
-def test_find_similar_scenario_exact_match_short_circuits_via_the_real_hash(conn: object) -> None:
+def test_find_similar_scenario_exact_match_short_circuits_via_the_real_hash(
+    conn: sqlite3.Connection
+) -> None:
     # A decoy on a *different* demand_id, but with the exact same interventions/context_tags,
     # would also score a coincidental 1.0 under step 2's Jaccard formula (demand_id plays no part
     # in it) - proving the short-circuit genuinely uses the real scenario_id_for(...) hash (not
@@ -178,7 +186,7 @@ def test_find_similar_scenario_exact_match_short_circuits_via_the_real_hash(conn
     assert results == [(exact, 1.0)]
 
 
-def test_find_similar_scenario_ranks_partial_matches_by_jaccard(conn: object) -> None:
+def test_find_similar_scenario_ranks_partial_matches_by_jaccard(conn: sqlite3.Connection) -> None:
     # Neither candidate matches the query exactly, so the score-1.0 short-circuit never fires
     # and both are ranked - that path is covered separately by the "exact match" test above.
     repo = SqliteScenarioRepository(conn)
@@ -199,7 +207,7 @@ def test_find_similar_scenario_ranks_partial_matches_by_jaccard(conn: object) ->
     assert results[1][1] == pytest.approx(0.7 * (1 / 3) + 0.3 * 1.0)
 
 
-def test_find_similar_scenario_is_scoped_to_one_network(conn: object) -> None:
+def test_find_similar_scenario_is_scoped_to_one_network(conn: sqlite3.Connection) -> None:
     repo = SqliteScenarioRepository(conn)
     s = scenario()
     other_network = dataclasses.replace(s, scenario_id="s-other-net", network_id="zzz")
@@ -211,7 +219,7 @@ def test_find_similar_scenario_is_scoped_to_one_network(conn: object) -> None:
     assert [r[0].scenario_id for r in results] == ["s-other-net"]
 
 
-def test_find_similar_scenario_baseline_matches_baseline(conn: object) -> None:
+def test_find_similar_scenario_baseline_matches_baseline(conn: sqlite3.Connection) -> None:
     repo = SqliteScenarioRepository(conn)
     baseline = _static_scenario("baseline", (), frozenset())
     repo.store(baseline)
@@ -222,7 +230,7 @@ def test_find_similar_scenario_baseline_matches_baseline(conn: object) -> None:
     assert score == 1.0
 
 
-def test_find_similar_scenario_respects_limit(conn: object) -> None:
+def test_find_similar_scenario_respects_limit(conn: sqlite3.Connection) -> None:
     repo = SqliteScenarioRepository(conn)
     base = scenario()
     for i in range(5):
@@ -238,12 +246,14 @@ def test_find_similar_scenario_respects_limit(conn: object) -> None:
 # --- results: query_edgedata delegation (§5.4) ---------------------------------------------------
 
 
-def test_query_edgedata_unknown_result_id_raises_not_found(conn: object) -> None:
+def test_query_edgedata_unknown_result_id_raises_not_found(conn: sqlite3.Connection) -> None:
     with pytest.raises(NotFoundError):
         SqliteResultRepository(conn).query_edgedata("nope", [], None)
 
 
-def test_query_edgedata_result_without_edgedata_artifact_returns_empty(conn: object) -> None:
+def test_query_edgedata_result_without_edgedata_artifact_returns_empty(
+    conn: sqlite3.Connection
+) -> None:
     repo = SqliteResultRepository(conn)
     result = dataclasses.replace(simulation_result(), artifacts=())
     repo.store(result)
@@ -252,7 +262,7 @@ def test_query_edgedata_result_without_edgedata_artifact_returns_empty(conn: obj
 
 
 def test_query_edgedata_reads_and_aggregates_the_real_artifact(
-    conn: object, tmp_path: Path
+    conn: sqlite3.Connection, tmp_path: Path
 ) -> None:
     edgedata_path = tmp_path / "r.edgedata.xml"
     edgedata_path.write_text(_EDGEDATA_FIXTURE)
@@ -285,7 +295,7 @@ class _FixedEmbedder:
         return self._vectors[text]
 
 
-def test_search_notes_is_scoped_to_one_network(conn: object) -> None:
+def test_search_notes_is_scoped_to_one_network(conn: sqlite3.Connection) -> None:
     embedder = _FixedEmbedder(
         {"q": (1.0, 0.0), "note in scope": (1.0, 0.0), "note elsewhere": (1.0, 0.0)}
     )
@@ -302,7 +312,7 @@ def test_search_notes_is_scoped_to_one_network(conn: object) -> None:
     assert [n.note_id for n, _score in results] == [note.note_id]
 
 
-def test_search_notes_ranks_by_similarity_descending(conn: object) -> None:
+def test_search_notes_ranks_by_similarity_descending(conn: sqlite3.Connection) -> None:
     close = dataclasses.replace(expert_note(), note_id="close", text="close")
     far = dataclasses.replace(expert_note(), note_id="far", text="far")
     embedder = _FixedEmbedder({"q": (1.0, 0.0), "close": (1.0, 0.0), "far": (0.0, 1.0)})
@@ -315,7 +325,7 @@ def test_search_notes_ranks_by_similarity_descending(conn: object) -> None:
     assert [n.note_id for n, _score in results] == ["close", "far"]
 
 
-def test_search_notes_status_filter_is_applied_before_ranking(conn: object) -> None:
+def test_search_notes_status_filter_is_applied_before_ranking(conn: sqlite3.Connection) -> None:
     embedder = _FixedEmbedder({"q": (1.0, 0.0), "a": (1.0, 0.0), "b": (1.0, 0.0)})
     repo = SqliteNoteRepository(conn, embedder)
     unverified = dataclasses.replace(expert_note(), note_id="a", text="a")
@@ -330,7 +340,7 @@ def test_search_notes_status_filter_is_applied_before_ranking(conn: object) -> N
     assert [n.note_id for n, _score in results] == ["b"]
 
 
-def test_search_notes_context_tags_filter_requires_all_tags(conn: object) -> None:
+def test_search_notes_context_tags_filter_requires_all_tags(conn: sqlite3.Connection) -> None:
     embedder = _FixedEmbedder({"q": (1.0, 0.0), "a": (1.0, 0.0), "b": (1.0, 0.0)})
     repo = SqliteNoteRepository(conn, embedder)
     both_tags = dataclasses.replace(
@@ -347,14 +357,14 @@ def test_search_notes_context_tags_filter_requires_all_tags(conn: object) -> Non
     assert [n.note_id for n, _score in results] == ["a"]
 
 
-def test_search_notes_unknown_filter_key_raises_invalid_argument(conn: object) -> None:
+def test_search_notes_unknown_filter_key_raises_invalid_argument(conn: sqlite3.Connection) -> None:
     repo = SqliteNoteRepository(conn, _FixedEmbedder({"q": (1.0, 0.0)}))
 
     with pytest.raises(InvalidArgumentError):
         repo.search("q", "abc123", {"nonexistent_filter": ["x"]})
 
 
-def test_update_note_status_persists_the_new_status(conn: object) -> None:
+def test_update_note_status_persists_the_new_status(conn: sqlite3.Connection) -> None:
     embedder = _FixedEmbedder({"the text": (1.0, 0.0)})
     repo = SqliteNoteRepository(conn, embedder)
     note = dataclasses.replace(expert_note(), text="the text")
@@ -366,14 +376,14 @@ def test_update_note_status_persists_the_new_status(conn: object) -> None:
     assert found.status is NoteStatus.CONFIRMED
 
 
-def test_update_note_status_unknown_id_raises_not_found(conn: object) -> None:
+def test_update_note_status_unknown_id_raises_not_found(conn: sqlite3.Connection) -> None:
     repo = SqliteNoteRepository(conn, _FixedEmbedder({}))
 
     with pytest.raises(NotFoundError):
         repo.update_status("nope", NoteStatus.CONFIRMED)
 
 
-def test_note_store_different_text_same_id_is_conflict(conn: object) -> None:
+def test_note_store_different_text_same_id_is_conflict(conn: sqlite3.Connection) -> None:
     embedder = _FixedEmbedder({"a": (1.0, 0.0), "b": (0.0, 1.0)})
     repo = SqliteNoteRepository(conn, embedder)
     note = dataclasses.replace(expert_note(), text="a")
@@ -386,7 +396,7 @@ def test_note_store_different_text_same_id_is_conflict(conn: object) -> None:
 # --- demands: idempotency + network scoping -------------------------------------------------------
 
 
-def test_demand_list_is_scoped_to_one_network(conn: object) -> None:
+def test_demand_list_is_scoped_to_one_network(conn: sqlite3.Connection) -> None:
     repo = SqliteDemandRepository(conn)
     d = demand()
     other_network = dataclasses.replace(

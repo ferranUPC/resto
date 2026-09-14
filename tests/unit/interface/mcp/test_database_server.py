@@ -8,14 +8,23 @@ from __future__ import annotations
 import asyncio
 import dataclasses
 from collections.abc import Iterator
+from typing import Any
 
 import pytest
 from mcp.server.mcpserver.exceptions import ToolError
+from mcp.types import CallToolResult
 
 from resto.adapters.persistence.sqlite.repositories import SqliteDatabase
 from resto.application.schemas import ADAPTERS
 from resto.interface.mcp.database_server import build_server
 from tests.unit.domain._samples import expert_note, network, scenario
+
+
+def _structured(result: object) -> Any:
+    """`MCPServer.call_tool` is typed as `CallToolResult | InputRequiredResult`; these tests
+    never elicit input, so narrow to the result's structured payload."""
+    assert isinstance(result, CallToolResult)
+    return result.structured_content
 
 
 @pytest.fixture
@@ -62,8 +71,8 @@ def test_store_then_get_network_round_trips_over_the_wire(db: SqliteDatabase) ->
     # a dict[str, str] return is used directly as structured_content; dict[str, Any] | None
     # (get_network's return type) is not representable as top-level object properties, so
     # mcp.server.mcpserver wraps it in {"result": ...} instead - both verified empirically.
-    assert store_result.structured_content == {"network_id": net.network_id}
-    assert get_result.structured_content["result"]["label"] == net.label
+    assert _structured(store_result) == {"network_id": net.network_id}
+    assert _structured(get_result)["result"]["label"] == net.label
 
 
 def test_get_network_unknown_id_returns_null_not_a_tool_error(db: SqliteDatabase) -> None:
@@ -71,7 +80,7 @@ def test_get_network_unknown_id_returns_null_not_a_tool_error(db: SqliteDatabase
 
     result = asyncio.run(server.call_tool("get_network", {"network_id": "nope"}))
 
-    assert result.structured_content["result"] is None
+    assert _structured(result)["result"] is None
 
 
 def test_store_network_conflict_is_reported_with_the_conflict_code(db: SqliteDatabase) -> None:
@@ -134,7 +143,7 @@ def test_find_similar_scenario_returns_scored_results_over_the_wire(db: SqliteDa
         )
     )
 
-    [match] = result.structured_content["result"]
+    [match] = _structured(result)["result"]
     assert match["scenario"]["scenario_id"] == s.scenario_id
     assert match["score"] == 1.0
 
@@ -151,6 +160,6 @@ def test_search_notes_returns_scored_results_over_the_wire(db: SqliteDatabase) -
         )
     )
 
-    [match] = result.structured_content["result"]
+    [match] = _structured(result)["result"]
     assert match["note"]["note_id"] == note.note_id
     assert match["score"] > 0

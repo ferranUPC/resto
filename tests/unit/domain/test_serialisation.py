@@ -1,5 +1,7 @@
 """DoD §4.9: `validate_json(dump_json(x)) == x` for every domain type, invariants firing."""
 
+from typing import Any
+
 import pytest
 from pydantic import TypeAdapter
 
@@ -21,7 +23,7 @@ def test_samples_do_not_cover_types_that_no_longer_exist() -> None:
 
 @pytest.mark.parametrize("dtype", TYPES, ids=lambda t: t.__name__)
 def test_round_trips_through_json(dtype: type) -> None:
-    adapter = TypeAdapter(dtype)
+    adapter: TypeAdapter[Any] = TypeAdapter(dtype)
     sample = SAMPLES[dtype]()
     assert adapter.validate_json(adapter.dump_json(sample)) == sample
 

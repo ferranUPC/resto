@@ -1,3 +1,5 @@
+from typing import Any
+
 import pytest
 
 from resto.domain.entities.scenario import Scenario
@@ -20,7 +22,7 @@ STATIC_MECH = StaticFileMechanism(file_kind="rerouter", path=artifact("r.add.xml
 
 
 def _scenario(**overrides):  # noqa: ANN003, ANN202
-    base = dict(
+    base: dict[str, Any] = dict(
         scenario_id="s1",
         network_id="n1",
         demand_id="d1",

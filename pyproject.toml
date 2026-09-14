@@ -40,6 +40,13 @@ src = ["src", "tests", "conformance"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
 
+[tool.mypy]
+# The architecture rests on structural Protocols (application/ports/) implemented by several
+# adapters each; nothing but a type checker verifies those implementations actually line up.
+files = ["src", "tests", "conformance"]
+check_untyped_defs = true
+ignore_missing_imports = true  # traci / sumolib ship no type information
+
 [tool.pytest.ini_options]
 testpaths = ["tests", "conformance"]
 addopts = "-ra"

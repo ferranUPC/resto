@@ -172,7 +172,7 @@ def build_network_tools(query: NetworkQuery) -> tuple[Tool, ...]:
     tools = []
     for fn in _FUNCTIONS:
         bound = partial(fn, query)
-        bound.__name__ = fn.__name__  # type: ignore[attr-defined]
+        bound.__name__ = fn.__name__  # type: ignore[attr-defined, union-attr]
         bound.__doc__ = fn.__doc__
         tools.append(
             Tool(

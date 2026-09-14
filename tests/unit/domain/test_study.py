@@ -1,3 +1,5 @@
+from typing import Any
+
 import pytest
 
 from resto.domain.entities.study import Study, StudyStatus
@@ -12,7 +14,7 @@ EVIDENCE = (Evidence(kind=EvidenceKind.QUERY, ref="query_edgedata(r1,E12)"),)
 
 
 def _question(**kw):  # noqa: ANN003, ANN202
-    base = dict(text="what happens at peak?", intent=Intent.DESCRIBE)
+    base: dict[str, Any] = dict(text="what happens at peak?", intent=Intent.DESCRIBE)
     base.update(kw)
     return Question(**base)
 
