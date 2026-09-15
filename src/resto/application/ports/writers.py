@@ -13,7 +13,14 @@ from resto.domain.value_objects.mechanism import StaticFileMechanism
 
 class AdditionalFileWriter(Protocol):
     def supports(self, intervention: Intervention) -> bool: ...
-    def write(self, intervention: Intervention, out_dir: Path) -> StaticFileMechanism: ...
+
+    def write(
+        self, intervention: Intervention, out_dir: Path
+    ) -> tuple[StaticFileMechanism, ArtifactRef]:
+        """Returns the mechanism (for `Scenario.mechanisms`, no hash - a domain value object) and
+        the written file's `ArtifactRef` (for `Scenario.additional_files`), both describing the
+        same file. Hashing is the adapter's job, same as `SumocfgWriter`."""
+        ...
 
 
 @dataclass(frozen=True, slots=True)
