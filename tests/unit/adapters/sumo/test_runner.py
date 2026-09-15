@@ -19,14 +19,24 @@ from pathlib import Path
 import pytest
 
 from resto.adapters.sumo.outputs import canonical_bytes
-from resto.adapters.sumo.runner import EDGEDATA_PERIOD_S, RUN_CFG_NAME, SubprocessSumoRunner
-from resto.adapters.sumo.writers.sumocfg import SumocfgFileWriter
+from resto.adapters.sumo.runner import (
+    EDGEDATA_PERIOD_S,
+    RUN_CFG_NAME,
+    SubprocessSumoRunner,
+    _has_rerouter,
+)
+from resto.adapters.sumo.writers.rerouter import RerouterWriter
+from resto.adapters.sumo.writers.sumocfg import SumocfgFileWriter, write_edgedata_additional
 from resto.application.ports.writers import SimulationSettings
 from resto.domain.value_objects.artifact_ref import ArtifactRef
+from resto.domain.value_objects.intervention import Intervention, InterventionType
+from resto.domain.value_objects.intervention_target import LaneTarget
+from resto.domain.value_objects.time_window import TimeWindow
 
 DEV_NET_DIR = Path(__file__).resolve().parents[4] / "eval" / "dev-net"
 NET = DEV_NET_DIR / "dev-net.net.xml"
 LOW_ROUTES = DEV_NET_DIR / "demand" / "low.rou.xml"
+PEAK_ROUTES = DEV_NET_DIR / "demand" / "peak.rou.xml"
 END_S = 600.0
 
 
@@ -37,8 +47,67 @@ def scenario_cfg(tmp_path_factory: pytest.TempPathFactory) -> ArtifactRef:
     return SumocfgFileWriter().write(settings, out_dir, "scenario.sumocfg")
 
 
+@pytest.fixture(scope="module")
+def closure_scenario_cfg(tmp_path_factory: pytest.TempPathFactory) -> ArtifactRef:
+    """A `lane_closure` on B2C2, an interior DEV-NET edge (three incoming, three outgoing
+    connections at its junctions - not a fringe dead end), on the `peak` profile."""
+    out_dir = tmp_path_factory.mktemp("closure_scenario")
+    closure = Intervention(
+        type=InterventionType.LANE_CLOSURE,
+        target=LaneTarget(edge_id="B2C2", lane_index=0),
+        window=TimeWindow(100.0, 300.0),
+    )
+    _, rerouter_ref = RerouterWriter().write(closure, out_dir)
+    settings = SimulationSettings(
+        net_file=NET, route_files=(PEAK_ROUTES,), additional_files=(rerouter_ref.path,), end=END_S
+    )
+    return SumocfgFileWriter().write(settings, out_dir, "scenario.sumocfg")
+
+
 def _kinds(artifacts: tuple[ArtifactRef, ...]) -> dict[str, ArtifactRef]:
     return {a.kind: a for a in artifacts}
+
+
+def test_has_rerouter_detects_a_rerouter_additional_file(tmp_path: Path) -> None:
+    closure = Intervention(
+        type=InterventionType.LANE_CLOSURE,
+        target=LaneTarget(edge_id="A0A1", lane_index=0),
+        window=TimeWindow(0.0, 60.0),
+    )
+    _, rerouter_ref = RerouterWriter().write(closure, tmp_path)
+    edgedata_add = write_edgedata_additional(tmp_path, EDGEDATA_PERIOD_S, "probe_edgedata.xml")
+
+    assert _has_rerouter((rerouter_ref.path,)) is True
+    assert _has_rerouter((edgedata_add,)) is False
+    assert _has_rerouter(()) is False
+
+
+def test_a_lane_closure_scenario_completes_despite_an_unroutable_vehicle(
+    closure_scenario_cfg: ArtifactRef, tmp_path: Path
+) -> None:
+    """Without `--ignore-route-errors`, this exact scenario hard-fails with "no valid route" (a
+    `peak` vehicle has no alternate path once B2C2 is closed) on every DEV-NET location tried
+    while building E2.4, not just this one - confirmed empirically, see the module docstring."""
+    output = SubprocessSumoRunner().run_batch(closure_scenario_cfg, seed=1, out_dir=tmp_path / "r")
+
+    assert output.ok is True, output.error
+
+
+def test_a_scenario_without_a_rerouter_does_not_get_ignore_route_errors(
+    scenario_cfg: ArtifactRef, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seen_commands: list[list[str]] = []
+    real_run = subprocess.run
+
+    def spy(command, **kwargs):  # noqa: ANN001, ANN201
+        seen_commands.append(list(command))
+        return real_run(command, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", spy)
+
+    SubprocessSumoRunner().run_batch(scenario_cfg, seed=1, out_dir=tmp_path / "r")
+
+    assert seen_commands and "--ignore-route-errors" not in seen_commands[0]
 
 
 def test_batch_run_succeeds_with_kpis_and_the_five_output_artifacts(

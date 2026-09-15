@@ -105,5 +105,5 @@ def test_written_xml_has_the_closing_reroute_for_an_edge_closure(tmp_path: Path)
     text = mechanism.path.read_text(encoding="utf-8")
     assert '<rerouter id="rerouter_A0A1" edges="A0A1">' in text
     assert '<interval begin="25200" end="36000">' in text
-    assert '<closingReroute id="A0A1" />' in text
+    assert '<closingReroute id="A0A1" disallow="all" />' in text
     assert "closingLaneReroute" not in text

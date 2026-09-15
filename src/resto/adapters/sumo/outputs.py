@@ -1,5 +1,6 @@
-"""Readers for what a `sumo` run leaves behind (ADR-0017): KPIs from `statistic-output`, and
-the canonical form of SUMO output files used for their `content_hash`.
+"""Readers for what a `sumo` run leaves behind (ADR-0017): KPIs from `statistic-output`, per-edge
+`edgedata` intervals and TLS program-switch events (E2.4's effect-verification harness reads
+both), and the canonical form of SUMO output files used for their `content_hash`.
 
 SUMO writes a `<!-- generated on <timestamp> ... -->` header into every output file, holding the
 wall-clock time and the absolute paths of the run; 1.27.1 offers no option to omit it. That header
@@ -11,6 +12,7 @@ from __future__ import annotations
 
 import re
 import xml.etree.ElementTree as ET
+from dataclasses import dataclass
 from pathlib import Path
 
 from resto.adapters.persistence.filesystem import sha256_of
@@ -58,3 +60,72 @@ def parse_kpis(statistics_xml: Path) -> Kpis:
         departed=int(vehicles.get("inserted", "0")),
         arrived=arrived,
     )
+
+
+@dataclass(frozen=True, slots=True)
+class EdgeInterval:
+    """One `<edge>` row of one `<interval>` in an `edgedata`-output file (E2.1's
+    `write_edgedata_additional`). `speed`/`flow` are `None` when `sampled_seconds` is 0 - SUMO
+    omits both attributes for an edge nothing crossed during the interval, which for a closed
+    edge/lane is exactly the reading effect-verification (E2.4) looks for."""
+
+    edge_id: str
+    begin: float
+    end: float
+    sampled_seconds: float
+    entered: int
+    left: int
+    departed: int
+    arrived: int
+    speed: float | None
+
+
+def parse_edgedata(path: Path) -> tuple[EdgeInterval, ...]:
+    """Every `<edge>` row across every `<interval>` of an edgedata-output file, in file order."""
+    root = ET.parse(path).getroot()
+    rows = []
+    for interval in root.findall("interval"):
+        begin, end = float(interval.get("begin", 0)), float(interval.get("end", 0))
+        for edge in interval.findall("edge"):
+            speed = edge.get("speed")
+            rows.append(
+                EdgeInterval(
+                    edge_id=edge.get("id", ""),
+                    begin=begin,
+                    end=end,
+                    sampled_seconds=float(edge.get("sampledSeconds", "0")),
+                    entered=int(edge.get("entered", "0")),
+                    left=int(edge.get("left", "0")),
+                    departed=int(edge.get("departed", "0")),
+                    arrived=int(edge.get("arrived", "0")),
+                    speed=float(speed) if speed is not None else None,
+                )
+            )
+    return tuple(rows)
+
+
+@dataclass(frozen=True, slots=True)
+class TlsSwitch:
+    """One de-duplicated program-active window from a `SaveTLSSwitchTimes` `timedEvent` output
+    (`additional_file.xsd`'s `timedEventType`) - the raw file has one `<tlsSwitch>` row per
+    from/to connection sharing the same `(program_id, begin, end)`, collapsed here to one."""
+
+    tls_id: str
+    program_id: str
+    begin: float
+    end: float
+
+
+def parse_tls_switches(path: Path) -> tuple[TlsSwitch, ...]:
+    """De-duplicated, time-ordered `TlsSwitch` rows from a `SaveTLSSwitchTimes` output file."""
+    root = ET.parse(path).getroot()
+    seen: dict[tuple[str, str, float, float], TlsSwitch] = {}
+    for row in root.findall("tlsSwitch"):
+        key = (
+            row.get("id", ""),
+            row.get("programID", ""),
+            float(row.get("begin", 0)),
+            float(row.get("end", 0)),
+        )
+        seen.setdefault(key, TlsSwitch(tls_id=key[0], program_id=key[1], begin=key[2], end=key[3]))
+    return tuple(sorted(seen.values(), key=lambda s: s.begin))

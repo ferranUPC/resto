@@ -36,7 +36,7 @@ packages = ["src/resto"]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-src = ["src", "tests", "conformance"]
+src = ["src", "tests", "conformance", "verify"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
@@ -44,10 +44,10 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 [tool.mypy]
 # The architecture rests on structural Protocols (application/ports/) implemented by several
 # adapters each; nothing but a type checker verifies those implementations actually line up.
-files = ["src", "tests", "conformance"]
+files = ["src", "tests", "conformance", "verify"]
 check_untyped_defs = true
 ignore_missing_imports = true  # traci / sumolib ship no type information
 
 [tool.pytest.ini_options]
-testpaths = ["tests", "conformance"]
+testpaths = ["tests", "conformance", "verify"]
 addopts = "-ra"

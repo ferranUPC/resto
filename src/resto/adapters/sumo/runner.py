@@ -1,14 +1,33 @@
 """`SumoRunner` adapter, batch mode (E2.1, ADR-0017): derive a run cfg from the scenario cfg,
 start `sumo -c run.sumocfg`, collect the outputs.
 
-Nothing is passed on the command line but `-c`: the seed, the outputs and the edgedata period
-all live in files in the run directory, so `sumo -c run.sumocfg` reproduces the run by itself.
+Almost nothing is passed on the command line but `-c`: the seed, the outputs and the edgedata
+period all live in files in the run directory, so `sumo -c run.sumocfg` reproduces the run by
+itself. The one exception, found empirically while building E2.4's effect-verification harness:
+a `<rerouter>` additional file (`lane_closure`/`edge_closure`, E2.2/E2.3) makes SUMO's own router
+recompute a path for any vehicle that would need the closed lane/edge - but on DEV-NET's sparse
+grid (no U-turn connections, largely single-lane) at least one vehicle in `peak`/`low` typically
+has no alternate path at all, or starts its trip on the closed edge outright. By default SUMO
+treats either case as fatal and aborts the *entire* run ("no valid route"/"not allowed on source
+edge"), rather than the "some vehicles just don't reroute" DoD §4.5 already expects (the
+`lane_closure` effect bar is "≥ 90 % rerouted", not 100). `--ignore-route-errors` downgrades that
+one vehicle to a dropped-and-warned one (it never departs, so `Kpis.departed` already reflects
+the drop) instead of failing the run - confirmed empirically on 12 different DEV-NET locations
+that all hard-failed without it and all completed with it. A first attempt at this fix reached
+for `--device.rerouting.probability` instead (SUMO's periodic re-routing device); a clean,
+isolated re-test showed it made no difference in any of those 12 cases, so it was dropped in
+favour of this simpler, verified fix. Added only when the scenario's additional files actually
+contain a `<rerouter>`, so a scenario with none (most of E2.1's own reproducibility test, and
+every baseline/non-closure run) stays byte-identical to before this fix.
+
 Online mode (SUMO under TraCI with a sandboxed script) is E2.5.
 """
 
 from __future__ import annotations
 
 import subprocess
+import xml.etree.ElementTree as ET
+from collections.abc import Sequence
 from pathlib import Path
 from time import perf_counter
 
@@ -25,6 +44,20 @@ from resto.domain.value_objects.artifact_ref import ArtifactRef
 
 EDGEDATA_PERIOD_S = 300.0
 RUN_CFG_NAME = "run.sumocfg"
+IGNORE_ROUTE_ERRORS_ARGS = ("--ignore-route-errors",)
+
+
+def _has_rerouter(additional_files: Sequence[Path]) -> bool:
+    """Whether any of `additional_files` declares a `<rerouter>` - see the module docstring."""
+    for path in additional_files:
+        try:
+            root = ET.parse(path).getroot()
+        except (ET.ParseError, OSError):
+            continue
+        if any(child.tag == "rerouter" for child in root):
+            return True
+    return False
+
 
 # output option -> (file name in the run directory, artifact kind)
 _OUTPUTS: dict[str, tuple[str, str]] = {
@@ -61,12 +94,13 @@ class SubprocessSumoRunner:
             encoding="utf-8",
         )
         inputs = (artifact_ref(run_cfg, "sumocfg"), artifact_ref(edgedata_add, "additional"))
+        command = [self._sumo, "-c", str(run_cfg)]
+        if _has_rerouter(settings.additional_files):
+            command.extend(IGNORE_ROUTE_ERRORS_ARGS)
 
         started = perf_counter()
         try:
-            proc = subprocess.run(
-                [self._sumo, "-c", str(run_cfg)], capture_output=True, text=True, cwd=out_dir
-            )
+            proc = subprocess.run(command, capture_output=True, text=True, cwd=out_dir)
         except OSError as exc:
             return RunOutput(ok=False, error=str(exc), artifacts=inputs, wall_clock_s=0.0)
         wall_clock_s = perf_counter() - started

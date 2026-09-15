@@ -5,6 +5,12 @@ Pure deterministic code, no LLM involved (ADR-0007) — the Builder agent calls 
 `write_rerouter` tool once it has decided `lane_closure`/`edge_closure` is the right intervention
 and the window is fixed. Static (`window`) only; a runtime `condition` needs a script, not this
 writer.
+
+`closingReroute` needs an explicit `disallow="all"` - found empirically while building E2.4's
+effect-verification harness: without it, `additional_file.xsd`'s `closingReroute` element (unlike
+`closingLaneReroute`, which is unambiguous - there is nothing else a single lane could mean)
+leaves every vehicle class allowed by default, so the edge stays open in practice and the flow
+check E2.4 grades this against never goes to zero.
 """
 
 from __future__ import annotations
@@ -66,11 +72,16 @@ class RerouterWriter:
             closed_id, reroute_tag = target.edge_id, "closingReroute"
 
         root = ET.Element("additional")
-        rerouter = ET.SubElement(root, "rerouter", id=f"rerouter_{closed_id}", edges=target.edge_id)
+        rerouter = ET.SubElement(
+            root, "rerouter", id=f"rerouter_{closed_id}", edges=target.edge_id
+        )
         interval = ET.SubElement(
             rerouter, "interval", begin=_num(window.start), end=_num(window.end)
         )
-        ET.SubElement(interval, reroute_tag, id=closed_id)
+        reroute_attrib = {"id": closed_id}
+        if reroute_tag == "closingReroute":
+            reroute_attrib["disallow"] = "all"
+        ET.SubElement(interval, reroute_tag, reroute_attrib)
 
         out_dir.mkdir(parents=True, exist_ok=True)
         path = out_dir / f"rerouter_{closed_id}.add.xml"
