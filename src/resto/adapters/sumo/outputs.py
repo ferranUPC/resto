@@ -1,6 +1,12 @@
 """Readers for what a `sumo` run leaves behind (ADR-0017): KPIs from `statistic-output`, per-edge
-`edgedata` intervals and TLS program-switch events (E2.4's effect-verification harness reads
-both), and the canonical form of SUMO output files used for their `content_hash`.
+`edgedata` intervals and TLS program-switch events, and the canonical form of SUMO output files
+used for their `content_hash`.
+
+`parse_edgedata`/`EdgeInterval` is the one place that reads a SUMO `--edgedata-output` file: both
+E2.4's effect-verification harness (`verify/effects.py`, exact per-interval rows) and DatabaseMCP's
+`query_edgedata` (`adapters/persistence/sqlite/edgedata.py`, windowed weighted aggregation) build
+on it rather than each parsing the XML themselves - originally two independent parsers of the same
+file format, merged into one after the fact.
 
 SUMO writes a `<!-- generated on <timestamp> ... -->` header into every output file, holding the
 wall-clock time and the absolute paths of the run; 1.27.1 offers no option to omit it. That header
@@ -65,9 +71,10 @@ def parse_kpis(statistics_xml: Path) -> Kpis:
 @dataclass(frozen=True, slots=True)
 class EdgeInterval:
     """One `<edge>` row of one `<interval>` in an `edgedata`-output file (E2.1's
-    `write_edgedata_additional`). `speed`/`flow` are `None` when `sampled_seconds` is 0 - SUMO
-    omits both attributes for an edge nothing crossed during the interval, which for a closed
-    edge/lane is exactly the reading effect-verification (E2.4) looks for."""
+    `write_edgedata_additional`). `speed`/`density`/`occupancy`/`waiting_time`/`time_loss`/
+    `travel_time` are all `None` when `sampled_seconds` is 0 - verified against a real DEV-NET
+    edgedata file that SUMO omits every one of those six attributes together for an edge nothing
+    crossed during the interval, never just `speed` alone."""
 
     edge_id: str
     begin: float
@@ -78,19 +85,34 @@ class EdgeInterval:
     departed: int
     arrived: int
     speed: float | None
+    density: float | None
+    occupancy: float | None
+    waiting_time: float | None
+    time_loss: float | None
+    travel_time: float | None
+
+
+def _optional_float(edge: ET.Element, attr: str) -> float | None:
+    value = edge.get(attr)
+    return float(value) if value is not None else None
 
 
 def parse_edgedata(path: Path) -> tuple[EdgeInterval, ...]:
-    """Every `<edge>` row across every `<interval>` of an edgedata-output file, in file order."""
+    """Every non-internal `<edge>` row across every `<interval>` of an edgedata-output file, in
+    file order. Internal junction edges (id starting with `:`) are skipped: SUMO's own
+    `--edgedata-output` always includes them, but they are never a real, addressable network
+    edge (the same fact `query_edgedata`, DATABASE_MCP_CONTRACT.md §5.4, already relied on)."""
     root = ET.parse(path).getroot()
     rows = []
     for interval in root.findall("interval"):
         begin, end = float(interval.get("begin", 0)), float(interval.get("end", 0))
         for edge in interval.findall("edge"):
-            speed = edge.get("speed")
+            edge_id = edge.get("id", "")
+            if edge_id.startswith(":"):
+                continue
             rows.append(
                 EdgeInterval(
-                    edge_id=edge.get("id", ""),
+                    edge_id=edge_id,
                     begin=begin,
                     end=end,
                     sampled_seconds=float(edge.get("sampledSeconds", "0")),
@@ -98,7 +120,12 @@ def parse_edgedata(path: Path) -> tuple[EdgeInterval, ...]:
                     left=int(edge.get("left", "0")),
                     departed=int(edge.get("departed", "0")),
                     arrived=int(edge.get("arrived", "0")),
-                    speed=float(speed) if speed is not None else None,
+                    speed=_optional_float(edge, "speed"),
+                    density=_optional_float(edge, "density"),
+                    occupancy=_optional_float(edge, "occupancy"),
+                    waiting_time=_optional_float(edge, "waitingTime"),
+                    time_loss=_optional_float(edge, "timeLoss"),
+                    travel_time=_optional_float(edge, "traveltime"),
                 )
             )
     return tuple(rows)
