@@ -15,9 +15,14 @@ Promotion order (ADR-0001):
                   ran at construction; there is nothing further to re-validate here).
   2. semantic   - the demand belongs to the network, every intervention target the draft claims
                   to have implemented still exists on the network, and SUMO actually loads the
-                  cfg it wrote.
+                  cfg it wrote. A `demand_scale` intervention (E2.3) is additionally re-checked
+                  against its own derived `Demand` (`_effective_demand_id`), which also becomes
+                  the promoted `Scenario`'s `demand_id` - what was actually simulated, not
+                  necessarily the task's original request demand.
   3. construct  - `scenario_id` from the *accepted* interventions (`draft.interventions`, not
-                  whatever was in the original task - a rejected one changes the id, DoD §2.3).
+                  whatever was in the original task - a rejected one changes the id, DoD §2.3) and
+                  from `task.demand_id` (the request's own demand, unaffected by which derived
+                  demand a demand_scale mechanism produced - see architecture §1's identity policy).
   4. persist    - store and return; an existing scenario for that id is returned as-is, skipping
                   steps 2b/3/4 ("zero redundant simulations", architecture §1). This cannot dedupe
                   before the agent ran (the id depends on which interventions it accepted), so a
@@ -43,6 +48,7 @@ from resto.domain.services.content_hash import compute_content_hash
 from resto.domain.services.ids import scenario_id_for
 from resto.domain.value_objects.drafts import ScenarioDraft
 from resto.domain.value_objects.intervention_target import EdgeTarget, LaneTarget, TlsTarget
+from resto.domain.value_objects.mechanism import RegenerateDemandMechanism
 from resto.domain.value_objects.tasks import ScenarioTask
 
 NetworkQueryFactory = Callable[[Path], NetworkQuery]
@@ -83,6 +89,16 @@ def build_scenario(
             f"demand {task.demand_id!r} belongs to network {demand.network_id!r}, "
             f"not {task.network_id!r}"
         )
+    effective_demand_id = _effective_demand_id(draft, task.demand_id)
+    if effective_demand_id != task.demand_id:
+        derived_demand = demands.get(effective_demand_id)
+        if derived_demand is None:
+            raise ScenarioSemanticError(f"unknown derived demand_id {effective_demand_id!r}")
+        if derived_demand.network_id != task.network_id:
+            raise ScenarioSemanticError(
+                f"derived demand {effective_demand_id!r} belongs to network "
+                f"{derived_demand.network_id!r}, not {task.network_id!r}"
+            )
 
     query = network_query_factory(network.net_xml.path)
     _check_targets_exist(draft, query)
@@ -101,7 +117,7 @@ def build_scenario(
     scenario = Scenario(
         scenario_id=scenario_id,
         network_id=task.network_id,
-        demand_id=task.demand_id,
+        demand_id=effective_demand_id,
         interventions=draft.interventions,
         mechanisms=draft.mechanisms,
         sumocfg=draft.sumocfg,
@@ -112,6 +128,15 @@ def build_scenario(
     )
     scenarios.store(scenario)
     return scenario
+
+
+def _effective_demand_id(draft: ScenarioDraft, task_demand_id: str) -> str:
+    """The demand actually referenced by `draft.sumocfg`'s routes: `task_demand_id` unless a
+    `demand_scale` intervention was accepted, in which case it is that mechanism's derived
+    `RegenerateDemandMechanism.demand_id` (work-plan E2.3) — the last one if more than one demand
+    scale mechanism is present, since only the last write_sumocfg-time route set can have won."""
+    regenerated = [m for m in draft.mechanisms if isinstance(m, RegenerateDemandMechanism)]
+    return regenerated[-1].demand_id if regenerated else task_demand_id
 
 
 def _check_targets_exist(draft: ScenarioDraft, query: NetworkQuery) -> None:

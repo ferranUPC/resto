@@ -51,6 +51,14 @@ class DemandTools(Protocol):
     ) -> ArtifactRef: ...
 
 
+class DemandScaler(Protocol):
+    """Deterministic trip-count scaling for the `demand_scale` intervention (work-plan E2.3):
+    no `randomTrips`/calibration involved, just a reproducible resample of an existing trips
+    file. Routing the result is `DemandTools.duarouter`'s job, not this port's."""
+
+    def scale(self, trips: ArtifactRef, factor: float, out_dir: Path) -> ArtifactRef: ...
+
+
 @dataclass(frozen=True, slots=True)
 class RunOutput:
     """What one `sumo` execution left behind (ADR-0017). `artifacts` always includes the run cfg

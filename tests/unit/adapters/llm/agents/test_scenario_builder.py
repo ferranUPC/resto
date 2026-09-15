@@ -18,8 +18,13 @@ from tests.unit.adapters.llm._fakes import FakeToolAgent, call_tool
 from tests.unit.application.tools.test_scenario_builder import (
     DEV_NET,
     RecordingAdditionalFileWriter,
+    RecordingDemandRepository,
+    RecordingDemandScaler,
+    RecordingDuarouter,
     RecordingWriter,
 )
+from tests.unit.domain._samples import demand as sample_demand
+from tests.unit.domain._samples import network as sample_network
 
 LANE = LaneTarget(edge_id="A0A1", lane_index=0)
 CLOSURE = Intervention(type=InterventionType.LANE_CLOSURE, target=LANE, window=TimeWindow(0, 3600))
@@ -52,7 +57,13 @@ def run(agent, tmp_path: Path, task: ScenarioTask = TASK):  # noqa: ANN001, ANN2
         end=3600.0,
         rerouter_writer=RecordingAdditionalFileWriter(),
         vss_writer=RecordingAdditionalFileWriter(),
+        tls_program_writer=RecordingAdditionalFileWriter(),
         sumocfg_writer=RecordingWriter(),
+        demand=sample_demand(),
+        network=sample_network(),
+        demand_scaler=RecordingDemandScaler(),
+        duarouter=RecordingDuarouter(),
+        demands=RecordingDemandRepository(),
         out_dir=tmp_path,
     )
 
@@ -65,6 +76,9 @@ def test_build_task_carries_the_scenario_task_as_plain_data() -> None:
     assert task.input["interventions"][0]["type"] == "lane_closure"
     assert "lane_closure" in task.system_prompt
     assert "speed_limit" in task.system_prompt
+    assert "edge_closure" in task.system_prompt
+    assert "signal_program" in task.system_prompt
+    assert "demand_scale" in task.system_prompt
 
 
 def test_run_returns_the_agents_output(tmp_path: Path) -> None:
@@ -74,7 +88,7 @@ def test_run_returns_the_agents_output(tmp_path: Path) -> None:
     assert run_result.output == canned_draft()
 
 
-def test_run_offers_exactly_the_e2_2_minimal_tools(tmp_path: Path) -> None:
+def test_run_offers_exactly_the_e2_3_tools(tmp_path: Path) -> None:
     seen_tool_names: list[str] = []
 
     def interact(task, tools):  # noqa: ANN001
@@ -88,6 +102,8 @@ def test_run_offers_exactly_the_e2_2_minimal_tools(tmp_path: Path) -> None:
         "lane_exists",
         "write_rerouter",
         "write_vss",
+        "write_tls_program",
+        "scale_demand",
         "write_sumocfg",
     ]
 
@@ -111,7 +127,13 @@ def test_the_offered_tools_are_actually_wired_up(tmp_path: Path) -> None:
         end=3600.0,
         rerouter_writer=rerouter_writer,
         vss_writer=RecordingAdditionalFileWriter(),
+        tls_program_writer=RecordingAdditionalFileWriter(),
         sumocfg_writer=RecordingWriter(),
+        demand=sample_demand(),
+        network=sample_network(),
+        demand_scaler=RecordingDemandScaler(),
+        duarouter=RecordingDuarouter(),
+        demands=RecordingDemandRepository(),
         out_dir=tmp_path,
     )
 

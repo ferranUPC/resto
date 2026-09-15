@@ -24,9 +24,11 @@ from resto.application.use_cases.build_scenario import (
 )
 from resto.domain.services.ids import scenario_id_for
 from resto.domain.value_objects.artifact_ref import ArtifactRef
-from resto.domain.value_objects.mechanism import StaticFileMechanism
+from resto.domain.value_objects.intervention import Intervention, InterventionType
+from resto.domain.value_objects.mechanism import RegenerateDemandMechanism, StaticFileMechanism
 from resto.domain.value_objects.step_record import Usage
 from resto.domain.value_objects.tasks import ScenarioTask
+from resto.domain.value_objects.time_window import TimeWindow
 from tests.unit.domain._fixtures import artifact, scenario_draft, static_intervention
 from tests.unit.domain._samples import demand as sample_demand
 from tests.unit.domain._samples import network as sample_network
@@ -225,3 +227,66 @@ def test_content_hash_differs_from_scenario_id(tmp_path: Path) -> None:
     kwargs["out_dir"] = tmp_path
     scenario = build_scenario(TASK, agent_run(output=draft()), **kwargs)
     assert scenario.content_hash != scenario.scenario_id
+
+
+# --- demand_scale (E2.3) ------------------------------------------------------------------------
+
+
+def demand_scale_intervention() -> Intervention:
+    return Intervention(
+        type=InterventionType.DEMAND_SCALE, target=None, window=TimeWindow(0, 3600)
+    )
+
+
+def derived_demand():  # noqa: ANN201
+    from dataclasses import replace
+
+    return replace(
+        sample_demand(),
+        demand_id="derived1",
+        trips=artifact("scaled.trips.xml", "derived1", "trips"),
+        derived_from=sample_demand().demand_id,
+    )
+
+
+def demand_scale_draft():  # noqa: ANN201
+    return scenario_draft(
+        interventions=(demand_scale_intervention(),),
+        mechanisms=(RegenerateDemandMechanism(demand_id="derived1"),),
+        additional_files=(),
+    )
+
+
+def test_a_demand_scale_mechanism_makes_the_scenario_reference_the_derived_demand(
+    tmp_path: Path,
+) -> None:
+    kwargs = env()
+    kwargs["out_dir"] = tmp_path
+    kwargs["demands"].store(derived_demand())
+
+    scenario = build_scenario(TASK, agent_run(output=demand_scale_draft()), **kwargs)
+
+    assert scenario.demand_id == "derived1"
+    expected_id = scenario_id_for(
+        "abc123", "t1", (demand_scale_intervention(),), frozenset({"peak"})
+    )
+    assert scenario.scenario_id == expected_id  # request identity keeps the task's own demand_id
+
+
+def test_an_unknown_derived_demand_is_rejected(tmp_path: Path) -> None:
+    kwargs = env()
+    kwargs["out_dir"] = tmp_path
+
+    with pytest.raises(ScenarioSemanticError):
+        build_scenario(TASK, agent_run(output=demand_scale_draft()), **kwargs)
+
+
+def test_a_derived_demand_from_a_different_network_is_rejected(tmp_path: Path) -> None:
+    from dataclasses import replace
+
+    kwargs = env()
+    kwargs["out_dir"] = tmp_path
+    kwargs["demands"].store(replace(derived_demand(), network_id="other-network"))
+
+    with pytest.raises(ScenarioSemanticError):
+        build_scenario(TASK, agent_run(output=demand_scale_draft()), **kwargs)

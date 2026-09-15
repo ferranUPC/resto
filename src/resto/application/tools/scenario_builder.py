@@ -2,10 +2,13 @@
 
 `edge_exists`/`lane_exists` are the Builder's own id checks against NetworkMCP (a `NetworkQuery`
 bound to the scenario's network — the same port NetworkMCP wraps, ADR-0009); `write_rerouter`/
-`write_vss` wrap the deterministic writers of `adapters/sumo/writers/` (ADR-0007). `write_taz`/
-`write_tls_program` and the script tools (`write_traci_script`, `lint_script`, `dry_run`) arrive
-with E2.3/E2.6. Each function is the one implementation, offered in-process to the Builder or
-wrapped by an MCP server (ADR-0009).
+`write_vss`/`write_tls_program` wrap the deterministic writers of `adapters/sumo/writers/`
+(ADR-0007) — `write_rerouter` now also handles `edge_closure` (E2.3): the writer dispatches on
+the intervention's target type, the tool wrapper does not need to know which. `scale_demand`
+(E2.3) wraps `use_cases/scale_demand.py` the same way, for the network-wide `demand_scale` case.
+`write_taz` and the script tools (`write_traci_script`, `lint_script`, `dry_run`) arrive with
+E2.6. Each function is the one implementation, offered in-process to the Builder or wrapped by an
+MCP server (ADR-0009).
 """
 
 from __future__ import annotations
@@ -16,7 +19,12 @@ from typing import Any
 
 from resto.application.ports.llm import Tool
 from resto.application.ports.network_query import NetworkQuery
+from resto.application.ports.repositories import DemandRepository
+from resto.application.ports.sumo import DemandScaler, DemandTools
 from resto.application.ports.writers import AdditionalFileWriter, SimulationSettings, SumocfgWriter
+from resto.application.use_cases.scale_demand import scale_demand as scale_demand_use_case
+from resto.domain.entities.demand import Demand
+from resto.domain.entities.network import Network
 from resto.domain.value_objects.artifact_ref import ArtifactRef
 from resto.domain.value_objects.intervention import Intervention
 
@@ -72,6 +80,25 @@ def write_vss(
     return _write_additional_file(writer, intervention, out_dir)
 
 
+def write_tls_program(
+    writer: AdditionalFileWriter, intervention: Intervention, out_dir: Path
+) -> Mapping[str, Any]:
+    """Writes the WAUT program-switch `.add.xml` for a static `signal_program` intervention.
+
+    `intervention.params` must already carry `program_id` (and, optionally, `original_program_id`)
+    — the target `tlLogic` program must already exist on the network; this tool does not author it.
+
+    Returns `{"file_kind": "tls_program", "path": <abs path>, "content_hash": <sha256>}` — use this
+    to fill both this intervention's entry in `ScenarioDraft.mechanisms` (a `StaticFileMechanism`)
+    and its file in `ScenarioDraft.additional_files` (an `ArtifactRef`, kind `"additional"`).
+
+    Raises:
+        ValueError: `intervention` is not a static `signal_program` on a `TlsTarget`, or is
+            missing `params['program_id']`.
+    """
+    return _write_additional_file(writer, intervention, out_dir)
+
+
 def _write_additional_file(
     writer: AdditionalFileWriter, intervention: Intervention, out_dir: Path
 ) -> Mapping[str, Any]:
@@ -81,6 +108,41 @@ def _write_additional_file(
         "path": str(ref.path),
         "content_hash": ref.content_hash,
     }
+
+
+def scale_demand(
+    demand: Demand,
+    network: Network,
+    factor: float,
+    *,
+    scaler: DemandScaler,
+    duarouter: DemandTools,
+    demands: DemandRepository,
+    out_dir: Path,
+) -> Mapping[str, Any]:
+    """Regenerates `demand` at `factor` times its current volume, routed over `network`.
+
+    No LLM involved — deterministic resample + `duarouter` (`use_cases/scale_demand.py`); this
+    is the Builder tool wrapper that flattens the result to a JSON-shaped dict, same pattern as
+    `write_rerouter`/`write_vss`/`write_tls_program`.
+
+    Returns `{"demand_id": ..., "routes_path": <abs path>}` — `demand_id` fills the intervention's
+    `RegenerateDemandMechanism.demand_id` and becomes the `Scenario`'s actual `demand_id`;
+    `routes_path` is what `write_sumocfg` must use in place of the original demand's routes.
+
+    Raises:
+        ValueError: `factor` is not positive, or `demand`/`network` do not match.
+    """
+    derived = scale_demand_use_case(
+        demand,
+        network,
+        factor,
+        scaler=scaler,
+        duarouter=duarouter,
+        demands=demands,
+        out_dir=out_dir,
+    )
+    return {"demand_id": derived.demand_id, "routes_path": str(derived.routes.path)}
 
 
 def write_sumocfg(
@@ -140,6 +202,19 @@ _INTERVENTION_INDEX_SCHEMA = {
     },
     "required": ["intervention_index"],
 }
+_SCALE_DEMAND_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "intervention_index": {
+            "type": "integer",
+            "description": (
+                "Index into this task's interventions list (0-based); must be a demand_scale "
+                "intervention, whose params['scale'] is the multiplicative factor to apply."
+            ),
+        }
+    },
+    "required": ["intervention_index"],
+}
 
 
 def build_scenario_builder_tools(
@@ -152,17 +227,27 @@ def build_scenario_builder_tools(
     end: float | None,
     rerouter_writer: AdditionalFileWriter,
     vss_writer: AdditionalFileWriter,
+    tls_program_writer: AdditionalFileWriter,
     sumocfg_writer: SumocfgWriter,
+    demand: Demand,
+    network: Network,
+    demand_scaler: DemandScaler,
+    duarouter: DemandTools,
+    demands: DemandRepository,
     out_dir: Path,
 ) -> tuple[Tool, ...]:
-    """The Builder's E2.2 Minimal tool set, bound to one network/task/output directory.
+    """The Builder's E2.3 tool set, bound to one network/demand/task/output directory.
 
-    `write_sumocfg` takes no arguments: `net_file`/`route_files`/`begin`/`end` come from the
-    network and demand the Coordinator already picked (not something the Builder decides), and
-    the additional files are every one `write_rerouter`/`write_vss` produced so far in this run —
-    the agent cannot forget to list one.
+    `write_sumocfg` takes no arguments: `net_file`/`begin`/`end` come from the network and demand
+    the Coordinator already picked (not something the Builder decides), and the additional files
+    are every one `write_rerouter`/`write_vss`/`write_tls_program` produced so far in this run —
+    the agent cannot forget to list one. `route_files` defaults to `demand`'s own routes, but a
+    `scale_demand` call earlier in the run replaces it with the derived demand's routes (a
+    `demand_scale` intervention is network-wide, so at most one such call matters per run).
     """
     written_additional_files: list[Path] = []
+    scaled_routes: list[Path] = []
+    scaled_demand_ids: list[str] = []
 
     def _edge_exists(edge_id: str) -> bool:
         return edge_exists(query, edge_id)
@@ -180,11 +265,31 @@ def build_scenario_builder_tools(
         written_additional_files.append(Path(result["path"]))
         return result
 
+    def _write_tls_program(intervention_index: int) -> Mapping[str, Any]:
+        result = write_tls_program(tls_program_writer, interventions[intervention_index], out_dir)
+        written_additional_files.append(Path(result["path"]))
+        return result
+
+    def _scale_demand(intervention_index: int) -> Mapping[str, Any]:
+        factor = float(interventions[intervention_index].params["scale"])
+        result = scale_demand(
+            demand,
+            network,
+            factor,
+            scaler=demand_scaler,
+            duarouter=duarouter,
+            demands=demands,
+            out_dir=out_dir,
+        )
+        scaled_routes[:] = [Path(result["routes_path"])]
+        scaled_demand_ids[:] = [result["demand_id"]]
+        return result
+
     def _write_sumocfg() -> Mapping[str, Any]:
         ref = write_sumocfg(
             sumocfg_writer,
             net_file,
-            route_files,
+            scaled_routes or route_files,
             out_dir,
             additional_files=tuple(written_additional_files),
             begin=begin,
@@ -216,6 +321,18 @@ def build_scenario_builder_tools(
             description=(write_vss.__doc__ or "").strip().splitlines()[0],
             fn=_write_vss,
             input_schema=_INTERVENTION_INDEX_SCHEMA,
+        ),
+        Tool(
+            name="write_tls_program",
+            description=(write_tls_program.__doc__ or "").strip().splitlines()[0],
+            fn=_write_tls_program,
+            input_schema=_INTERVENTION_INDEX_SCHEMA,
+        ),
+        Tool(
+            name="scale_demand",
+            description=(scale_demand.__doc__ or "").strip().splitlines()[0],
+            fn=_scale_demand,
+            input_schema=_SCALE_DEMAND_SCHEMA,
         ),
         Tool(
             name="write_sumocfg",
