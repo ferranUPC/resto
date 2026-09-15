@@ -77,6 +77,11 @@ target/
 # eval/dev-net/demand/generate_demand.sh + verification.ipynb re-create this on every run
 eval/dev-net/demand/_runs/
 
+# eval/scenario_matrix/build.py re-creates this on every run (raw per-row SUMO run outputs,
+# ~140MB); matrix.db (the DatabaseMCP-stored Scenario/SimulationResult records, KPIs included)
+# and matrix-report.md are the durable, committed assets
+eval/scenario_matrix/runs/
+
 # IPython
 profile_default/
 ipython_config.py
