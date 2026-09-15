@@ -14,6 +14,7 @@ dependencies = [
     "sumolib==1.27.1",
     "traci==1.27.1",
     "mcp>=2,<3",  # v2 renamed FastMCP -> mcp.server.mcpserver.MCPServer; code here targets v2's API
+    "openai>=1",  # ToolAgent's real client talks to OpenRouter via this SDK (base_url override)
 ]
 
 [project.optional-dependencies]
