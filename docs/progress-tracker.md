@@ -4,9 +4,9 @@ Tracks completion of every task in [`tfm-work-plan.md`](tfm-work-plan.md). Task 
 
 Status: ⬜ not started · 🔄 in progress · ✅ done (meets its Done/threshold from the DoD, not just "code exists")
 
-Last updated: 2026-09-15
+Last updated: 2026-09-16
 
-**Summary: 16 / 65 tasks done (24.6%)** (E7.7 is Stretch, never scheduled — excluded from the count, per work plan §5)
+**Summary: 19 / 65 tasks done (29.2%)** (E7.7 is Stretch, never scheduled — excluded from the count, per work plan §5)
 
 ---
 
@@ -40,8 +40,8 @@ Last updated: 2026-09-15
 |---|---|---|---|
 | E2.1 | Runner batch mode (+ ephemeral mode for probe/calibration) + reproducibility test (20 runs) | ✅ | 2026-09-15, commit `1e23009` (CI green, verified now): `adapters/sumo/runner.py`'s `SubprocessSumoRunner.run_batch` derives a run cfg (seed/outputs/edgedata period all in files, per ADR-0017), runs `sumo -c`, collects edgedata/tripinfo/statistics/summary as `ArtifactRef`s, surfaces SUMO's own error message on a non-zero exit or missing outputs. `application/use_cases/run_simulation.py`: `run_simulation` computes `result_id = hash(scenario_id, seed, mode, sumo_version)` before running, returns an existing *ok* result unrun ("zero redundant simulations"), stores a `SimulationResult` with a separate `content_hash` over only the deterministic artifact kinds; `run_ephemeral` is the unstored probe/calibration path (no repository argument at all, so it cannot reach the store). `tests/unit/adapters/sumo/test_runner.py::test_twenty_runs_with_the_same_seed_are_byte_identical` runs 20 real SUMO batch runs and asserts a single distinct content-hash tuple across all of them — the literal reproducibility bar met, not simulated. Online mode (`run_online`) still raises `NotImplementedError`, correctly deferred to E2.5 |
 | E2.2 | Builder Minimal (agent + writer tools): static `lane_closure`/`speed_limit` → `.add.xml` + `sumocfg` | ✅ | 2026-09-15, commit `ee85dad` (CI green, verified now): `adapters/llm/agents/scenario_builder.py` assembles the `AgentTask`/tool list/budget and calls the shared `ToolAgent` port (real impl now exists, see note below); its system prompt restricts the agent to `lane_closure`/`speed_limit` on a single lane with a fixed window, explicit "no silent coercion" — anything else must go to `rejected[]`, matching ADR-0007. `application/tools/scenario_builder.py` binds `edge_exists`/`lane_exists`/`write_rerouter`/`write_vss`/`write_sumocfg` as real `Tool`s against `NetworkQuery` + the deterministic writers. `application/use_cases/build_scenario.py::build_scenario` promotes an `AgentRun[ScenarioDraft]` in the DoD §2.4 order (syntactic via the dataclass, semantic — demand/network match, every accepted intervention's target re-checked directly against the network rather than trusting the agent's own tool calls, SUMO load check on the written cfg — then `scenario_id` from the *accepted* interventions, then persist with existing-id dedup). 581 lines across the three test files (`test_scenario_builder.py` agent/tools/use-case) cover both layers. Same commit range also lands the real `OpenRouterToolAgent` (`adapters/llm/anthropic_client.py`, `Toolagent on openrouter` commit `cea5570`) that this agent runs on: `adapters/llm/config.py` wires `RESTO_LLM_DEFAULT_MODEL=deepseek/deepseek-v4.1-flash` as the hard default with `RESTO_LLM_ESCALATION_MODEL` blank, matching CLAUDE.md's cost policy exactly; `test_anthropic_client.py` explicitly does not construct a real client or need `OPENROUTER_API_KEY` (fake-agent tests only, per ADR-0001) |
-| E2.3 | Builder static: `edge_closure`, `signal_program` (WAUT), `demand_scale` | ⬜ | |
-| E2.4 | Effect-verification harness | ⬜ | |
+| E2.3 | Builder static: `edge_closure`, `signal_program` (WAUT), `demand_scale` | ✅ | 2026-09-15, commit `7ad97c5` (verified now): rerouter writer dispatches on `edge_closure` targets (with `disallow="all"` fixed the same day in `bc46212` so closed edges actually reach zero flow instead of staying open by default), `write_tls_program` added for static `signal_program`/WAUT, `scale_demand` (deterministic resample + `duarouter`) wired as a Builder tool for `demand_scale`. Covered by the builder/tool unit tests (all green) and, end-to-end, by the E3.1 matrix below which exercises all three mechanisms against real SUMO |
+| E2.4 | Effect-verification harness | ✅ | 2026-09-15, commit `bc46212` (verified now): `verify/effects.py` implements the DoD §4.5 checks (edge flow, completion rate, speed limit, signal-program coverage+revert via a `SaveTLSSwitchTimes` re-run, demand-scale departed count), one `test_*.py` per intervention type running the real `SubprocessSumoRunner` against DEV-NET (not fakes). Two real bugs found and fixed while building it, per the commit message: `--ignore-route-errors` so a closure with no alternate route doesn't hard-fail the batch run, and an explicit `disallow="all"` on `closingReroute`. `pytest -q conformance/ verify/` → 61 passed |
 | E2.5 | Runner online mode: `ScriptSandbox` (lint, dry-run, subprocess) + 10 script test cases | ⬜ | Replaces the v0.2 `TraciPlan` interpreter |
 | E2.6 | Builder scripts: `condition` → `when(...)`, `custom` interventions, `rejected[]` | ⬜ | |
 | E2.7 | Builder bank (25–30 specs incl. `custom`) run to ≥27/30 | ⬜ | |
@@ -50,7 +50,7 @@ Last updated: 2026-09-15
 
 | ID | Task | Status | Notes |
 |---|---|---|---|
-| E3.1 | Scenario matrix DEV-NET/peak (15–25 rows × 3 seeds) | ⬜ | |
+| E3.1 | Scenario matrix DEV-NET/peak (15–25 rows × 3 seeds) | ✅ | 2026-09-15, commit `3900171` (verified now): `eval/scenario_matrix/` hand-authors 20 rows (baseline, `lane_closure`, `edge_closure`, `speed_limit`, `signal_program`, `demand_scale`) x 3 seeds = 60 `SimulationResult`s, promoted through the real `build_scenario`/`run_simulation` use cases and stored through an actual MCP `ClientSession` over the SQLite reference backend (not in-process repositories). Each row's DoD §4.5 effect is re-checked before it counts as built. `matrix-report.md` shows plausible real numbers, e.g. `demand_scale` mean departed 1440.0/960.0/1799.3 for ×1.2/×0.8/×1.5 against a 1200.0 baseline — consistent scaling, not placeholder data. Follow-up commit `b71a4f5` (same day) merged duplicate edgedata XML parsers found while building this into one `parse_edgedata` |
 | E3.2 | Question templates + generator + gold answers (≥60 on DEV-NET) | ⬜ | |
 | E3.3 | Metrics harness (exact match, Jaccard, direction, band, Brier, abstention P/R) | ⬜ | |
 | E3.4 | Request bank (50+ NL requests, 10+ ambiguous; gold `Question` + `StudyPlan` + trace) | ⬜ | |
@@ -129,7 +129,7 @@ Last updated: 2026-09-15
 | ID | Date | Milestone | Status | Notes |
 |---|---|---|---|---|
 | M0 | 18 Sep | Foundations frozen | ✅ | 2026-09-14, 4 days early: all 8 E0 tasks ✅, CI green on `master`, DEV-NET runs its three demand profiles, architecture v1.0 frozen. `tfm-work-plan.md` E0.2/E1.3 still carry stale Postgres/`pgvector` wording (superseded by ADR-0012) — a doc-only cleanup, not a milestone blocker |
-| M1 | 16 Oct | Tooling complete | ⬜ | 2026-09-15: all of E1 (MCPs, §4.9) now ✅. Runner batch (E2.1) and Builder Minimal (E2.2) ✅. Still missing for the acceptance line: E2.3 (`edge_closure`/`signal_program`/`demand_scale`), E2.4 (effect-verification harness) and E3.1 (DEV-NET scenario matrix stored) — none started yet |
+| M1 | 16 Oct | Tooling complete | ✅ | 2026-09-15, a month early: acceptance line is "all MCPs Done (§4.9); Builder & Runner Minimal; DEV-NET scenario matrix stored" — E1 fully ✅, E2.1/E2.2 (Runner/Builder Minimal) ✅, E3.1 (20×3 scenario matrix stored via real DatabaseMCP) ✅ as of today's review. E2.3/E2.4, landed the same day, go beyond what M1 strictly requires (Builder Minimal, not Done) but are counted anyway since the work is real and verified |
 | M2 | 13 Nov | **Expert Done on DEV-NET** | ⬜ | |
 | M3 | 11 Dec | End-to-end loop | ⬜ | |
 | M4 | 15 Jan | Real network ready | ⬜ | |
