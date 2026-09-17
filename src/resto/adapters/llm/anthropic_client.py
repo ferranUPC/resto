@@ -119,7 +119,15 @@ class OpenRouterToolAgent:
                     try:
                         validated = adapter_for(output).validate_python(arguments)
                     except ValidationError as exc:
-                        messages.append(_tool_result(call.id, f"validation failed: {exc}"))
+                        feedback = f"validation failed: {exc}"
+                        messages.append(_tool_result(call.id, feedback))
+                        tool_calls.append(
+                            ToolCall(
+                                name=name,
+                                arguments=arguments,
+                                result_summary=feedback[:_RESULT_SUMMARY_MAX_LEN],
+                            )
+                        )
                         continue
                     tool_calls.append(
                         ToolCall(name=name, arguments=arguments, result_summary="submitted")
@@ -131,14 +139,13 @@ class OpenRouterToolAgent:
                         stop_reason=StopReason.OUTPUT,
                     )
                 messages.append(_tool_result(call.id, result_text))
-                if arguments is not None:
-                    tool_calls.append(
-                        ToolCall(
-                            name=name,
-                            arguments=arguments,
-                            result_summary=result_text[:_RESULT_SUMMARY_MAX_LEN],
-                        )
+                tool_calls.append(
+                    ToolCall(
+                        name=name,
+                        arguments=arguments or {},
+                        result_summary=result_text[:_RESULT_SUMMARY_MAX_LEN],
                     )
+                )
 
         return AgentRun(
             output=None,
@@ -167,8 +174,8 @@ def _run_one_call(
     call: Any, tools_by_name: Mapping[str, Tool], output: type[T]
 ) -> tuple[str, dict[str, Any] | None]:
     """Parses and executes one tool call. Returns `(result_text, arguments)` — `arguments` is
-    `None` only when the model's JSON itself did not parse, so the caller never records a
-    `ToolCall`/attempts validation for a call that was never actually made."""
+    `None` only when the model's JSON itself did not parse (e.g. truncated at `max_tokens`): the
+    caller then neither executes nor validates it, but still records it in the trace."""
     try:
         arguments = json.loads(call.function.arguments or "{}")
     except json.JSONDecodeError as exc:

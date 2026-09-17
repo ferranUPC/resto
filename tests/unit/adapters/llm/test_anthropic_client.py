@@ -147,6 +147,26 @@ def test_invalid_submission_gets_one_more_turn_to_fix_it() -> None:
     # the validation error was fed back, not swallowed silently:
     second_call_messages = complete.calls[1]["messages"]
     assert any("validation failed" in (m.get("content") or "") for m in second_call_messages)
+    # ...and the failed attempt is visible in the trace, so a budget stop can be explained:
+    assert [c.name for c in run.tool_calls] == ["submit_output", "submit_output"]
+    assert run.tool_calls[0].result_summary.startswith("validation failed")
+
+
+def test_a_call_with_unparseable_json_is_recorded_but_not_executed() -> None:
+    truncated = SimpleNamespace(
+        id="c1", function=SimpleNamespace(name="submit_output", arguments='{"text": "cut of')
+    )
+    complete = ScriptedCompletions(
+        completion(tool_calls=(truncated,)),
+        completion(tool_calls=(tool_call("c2", "submit_output", {"text": "ok"}),)),
+    )
+    agent = OpenRouterToolAgent(CONFIG, complete=complete)
+
+    run = agent.run(DUMMY_TASK, tools=(), output=Answer, budget=DUMMY_BUDGET)
+
+    assert run.output == Answer(text="ok")
+    assert run.tool_calls[0].arguments == {}
+    assert run.tool_calls[0].result_summary.startswith("invalid JSON arguments")
 
 
 def test_a_plain_text_reply_is_nudged_back_toward_submitting() -> None:
