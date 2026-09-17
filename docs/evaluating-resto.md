@@ -112,6 +112,11 @@ Known limitations:
   same rows' `-cf-topk` carries the informative effect.
 - Every question has its results available, so almost every correct answer is `basis = observed`; the bank
   cannot yet compare `observed` with `extrapolated` answers (§4.5).
+- *Found by the v0 sweep (`expert-tuning-log.md`), pending a decision:*
+  - `-desc-occ` does not say how to combine seeds; the gold uses the 3-seed mean, and the 3.5 % threshold
+    sits next to per-seed values (B2C2: 2.96 / 2.79 / 3.55). 8 of 8 wrong answers came from this.
+  - `-desc-tt` on S01–S04 asks for the travel time of an edge no vehicle crossed in the window (gold 0.0 by
+    zero-fill); the Expert spent all its steps looking for data that does not exist.
 
 ### 4.2 Run protocol
 

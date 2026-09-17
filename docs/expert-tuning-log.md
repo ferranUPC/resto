@@ -43,7 +43,7 @@ agent optimisation; they make the baseline measurable and correct.
 
 | Version | Date | Change | Sweep | Descriptive acc. | Diagnostic Jaccard | CF direction | CF band | Brier | Accepted | Cost (USD) |
 |---|---|---|---|---|---|---|---|---|---|---|
-| v0 | 2026-09-17 | Baseline | pending | — | — | — | — | — | — | — |
+| v0 | 2026-09-17 | Baseline | `v0-forced-1rep` (117 × 1) | 0.68 | 0.10 | 0.79 | 0.89 | 0.08 | 0.59 | 1.54 |
 | v1 | — | Aggregation tools + domain concepts | planned | — | — | — | — | — | — | — |
 
 DoD thresholds (DEV-NET): descriptive ≥ 0.90, diagnostic Jaccard ≥ 0.60, CF direction ≥ 0.75, CF band ≥ 0.50,
@@ -60,9 +60,39 @@ Brier ≤ 0.25, accepted = 1.00.
 - **Expected issue.** Questions that aggregate over the whole network (`-desc-occ`, `-diag`, `-cf-topk`,
   59 of 117) must read raw per-seed edgedata of every edge (~17,000 characters per result) and do the
   arithmetic in text. The smoke runs saw two diagnostic budget stops.
-- **Sweep.** `v0-forced-1rep`: 117 questions × 1 repetition, forced mode, estimated ~1.4 USD. Pending.
-- **Results.** Pending.
-- **Conclusion.** Pending.
+- **Sweep.** `v0-forced-1rep`: 117 questions × 1 repetition, forced mode, 6 workers, ~35 min,
+  1.54 USD, no crashes. Report: `eval/expert_benchmark/reports/v0-forced-1rep.md`.
+- **Results.**
+
+  | Family | Correct | Answered wrong | Budget stop | Rejected |
+  |---|---|---|---|---|
+  | `-desc-occ` | 11 | 8 | 1 | 0 |
+  | `-desc-tt` | 16 | 0 | 4 | 0 |
+  | `-diag` | 2 | 0 | 18 | 0 |
+  | `-cf-dir` | 15 | 0 | 4 | 0 |
+  | `-cf-topk` | 0 | 0 | 19 | 0 |
+  | `-cf-band` | 17 | 0 | 2 | 0 |
+  | **Total** | **61** | **8** | **48** | **0** |
+
+  Descriptive accuracy 0.68, diagnostic Jaccard 0.10, CF direction 0.79 ✅, CF band 0.89 ✅, Brier 0.08 ✅,
+  accepted 0.59 (budget stops count as not accepted). No answer was rejected for its evidence or values.
+
+- **Findings.**
+  1. **Budget stops are the main failure: 48 of 117 (41 %).** The per-step trace shows two mechanisms:
+     - *Text reasoning cut at the 2,048-token limit* in 34 stops, concentrated where the whole network
+       must be aggregated: 15 of 18 diagnostic stops and 16 of 19 top-k stops. This confirms the v1
+       hypothesis.
+     - *Exploration exhausting the 6 steps* (every step a tool call) in 14 stops, mostly questions whose
+       data does not exist or is awkward: travel time and delay direction on an edge closed for the whole
+       window (S01–S04 `-desc-tt`, S03/S04 `-cf-dir`), and signal-program windows not aligned to the
+       300 s edgedata intervals (S15/S16 `-cf-dir`).
+  2. **When the Expert answers, it is accurate: 61 of 69.** All 8 errors are `-desc-occ` with the same
+     cause. The Expert lists an edge above 3.5 % in *any* seed (e.g. B2C2 at 2.96 / 2.79 / 3.55); the gold
+     uses the 3-seed mean (3.10). The question does not say how to combine seeds, so this is an ambiguity
+     in the bank, not only an Expert error.
+- **Conclusion.** The aggregation tools of v1 target the dominant failure. Two defects of the question bank
+  also surfaced (seed aggregation not stated; questions about edges without traffic) — see
+  `evaluating-resto.md` §4.1. They are measurement fixes and are decided before v1 is compared with v0.
 
 ### v1 — planned
 
