@@ -150,6 +150,67 @@ with this re-scored v0.
 - **Risk to watch.** Tools must stay generic (rank by *any* measure); a tool shaped like the gold answer
   would make the benchmark measure tool selection rather than reasoning.
 
+### v2 — batched topology tools (in progress, sweep deferred)
+
+- **Status.** Code changed and unit-tested; a small-scale check on v1's 7 budget stops is done
+  ($0.10); the DoD's 3-repetition sweep over the full bank is **deferred**, see below — do not treat
+  this entry as a reported result yet.
+- **Configuration** (`EXPERT_VERSION = "v2"`; prompt and budget otherwise unchanged from v1):
+  `get_edge`, `get_neighbours`, `capacity_estimate` and `get_tls` are replaced, Expert-side only, by
+  `get_edges`/`get_neighbours`/`capacity_estimate`/`get_tls` taking a **list** of ids instead of one
+  (`application/tools/expert.py`, `EXPERT_TOPOLOGY_TOOLS`). NetworkMCP itself
+  (`application/tools/network.py`, the DoD-documented contract also exposed by
+  `interface/mcp/network_server.py`) is untouched — the Expert still takes `get_lanes`/`shortest_path`
+  from it as-is (`EXPERT_NETWORK_TOOLS`).
+- **Hypothesis.** Re-reading the v1 trace of every budget stop with the actual tool-call *arguments*,
+  not just names, showed the Expert was not looping on the same call: it ran a legitimate, broadening
+  neighbourhood survey (top edges → their attributes → their neighbours → capacity → traffic lights →
+  the neighbours' own neighbours). But NetworkMCP's topology tools take one id per call, so describing
+  an 8-edge neighbourhood cost 20-30 separate tool calls and used 5 of the 6 available steps just
+  gathering data, leaving none to close. Batching should free steps without changing how the Expert
+  reasons about the question — no prompt change.
+- **Small-scale check.** `v2-retry-failed`: the 7 questions that stopped on budget in v1 (`S00-diag`,
+  `S03-diag`, `S05-diag`, `S06-diag`, `S16-diag`, `S17-diag`, `S12-cf-topk`), 1 repetition, $0.10.
+  **4 of 7 now answer successfully** (S05-diag, S06-diag, S17-diag, S12-cf-topk). **3 still stop on
+  budget** (S00-diag, S03-diag, S16-diag).
+- **The remaining 3 show two mechanisms batching cannot fix, plus one that is not about tokens at
+  all.**
+  1. *A free-text step with zero tool calls, cut at the 2048-output-token limit* (S03-diag step 4,
+     S16-diag step 4): the model writes unstructured reasoning instead of calling a tool; the text is
+     cut before it says anything decisive, so the step produces no ledger entry and no progress.
+  2. *A genuine tool call's own JSON arguments cut mid-generation* (S00-diag's `rank_edges` call,
+     S16-diag's last-step `edge_stats` call): the model does call a tool, but the arguments — which
+     repeat long content-hash result ids verbatim — are long enough to hit the same 2048-token ceiling
+     before the JSON closes, so parsing fails and the step is wasted anyway.
+  3. S00-diag specifically is neither: every one of its 6 steps *is* a tool call, yet it never once
+     attempts `submit_output`. By step 3 it already has enough evidence (ranked edges, their
+     attributes, capacity, neighbours, and the neighbours' own neighbours) but keeps broadening the
+     search — more `rank_edges` calls on other measures — instead of converging.
+- **`tool_choice="required"` considered, not applied.** Forcing every step to include a tool call
+  (`anthropic_client.py` currently sets `tool_choice="auto"`) would remove mechanism 1 structurally —
+  the provider cannot return a content-only turn — and is arguably consistent with this agent's own
+  rule ("never state a fact you did not get from a tool call"): a free-text turn was never a
+  legitimate way for it to make progress anyway. Decided against it for now: it is a permanent
+  behavioural change to the `ToolAgent` loop shared by every agent module, not something scoped to
+  these 3 questions, and it narrows the model's freedom to judge when it has enough evidence — a
+  bigger architectural commitment than the (at most 2 of 3) failures it would close justify on their
+  own. A softer alternative — a prompt sentence nudging the Expert to prefer a tool call over writing
+  reasoning out — was drafted but also not applied, pending the decision below.
+- **Not chasing 100% `accepted`.** The `accepted = 1.00` row in §3's version table is *not* a DoD
+  requirement: `tfm-architecture-and-dod.md` §4.7 asks for "100% of answers **reference a resolvable
+  artifact or query**" (evidence traceability of answers actually given — already true, 0 rejected
+  answers in v1) plus the per-family accuracy thresholds, none of which demand zero budget stops.
+  Remaining stops after v2 will be reported and characterised as a limitation of
+  `deepseek/deepseek-v4.1-flash` on this question shape (loses steps to unstructured reasoning that
+  gets cut; does not reliably recognise it has enough evidence to converge) rather than engineered
+  around further on the light model. Trying a stronger model on just these cases is future work,
+  gated on the explicit cost approval CLAUDE.md's LLM policy requires — not decided here.
+- **Sweep.** Deferred (2026-09-17): the DoD's 3-repetition sweep over the full 117-question bank
+  (≈ $2.9 at current rates — `evaluating-resto.md` §4.2) is postponed; a sponsor may cover the
+  experiment budget. Run it, and fill in this entry's metrics table row, once that is resolved.
+- **Conclusion.** Kept, pending the full sweep. `EXPERT_VERSION` is already bumped to `"v2"` so any
+  future run is labelled correctly.
+
 ## 4. Entry template
 
 ```markdown
