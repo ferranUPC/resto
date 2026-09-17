@@ -87,6 +87,10 @@ eval/scenario_matrix/runs/
 # question-bank-report.md are the durable, committed assets
 eval/question_bank/_rebuild/
 
+# eval/expert_benchmark raw runs (answers + full evidence ledgers, large, resumable scratch);
+# reports/<name>.md and reports/<name>.json are the committed assets
+eval/expert_benchmark/runs/
+
 # IPython
 profile_default/
 ipython_config.py

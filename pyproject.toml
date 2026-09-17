@@ -49,7 +49,7 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 # only the mypy-clean eval/ packages are listed here.
 files = [
     "src", "tests", "conformance", "verify",
-    "eval/scenario_matrix", "eval/benchmarks", "eval/question_bank",
+    "eval/scenario_matrix", "eval/benchmarks", "eval/question_bank", "eval/expert_benchmark",
 ]
 check_untyped_defs = true
 ignore_missing_imports = true  # traci / sumolib ship no type information

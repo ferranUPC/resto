@@ -1,0 +1,90 @@
+{
+  "runs": 1,
+  "questions": 1,
+  "repetitions": [
+    1
+  ],
+  "budget_stops": 1,
+  "per_repetition": {
+    "1": {
+      "descriptive_accuracy": null,
+      "desc_occ_accuracy": null,
+      "desc_tt_accuracy": null,
+      "diag_accuracy": 0.0,
+      "diag_mean_jaccard": 0.0,
+      "cf_dir_accuracy": null,
+      "cf_topk_accuracy": null,
+      "cf_topk_mean_jaccard": null,
+      "cf_band_accuracy": null,
+      "brier": null,
+      "accepted_share": 0.0
+    }
+  },
+  "aggregate": {
+    "descriptive_accuracy": {
+      "mean": null,
+      "std": null,
+      "repetitions": 0
+    },
+    "desc_occ_accuracy": {
+      "mean": null,
+      "std": null,
+      "repetitions": 0
+    },
+    "desc_tt_accuracy": {
+      "mean": null,
+      "std": null,
+      "repetitions": 0
+    },
+    "diag_accuracy": {
+      "mean": 0.0,
+      "std": null,
+      "repetitions": 1
+    },
+    "diag_mean_jaccard": {
+      "mean": 0.0,
+      "std": null,
+      "repetitions": 1
+    },
+    "cf_dir_accuracy": {
+      "mean": null,
+      "std": null,
+      "repetitions": 0
+    },
+    "cf_topk_accuracy": {
+      "mean": null,
+      "std": null,
+      "repetitions": 0
+    },
+    "cf_topk_mean_jaccard": {
+      "mean": null,
+      "std": null,
+      "repetitions": 0
+    },
+    "cf_band_accuracy": {
+      "mean": null,
+      "std": null,
+      "repetitions": 0
+    },
+    "brier": {
+      "mean": null,
+      "std": null,
+      "repetitions": 0
+    },
+    "accepted_share": {
+      "mean": 0.0,
+      "std": null,
+      "repetitions": 1
+    }
+  },
+  "accuracy_by_basis": {},
+  "cost_by_family": {
+    "diag": {
+      "runs": 1.0,
+      "input_tokens": 117910.0,
+      "output_tokens": 6958.0,
+      "cost_usd": 0.0218613
+    }
+  },
+  "total_cost_usd": 0.0218613
+}

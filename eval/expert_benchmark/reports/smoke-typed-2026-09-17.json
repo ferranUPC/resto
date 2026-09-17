@@ -1,0 +1,119 @@
+{
+  "runs": 5,
+  "questions": 5,
+  "repetitions": [
+    1
+  ],
+  "budget_stops": 1,
+  "per_repetition": {
+    "1": {
+      "descriptive_accuracy": 1.0,
+      "desc_occ_accuracy": 1.0,
+      "desc_tt_accuracy": 1.0,
+      "diag_accuracy": 0.0,
+      "diag_mean_jaccard": 0.0,
+      "cf_dir_accuracy": 1.0,
+      "cf_topk_accuracy": null,
+      "cf_topk_mean_jaccard": null,
+      "cf_band_accuracy": 1.0,
+      "brier": 0.012224999999999998,
+      "accepted_share": 0.8
+    }
+  },
+  "aggregate": {
+    "descriptive_accuracy": {
+      "mean": 1.0,
+      "std": null,
+      "repetitions": 1
+    },
+    "desc_occ_accuracy": {
+      "mean": 1.0,
+      "std": null,
+      "repetitions": 1
+    },
+    "desc_tt_accuracy": {
+      "mean": 1.0,
+      "std": null,
+      "repetitions": 1
+    },
+    "diag_accuracy": {
+      "mean": 0.0,
+      "std": null,
+      "repetitions": 1
+    },
+    "diag_mean_jaccard": {
+      "mean": 0.0,
+      "std": null,
+      "repetitions": 1
+    },
+    "cf_dir_accuracy": {
+      "mean": 1.0,
+      "std": null,
+      "repetitions": 1
+    },
+    "cf_topk_accuracy": {
+      "mean": null,
+      "std": null,
+      "repetitions": 0
+    },
+    "cf_topk_mean_jaccard": {
+      "mean": null,
+      "std": null,
+      "repetitions": 0
+    },
+    "cf_band_accuracy": {
+      "mean": 1.0,
+      "std": null,
+      "repetitions": 1
+    },
+    "brier": {
+      "mean": 0.012224999999999998,
+      "std": null,
+      "repetitions": 1
+    },
+    "accepted_share": {
+      "mean": 0.8,
+      "std": null,
+      "repetitions": 1
+    }
+  },
+  "accuracy_by_basis": {
+    "observed": {
+      "answers": 4,
+      "accuracy": 1.0
+    }
+  },
+  "cost_by_family": {
+    "cf-band": {
+      "runs": 1.0,
+      "input_tokens": 29113.0,
+      "output_tokens": 2241.0,
+      "cost_usd": 0.005711549999999999
+    },
+    "cf-dir": {
+      "runs": 1.0,
+      "input_tokens": 43117.0,
+      "output_tokens": 3484.0,
+      "cost_usd": 0.00855795
+    },
+    "desc-occ": {
+      "runs": 1.0,
+      "input_tokens": 80027.0,
+      "output_tokens": 4780.0,
+      "cost_usd": 0.01487205
+    },
+    "desc-tt": {
+      "runs": 1.0,
+      "input_tokens": 27783.0,
+      "output_tokens": 1489.0,
+      "cost_usd": 0.0050608499999999996
+    },
+    "diag": {
+      "runs": 1.0,
+      "input_tokens": 90256.0,
+      "output_tokens": 7644.0,
+      "cost_usd": 0.0181248
+    }
+  },
+  "total_cost_usd": 0.0523272
+}
