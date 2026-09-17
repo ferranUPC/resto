@@ -23,6 +23,12 @@
 5. **Structured before judged.** A metric compares typed values whenever possible; free-text grading
    (rubric, LLM-as-judge) is used only where no typed value exists, and its agreement with a human is
    measured before it is trusted.
+6. **Budgets are stated in tokens first, dollars second.** Every run-protocol section records measured
+   (or, before a sweep has run, best-estimate) input/output tokens per family per run. The dollar figure
+   for the current default model is that token count run through `resto.adapters.llm.pricing`'s per-token
+   rate — never a number re-derived by hand. Pricing a different model, including a paid escalation (which
+   still needs the explicit approval and cost confirmation CLAUDE.md's LLM cost policy requires), is then
+   the same token count multiplied by that model's own published rate, not a new analysis.
 
 ---
 
@@ -151,9 +157,31 @@ python -m eval.expert_benchmark.run --name <name> --report-only   # re-score sto
 Repetitions: **3** per question. Free mode is **not run for now** (budget decision, 2026-09-17), so the
 abstention metrics (§4.5) are deferred.
 
-Cost: the smoke runs of 2026-09-17 averaged about 1.1 US cents per question (§4.7), so a full forced
-sweep (117 × 3) is estimated at **4–5 USD**; diagnostic questions cost the most (~2 cents each, three
-full-network edgedata queries). Adding free mode would roughly double it.
+**Budget (principle 6): tokens per family, dollars for the current default model derived from them.**
+Measured on `v1-forced-1rep` (`eval/expert_benchmark/reports/v1-forced-1rep.json`), one repetition over
+the whole 117-question bank, `deepseek/deepseek-v4.1-flash`. Supersedes the 4–5 USD estimate this section
+used to give, which was extrapolated from only the 5 questions of the 2026-09-17 smoke run (§4.7) before a
+full-bank sweep existed.
+
+| Family | Runs | Input tok / run | Output tok / run | DeepSeek v4.1 cost / run |
+|---|---|---|---|---|
+| `-desc-tt` | 20 | 27,802 | 1,536 | $0.0051 |
+| `-desc-occ` | 20 | 31,035 | 1,812 | $0.0057 |
+| `-cf-band` | 19 | 44,844 | 2,109 | $0.0080 |
+| `-cf-topk` | 19 | 50,435 | 2,481 | $0.0091 |
+| `-cf-dir` | 19 | 52,340 | 2,551 | $0.0094 |
+| `-diag` | 20 | 64,874 | 5,248 | $0.0129 |
+| **Total, 117 × 1 rep** | 117 | 5,278,975 | 307,598 | **$0.976** |
+
+The dollar column is `tokens × resto.adapters.llm.pricing.estimate_cost_usd`'s current DeepSeek v4.1 rate
+($0.15 / $0.60 per 1M input / output tokens). For the DoD's 3 repetitions: ≈ 15.8 M input + 0.92 M output
+tokens ≈ **$2.9** — and the same two token columns, multiplied by any other model's published per-token
+rate, price a run on that model without re-measuring anything. Adding free mode would roughly double it.
+
+`-diag` costs the most per run (more than double `-desc-tt`) and is the only family with text-only and
+token-limit-cut steps (3 of 20 runs each, 2026-09-17 sweep) — see `docs/expert-tuning-log.md` v1/v2 for
+why. A tool-set change that removes some of that exploration (v2, in progress) is expected to lower
+`-diag`'s token count specifically; not yet measured on a full sweep (deferred, see the tuning log).
 
 ### 4.3 Answer types (ADR-0019)
 
