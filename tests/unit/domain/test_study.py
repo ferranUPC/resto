@@ -3,6 +3,7 @@ from typing import Any
 import pytest
 
 from resto.domain.entities.study import Study, StudyStatus
+from resto.domain.value_objects.answer_value import Edges
 from resto.domain.value_objects.expert_answer import Basis, Evidence, EvidenceKind, ExpertAnswer
 from resto.domain.value_objects.expert_round import ExpertRound
 from resto.domain.value_objects.question import Intent, Mode, Question
@@ -53,7 +54,13 @@ def test_forced_mode_never_triggers_experiments() -> None:
 
 
 def test_max_rounds_is_enforced() -> None:
-    answer = ExpertAnswer(answer="E12", basis=Basis.OBSERVED, confidence=0.9, evidence=EVIDENCE)
+    answer = ExpertAnswer(
+        answer="E12",
+        basis=Basis.OBSERVED,
+        confidence=0.9,
+        evidence=EVIDENCE,
+        values=(Edges(edge_ids=("E12",)),),
+    )
     rounds = tuple(ExpertRound(question="q", answer=answer) for _ in range(4))
     with pytest.raises(ValueError):
         Study(study_id="s", question=_question(), plan=PLAN, rounds=rounds)
@@ -62,5 +69,17 @@ def test_max_rounds_is_enforced() -> None:
 
 
 def test_answer_without_evidence_must_abstain() -> None:
-    with pytest.raises(ValueError):
-        ExpertAnswer(answer="E12 is congested", basis=Basis.OBSERVED, confidence=0.9)
+    with pytest.raises(ValueError, match="evidence"):
+        ExpertAnswer(
+            answer="E12 is congested",
+            basis=Basis.OBSERVED,
+            confidence=0.9,
+            values=(Edges(edge_ids=("E12",)),),
+        )
+
+
+def test_answer_without_typed_values_must_abstain() -> None:
+    with pytest.raises(ValueError, match="typed value"):
+        ExpertAnswer(
+            answer="E12 is congested", basis=Basis.OBSERVED, confidence=0.9, evidence=EVIDENCE
+        )

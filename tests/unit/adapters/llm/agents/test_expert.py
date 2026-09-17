@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Sequence
 
 from resto.adapters.llm.agents.expert import build_task, run_expert
@@ -38,6 +39,13 @@ def test_build_task_carries_the_expert_task_as_plain_data() -> None:
     }
     for rule in ("query_edgedata", "get_scenario", '"ref"', "extrapolated", "needs_simulation"):
         assert rule in task.system_prompt
+    for kind in ('"edges"', '"quantity"', '"change"', "travel_time (s)", "mean_delay (s)"):
+        assert kind in task.system_prompt
+
+
+def test_prompt_examples_never_use_dev_net_edge_ids() -> None:
+    # DEV-NET edges are named <col><row><col><row> (e.g. B2C2); gold answers are built from them
+    assert re.findall(r"\b[A-E][0-4][A-E][0-4]\b", build_task(TASK).system_prompt) == []
 
 
 def test_run_expert_offers_the_expert_tools_and_returns_the_agent_run() -> None:

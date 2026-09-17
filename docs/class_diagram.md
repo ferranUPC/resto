@@ -119,6 +119,46 @@ class ExpertAnswer {
   +float confidence
   +bool needs_simulation
 }
+class AnswerValue {
+  <<union>>
+}
+class Edges {
+  +List~str~ edge_ids
+  +bool ranked
+}
+class Quantity {
+  +Measure measure
+  +float value
+  +str? edge_id
+}
+class Change {
+  +Measure measure
+  +ChangeDirection direction
+  +float? relative_change_pct
+  +str? edge_id
+}
+class Measure {
+  <<enumeration>>
+  TRAVEL_TIME
+  TIME_LOSS
+  WAITING_TIME
+  OCCUPANCY
+  SPEED
+  DENSITY
+  ENTERED
+  LEFT
+  MEAN_DELAY
+  MEAN_TRAVEL_TIME
+  TELEPORTS
+  DEPARTED
+  ARRIVED
+}
+class ChangeDirection {
+  <<enumeration>>
+  INCREASE
+  DECREASE
+  UNCHANGED
+}
 class Basis {
   <<enumeration>>
   OBSERVED
@@ -168,6 +208,13 @@ StudyPlan "1" *-- "1..*" PlanStep : steps
 ExpertRound *-- "1" ExpertAnswer : answer
 ExpertAnswer --> Basis
 ExpertAnswer "1" *-- "0..*" Evidence : evidence
+ExpertAnswer "1" *-- "0..*" AnswerValue : values
+AnswerValue <|-- Edges
+AnswerValue <|-- Quantity
+AnswerValue <|-- Change
+Quantity --> Measure
+Change --> Measure
+Change --> ChangeDirection
 ExpertAnswer "1" o-- "0..1" Question : proposed_experiment
 Evidence --> EvidenceKind
 Report --> Mode

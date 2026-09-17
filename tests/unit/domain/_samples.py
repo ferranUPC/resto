@@ -20,6 +20,13 @@ from resto.domain.entities.scenario import Scenario
 from resto.domain.entities.simulation_result import RunMode, RunStatus, SimulationResult
 from resto.domain.entities.study import Study, StudyStatus
 from resto.domain.services.note_ranking import ScoredNote
+from resto.domain.value_objects.answer_value import (
+    Change,
+    ChangeDirection,
+    Edges,
+    Measure,
+    Quantity,
+)
 from resto.domain.value_objects.applied_action import ActionOrigin, AppliedAction
 from resto.domain.value_objects.artifact_ref import ArtifactRef
 from resto.domain.value_objects.calibration_round import CalibrationRound
@@ -114,6 +121,14 @@ def expert_answer() -> ExpertAnswer:
         basis=Basis.OBSERVED,
         confidence=0.8,
         evidence=(Evidence(kind=EvidenceKind.QUERY, ref="query_edgedata:r1", excerpt="E12 0.91"),),
+        values=(
+            Change(
+                measure=Measure.TIME_LOSS,
+                direction=ChangeDirection.INCREASE,
+                relative_change_pct=12.0,
+                edge_id="E12",
+            ),
+        ),
     )
 
 
@@ -264,6 +279,11 @@ SAMPLES: dict[type, Callable[[], object]] = {
     ExpertRound: lambda: ExpertRound(question="why?", answer=expert_answer()),
     ExpertAnswer: expert_answer,
     Evidence: lambda: Evidence(kind=EvidenceKind.ARTIFACT, ref="edgedata.xml", excerpt="E12"),
+    Edges: lambda: Edges(edge_ids=("E12", "E07"), ranked=True),
+    Quantity: lambda: Quantity(measure=Measure.TRAVEL_TIME, value=23.4, edge_id="E12"),
+    Change: lambda: Change(
+        measure=Measure.MEAN_DELAY, direction=ChangeDirection.INCREASE, relative_change_pct=7.6
+    ),
     Report: report,
     ReportSection: lambda: ReportSection(title="Findings", body="delay rises"),
     Claim: lambda: Claim(text="delay +12 %", evidence_refs=("r1",), value="12%"),

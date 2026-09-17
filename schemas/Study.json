@@ -43,6 +43,62 @@
       "title": "Basis",
       "type": "string"
     },
+    "Change": {
+      "description": "How a measure changes relative to a reference (usually the baseline): a direction and,\nwhen known, the relative change in percent.",
+      "properties": {
+        "direction": {
+          "$ref": "#/$defs/ChangeDirection"
+        },
+        "edge_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Edge Id"
+        },
+        "kind": {
+          "const": "change",
+          "default": "change",
+          "title": "Kind",
+          "type": "string"
+        },
+        "measure": {
+          "$ref": "#/$defs/Measure"
+        },
+        "relative_change_pct": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Relative Change Pct"
+        }
+      },
+      "required": [
+        "measure",
+        "direction"
+      ],
+      "title": "Change",
+      "type": "object"
+    },
+    "ChangeDirection": {
+      "enum": [
+        "increase",
+        "decrease",
+        "unchanged"
+      ],
+      "title": "ChangeDirection",
+      "type": "string"
+    },
     "Claim": {
       "properties": {
         "evidence_refs": {
@@ -122,6 +178,34 @@
       "title": "EdgeTarget",
       "type": "object"
     },
+    "Edges": {
+      "description": "A set of edges, or a ranking when `ranked` (most relevant first). Empty is a valid\nanswer (\"no edge does\").",
+      "properties": {
+        "edge_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Edge Ids",
+          "type": "array"
+        },
+        "kind": {
+          "const": "edges",
+          "default": "edges",
+          "title": "Kind",
+          "type": "string"
+        },
+        "ranked": {
+          "default": false,
+          "title": "Ranked",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "edge_ids"
+      ],
+      "title": "Edges",
+      "type": "object"
+    },
     "Evidence": {
       "properties": {
         "excerpt": {
@@ -193,6 +277,7 @@
       "type": "string"
     },
     "ExpertAnswer": {
+      "description": "`values` is the answer itself, typed; `answer` is the prose justification. When they\ndisagree, `values` is authoritative (ADR-0019).",
       "properties": {
         "answer": {
           "title": "Answer",
@@ -228,6 +313,24 @@
             }
           ],
           "default": null
+        },
+        "values": {
+          "default": [],
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Edges"
+              },
+              {
+                "$ref": "#/$defs/Quantity"
+              },
+              {
+                "$ref": "#/$defs/Change"
+              }
+            ]
+          },
+          "title": "Values",
+          "type": "array"
         }
       },
       "required": [
@@ -396,6 +499,26 @@
       "title": "LaneTarget",
       "type": "object"
     },
+    "Measure": {
+      "description": "What a typed answer measures. The unit is fixed by the measure (`unit`), so an answer\ncan never be stated in a different one.",
+      "enum": [
+        "travel_time",
+        "time_loss",
+        "waiting_time",
+        "occupancy",
+        "speed",
+        "density",
+        "entered",
+        "left",
+        "mean_delay",
+        "mean_travel_time",
+        "teleports",
+        "departed",
+        "arrived"
+      ],
+      "title": "Measure",
+      "type": "string"
+    },
     "Metric": {
       "enum": [
         "occupancy",
@@ -455,6 +578,42 @@
         "module"
       ],
       "title": "PlanStep",
+      "type": "object"
+    },
+    "Quantity": {
+      "description": "One measured value, in `measure.unit`, on one edge or (edge_id None) the whole network.",
+      "properties": {
+        "edge_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Edge Id"
+        },
+        "kind": {
+          "const": "quantity",
+          "default": "quantity",
+          "title": "Kind",
+          "type": "string"
+        },
+        "measure": {
+          "$ref": "#/$defs/Measure"
+        },
+        "value": {
+          "title": "Value",
+          "type": "number"
+        }
+      },
+      "required": [
+        "measure",
+        "value"
+      ],
+      "title": "Quantity",
       "type": "object"
     },
     "Question": {

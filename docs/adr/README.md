@@ -30,3 +30,4 @@ numbered in the order they were taken.
 | [0016](0016-hashing-embedder-for-databasemcp-reference-notes.md) | Reference `Embedder` is a deterministic hashing/bag-of-words vectorizer, not a real embedding model | 2026-09-14 | Accepted |
 | [0017](0017-runner-configuration-and-kpi-derivation.md) | Runner configuration lives entirely in `.sumocfg` files (scenario cfg + derived run cfg); KPIs from `statistic-output`; edgedata via `<edgeData>` additional | 2026-09-14 | Accepted |
 | [0018](0018-network-expert-tools-and-evidence-refs.md) | Network Expert tools — `get_scenario`, result allow-list, evidence refs from a call ledger | 2026-09-17 | Accepted |
+| [0019](0019-typed-expert-answer-values.md) | `ExpertAnswer` carries typed `values`; prose is the justification | 2026-09-17 | Accepted |

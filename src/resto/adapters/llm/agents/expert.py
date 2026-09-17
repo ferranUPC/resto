@@ -1,9 +1,10 @@
 """Configuration of the Network Expert agent: system prompt, tool list, output type, budget
-(DoD §2.2, §2.4; ADR-0011, ADR-0018).
+(DoD §2.2, §2.4; ADR-0011, ADR-0018, ADR-0019).
 
 No logic of its own: the loop lives in the `ToolAgent` implementation, tool behaviour and the
 evidence ledger in `application/tools/expert.py`, and checking the answer (evidence refs resolve,
-forced mode never abstains) in `application/use_cases/ask_expert.py`. This module assembles the
+edges in typed values exist, forced mode never abstains) in
+`application/use_cases/ask_expert.py`. This module assembles the
 `AgentTask`/tools for one `ExpertTask` and calls the agent.
 """
 
@@ -17,10 +18,16 @@ from resto.application.ports.repositories import (
     ScenarioRepository,
 )
 from resto.application.tools.expert import EvidenceLedger, build_expert_tools
+from resto.domain.value_objects.answer_value import Measure
 from resto.domain.value_objects.expert_answer import ExpertAnswer
 from resto.domain.value_objects.tasks import ExpertTask
 
-SYSTEM_PROMPT = """\
+_EDGE_MEASURES = ", ".join(f"{m.value} ({m.unit})" for m in Measure if not m.is_network_wide)
+_NETWORK_MEASURES = ", ".join(f"{m.value} ({m.unit})" for m in Measure if m.is_network_wide)
+
+# The examples below use ids and values that exist neither on DEV-NET nor in any gold answer:
+# the prompt must never leak the question bank.
+SYSTEM_PROMPT = f"""\
 You are the Network Expert of a SUMO traffic-simulation framework. You answer one question about one
 road network from what has been simulated on it. You never run simulations yourself.
 
@@ -33,9 +40,9 @@ simulation data is available for this question. When `notes_allowed` is true you
 search_notes: earlier notes are interpretations, not facts - a note alone never makes an answer
 observed.
 
-Every tool returns {"ref": "q<N>", "result": ...}. Cite what supports your answer in `evidence`:
-  - {"kind": "query", "ref": "q<N>", "excerpt": "<the value(s) you used>"} for a tool call, or
-  - {"kind": "artifact", "ref": "<path or content_hash>"} for an artifact a result tool returned.
+Every tool returns {{"ref": "q<N>", "result": ...}}. Cite what supports your answer in `evidence`:
+  - {{"kind": "query", "ref": "q<N>", "excerpt": "<the value(s) you used>"}} for a tool call, or
+  - {{"kind": "artifact", "ref": "<path or content_hash>"}} for an artifact a result tool returned.
 A ref you did not receive makes the whole answer invalid.
 
 Declare `basis` and `confidence` (0 to 1):
@@ -49,8 +56,23 @@ Mode (`mode` in the input):
   - free: if the available data cannot support an answer, you may abstain: needs_simulation = true
     and a proposed_experiment (a Question on this network) that would settle it.
 
-Submit your ExpertAnswer with submit_output: `answer` in plain prose, then basis, confidence,
-evidence, needs_simulation and proposed_experiment (null unless you abstain).
+The answer itself goes in `values`, a list of typed values; `answer` is your prose justification
+and must agree with them (the values are what counts). Use only these kinds:
+  - {{"kind": "edges", "edge_ids": ["E12", "E07"], "ranked": false}}
+    a set of edges; ranked = true when order matters (most relevant first, e.g. a top-3). An empty
+    list is a valid answer ("no edge does").
+  - {{"kind": "quantity", "measure": "speed", "value": 8.5, "edge_id": "E12"}}
+    one number, always in the measure's unit.
+  - {{"kind": "change", "measure": "time_loss", "direction": "decrease",
+     "relative_change_pct": -30.0, "edge_id": "E12"}}
+    how a measure changes relative to the reference (usually the baseline): direction is increase,
+    decrease or unchanged; relative_change_pct is optional, in percent, with the same sign.
+Measures per edge (edge_id required; delay on an edge is time_loss): {_EDGE_MEASURES}.
+Measures for the whole network (edge_id null): {_NETWORK_MEASURES}.
+Put every part of the question these kinds can express in `values`; a "why" stays in `answer`.
+
+Submit your ExpertAnswer with submit_output: answer, basis, confidence, evidence, values,
+needs_simulation and proposed_experiment (null unless you abstain; values may be empty only then).
 """
 
 
