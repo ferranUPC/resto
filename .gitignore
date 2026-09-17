@@ -142,3 +142,6 @@ dmypy.json
 .DS_Store*
 
 CLAUDE.md
+
+# Personal scratch notes, never meant to be shared
+docs/private/
