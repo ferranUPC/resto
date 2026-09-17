@@ -44,7 +44,8 @@ agent optimisation; they make the baseline measurable and correct.
 | Version | Date | Change | Sweep | Descriptive acc. | Diagnostic Jaccard | CF direction | CF band | Brier | Accepted | Cost (USD) |
 |---|---|---|---|---|---|---|---|---|---|---|
 | v0 | 2026-09-17 | Baseline | `v0-forced-1rep` (117 × 1) | 0.68 | 0.10 | 0.79 | 0.89 | 0.08 | 0.59 | 1.54 |
-| v1 | — | Aggregation tools + domain concepts | planned | — | — | — | — | — | — | — |
+| v0 re-scored | 2026-09-17 | Same runs, bank with `NoValue` gold (ADR-0021) | `v0-forced-1rep-rescored` | 0.57 | 0.10 | 0.79 | 0.89 | 0.13 | 0.59 | 0 |
+| v1 | 2026-09-17 | Aggregation tools + expert practice in the prompt | `v1-forced-1rep` (running) | — | — | — | — | — | — | — |
 
 DoD thresholds (DEV-NET): descriptive ≥ 0.90, diagnostic Jaccard ≥ 0.60, CF direction ≥ 0.75, CF band ≥ 0.50,
 Brier ≤ 0.25, accepted = 1.00.
@@ -94,16 +95,28 @@ Brier ≤ 0.25, accepted = 1.00.
   also surfaced (seed aggregation not stated; questions about edges without traffic) — see
   `evaluating-resto.md` §4.1. They are measurement fixes and are decided before v1 is compared with v0.
 
-### v1 — planned
+### Measurement fix between v0 and v1
+
+S01–S08 `-desc-tt` asked for the travel time of an edge no vehicle crossed, with gold 0.0 s. Their gold is
+now `no_value` and the Expert can answer `NoValue` (ADR-0021); no question text changed. v0's stored runs
+were re-scored against the corrected bank at no cost (`v0-forced-1rep-rescored`): descriptive accuracy
+0.68 → 0.57, because v0 could not express `NoValue` and answered 0.0 on four of them. v1 is compared
+with this re-scored v0.
+
+### v1 — aggregation tools and expert practice
 
 - **Hypothesis.** Aggregation belongs in deterministic tools, not in the model's text. Generic tools that
   average across seeds, rank edges by a measure, and compare baseline with treatment should remove the
   text-only steps, cut input tokens on the 59 aggregation questions, and raise diagnostic and top-k accuracy
   without making the questions trivial.
-- **Planned change.**
-  - New tools: `edge_stats`, `rank_edges`, `compare_edges`, `compare_kpis` (new ADR, DoD §2.2).
-  - `query_edgedata` described as expensive, to be used only when the others cannot express the need.
-  - Domain concepts in the prompt: what delay and a bottleneck are, in terms of the measures.
+- **Configuration** (`EXPERT_VERSION = "v1"`; model and budget as v0):
+  - New tools `edge_stats`, `rank_edges`, `compare_edges`, `compare_kpis` (ADR-0022), listed first in the
+    prompt; `query_edgedata` described as expensive, a last resort.
+  - Prompt, "answer like a traffic engineer": mean across seed runs and mind the spread; total delay is
+    `time_loss` and a bottleneck is where it concentrates; no vehicles → `no_value`, never 0; request
+    independent tool calls together and submit as soon as the data supports an answer.
+  - Prompt: `get_scenario` takes the `scenario_id` from `get_result`, never a result id (v0 wasted calls).
+  - `NoValue` answer kind (ADR-0021).
 - **Risk to watch.** Tools must stay generic (rank by *any* measure); a tool shaped like the gold answer
   would make the benchmark measure tool selection rather than reasoning.
 

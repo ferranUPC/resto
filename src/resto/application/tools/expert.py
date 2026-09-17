@@ -17,6 +17,7 @@ Two things are added on top of plain delegation, both bound in `build_expert_too
 
 from __future__ import annotations
 
+import statistics
 from collections.abc import Callable, Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
@@ -44,7 +45,30 @@ EXPERT_NETWORK_TOOLS = (
     "capacity_estimate",
     "get_tls",
 )
-RESULT_TOOLS = ("get_result", "list_results", "query_edgedata", "get_scenario")
+RESULT_TOOLS = (
+    "edge_stats",
+    "rank_edges",
+    "compare_edges",
+    "compare_kpis",
+    "get_result",
+    "list_results",
+    "query_edgedata",
+    "get_scenario",
+)
+# per-vehicle means: undefined in a run where no vehicle was on the edge (ADR-0021)
+_PER_VEHICLE = frozenset({"travel_time", "speed", "time_loss_per_vehicle"})
+EDGE_MEASURES = (
+    "travel_time",
+    "speed",
+    "occupancy",
+    "density",
+    "time_loss",
+    "waiting_time",
+    "entered",
+    "left",
+    "time_loss_per_vehicle",
+)
+KPI_NAMES = ("mean_delay", "mean_travel_time", "teleports", "departed", "arrived")
 
 
 class NotAvailableError(LookupError):
@@ -134,6 +158,178 @@ def list_results(
     ]
 
 
+def _check_measure(measure: str) -> None:
+    if measure not in EDGE_MEASURES:
+        raise ValueError(f"unknown measure {measure!r}; use one of {', '.join(EDGE_MEASURES)}")
+
+
+def _run_value(edge: Mapping[str, float], measure: str) -> float | None:
+    """One run's value of `measure` on one edge, None where a per-vehicle mean is undefined."""
+    if measure in _PER_VEHICLE and edge["sampled_seconds"] <= 0:
+        return None
+    if measure == "time_loss_per_vehicle":
+        return edge["time_loss"] / edge["entered"] if edge["entered"] > 0 else None
+    return float(edge[measure])
+
+
+def _summary(values: Sequence[float | None]) -> dict[str, float | int] | None:
+    present = [v for v in values if v is not None]
+    if not present:
+        return None
+    return {
+        "mean": round(statistics.mean(present), 3),
+        "std": round(statistics.stdev(present), 3) if len(present) > 1 else 0.0,
+        "runs": len(present),
+    }
+
+
+def _per_run(
+    results: ResultRepository,
+    available: AbstractSet[str],
+    result_ids: Sequence[str],
+    edge_ids: Sequence[str],
+    window: Sequence[float] | None,
+) -> list[Mapping[str, Mapping[str, float]]]:
+    if not result_ids:
+        raise ValueError("give at least one result_id")
+    for result_id in result_ids:
+        _require_available(available, result_id)
+    if window is not None and len(window) != 2:
+        raise ValueError("window must be [start, end] in simulation seconds")
+    bounds = None if window is None else (float(window[0]), float(window[1]))
+    return [results.query_edgedata(rid, list(edge_ids), bounds) for rid in result_ids]
+
+
+def _edge_summary(
+    runs: Sequence[Mapping[str, Mapping[str, float]]], edge_id: str, measure: str
+) -> dict[str, float | int] | None:
+    return _summary([_run_value(run[edge_id], measure) for run in runs if edge_id in run])
+
+
+def edge_stats(
+    results: ResultRepository,
+    available: AbstractSet[str],
+    result_ids: Sequence[str],
+    edge_ids: Sequence[str],
+    window: Sequence[float] | None = None,
+) -> Mapping[str, Any]:
+    """Mean, std and run count of every measure on the given edges, across the given runs.
+
+    Per-vehicle means (travel_time, speed, time_loss_per_vehicle) only count runs where the edge
+    had traffic, and are null when none had: a null travel time means no vehicle crossed the edge.
+
+    Raises:
+        NotAvailableError: a result is not available to this question.
+    """
+    if not edge_ids:
+        raise ValueError("name the edges; use rank_edges to search the whole network")
+    runs = _per_run(results, available, result_ids, edge_ids, window)
+    return {
+        edge_id: {measure: _edge_summary(runs, edge_id, measure) for measure in EDGE_MEASURES}
+        for edge_id in edge_ids
+        if any(edge_id in run for run in runs)
+    }
+
+
+def rank_edges(
+    results: ResultRepository,
+    available: AbstractSet[str],
+    result_ids: Sequence[str],
+    measure: str,
+    window: Sequence[float] | None = None,
+    top_k: int = 10,
+    min_value: float | None = None,
+    ascending: bool = False,
+) -> list[dict[str, Any]]:
+    """Edges of the whole network ranked by the mean of one measure across the given runs.
+
+    With `min_value`, only edges whose mean exceeds it. Edges where a per-vehicle mean is undefined
+    in every run are left out.
+    """
+    _check_measure(measure)
+    runs = _per_run(results, available, result_ids, (), window)
+    rows: list[dict[str, Any]] = []
+    for edge_id in runs[0]:
+        summary = _edge_summary(runs, edge_id, measure)
+        if summary is None or (min_value is not None and summary["mean"] <= min_value):
+            continue
+        rows.append({"edge_id": edge_id, **summary})
+    rows.sort(key=lambda row: row["mean"], reverse=not ascending)
+    return rows[:top_k]
+
+
+def compare_edges(
+    results: ResultRepository,
+    available: AbstractSet[str],
+    baseline_result_ids: Sequence[str],
+    treatment_result_ids: Sequence[str],
+    measure: str,
+    window: Sequence[float] | None = None,
+    edge_ids: Sequence[str] = (),
+    top_k: int = 10,
+) -> list[dict[str, Any]]:
+    """Per edge, the mean of one measure in baseline and treatment runs, the difference and the
+    relative change in percent. With `edge_ids`, exactly those edges; otherwise the `top_k` edges
+    with the largest absolute difference."""
+    _check_measure(measure)
+    baseline = _per_run(results, available, baseline_result_ids, edge_ids, window)
+    treatment = _per_run(results, available, treatment_result_ids, edge_ids, window)
+    rows: list[dict[str, Any]] = []
+    for edge_id in edge_ids or list(treatment[0]):
+        before = _edge_summary(baseline, edge_id, measure)
+        after = _edge_summary(treatment, edge_id, measure)
+        delta = pct = None
+        if before is not None and after is not None:
+            delta = round(after["mean"] - before["mean"], 3)
+            pct = round(delta / before["mean"] * 100, 1) if before["mean"] != 0 else None
+        rows.append(
+            {
+                "edge_id": edge_id,
+                "baseline": before,
+                "treatment": after,
+                "delta": delta,
+                "relative_change_pct": pct,
+            }
+        )
+    if edge_ids:
+        return rows
+    ranked = sorted((r for r in rows if r["delta"] is not None), key=lambda r: -abs(r["delta"]))
+    return ranked[:top_k]
+
+
+def compare_kpis(
+    results: ResultRepository,
+    available: AbstractSet[str],
+    baseline_result_ids: Sequence[str],
+    treatment_result_ids: Sequence[str],
+) -> Mapping[str, Any]:
+    """Network-wide KPIs (mean_delay, mean_travel_time, teleports, departed, arrived): mean across
+    baseline and treatment runs, the difference and the relative change in percent."""
+
+    def kpis(result_ids: Sequence[str]) -> dict[str, dict[str, float | int] | None]:
+        if not result_ids:
+            raise ValueError("give at least one result_id per side")
+        values: dict[str, list[float | None]] = {name: [] for name in KPI_NAMES}
+        for result_id in result_ids:
+            _require_available(available, result_id)
+            result = results.get(result_id)
+            if result is None or result.kpis is None:
+                raise KeyError(f"result {result_id!r} has no KPIs")
+            for name in KPI_NAMES:
+                values[name].append(float(getattr(result.kpis, name)))
+        return {name: _summary(v) for name, v in values.items()}
+
+    before, after = kpis(baseline_result_ids), kpis(treatment_result_ids)
+    out: dict[str, Any] = {}
+    for name in KPI_NAMES:
+        b, a = before[name], after[name]
+        assert b is not None and a is not None
+        delta = round(a["mean"] - b["mean"], 3)
+        pct = round(delta / b["mean"] * 100, 1) if b["mean"] != 0 else None
+        out[name] = {"baseline": b, "treatment": a, "delta": delta, "relative_change_pct": pct}
+    return out
+
+
 def query_edgedata(
     results: ResultRepository,
     available: AbstractSet[str],
@@ -141,7 +337,10 @@ def query_edgedata(
     edge_ids: Sequence[str] = (),
     window: Sequence[float] | None = None,
 ) -> Mapping[str, Any]:
-    """Per-edge measures of one result over `[start, end)` simulation seconds (None: whole run).
+    """EXPENSIVE raw per-run data of every edge (~17,000 characters per result): prefer edge_stats,
+    rank_edges or compare_edges, and use this only when they cannot express what you need.
+
+    Per-edge measures of one result over `[start, end)` simulation seconds (None: whole run).
     Empty `edge_ids` means every edge. Measures: sampled_seconds, density, occupancy, speed,
     waiting_time, time_loss, travel_time, entered, left (DATABASE_MCP_CONTRACT.md §5.4);
     waiting_time and time_loss are totals over all vehicles (vehicle-seconds).
@@ -194,7 +393,54 @@ def search_notes(
 
 
 _RESULT_ID = {"type": "string", "description": "Id of an available simulation result."}
+_RESULT_IDS = {"type": "array", "items": {"type": "string"}, "minItems": 1}
+_WINDOW = {
+    "type": "array",
+    "items": {"type": "number"},
+    "minItems": 2,
+    "maxItems": 2,
+    "description": "[start, end) in simulation seconds; omit for the whole run.",
+}
+_MEASURE = {"type": "string", "enum": list(EDGE_MEASURES)}
 _SCHEMAS: dict[str, Mapping[str, Any]] = {
+    "edge_stats": {
+        "type": "object",
+        "properties": {
+            "result_ids": _RESULT_IDS,
+            "edge_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+            "window": _WINDOW,
+        },
+        "required": ["result_ids", "edge_ids"],
+    },
+    "rank_edges": {
+        "type": "object",
+        "properties": {
+            "result_ids": _RESULT_IDS,
+            "measure": _MEASURE,
+            "window": _WINDOW,
+            "top_k": {"type": "integer", "minimum": 1},
+            "min_value": {"type": "number"},
+            "ascending": {"type": "boolean"},
+        },
+        "required": ["result_ids", "measure"],
+    },
+    "compare_edges": {
+        "type": "object",
+        "properties": {
+            "baseline_result_ids": _RESULT_IDS,
+            "treatment_result_ids": _RESULT_IDS,
+            "measure": _MEASURE,
+            "window": _WINDOW,
+            "edge_ids": {"type": "array", "items": {"type": "string"}},
+            "top_k": {"type": "integer", "minimum": 1},
+        },
+        "required": ["baseline_result_ids", "treatment_result_ids", "measure"],
+    },
+    "compare_kpis": {
+        "type": "object",
+        "properties": {"baseline_result_ids": _RESULT_IDS, "treatment_result_ids": _RESULT_IDS},
+        "required": ["baseline_result_ids", "treatment_result_ids"],
+    },
     "get_result": {
         "type": "object",
         "properties": {"result_id": _RESULT_ID},
@@ -292,6 +538,38 @@ def build_expert_tools(
     ]
 
     bound: list[tuple[str, Callable[..., Any], Callable[..., Any]]] = [
+        (
+            "edge_stats",
+            edge_stats,
+            lambda result_ids, edge_ids, window=None: edge_stats(
+                results, available, result_ids, edge_ids, window
+            ),
+        ),
+        (
+            "rank_edges",
+            rank_edges,
+            lambda result_ids, measure, window=None, top_k=10, min_value=None, ascending=False: (
+                rank_edges(
+                    results, available, result_ids, measure, window, top_k, min_value, ascending
+                )
+            ),
+        ),
+        (
+            "compare_edges",
+            compare_edges,
+            lambda baseline_result_ids, treatment_result_ids, measure, window=None, edge_ids=(),
+            top_k=10: compare_edges(
+                results, available, baseline_result_ids, treatment_result_ids, measure, window,
+                edge_ids, top_k,
+            ),
+        ),
+        (
+            "compare_kpis",
+            compare_kpis,
+            lambda baseline_result_ids, treatment_result_ids: compare_kpis(
+                results, available, baseline_result_ids, treatment_result_ids
+            ),
+        ),
         (
             "get_result",
             get_result,

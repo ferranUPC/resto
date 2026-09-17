@@ -39,7 +39,8 @@ def test_build_task_carries_the_expert_task_as_plain_data() -> None:
     }
     for rule in ("query_edgedata", "get_scenario", '"ref"', "extrapolated", "needs_simulation"):
         assert rule in task.system_prompt
-    for kind in ('"edges"', '"quantity"', '"change"', "travel_time (s)", "mean_delay (s)"):
+    kinds = ('"edges"', '"quantity"', '"change"', '"no_value"', "travel_time (s)", "rank_edges")
+    for kind in kinds:
         assert kind in task.system_prompt
 
 

@@ -159,8 +159,9 @@ def descriptive_travel_time_item(
 ) -> QuestionBankItem:
     window = descriptive_window(row)
     edge_id = target_edge(row)
-    # travel time is a per-vehicle mean: undefined in a run no vehicle crossed the edge (the contract
-    # zero-fills it), so only runs with traffic count, and none at all means no value (ADR-0021)
+    # travel time is a per-vehicle mean: undefined in a run no vehicle crossed the edge (the
+    # contract zero-fills it), so only runs with traffic count; none at all means no value
+    # (ADR-0021)
     with_traffic = [
         seed[edge_id][EdgeMeasure.TRAVEL_TIME]
         for seed in seed_edgedata
