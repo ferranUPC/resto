@@ -39,10 +39,11 @@ def completion(
     tool_calls: tuple[SimpleNamespace, ...] = (),
     prompt_tokens: int = 10,
     completion_tokens: int = 5,
+    finish_reason: str | None = None,
 ) -> SimpleNamespace:
     message = SimpleNamespace(content=content, tool_calls=list(tool_calls) or None)
     return SimpleNamespace(
-        choices=[SimpleNamespace(message=message)],
+        choices=[SimpleNamespace(message=message, finish_reason=finish_reason)],
         usage=SimpleNamespace(prompt_tokens=prompt_tokens, completion_tokens=completion_tokens),
     )
 
@@ -179,6 +180,35 @@ def test_a_plain_text_reply_is_nudged_back_toward_submitting() -> None:
     run = agent.run(DUMMY_TASK, tools=(), output=Answer, budget=DUMMY_BUDGET)
 
     assert run.stop_reason is StopReason.OUTPUT
+
+
+def test_every_step_is_traced_including_plain_text_replies_cut_at_the_token_limit() -> None:
+    complete = ScriptedCompletions(
+        completion(content="x" * 40, completion_tokens=256, finish_reason="length"),
+        completion(
+            tool_calls=(tool_call("c1", "submit_output", {"text": "ok"}),),
+            finish_reason="tool_calls",
+        ),
+    )
+    agent = OpenRouterToolAgent(CONFIG, complete=complete)
+
+    run = agent.run(DUMMY_TASK, tools=(), output=Answer, budget=DUMMY_BUDGET)
+
+    first, second = run.steps
+    assert (first.tool_calls, first.text_chars, first.finish_reason) == ((), 40, "length")
+    assert first.output_tokens == 256
+    assert second.tool_calls == ("submit_output",)
+
+
+def test_a_budget_stop_keeps_the_step_trace() -> None:
+    complete = ScriptedCompletions(*(completion(content="thinking") for _ in range(2)))
+    agent = OpenRouterToolAgent(CONFIG, complete=complete)
+
+    budget = Budget(max_steps=2, max_tokens=64, max_seconds=30)
+    run = agent.run(DUMMY_TASK, tools=(), output=Answer, budget=budget)
+
+    assert run.stop_reason is StopReason.BUDGET
+    assert [s.tool_calls for s in run.steps] == [(), ()]
 
 
 def test_exhausting_max_steps_without_a_submission_stops_on_budget() -> None:

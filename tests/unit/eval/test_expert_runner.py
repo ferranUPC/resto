@@ -10,6 +10,7 @@ from eval.expert_benchmark.bank import BenchmarkQuestion, Family
 from eval.expert_benchmark.report import render_markdown, score_records, summarize
 from eval.expert_benchmark.runner import Environment, load_records, run_benchmark
 
+from resto.adapters.llm.agents.expert import EXPERT_VERSION
 from resto.adapters.persistence.memory import InMemoryResultRepository, InMemoryScenarioRepository
 from resto.adapters.sumo.netxml import SumolibNetworkQuery
 from resto.application.ports.llm import AgentTask, Budget, Tool
@@ -77,6 +78,8 @@ def test_every_question_and_repetition_is_stored_with_its_ledger(
         ("S00-desc-occ", 1), ("S00-desc-occ", 2), ("S01-desc-occ", 1), ("S01-desc-occ", 2)
     ]
     first = records[0]
+    assert first["expert_version"] == EXPERT_VERSION
+    assert first["steps"] == []  # the fake agent makes no model calls
     assert first["rejection"] is None
     assert first["ledger"][0]["tool"] == "get_edge"
     assert first["answer"]["values"][0]["edge_ids"] == ["B1B0"]
@@ -141,3 +144,4 @@ def test_report_aggregates_repetitions_against_thresholds(
     markdown = render_markdown("test", summary, scored)
     assert "| descriptive_accuracy | 0.50 | 0.71 | >= 0.90 ❌ |" in markdown
     assert "| S00-desc-occ | 2 | ❌ |" in markdown
+    assert f"Expert: {EXPERT_VERSION}" in markdown

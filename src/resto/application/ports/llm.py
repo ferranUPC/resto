@@ -49,11 +49,24 @@ class ToolCall:
 
 
 @dataclass(frozen=True, slots=True)
+class StepTrace:
+    """One model call of a run: which tools it asked for (empty for a plain-text reply), how long
+    its text was, and why it stopped (`"length"` = cut at the output-token limit)."""
+
+    tool_calls: tuple[str, ...]
+    text_chars: int
+    finish_reason: str | None
+    input_tokens: int
+    output_tokens: int
+
+
+@dataclass(frozen=True, slots=True)
 class AgentRun(Generic[T]):
     output: T | None
     tool_calls: tuple[ToolCall, ...]
     usage: Usage
     stop_reason: StopReason
+    steps: tuple[StepTrace, ...] = ()
 
 
 class ToolAgent(Protocol):

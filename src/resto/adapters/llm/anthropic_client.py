@@ -31,7 +31,15 @@ from pydantic import ValidationError
 
 from resto.adapters.llm.config import LlmConfig
 from resto.adapters.llm.pricing import estimate_cost_usd
-from resto.application.ports.llm import AgentRun, AgentTask, Budget, StopReason, Tool, ToolCall
+from resto.application.ports.llm import (
+    AgentRun,
+    AgentTask,
+    Budget,
+    StepTrace,
+    StopReason,
+    Tool,
+    ToolCall,
+)
 from resto.application.ports.tracing import Tracer
 from resto.application.schemas import adapter_for
 from resto.domain.value_objects.step_record import Usage
@@ -76,6 +84,7 @@ class OpenRouterToolAgent:
             {"role": "user", "content": json.dumps(task.input, default=str)},
         ]
         tool_calls: list[ToolCall] = []
+        steps: list[StepTrace] = []
         input_tokens = 0
         output_tokens = 0
         started = time.monotonic()
@@ -98,8 +107,18 @@ class OpenRouterToolAgent:
             output_tokens += step_output
             self._trace(step, step_input, step_output)
 
-            message = response.choices[0].message
+            choice = response.choices[0]
+            message = choice.message
             calls = list(getattr(message, "tool_calls", None) or [])
+            steps.append(
+                StepTrace(
+                    tool_calls=tuple(call.function.name for call in calls),
+                    text_chars=len(message.content or ""),
+                    finish_reason=getattr(choice, "finish_reason", None),
+                    input_tokens=step_input,
+                    output_tokens=step_output,
+                )
+            )
             if not calls:
                 messages.append({"role": "assistant", "content": message.content or ""})
                 messages.append(
@@ -137,6 +156,7 @@ class OpenRouterToolAgent:
                         tool_calls=tuple(tool_calls),
                         usage=Usage(input_tokens=input_tokens, output_tokens=output_tokens),
                         stop_reason=StopReason.OUTPUT,
+                        steps=tuple(steps),
                     )
                 messages.append(_tool_result(call.id, result_text))
                 tool_calls.append(
@@ -152,6 +172,7 @@ class OpenRouterToolAgent:
             tool_calls=tuple(tool_calls),
             usage=Usage(input_tokens=input_tokens, output_tokens=output_tokens),
             stop_reason=StopReason.BUDGET,
+            steps=tuple(steps),
         )
 
     def _trace(self, step: int, input_tokens: int, output_tokens: int) -> None:

@@ -120,12 +120,17 @@ def summarize(scored: Sequence[ScoredRun]) -> dict[str, Any]:
             by_basis[run.answer.basis.value].append(run.score.correct)
         family = cost[run.question.family.value]
         family["runs"] += 1
+        steps = run.record.get("steps", [])
+        family["steps"] += len(steps)
+        family["text_only_steps"] += sum(not s["tool_calls"] for s in steps)
+        family["cut_at_limit_steps"] += sum(s["finish_reason"] == "length" for s in steps)
         family["input_tokens"] += run.record["input_tokens"]
         family["output_tokens"] += run.record["output_tokens"]
         family["cost_usd"] += run.record["cost_usd"] or 0.0
 
     return {
         "runs": len(scored),
+        "expert_versions": sorted({str(r.record.get("expert_version")) for r in scored}),
         "questions": len({r.question.id for r in scored}),
         "repetitions": sorted(by_rep),
         "budget_stops": sum(r.record["stop_reason"] == "budget" for r in scored),
@@ -157,6 +162,7 @@ def render_markdown(name: str, summary: Mapping[str, Any], scored: Sequence[Scor
     lines = [
         f"# Expert benchmark — {name}",
         "",
+        f"Expert: {', '.join(summary['expert_versions']) or 'n/a'} · "
         f"Model: {', '.join(models) or 'n/a'} · {summary['questions']} questions × repetitions "
         f"{summary['repetitions']} = {summary['runs']} runs · budget stops: "
         f"{summary['budget_stops']} · estimated cost: ${summary['total_cost_usd']:.3f}",
@@ -175,15 +181,17 @@ def render_markdown(name: str, summary: Mapping[str, Any], scored: Sequence[Scor
         lines.append(f"| {basis} | {row['answers']} | {_fmt(row['accuracy'])} |")
     lines += [
         "",
-        "## Cost by family",
+        "## Steps and cost by family",
         "",
-        "| Family | Runs | Input tokens | Output tokens | Cost (USD) |",
-        "|---|---|---|---|---|",
+        "| Family | Runs | Steps | Text-only steps | Cut at token limit | Input tokens "
+        "| Output tokens | Cost (USD) |",
+        "|---|---|---|---|---|---|---|---|",
     ]
     for family, row in summary["cost_by_family"].items():
         lines.append(
-            f"| {family} | {int(row['runs'])} | {int(row['input_tokens'])} | "
-            f"{int(row['output_tokens'])} | {row['cost_usd']:.4f} |"
+            f"| {family} | {int(row['runs'])} | {int(row['steps'])} | "
+            f"{int(row['text_only_steps'])} | {int(row['cut_at_limit_steps'])} | "
+            f"{int(row['input_tokens'])} | {int(row['output_tokens'])} | {row['cost_usd']:.4f} |"
         )
     lines += ["", "## Per question", "", "| Question | Rep | Correct | Detail |"]
     lines.append("|---|---|---|---|")

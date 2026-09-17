@@ -1,8 +1,9 @@
 """Runs the Network Expert over benchmark questions × repetitions and stores every raw run
 (docs/evaluating-resto.md §4.2).
 
-One JSON line per (question, repetition) in `out_file`: the answer, the promotion outcome, the tool
-calls, the full evidence ledger, tokens and estimated cost. Scoring happens later from these lines
+One JSON line per (question, repetition) in `out_file`: the Expert version, the answer, the
+promotion outcome, the tool calls, the per-step trace, the full evidence ledger, tokens and
+estimated cost. Scoring happens later from these lines
 (`report.py`), so a scoring rule can change without paying for the runs again.
 
 - **Resumable**: a (question, repetition) already in `out_file` is skipped.
@@ -19,12 +20,12 @@ import threading
 import time
 from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
 from eval.expert_benchmark.bank import BenchmarkQuestion
-from resto.adapters.llm.agents.expert import run_expert
+from resto.adapters.llm.agents.expert import EXPERT_VERSION, run_expert
 from resto.application.ports.llm import Budget, ToolAgent
 from resto.application.ports.network_query import NetworkQuery
 from resto.application.ports.repositories import ResultRepository, ScenarioRepository
@@ -177,6 +178,7 @@ def _run_once(
         "question_id": question.id,
         "repetition": repetition,
         "model": model,
+        "expert_version": EXPERT_VERSION,
         "stop_reason": run.stop_reason.value,
         "rejection": rejection,
         "answer": None
@@ -190,6 +192,7 @@ def _run_once(
             {"ref": e.ref, "tool": e.tool, "arguments": dict(e.arguments), "result": e.result}
             for e in ledger.entries
         ],
+        "steps": [asdict(step) for step in run.steps],
         "input_tokens": run.usage.input_tokens,
         "output_tokens": run.usage.output_tokens,
         "cost_usd": price(run.usage.input_tokens, run.usage.output_tokens),
