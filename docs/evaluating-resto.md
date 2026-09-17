@@ -75,14 +75,16 @@ all `mode = forced`, every gold answer computed programmatically (`eval/question
 |---|---|---|---|---|
 | Descriptive | `-desc-occ` | 20 | Which edges exceed 3.5 % occupancy in the window? | `query_edgedata`, occupancy > 3.5 |
 | Descriptive | `-desc-tt` | 20 | Mean travel time on a target edge in the window? | `query_edgedata`, `travel_time` |
-| Diagnostic | `-diag` | 20 | Which three edges form the main bottleneck, and why? | top-3 by `time_loss × entered`; reason by topology group |
-| Counterfactual | `-cf-dir` | 19 | Does delay on the target edge increase, decrease, or stay within 5 %? | `time_loss` on the edge, row vs baseline S00 |
-| Counterfactual | `-cf-topk` | 19 | Which 5 edges change most in delay? | top-5 by \|Δ `time_loss`\|, row vs S00 |
+| Diagnostic | `-diag` | 20 | Which three edges form the main bottleneck, and why? | top-3 by total `time_loss`; reason by topology group |
+| Counterfactual | `-cf-dir` | 19 | Does the total delay on the target edge increase, decrease, or stay within 5 %? | total `time_loss` on the edge, row vs baseline S00 |
+| Counterfactual | `-cf-topk` | 19 | Which 5 edges change most in total delay? | top-5 by \|Δ total `time_loss`\|, row vs S00 |
 | Counterfactual | `-cf-band` | 19 | By roughly how much does network-wide mean delay change? | `kpis.mean_delay`, row vs S00, banded |
 
 Generation rules:
 
 - **Seeds.** Every gold value is the mean over the row's 3 seeds; per-seed values are kept in `evidence`.
+- **Delay.** SUMO's `time_loss` is the total time lost by all vehicles on the edge (vehicle-seconds), so
+  it already is "per-vehicle delay × flow"; bottlenecks rank by it directly (ADR-0020).
 - **Window.** The row's own intervention window; `[0, 300)` for rows without one (baseline, `demand_scale`).
   Counterfactuals query the baseline with the *row's* window, never the baseline's default.
 - **Target edge.** The row's intervention edge; the edge downstream of the junction for `signal_program`
@@ -93,6 +95,12 @@ Generation rules:
   `demand` otherwise. Computed but **not graded** (§4.4).
 - **Question text** names the scenario by its description only; matrix row labels (`S00`, …) never appear
   (the Expert cannot resolve them).
+
+Corrections:
+
+- 2026-09-17 (before any benchmark sweep): diagnostic gold ranked by `time_loss × entered`, counting flow
+  twice, and `query_edgedata` averaged `time_loss`/`waiting_time` across intervals instead of summing
+  them. Both fixed (ADR-0020); 15 of 20 diagnostic gold answers changed, no other family did.
 
 Known limitations:
 
@@ -149,10 +157,10 @@ unless the Expert abstains, and it is what gets scored; `answer` is the justific
 | `Quantity` | `measure`, `value`, `edge_id` | mean travel time on E; network mean delay |
 | `Change` | `measure`, `direction` (increase / decrease / unchanged), `relative_change_pct?`, `edge_id` | does delay on E increase; how much does mean delay change |
 
-- `Measure` is a closed enum with a fixed unit per measure. Per edge (`edge_id` required): `travel_time`,
-  `time_loss`, `waiting_time` (s), `occupancy` (%), `speed` (m/s), `density` (veh/km), `entered`, `left`
-  (veh). Network-wide (`edge_id` must be None): `mean_delay`, `mean_travel_time` (s), `teleports`,
-  `departed`, `arrived` (veh).
+- `Measure` is a closed enum with a fixed unit per measure. Per edge (`edge_id` required): `travel_time`
+  (s), `occupancy` (%), `speed` (m/s), `density` (veh/km), `entered`, `left` (veh), and `time_loss`,
+  `waiting_time` (veh·s — totals over all vehicles on the edge, ADR-0020). Network-wide (`edge_id` must
+  be None): `mean_delay`, `mean_travel_time` (s), `teleports`, `departed`, `arrived` (veh).
 - `Change.relative_change_pct` cannot contradict `direction` (an increase with a negative percentage is
   invalid); `unchanged` accepts either sign.
 - Promotion rejects a value naming an edge that is not on the network.
@@ -229,6 +237,8 @@ Observations:
 - The Expert averaged the 3 seeds on its own and used `get_scenario` to tell baseline from intervention.
 - With typed values it filled the right kind every time it answered, and added supporting quantities
   (e.g. baseline and intervention `time_loss`) that scoring ignores.
+- The untyped diagnostic answer (`A2B2, B2C2, C2D2`) scores Jaccard 0.5 against both the original and
+  the corrected gold.
 - The prose once stated a direction ("west-bound") no tool returned, and one evidence excerpt labelled an
   intervention value as baseline. Promotion cannot see either — hence scoring the typed values and the
   proposed excerpt check in §4.5.
@@ -255,6 +265,7 @@ Observations:
 | 2026-09-17 | Full forced benchmark (117 × 3) is within budget; free mode and abstention metrics deferred. |
 | 2026-09-17 | `ExpertAnswer` carries typed values, starting with `Edges`, `Quantity`, `Change` (ADR-0019). |
 | 2026-09-17 | Benchmark runs are stored raw and resumable, with a cost cap; scoring is recomputed from them. |
+| 2026-09-17 | `time_loss` and `waiting_time` are vehicle-second totals; diagnostic gold ranks by total `time_loss` (ADR-0020). |
 | 2026-09-17 | Diagnostic budget stops are left as they are until E4.3 tunes the Expert; no budget or prompt change before then, and they score as failures in any sweep run earlier. |
 
 ## 6. Open questions

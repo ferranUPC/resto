@@ -500,7 +500,7 @@
       "type": "object"
     },
     "Measure": {
-      "description": "What a typed answer measures. The unit is fixed by the measure (`unit`), so an answer\ncan never be stated in a different one.",
+      "description": "What a typed answer measures. The unit is fixed by the measure (`unit`), so an answer\ncan never be stated in a different one. `time_loss` and `waiting_time` are totals summed over\nevery vehicle on the edge (vehicle-seconds), not per-vehicle means (ADR-0020).",
       "enum": [
         "travel_time",
         "time_loss",

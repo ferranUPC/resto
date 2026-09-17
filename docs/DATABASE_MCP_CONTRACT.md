@@ -224,9 +224,13 @@ defined as `1.0` here, so baselines match baselines.
 - **Aggregation.** SUMO writes edgedata in intervals. Every interval **overlapping** the window
   contributes, clipped to the overlap. Counters (`entered`, `left`, `departed`, `arrived`) are
   summed over the clipped intervals, prorated by the overlapping fraction of each interval and
-  rounded half-up at the end. Rates and means (`density`, `occupancy`, `speed`, `waiting_time`,
-  `time_loss`, `travel_time`) are averaged **weighted by `sampled_seconds`** within the overlap,
-  which is the only weighting that makes a partially covered interval comparable to a full one.
+  rounded half-up at the end. Totals over vehicles (`waiting_time`, `time_loss`, in
+  vehicle-seconds — SUMO sums them over every vehicle on the edge in the interval) are summed and
+  prorated the same way, but **not rounded**. Rates and means (`density`, `occupancy`, `speed`,
+  `travel_time`) are averaged **weighted by `sampled_seconds`** within the overlap, which is the
+  only weighting that makes a partially covered interval comparable to a full one. *(Amended by
+  ADR-0020: v1.0 listed `waiting_time`/`time_loss` as means, which under-reports them on any
+  window spanning more than one interval.)*
 - **Required measures** per edge: `sampled_seconds`, `density`, `occupancy`, `speed`,
   `waiting_time`, `time_loss`, `travel_time`, `entered`, `left`. Names are the snake_case form of
   SUMO's meandata attributes. Implementations may return more; consumers must ignore extras.

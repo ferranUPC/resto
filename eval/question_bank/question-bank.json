@@ -83,19 +83,19 @@
   },
   {
     "evidence": {
-      "score_measure": "time_loss * entered (mean of 3 seeds)",
+      "score_measure": "total time_loss, vehicle-seconds (mean of 3 seeds)",
       "scores": {
-        "B2C2": 2224.15,
-        "C2D2": 1741.8266666666668,
-        "E3E2": 1555.3500000000001
+        "A2B2": 179.69333333333336,
+        "B2C2": 148.27666666666667,
+        "E3E2": 172.8166666666667
       }
     },
     "gold_answer": {
       "reason": "signal",
       "top_3": [
-        "B2C2",
-        "C2D2",
-        "E3E2"
+        "A2B2",
+        "E3E2",
+        "B2C2"
       ]
     },
     "id": "S00-diag",
@@ -264,11 +264,11 @@
   },
   {
     "evidence": {
-      "score_measure": "time_loss * entered (mean of 3 seeds)",
+      "score_measure": "total time_loss, vehicle-seconds (mean of 3 seeds)",
       "scores": {
-        "A2B2": 8733.093333333332,
-        "B1B2": 9044.21,
-        "B3B2": 4482.923333333332
+        "A2B2": 1091.6366666666665,
+        "B1B2": 1292.03,
+        "B3B2": 707.8299999999999
       }
     },
     "gold_answer": {
@@ -372,7 +372,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "If lane_closure B2C2 lane 0, [0, 300), does mean delay on B2C2 increase, decrease, or stay within 5% relative to the baseline, over 0s-300s?",
+      "text": "If lane_closure B2C2 lane 0, [0, 300), does the total delay (time lost by all vehicles) on B2C2 increase, decrease, or stay within 5% relative to the baseline, over 0s-300s?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -451,7 +451,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "If lane_closure B2C2 lane 0, [0, 300), which 5 edges change the most in delay relative to the baseline, over 0s-300s?",
+      "text": "If lane_closure B2C2 lane 0, [0, 300), which 5 edges change the most in total delay (time lost by all vehicles) relative to the baseline, over 0s-300s?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -655,11 +655,11 @@
   },
   {
     "evidence": {
-      "score_measure": "time_loss * entered (mean of 3 seeds)",
+      "score_measure": "total time_loss, vehicle-seconds (mean of 3 seeds)",
       "scores": {
-        "A2B2": 1445.6266666666668,
-        "B2C2": 27594.98,
-        "C3C2": 11224.07
+        "A2B2": 180.70333333333335,
+        "B2C2": 1971.07,
+        "C3C2": 863.39
       }
     },
     "gold_answer": {
@@ -763,7 +763,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "If lane_closure C2D2 lane 0, [0, 300), does mean delay on C2D2 increase, decrease, or stay within 5% relative to the baseline, over 0s-300s?",
+      "text": "If lane_closure C2D2 lane 0, [0, 300), does the total delay (time lost by all vehicles) on C2D2 increase, decrease, or stay within 5% relative to the baseline, over 0s-300s?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -842,7 +842,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "If lane_closure C2D2 lane 0, [0, 300), which 5 edges change the most in delay relative to the baseline, over 0s-300s?",
+      "text": "If lane_closure C2D2 lane 0, [0, 300), which 5 edges change the most in total delay (time lost by all vehicles) relative to the baseline, over 0s-300s?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -1040,19 +1040,19 @@
   },
   {
     "evidence": {
-      "score_measure": "time_loss * entered (mean of 3 seeds)",
+      "score_measure": "total time_loss, vehicle-seconds (mean of 3 seeds)",
       "scores": {
-        "B1B0": 1885.1999999999998,
-        "B2C2": 2228.45,
-        "C2D2": 1736.5833333333335
+        "A2B2": 179.07666666666668,
+        "B1B0": 628.4,
+        "E3E2": 172.79999999999998
       }
     },
     "gold_answer": {
-      "reason": "signal",
+      "reason": "demand",
       "top_3": [
-        "B2C2",
         "B1B0",
-        "C2D2"
+        "A2B2",
+        "E3E2"
       ]
     },
     "id": "S03-diag",
@@ -1148,7 +1148,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "If lane_closure B0C0 lane 0, [0, 300) (bottleneck approach, lane 1 stays open), does mean delay on B0C0 increase, decrease, or stay within 5% relative to the baseline, over 0s-300s?",
+      "text": "If lane_closure B0C0 lane 0, [0, 300) (bottleneck approach, lane 1 stays open), does the total delay (time lost by all vehicles) on B0C0 increase, decrease, or stay within 5% relative to the baseline, over 0s-300s?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -1227,7 +1227,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "If lane_closure B0C0 lane 0, [0, 300) (bottleneck approach, lane 1 stays open), which 5 edges change the most in delay relative to the baseline, over 0s-300s?",
+      "text": "If lane_closure B0C0 lane 0, [0, 300) (bottleneck approach, lane 1 stays open), which 5 edges change the most in total delay (time lost by all vehicles) relative to the baseline, over 0s-300s?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -1425,19 +1425,19 @@
   },
   {
     "evidence": {
-      "score_measure": "time_loss * entered (mean of 3 seeds)",
+      "score_measure": "total time_loss, vehicle-seconds (mean of 3 seeds)",
       "scores": {
-        "B2C2": 2222.5499999999997,
-        "C2D2": 1435.4,
-        "E3E2": 1557.9899999999998
+        "A2B2": 179.3033333333333,
+        "B1C1": 324.84666666666664,
+        "E3E2": 173.10999999999999
       }
     },
     "gold_answer": {
-      "reason": "signal",
+      "reason": "demand",
       "top_3": [
-        "B2C2",
-        "E3E2",
-        "C2D2"
+        "B1C1",
+        "A2B2",
+        "E3E2"
       ]
     },
     "id": "S04-diag",
@@ -1533,7 +1533,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "If lane_closure C1D1 lane 0, [0, 300), does mean delay on C1D1 increase, decrease, or stay within 5% relative to the baseline, over 0s-300s?",
+      "text": "If lane_closure C1D1 lane 0, [0, 300), does the total delay (time lost by all vehicles) on C1D1 increase, decrease, or stay within 5% relative to the baseline, over 0s-300s?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -1612,7 +1612,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "If lane_closure C1D1 lane 0, [0, 300), which 5 edges change the most in delay relative to the baseline, over 0s-300s?",
+      "text": "If lane_closure C1D1 lane 0, [0, 300), which 5 edges change the most in total delay (time lost by all vehicles) relative to the baseline, over 0s-300s?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -1800,19 +1800,19 @@
   },
   {
     "evidence": {
-      "score_measure": "time_loss * entered (mean of 3 seeds)",
+      "score_measure": "total time_loss, vehicle-seconds (mean of 3 seeds)",
       "scores": {
-        "B0C0": 2404.346666666667,
-        "B2C2": 2228.7000000000003,
-        "C2D2": 1733.5933333333332
+        "A2B2": 179.02666666666664,
+        "B0C0": 601.0866666666667,
+        "E3E2": 172.99
       }
     },
     "gold_answer": {
       "reason": "merge",
       "top_3": [
         "B0C0",
-        "B2C2",
-        "C2D2"
+        "A2B2",
+        "E3E2"
       ]
     },
     "id": "S05-diag",
@@ -1906,7 +1906,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "If edge_closure C0D0, [0, 300) (bottleneck exit, single lane - full closure), does mean delay on C0D0 increase, decrease, or stay within 5% relative to the baseline, over 0s-300s?",
+      "text": "If edge_closure C0D0, [0, 300) (bottleneck exit, single lane - full closure), does the total delay (time lost by all vehicles) on C0D0 increase, decrease, or stay within 5% relative to the baseline, over 0s-300s?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -1984,7 +1984,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "If edge_closure C0D0, [0, 300) (bottleneck exit, single lane - full closure), which 5 edges change the most in delay relative to the baseline, over 0s-300s?",
+      "text": "If edge_closure C0D0, [0, 300) (bottleneck exit, single lane - full closure), which 5 edges change the most in total delay (time lost by all vehicles) relative to the baseline, over 0s-300s?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -2171,18 +2171,18 @@
   },
   {
     "evidence": {
-      "score_measure": "time_loss * entered (mean of 3 seeds)",
+      "score_measure": "total time_loss, vehicle-seconds (mean of 3 seeds)",
       "scores": {
-        "B2C2": 1605.8466666666666,
-        "C2D2": 1594.4,
-        "E3E2": 1554.6000000000001
+        "A2A1": 259.9866666666667,
+        "A2B2": 179.96,
+        "E3E2": 172.73333333333335
       }
     },
     "gold_answer": {
-      "reason": "signal",
+      "reason": "demand",
       "top_3": [
-        "B2C2",
-        "C2D2",
+        "A2A1",
+        "A2B2",
         "E3E2"
       ]
     },
@@ -2277,7 +2277,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "If edge_closure A1B1, [0, 300), does mean delay on A1B1 increase, decrease, or stay within 5% relative to the baseline, over 0s-300s?",
+      "text": "If edge_closure A1B1, [0, 300), does the total delay (time lost by all vehicles) on A1B1 increase, decrease, or stay within 5% relative to the baseline, over 0s-300s?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -2355,7 +2355,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "If edge_closure A1B1, [0, 300), which 5 edges change the most in delay relative to the baseline, over 0s-300s?",
+      "text": "If edge_closure A1B1, [0, 300), which 5 edges change the most in total delay (time lost by all vehicles) relative to the baseline, over 0s-300s?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -2550,19 +2550,19 @@
   },
   {
     "evidence": {
-      "score_measure": "time_loss * entered (mean of 3 seeds)",
+      "score_measure": "total time_loss, vehicle-seconds (mean of 3 seeds)",
       "scores": {
-        "A2B2": 1436.72,
-        "B2C2": 2212.3500000000004,
-        "C2D2": 19654.83
+        "A2B2": 179.59,
+        "C2D2": 1511.9099999999999,
+        "E3E2": 172.91333333333333
       }
     },
     "gold_answer": {
       "reason": "signal",
       "top_3": [
         "C2D2",
-        "B2C2",
-        "A2B2"
+        "A2B2",
+        "E3E2"
       ]
     },
     "id": "S07-diag",
@@ -2656,7 +2656,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "If edge_closure D2E2, [0, 300), does mean delay on D2E2 increase, decrease, or stay within 5% relative to the baseline, over 0s-300s?",
+      "text": "If edge_closure D2E2, [0, 300), does the total delay (time lost by all vehicles) on D2E2 increase, decrease, or stay within 5% relative to the baseline, over 0s-300s?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -2684,7 +2684,7 @@
       "top_k_by_delay_change": [
         [
           "C2D2",
-          1377.9233333333334
+          1377.9233333333332
         ],
         [
           "D1D2",
@@ -2734,7 +2734,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "If edge_closure D2E2, [0, 300), which 5 edges change the most in delay relative to the baseline, over 0s-300s?",
+      "text": "If edge_closure D2E2, [0, 300), which 5 edges change the most in total delay (time lost by all vehicles) relative to the baseline, over 0s-300s?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -2941,11 +2941,11 @@
   },
   {
     "evidence": {
-      "score_measure": "time_loss * entered (mean of 3 seeds)",
+      "score_measure": "total time_loss, vehicle-seconds (mean of 3 seeds)",
       "scores": {
-        "A2B2": 8733.093333333332,
-        "B1B2": 9044.21,
-        "B3B2": 4482.923333333332
+        "A2B2": 1091.6366666666665,
+        "B1B2": 1292.03,
+        "B3B2": 707.8299999999999
       }
     },
     "gold_answer": {
@@ -3047,7 +3047,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "If edge_closure B2C2, [0, 300), does mean delay on B2C2 increase, decrease, or stay within 5% relative to the baseline, over 0s-300s?",
+      "text": "If edge_closure B2C2, [0, 300), does the total delay (time lost by all vehicles) on B2C2 increase, decrease, or stay within 5% relative to the baseline, over 0s-300s?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -3125,7 +3125,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "If edge_closure B2C2, [0, 300), which 5 edges change the most in delay relative to the baseline, over 0s-300s?",
+      "text": "If edge_closure B2C2, [0, 300), which 5 edges change the most in total delay (time lost by all vehicles) relative to the baseline, over 0s-300s?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -3328,19 +3328,19 @@
   },
   {
     "evidence": {
-      "score_measure": "time_loss * entered (mean of 3 seeds)",
+      "score_measure": "total time_loss, vehicle-seconds (mean of 3 seeds)",
       "scores": {
-        "A2B2": 1468.6133333333335,
-        "B2C2": 4769.75,
-        "E3E2": 1558.59
+        "A2B2": 183.57666666666668,
+        "B2C2": 317.98333333333335,
+        "E3E2": 173.17666666666665
       }
     },
     "gold_answer": {
       "reason": "signal",
       "top_3": [
         "B2C2",
-        "E3E2",
-        "A2B2"
+        "A2B2",
+        "E3E2"
       ]
     },
     "id": "S09-diag",
@@ -3442,7 +3442,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "If speed_limit B2C2 lane 0 at 5 m/s, [0, 300), does mean delay on B2C2 increase, decrease, or stay within 5% relative to the baseline, over 0s-300s?",
+      "text": "If speed_limit B2C2 lane 0 at 5 m/s, [0, 300), does the total delay (time lost by all vehicles) on B2C2 increase, decrease, or stay within 5% relative to the baseline, over 0s-300s?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -3524,7 +3524,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "If speed_limit B2C2 lane 0 at 5 m/s, [0, 300), which 5 edges change the most in delay relative to the baseline, over 0s-300s?",
+      "text": "If speed_limit B2C2 lane 0 at 5 m/s, [0, 300), which 5 edges change the most in total delay (time lost by all vehicles) relative to the baseline, over 0s-300s?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -3723,19 +3723,19 @@
   },
   {
     "evidence": {
-      "score_measure": "time_loss * entered (mean of 3 seeds)",
+      "score_measure": "total time_loss, vehicle-seconds (mean of 3 seeds)",
       "scores": {
-        "B2C2": 2226.0,
-        "C2D2": 1738.0566666666668,
-        "E3E2": 1558.47
+        "A2B2": 179.76,
+        "B2C2": 148.4,
+        "E3E2": 173.16333333333333
       }
     },
     "gold_answer": {
       "reason": "signal",
       "top_3": [
-        "B2C2",
-        "C2D2",
-        "E3E2"
+        "A2B2",
+        "E3E2",
+        "B2C2"
       ]
     },
     "id": "S10-diag",
@@ -3837,7 +3837,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "If speed_limit C1D1 lane 0 at 5 m/s, [0, 300), does mean delay on C1D1 increase, decrease, or stay within 5% relative to the baseline, over 0s-300s?",
+      "text": "If speed_limit C1D1 lane 0 at 5 m/s, [0, 300), does the total delay (time lost by all vehicles) on C1D1 increase, decrease, or stay within 5% relative to the baseline, over 0s-300s?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -3919,7 +3919,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "If speed_limit C1D1 lane 0 at 5 m/s, [0, 300), which 5 edges change the most in delay relative to the baseline, over 0s-300s?",
+      "text": "If speed_limit C1D1 lane 0 at 5 m/s, [0, 300), which 5 edges change the most in total delay (time lost by all vehicles) relative to the baseline, over 0s-300s?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -4126,11 +4126,11 @@
   },
   {
     "evidence": {
-      "score_measure": "time_loss * entered (mean of 3 seeds)",
+      "score_measure": "total time_loss, vehicle-seconds (mean of 3 seeds)",
       "scores": {
-        "B2C2": 3361.6000000000004,
-        "C2D2": 2342.47,
-        "E3E2": 1562.5500000000002
+        "B2C2": 224.10666666666665,
+        "C2D2": 180.18999999999997,
+        "E3E2": 173.61666666666667
       }
     },
     "gold_answer": {
@@ -4240,7 +4240,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "If speed_limit A2B2 lane 0 at 8 m/s, [0, 300), does mean delay on A2B2 increase, decrease, or stay within 5% relative to the baseline, over 0s-300s?",
+      "text": "If speed_limit A2B2 lane 0 at 8 m/s, [0, 300), does the total delay (time lost by all vehicles) on A2B2 increase, decrease, or stay within 5% relative to the baseline, over 0s-300s?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -4268,7 +4268,7 @@
       "top_k_by_delay_change": [
         [
           "B2C2",
-          75.83000000000001
+          75.82999999999998
         ],
         [
           "A2B2",
@@ -4322,7 +4322,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "If speed_limit A2B2 lane 0 at 8 m/s, [0, 300), which 5 edges change the most in delay relative to the baseline, over 0s-300s?",
+      "text": "If speed_limit A2B2 lane 0 at 8 m/s, [0, 300), which 5 edges change the most in total delay (time lost by all vehicles) relative to the baseline, over 0s-300s?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -4521,19 +4521,19 @@
   },
   {
     "evidence": {
-      "score_measure": "time_loss * entered (mean of 3 seeds)",
+      "score_measure": "total time_loss, vehicle-seconds (mean of 3 seeds)",
       "scores": {
-        "B2C2": 2232.35,
-        "C2D2": 1742.3466666666668,
-        "E3E2": 1704.78
+        "A2B2": 179.0,
+        "B2C2": 148.82333333333332,
+        "E3E2": 189.42
       }
     },
     "gold_answer": {
-      "reason": "signal",
+      "reason": "demand",
       "top_3": [
-        "B2C2",
-        "C2D2",
-        "E3E2"
+        "E3E2",
+        "A2B2",
+        "B2C2"
       ]
     },
     "id": "S12-diag",
@@ -4593,13 +4593,13 @@
       ],
       "baseline_scenario_id": "9bf1ee8ea4e9e023f2d65238f2ea6b1948b79110a7599a98da0a797b4fb13b9c",
       "baseline_value": 6.1433333333333335,
-      "intervention_value": 30.560000000000002,
+      "intervention_value": 30.56,
       "measure": "time_loss"
     },
     "gold_answer": {
       "direction": "increase",
       "edge_id": "B0C0",
-      "pct_change": 397.4498100922409
+      "pct_change": 397.44981009224085
     },
     "id": "S12-cf-dir",
     "question": {
@@ -4635,7 +4635,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "If speed_limit B0C0 lane 0 at 5 m/s, [0, 300), does mean delay on B0C0 increase, decrease, or stay within 5% relative to the baseline, over 0s-300s?",
+      "text": "If speed_limit B0C0 lane 0 at 5 m/s, [0, 300), does the total delay (time lost by all vehicles) on B0C0 increase, decrease, or stay within 5% relative to the baseline, over 0s-300s?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -4663,7 +4663,7 @@
       "top_k_by_delay_change": [
         [
           "B0C0",
-          24.416666666666668
+          24.416666666666664
         ],
         [
           "E3E2",
@@ -4717,7 +4717,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "If speed_limit B0C0 lane 0 at 5 m/s, [0, 300), which 5 edges change the most in delay relative to the baseline, over 0s-300s?",
+      "text": "If speed_limit B0C0 lane 0 at 5 m/s, [0, 300), which 5 edges change the most in total delay (time lost by all vehicles) relative to the baseline, over 0s-300s?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -4926,11 +4926,11 @@
   },
   {
     "evidence": {
-      "score_measure": "time_loss * entered (mean of 3 seeds)",
+      "score_measure": "total time_loss, vehicle-seconds (mean of 3 seeds)",
       "scores": {
-        "B2C2": 10006.466666666667,
-        "D2C2": 1985.3066666666666,
-        "E3E2": 1040.62
+        "A2B2": 119.90222222222222,
+        "B2C2": 667.0977777777777,
+        "D2C2": 330.8844444444444
       }
     },
     "gold_answer": {
@@ -4938,7 +4938,7 @@
       "top_3": [
         "B2C2",
         "D2C2",
-        "E3E2"
+        "A2B2"
       ]
     },
     "id": "S13-diag",
@@ -4995,8 +4995,8 @@
         "e10c78864b7425425017271926711589d14e4ddc8080c14ef1cab5d8ca7ed35e"
       ],
       "baseline_scenario_id": "9bf1ee8ea4e9e023f2d65238f2ea6b1948b79110a7599a98da0a797b4fb13b9c",
-      "baseline_value": 133.98666666666668,
-      "intervention_value": 69.17333333333333,
+      "baseline_value": 89.32444444444445,
+      "intervention_value": 46.11555555555555,
       "measure": "time_loss"
     },
     "gold_answer": {
@@ -5036,7 +5036,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "If signal_program C2 -> program 1, [100, 300), does mean delay on C2D2 increase, decrease, or stay within 5% relative to the baseline, over 100s-300s?",
+      "text": "If signal_program C2 -> program 1, [100, 300), does the total delay (time lost by all vehicles) on C2D2 increase, decrease, or stay within 5% relative to the baseline, over 100s-300s?",
       "time_window": {
         "end": 300.0,
         "start": 100.0
@@ -5064,23 +5064,23 @@
       "top_k_by_delay_change": [
         [
           "B2C2",
-          852.37
+          568.2466666666666
         ],
         [
           "D2C2",
-          420.97666666666663
+          280.65111111111105
         ],
         [
           "C2B2",
-          80.86
+          53.906666666666666
         ],
         [
           "C1C2",
-          -70.36
+          -46.90666666666666
         ],
         [
           "C2D2",
-          -64.81333333333335
+          -43.2088888888889
         ]
       ]
     },
@@ -5116,7 +5116,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "If signal_program C2 -> program 1, [100, 300), which 5 edges change the most in delay relative to the baseline, over 100s-300s?",
+      "text": "If signal_program C2 -> program 1, [100, 300), which 5 edges change the most in total delay (time lost by all vehicles) relative to the baseline, over 100s-300s?",
       "time_window": {
         "end": 300.0,
         "start": 100.0
@@ -5323,19 +5323,19 @@
   },
   {
     "evidence": {
-      "score_measure": "time_loss * entered (mean of 3 seeds)",
+      "score_measure": "total time_loss, vehicle-seconds (mean of 3 seeds)",
       "scores": {
-        "B2C2": 1596.63,
-        "C2B2": 1893.0533333333333,
-        "D2C2": 2105.44
+        "B2A2": 167.30666666666664,
+        "C2B2": 315.50888888888886,
+        "D2C2": 175.4533333333333
       }
     },
     "gold_answer": {
       "reason": "demand",
       "top_3": [
-        "D2C2",
         "C2B2",
-        "B2C2"
+        "D2C2",
+        "B2A2"
       ]
     },
     "id": "S14-diag",
@@ -5392,14 +5392,14 @@
         "e10c78864b7425425017271926711589d14e4ddc8080c14ef1cab5d8ca7ed35e"
       ],
       "baseline_scenario_id": "9bf1ee8ea4e9e023f2d65238f2ea6b1948b79110a7599a98da0a797b4fb13b9c",
-      "baseline_value": 159.02666666666667,
-      "intervention_value": 228.09,
+      "baseline_value": 106.01777777777777,
+      "intervention_value": 152.05999999999997,
       "measure": "time_loss"
     },
     "gold_answer": {
       "direction": "increase",
       "edge_id": "B2C2",
-      "pct_change": 43.42877504820994
+      "pct_change": 43.428775048209936
     },
     "id": "S14-cf-dir",
     "question": {
@@ -5433,7 +5433,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "If signal_program B2 -> program 1, [300, 500), does mean delay on B2C2 increase, decrease, or stay within 5% relative to the baseline, over 300s-500s?",
+      "text": "If signal_program B2 -> program 1, [300, 500), does the total delay (time lost by all vehicles) on B2C2 increase, decrease, or stay within 5% relative to the baseline, over 300s-500s?",
       "time_window": {
         "end": 500.0,
         "start": 300.0
@@ -5461,23 +5461,23 @@
       "top_k_by_delay_change": [
         [
           "C2B2",
-          400.24666666666667
+          266.8311111111111
         ],
         [
           "B3B2",
-          -124.79999999999997
+          -83.19999999999999
         ],
         [
           "B1B2",
-          -99.41333333333334
+          -66.27555555555556
         ],
         [
           "A2B2",
-          87.27333333333334
+          58.18222222222223
         ],
         [
           "B2C2",
-          69.06333333333333
+          46.04222222222221
         ]
       ]
     },
@@ -5513,7 +5513,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "If signal_program B2 -> program 1, [300, 500), which 5 edges change the most in delay relative to the baseline, over 300s-500s?",
+      "text": "If signal_program B2 -> program 1, [300, 500), which 5 edges change the most in total delay (time lost by all vehicles) relative to the baseline, over 300s-500s?",
       "time_window": {
         "end": 500.0,
         "start": 300.0
@@ -5726,18 +5726,18 @@
   },
   {
     "evidence": {
-      "score_measure": "time_loss * entered (mean of 3 seeds)",
+      "score_measure": "total time_loss, vehicle-seconds (mean of 3 seeds)",
       "scores": {
-        "C2D2": 2663.521427636069,
-        "D2C2": 2182.4275218641646,
-        "E2D2": 2668.9451283316193
+        "C2D2": 317.94555555555553,
+        "D2C2": 161.1677777777778,
+        "E2D2": 213.01333333333332
       }
     },
     "gold_answer": {
-      "reason": "demand",
+      "reason": "signal",
       "top_3": [
-        "E2D2",
         "C2D2",
+        "E2D2",
         "D2C2"
       ]
     },
@@ -5795,14 +5795,14 @@
         "e10c78864b7425425017271926711589d14e4ddc8080c14ef1cab5d8ca7ed35e"
       ],
       "baseline_scenario_id": "9bf1ee8ea4e9e023f2d65238f2ea6b1948b79110a7599a98da0a797b4fb13b9c",
-      "baseline_value": 71.17545290425672,
-      "intervention_value": 107.72748559737902,
+      "baseline_value": 44.38999999999999,
+      "intervention_value": 68.48555555555555,
       "measure": "time_loss"
     },
     "gold_answer": {
       "direction": "increase",
       "edge_id": "D2E2",
-      "pct_change": 51.354829792640864
+      "pct_change": 54.28149483116819
     },
     "id": "S15-cf-dir",
     "question": {
@@ -5836,7 +5836,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "If signal_program D2 -> program 1, [500, 700), does mean delay on D2E2 increase, decrease, or stay within 5% relative to the baseline, over 500s-700s?",
+      "text": "If signal_program D2 -> program 1, [500, 700), does the total delay (time lost by all vehicles) on D2E2 increase, decrease, or stay within 5% relative to the baseline, over 500s-700s?",
       "time_window": {
         "end": 700.0,
         "start": 500.0
@@ -5864,23 +5864,23 @@
       "top_k_by_delay_change": [
         [
           "C2D2",
-          377.29962142787065
+          219.1633333333333
         ],
         [
           "E2D2",
-          183.61666762813283
+          88.15222222222224
         ],
         [
           "D3D2",
-          -59.944799552377546
+          -43.71444444444444
         ],
         [
           "D2C2",
-          47.42783609482865
+          40.54555555555558
         ],
         [
           "D2E2",
-          36.5520326931223
+          24.095555555555556
         ]
       ]
     },
@@ -5916,7 +5916,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "If signal_program D2 -> program 1, [500, 700), which 5 edges change the most in delay relative to the baseline, over 500s-700s?",
+      "text": "If signal_program D2 -> program 1, [500, 700), which 5 edges change the most in total delay (time lost by all vehicles) relative to the baseline, over 500s-700s?",
       "time_window": {
         "end": 700.0,
         "start": 500.0
@@ -6109,19 +6109,19 @@
   },
   {
     "evidence": {
-      "score_measure": "time_loss * entered (mean of 3 seeds)",
+      "score_measure": "total time_loss, vehicle-seconds (mean of 3 seeds)",
       "scores": {
-        "B2A2": 1036.5833333333335,
-        "D2C2": 964.44,
-        "E2D2": 1873.28
+        "C2D2": 112.7911111111111,
+        "C3C2": 100.17333333333333,
+        "E2D2": 156.10666666666665
       }
     },
     "gold_answer": {
       "reason": "demand",
       "top_3": [
         "E2D2",
-        "B2A2",
-        "D2C2"
+        "C2D2",
+        "C3C2"
       ]
     },
     "id": "S16-diag",
@@ -6178,14 +6178,14 @@
         "e10c78864b7425425017271926711589d14e4ddc8080c14ef1cab5d8ca7ed35e"
       ],
       "baseline_scenario_id": "9bf1ee8ea4e9e023f2d65238f2ea6b1948b79110a7599a98da0a797b4fb13b9c",
-      "baseline_value": 63.49333333333334,
-      "intervention_value": 75.58,
+      "baseline_value": 42.32888888888889,
+      "intervention_value": 50.38666666666666,
       "measure": "time_loss"
     },
     "gold_answer": {
       "direction": "increase",
       "edge_id": "A2B2",
-      "pct_change": 19.036119277614432
+      "pct_change": 19.036119277614436
     },
     "id": "S16-cf-dir",
     "question": {
@@ -6219,7 +6219,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "If signal_program A2 -> program 1, [700, 900), does mean delay on A2B2 increase, decrease, or stay within 5% relative to the baseline, over 700s-900s?",
+      "text": "If signal_program A2 -> program 1, [700, 900), does the total delay (time lost by all vehicles) on A2B2 increase, decrease, or stay within 5% relative to the baseline, over 700s-900s?",
       "time_window": {
         "end": 900.0,
         "start": 700.0
@@ -6247,23 +6247,23 @@
       "top_k_by_delay_change": [
         [
           "B2A2",
-          68.62666666666668
+          45.75111111111111
         ],
         [
           "A3A2",
-          -55.51333333333333
+          -37.00888888888888
         ],
         [
           "A1A2",
-          -29.450000000000017
+          -19.633333333333333
         ],
         [
           "B2C2",
-          -17.946666666666687
+          -11.964444444444432
         ],
         [
           "A2B2",
-          12.086666666666659
+          8.057777777777773
         ]
       ]
     },
@@ -6299,7 +6299,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "If signal_program A2 -> program 1, [700, 900), which 5 edges change the most in delay relative to the baseline, over 700s-900s?",
+      "text": "If signal_program A2 -> program 1, [700, 900), which 5 edges change the most in total delay (time lost by all vehicles) relative to the baseline, over 700s-900s?",
       "time_window": {
         "end": 900.0,
         "start": 700.0
@@ -6500,18 +6500,18 @@
   },
   {
     "evidence": {
-      "score_measure": "time_loss * entered (mean of 3 seeds)",
+      "score_measure": "total time_loss, vehicle-seconds (mean of 3 seeds)",
       "scores": {
-        "B1B2": 2121.2,
-        "B2C2": 3070.0200000000004,
-        "C2D2": 3745.8366666666666
+        "A2B2": 232.22,
+        "B1B2": 212.12,
+        "C2D2": 220.34333333333333
       }
     },
     "gold_answer": {
       "reason": "signal",
       "top_3": [
+        "A2B2",
         "C2D2",
-        "B2C2",
         "B1B2"
       ]
     },
@@ -6604,7 +6604,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "If demand_scale x1.2 (heavier peak), does mean delay on B2C2 increase, decrease, or stay within 5% relative to the baseline, over 0s-300s?",
+      "text": "If demand_scale x1.2 (heavier peak), does the total delay (time lost by all vehicles) on B2C2 increase, decrease, or stay within 5% relative to the baseline, over 0s-300s?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -6681,7 +6681,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "If demand_scale x1.2 (heavier peak), which 5 edges change the most in delay relative to the baseline, over 0s-300s?",
+      "text": "If demand_scale x1.2 (heavier peak), which 5 edges change the most in total delay (time lost by all vehicles) relative to the baseline, over 0s-300s?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -6865,19 +6865,19 @@
   },
   {
     "evidence": {
-      "score_measure": "time_loss * entered (mean of 3 seeds)",
+      "score_measure": "total time_loss, vehicle-seconds (mean of 3 seeds)",
       "scores": {
-        "A2B2": 928.5033333333334,
-        "B2C2": 1260.563333333333,
-        "E3E2": 1266.1244444444444
+        "A2B2": 132.64333333333335,
+        "A3A2": 120.52333333333333,
+        "E3E2": 165.14666666666665
       }
     },
     "gold_answer": {
       "reason": "demand",
       "top_3": [
         "E3E2",
-        "B2C2",
-        "A2B2"
+        "A2B2",
+        "A3A2"
       ]
     },
     "id": "S18-diag",
@@ -6932,13 +6932,13 @@
       ],
       "baseline_scenario_id": "9bf1ee8ea4e9e023f2d65238f2ea6b1948b79110a7599a98da0a797b4fb13b9c",
       "baseline_value": 148.27666666666667,
-      "intervention_value": 114.59666666666665,
+      "intervention_value": 114.59666666666668,
       "measure": "time_loss"
     },
     "gold_answer": {
       "direction": "decrease",
       "edge_id": "B2C2",
-      "pct_change": -22.714295348784944
+      "pct_change": -22.714295348784923
     },
     "id": "S18-cf-dir",
     "question": {
@@ -6969,7 +6969,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "If demand_scale x0.8 (lighter peak), does mean delay on B2C2 increase, decrease, or stay within 5% relative to the baseline, over 0s-300s?",
+      "text": "If demand_scale x0.8 (lighter peak), does the total delay (time lost by all vehicles) on B2C2 increase, decrease, or stay within 5% relative to the baseline, over 0s-300s?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -7013,7 +7013,7 @@
         ],
         [
           "B2C2",
-          -33.68000000000002
+          -33.67999999999999
         ]
       ]
     },
@@ -7046,7 +7046,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "If demand_scale x0.8 (lighter peak), which 5 edges change the most in delay relative to the baseline, over 0s-300s?",
+      "text": "If demand_scale x0.8 (lighter peak), which 5 edges change the most in total delay (time lost by all vehicles) relative to the baseline, over 0s-300s?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -7256,11 +7256,11 @@
   },
   {
     "evidence": {
-      "score_measure": "time_loss * entered (mean of 3 seeds)",
+      "score_measure": "total time_loss, vehicle-seconds (mean of 3 seeds)",
       "scores": {
-        "B2C2": 9731.376666666665,
-        "C2D2": 7470.246666666667,
-        "E3E2": 3417.5266666666666
+        "A2B2": 271.7833333333333,
+        "B2C2": 423.1033333333333,
+        "C2D2": 339.5566666666667
       }
     },
     "gold_answer": {
@@ -7268,7 +7268,7 @@
       "top_3": [
         "B2C2",
         "C2D2",
-        "E3E2"
+        "A2B2"
       ]
     },
     "id": "S19-diag",
@@ -7360,7 +7360,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "If demand_scale x1.5 (much heavier peak), does mean delay on B2C2 increase, decrease, or stay within 5% relative to the baseline, over 0s-300s?",
+      "text": "If demand_scale x1.5 (much heavier peak), does the total delay (time lost by all vehicles) on B2C2 increase, decrease, or stay within 5% relative to the baseline, over 0s-300s?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -7396,7 +7396,7 @@
         ],
         [
           "D2E2",
-          122.60666666666664
+          122.60666666666667
         ],
         [
           "C1C2",
@@ -7437,7 +7437,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "If demand_scale x1.5 (much heavier peak), which 5 edges change the most in delay relative to the baseline, over 0s-300s?",
+      "text": "If demand_scale x1.5 (much heavier peak), which 5 edges change the most in total delay (time lost by all vehicles) relative to the baseline, over 0s-300s?",
       "time_window": {
         "end": 300.0,
         "start": 0.0

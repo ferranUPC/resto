@@ -8,7 +8,8 @@ from typing import Literal
 
 class Measure(StrEnum):
     """What a typed answer measures. The unit is fixed by the measure (`unit`), so an answer
-    can never be stated in a different one."""
+    can never be stated in a different one. `time_loss` and `waiting_time` are totals summed over
+    every vehicle on the edge (vehicle-seconds), not per-vehicle means (ADR-0020)."""
 
     # per edge (DATABASE_MCP_CONTRACT.md §5.4 names)
     TRAVEL_TIME = "travel_time"
@@ -46,8 +47,8 @@ _NETWORK_MEASURES = frozenset(
 )
 _UNITS = {
     Measure.TRAVEL_TIME: "s",
-    Measure.TIME_LOSS: "s",
-    Measure.WAITING_TIME: "s",
+    Measure.TIME_LOSS: "veh·s",
+    Measure.WAITING_TIME: "veh·s",
     Measure.OCCUPANCY: "%",
     Measure.SPEED: "m/s",
     Measure.DENSITY: "veh/km",

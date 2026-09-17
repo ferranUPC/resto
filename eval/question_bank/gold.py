@@ -117,12 +117,10 @@ def bottleneck_reason(
 
 
 def top_bottleneck_edges(edgedata: EdgeMeasures, k: int = 3) -> list[str]:
-    """Top-`k` edges by `time_loss x entered` (delay x flow), the DoD §3 bottleneck definition."""
-    scored = sorted(
-        edgedata.items(),
-        key=lambda item: item[1][EdgeMeasure.TIME_LOSS] * item[1][EdgeMeasure.ENTERED],
-        reverse=True,
-    )
+    """Top-`k` edges by total delay: SUMO's `time_loss` is already summed over every vehicle on
+    the edge (vehicle-seconds), i.e. per-vehicle delay × flow, the DoD §3 bottleneck definition.
+    Multiplying it by `entered` again would count the flow twice (fixed 2026-09-17)."""
+    scored = sorted(edgedata.items(), key=lambda item: item[1][EdgeMeasure.TIME_LOSS], reverse=True)
     return [edge_id for edge_id, _ in scored[:k]]
 
 

@@ -67,7 +67,9 @@ and must agree with them (the values are what counts). Use only these kinds:
      "relative_change_pct": -30.0, "edge_id": "E12"}}
     how a measure changes relative to the reference (usually the baseline): direction is increase,
     decrease or unchanged; relative_change_pct is optional, in percent, with the same sign.
-Measures per edge (edge_id required; delay on an edge is time_loss): {_EDGE_MEASURES}.
+Measures per edge (edge_id required): {_EDGE_MEASURES}.
+time_loss is an edge's total delay and waiting_time its total halting time, both summed over all
+its vehicles (veh·s); divide by entered for a per-vehicle value.
 Measures for the whole network (edge_id null): {_NETWORK_MEASURES}.
 Put every part of the question these kinds can express in `values`; a "why" stays in `answer`.
 

@@ -1,8 +1,8 @@
 """Contract §8 item 5: `query_edgedata` - window clipping, weighted aggregation, empty
-`edge_ids`, zero-sample edges present, unknown edges omitted. 5 cases, against a hand-crafted
-fixture with round numbers so every expected value is hand-computed (see also
-`tests/unit/adapters/persistence/sqlite/test_edgedata.py`, which tests the same aggregation
-in-process rather than through MCP)."""
+`edge_ids`, zero-sample edges present, unknown edges omitted, plus vehicle-second totals summed
+(ADR-0020). Against a hand-crafted fixture with round numbers so every expected value is
+hand-computed (see also `tests/unit/adapters/persistence/sqlite/test_edgedata.py`, which tests
+the same aggregation in-process rather than through MCP)."""
 
 from __future__ import annotations
 
@@ -74,6 +74,20 @@ def test_null_window_aggregates_the_whole_simulation_by_weighted_average(
     assert measures["E1"]["speed"] == pytest.approx(10.4)
     assert measures["E1"]["sampled_seconds"] == pytest.approx(100.0)
     assert measures["E1"]["entered"] == 10
+
+
+def test_vehicle_second_totals_are_summed_not_averaged(
+    db: McpClientDatabase, result_id: str
+) -> None:
+    whole = db.results.query_edgedata(result_id, ["E1"], None)["E1"]
+    half = db.results.query_edgedata(result_id, ["E1"], (0.0, 150.0))["E1"]
+
+    # time_loss/waiting_time are totals over vehicles (ADR-0020): 2 + 4 and 1 + 3
+    assert whole["time_loss"] == pytest.approx(6.0)
+    assert whole["waiting_time"] == pytest.approx(4.0)
+    # [0, 150): i1 fully inside, i2 half inside -> prorated, not rounded
+    assert half["time_loss"] == pytest.approx(4.0)
+    assert half["waiting_time"] == pytest.approx(2.5)
 
 
 def test_window_clips_to_the_requested_interval(db: McpClientDatabase, result_id: str) -> None:

@@ -1,7 +1,7 @@
 """query_edgedata aggregation (DATABASE_MCP_CONTRACT.md §5.4): interval clipping, weighted
-averaging, counter proration/rounding, omission vs zero-fill, against a hand-crafted fixture with
-round numbers (so every expected value below is hand-computed, not re-derived from the code under
-test) plus one real SUMO-generated file as a parsing smoke test."""
+averaging, proration of counters and vehicle-second totals, omission vs zero-fill, against a
+hand-crafted fixture with round numbers (so every expected value below is hand-computed, not
+re-derived from the code under test) plus one real SUMO-generated file as a parsing smoke test."""
 
 from __future__ import annotations
 
@@ -76,6 +76,8 @@ def test_null_window_aggregates_the_whole_simulation(edgedata_file: Path) -> Non
     assert e1["density"] == pytest.approx(16.0)  # (10*40 + 20*60) / 100
     assert e1["occupancy"] == pytest.approx(0.22)  # (0.1*40 + 0.3*60) / 100
     assert e1["speed"] == pytest.approx(10.4)  # (8*40 + 12*60) / 100
+    assert e1["waiting_time"] == pytest.approx(4.0)  # vehicle-second totals add up: 1 + 3
+    assert e1["time_loss"] == pytest.approx(6.0)  # 2 + 4, not averaged (ADR-0020)
     assert e1["entered"] == 10  # 4 + 6, fraction 1.0 both intervals
     assert e1["left"] == 9
     assert e1["departed"] == 1
@@ -88,6 +90,8 @@ def test_window_clips_and_prorates_a_partially_overlapping_interval(edgedata_fil
 
     assert e1["sampled_seconds"] == pytest.approx(70.0)  # 40*1.0 + 60*0.5
     assert e1["density"] == pytest.approx(1000 / 70)  # (10*40 + 20*30) / 70
+    assert e1["time_loss"] == pytest.approx(4.0)  # 2*1.0 + 4*0.5, prorated, not rounded
+    assert e1["waiting_time"] == pytest.approx(2.5)  # 1*1.0 + 3*0.5
     assert e1["entered"] == 7  # 4*1.0 + 6*0.5 = 7.0 -> round-half-up 7
     assert e1["left"] == 7  # 4*1.0 + 5*0.5 = 6.5 -> round-half-up 7
     assert e1["arrived"] == 1  # 0*1.0 + 1*0.5 = 0.5 -> round-half-up 1

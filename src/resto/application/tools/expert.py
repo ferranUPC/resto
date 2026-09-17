@@ -143,7 +143,8 @@ def query_edgedata(
 ) -> Mapping[str, Any]:
     """Per-edge measures of one result over `[start, end)` simulation seconds (None: whole run).
     Empty `edge_ids` means every edge. Measures: sampled_seconds, density, occupancy, speed,
-    waiting_time, time_loss, travel_time, entered, left (DATABASE_MCP_CONTRACT.md §5.4).
+    waiting_time, time_loss, travel_time, entered, left (DATABASE_MCP_CONTRACT.md §5.4);
+    waiting_time and time_loss are totals over all vehicles (vehicle-seconds).
 
     Raises:
         NotAvailableError: `result_id` is not available to this question.

@@ -1,7 +1,8 @@
 """Aggregates `adapters/sumo/outputs.py::parse_edgedata`'s rows over a window
 (DATABASE_MCP_CONTRACT.md §5.4) — the one non-trivial piece of `query_edgedata`. The XML parse
 itself lives there, not here: it also backs E2.4's effect-verification harness, so this module
-only owns the aggregation math (interval clipping, weighted averaging, counter proration).
+only owns the aggregation math (interval clipping, weighted averaging, proration of counters and
+vehicle-second totals).
 
 "An edge id absent from the network is omitted" (§5.4) needs a definition of "the network" that
 doesn't require this module to know about `NetworkRepository`/`sumolib` at all: SUMO's own
@@ -21,7 +22,10 @@ from pathlib import Path
 from resto.adapters.sumo.outputs import EdgeInterval, parse_edgedata
 
 # contract snake_case names, all of which are EdgeInterval's own field names
-_RATE_OR_MEAN_ATTRS = ("density", "occupancy", "speed", "waiting_time", "time_loss", "travel_time")
+_RATE_OR_MEAN_ATTRS = ("density", "occupancy", "speed", "travel_time")
+# SUMO writes waitingTime/timeLoss per interval as totals over all vehicles (vehicle-seconds), not
+# per-vehicle means: they add up across intervals like counters, but are not rounded (ADR-0020)
+_TOTAL_ATTRS = ("waiting_time", "time_loss")
 _COUNTER_ATTRS = ("entered", "left", "departed", "arrived")
 
 
@@ -43,6 +47,7 @@ def _aggregate_edge(
     total_weight = 0.0
     weighted_sum = dict.fromkeys(_RATE_OR_MEAN_ATTRS, 0.0)
     counter_sum = dict.fromkeys(_COUNTER_ATTRS, 0.0)
+    total_sum = dict.fromkeys(_TOTAL_ATTRS, 0.0)
 
     for row in rows:
         if row.edge_id != edge_id:
@@ -59,10 +64,15 @@ def _aggregate_edge(
             weighted_sum[attr] += (value if value is not None else 0.0) * weight
         for attr in _COUNTER_ATTRS:
             counter_sum[attr] += getattr(row, attr) * fraction
+        for attr in _TOTAL_ATTRS:
+            value = getattr(row, attr)
+            total_sum[attr] += (value if value is not None else 0.0) * fraction
 
     result: dict[str, float] = {"sampled_seconds": total_weight}
     for attr in _RATE_OR_MEAN_ATTRS:
         result[attr] = weighted_sum[attr] / total_weight if total_weight > 0 else 0.0
+    for attr in _TOTAL_ATTRS:
+        result[attr] = total_sum[attr]
     for attr in _COUNTER_ATTRS:
         result[attr] = _round_half_up(counter_sum[attr])
     return result

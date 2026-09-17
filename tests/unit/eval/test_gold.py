@@ -127,13 +127,15 @@ class TestBottleneckReason:
 
 
 class TestTopBottleneckEdges:
-    def test_ranks_by_time_loss_times_entered(self) -> None:
+    def test_ranks_by_total_time_loss_without_weighting_by_flow_again(self) -> None:
+        # time_loss is already a total over vehicles: a busy edge with little total delay must not
+        # outrank a quieter edge where more vehicle-seconds are lost
         edgedata = {
-            "low": _edge(time_loss=1.0, entered=10.0),  # score 10
-            "high": _edge(time_loss=5.0, entered=10.0),  # score 50
-            "mid": _edge(time_loss=2.0, entered=10.0),  # score 20
+            "busy_low_loss": _edge(time_loss=100.0, entered=20.0),
+            "quiet_high_loss": _edge(time_loss=150.0, entered=5.0),
+            "mid": _edge(time_loss=120.0, entered=10.0),
         }
-        assert top_bottleneck_edges(edgedata, k=2) == ["high", "mid"]
+        assert top_bottleneck_edges(edgedata, k=2) == ["quiet_high_loss", "mid"]
 
     def test_k_larger_than_available_edges(self) -> None:
         edgedata = {"only": _edge(time_loss=1.0, entered=1.0)}

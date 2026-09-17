@@ -219,12 +219,8 @@ def diagnostic_bottleneck_item(
         result_ids=result_ids,
         gold_answer={"top_3": top3, "reason": reason},
         evidence={
-            "score_measure": "time_loss * entered (mean of 3 seeds)",
-            "scores": {
-                edge_id: mean_edgedata[edge_id][EdgeMeasure.TIME_LOSS]
-                * mean_edgedata[edge_id][EdgeMeasure.ENTERED]
-                for edge_id in top3
-            },
+            "score_measure": "total time_loss, vehicle-seconds (mean of 3 seeds)",
+            "scores": {edge_id: mean_edgedata[edge_id][EdgeMeasure.TIME_LOSS] for edge_id in top3},
         },
     )
 
@@ -248,7 +244,8 @@ def counterfactual_direction_item(
     value = mean_edgedata[edge_id][EdgeMeasure.TIME_LOSS]
     direction = classify_direction(baseline_value, value)
     text = (
-        f"If {row.description}, does mean delay on {edge_id} increase, decrease, or stay "
+        f"If {row.description}, does the total delay (time lost by all vehicles) on {edge_id} "
+        "increase, decrease, or stay "
         f"within 5% relative to the baseline, over {window.start:.0f}s-{window.end:.0f}s?"
     )
     kwargs = _base_kwargs(
@@ -293,7 +290,8 @@ def counterfactual_top_k_item(
     window = descriptive_window(row)
     top_k = top_k_by_delta(baseline_mean_edgedata, mean_edgedata, EdgeMeasure.TIME_LOSS, k=k)
     text = (
-        f"If {row.description}, which {k} edges change the most in delay relative to the "
+        f"If {row.description}, which {k} edges change the most in total delay (time lost by all "
+        "vehicles) relative to the "
         f"baseline, over {window.start:.0f}s-{window.end:.0f}s?"
     )
     kwargs = _base_kwargs(

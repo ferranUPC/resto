@@ -31,3 +31,4 @@ numbered in the order they were taken.
 | [0017](0017-runner-configuration-and-kpi-derivation.md) | Runner configuration lives entirely in `.sumocfg` files (scenario cfg + derived run cfg); KPIs from `statistic-output`; edgedata via `<edgeData>` additional | 2026-09-14 | Accepted |
 | [0018](0018-network-expert-tools-and-evidence-refs.md) | Network Expert tools — `get_scenario`, result allow-list, evidence refs from a call ledger | 2026-09-17 | Accepted |
 | [0019](0019-typed-expert-answer-values.md) | `ExpertAnswer` carries typed `values`; prose is the justification | 2026-09-17 | Accepted |
+| [0020](0020-edgedata-time-loss-and-waiting-time-are-vehicle-second-totals.md) | `time_loss` and `waiting_time` are vehicle-second totals — summed, not averaged | 2026-09-17 | Accepted — amends DatabaseMCP contract v1.0 §5.4 |
