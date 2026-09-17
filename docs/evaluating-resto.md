@@ -255,11 +255,10 @@ Observations:
 | 2026-09-17 | Full forced benchmark (117 × 3) is within budget; free mode and abstention metrics deferred. |
 | 2026-09-17 | `ExpertAnswer` carries typed values, starting with `Edges`, `Quantity`, `Change` (ADR-0019). |
 | 2026-09-17 | Benchmark runs are stored raw and resumable, with a cost cap; scoring is recomputed from them. |
+| 2026-09-17 | Diagnostic budget stops are left as they are until E4.3 tunes the Expert; no budget or prompt change before then, and they score as failures in any sweep run earlier. |
 
 ## 6. Open questions
 
-- Diagnostic budget stops (§4.7): a larger budget for diagnostic questions, a prompt change, or accept them
-  as failures until E4.3 tunes the Expert. Default budgets are not raised to hide the symptom.
 - How to grade the diagnostic "why": human rubric, LLM-as-judge, or both with agreement reported.
 - Budget and test choice for the `observed` vs `extrapolated` comparison.
 - When to budget free mode for the abstention metrics.
