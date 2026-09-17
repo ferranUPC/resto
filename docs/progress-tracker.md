@@ -2,11 +2,13 @@
 
 Tracks completion of every task in [`tfm-work-plan.md`](tfm-work-plan.md). Task descriptions here are shortened for scanning — the source of truth for scope, outputs and DoD thresholds is `tfm-work-plan.md` (epics/hours/due dates) and `tfm-architecture-and-dod.md` (per-module DoD, §4.x).
 
-Status: ⬜ not started · 🔄 in progress · ✅ done (meets its Done/threshold from the DoD, not just "code exists")
+Status: ⬜ not started · 🔄 in progress · 🚧 blocked (cannot proceed for a stated reason outside our control;
+the Notes column says why and what unblocks it) · ✅ done (meets its Done/threshold from the DoD, not just
+"code exists")
 
-Last updated: 2026-09-16
+Last updated: 2026-09-17
 
-**Summary: 19 / 65 tasks done (29.2%)** (E7.7 is Stretch, never scheduled — excluded from the count, per work plan §5)
+**Summary: 19 / 65 tasks done (29.2%), 1 blocked** (E7.7 is Stretch, never scheduled — excluded from the count, per work plan §5)
 
 ---
 
@@ -67,7 +69,7 @@ Last updated: 2026-09-16
 | E4.4 | Counterfactual, forced mode (direction ≥75%, band ≥50%) | ⬜ | |
 | E4.5 | Free mode: abstention policy, `proposed_experiment` | ⬜ | |
 | E4.6 | `ExpertNote` writing + RAG + status update; hygiene probes (20) | ⬜ | |
-| E4.7 | DEV-NET benchmark report (3 runs, mean±std) → **M2** | ⬜ | |
+| E4.7 | DEV-NET benchmark report (3 runs, mean±std) → **M2** | 🚧 | 2026-09-17: the forced-mode sweep this report needs (descriptive/diagnostic/counterfactual, evaluating-resto.md principle 2's 3 repetitions × 117 questions) is blocked on cost, not code — v2 (`docs/expert-tuning-log.md`) is implemented and unit-tested, and already meets every per-family DoD threshold on a single-repetition sweep (`v1-forced-1rep`: descriptive 1.00 ≥ 0.90, diagnostic Jaccard 0.70 ≥ 0.60, cf-dir 1.00 ≥ 0.75, cf-band 1.00 ≥ 0.50, Brier 0.02 ≤ 0.25), but the DoD's 3-repetition bar needs a real sweep, estimated ≈ $2.9 at DeepSeek v4.1's current rate (tokens measured, `evaluating-resto.md` §4.2). Waiting on funding for the paid experiment budget; run `python -m eval.expert_benchmark.run --name v2-forced-3rep --repetitions 3 --workers 4 --max-cost-usd 3.5` and fill in the tuning log's v2 entry once unblocked. Also still needs E4.5 (free mode/abstention) and E4.6 (notes/RAG) built before this report can cover the DoD's full scope — those are unstarted, not blocked |
 | E4.8 | Port to REAL-NET, full benchmark | ⬜ | |
 | E4.9 | Learning-effect experiment (0/5/15/25, CIs, plot) | ⬜ | |
 | E4.10 | Calibration analysis + ablation | ⬜ | |
