@@ -1,8 +1,14 @@
 """Tools of the Network Expert agent as typed Python functions (DoD §2.2; ADR-0011, ADR-0018).
 
-Facts reach the Expert only through these: topology via the NetworkMCP functions of
-`application/tools/network.py`, simulated data via the `ResultRepository`/`ScenarioRepository`
-ports (never by parsing an artifact file), and earlier interpretations via `search_notes`.
+Facts reach the Expert only through these: topology via `get_lanes`/`shortest_path` (the
+NetworkMCP functions of `application/tools/network.py`, unchanged) plus `get_edges`,
+`get_neighbours`, `capacity_estimate` and `get_tls`, Expert-only wrappers over the same
+`NetworkQuery` port that take a list of ids instead of one (v2: describing a neighbourhood of
+several edges was costing one tool call per edge per NetworkMCP's singular contract, which starved
+`-diag` questions of turns before they could describe a whole neighbourhood — see
+docs/expert-tuning-log.md). Simulated data reaches it via the `ResultRepository`/
+`ScenarioRepository` ports (never by parsing an artifact file), and earlier interpretations via
+`search_notes`.
 
 Two things are added on top of plain delegation, both bound in `build_expert_tools`:
 
@@ -38,10 +44,12 @@ from resto.domain.entities.simulation_result import SimulationResult
 from resto.domain.value_objects.tasks import ExpertTask
 
 EXPERT_NETWORK_TOOLS = (
-    "get_edge",
     "get_lanes",
-    "get_neighbours",
     "shortest_path",
+)
+EXPERT_TOPOLOGY_TOOLS = (
+    "get_edges",
+    "get_neighbours",
     "capacity_estimate",
     "get_tls",
 )
@@ -128,6 +136,53 @@ def _require_available(available: AbstractSet[str], result_id: str) -> None:
         raise NotAvailableError(
             f"result {result_id!r} is not among the results available to this question"
         )
+
+
+def get_edges(query: NetworkQuery, edge_ids: Sequence[str]) -> Mapping[str, Any]:
+    """Attributes of several edges in one call: endpoints, length, speed, lane count, priority,
+    shape.
+
+    Raises:
+        KeyError: an edge_id does not exist on this network.
+    """
+    if not edge_ids:
+        raise ValueError("give at least one edge_id")
+    return {edge_id: query.get_edge(edge_id) for edge_id in edge_ids}
+
+
+def get_neighbours(query: NetworkQuery, edge_ids: Sequence[str]) -> Mapping[str, Any]:
+    """Ids of the edges reachable in one hop downstream of each edge (outgoing connections), one
+    call for several edges.
+
+    Raises:
+        KeyError: an edge_id does not exist on this network.
+    """
+    if not edge_ids:
+        raise ValueError("give at least one edge_id")
+    return {edge_id: query.get_neighbours(edge_id) for edge_id in edge_ids}
+
+
+def capacity_estimate(query: NetworkQuery, edge_ids: Sequence[str]) -> Mapping[str, Any]:
+    """Rough capacity of several edges in veh/h (Greenshields estimate — ADR-0015; order-of-
+    magnitude only, not a substitute for a simulated result), one call for several edges.
+
+    Raises:
+        KeyError: an edge_id does not exist on this network.
+    """
+    if not edge_ids:
+        raise ValueError("give at least one edge_id")
+    return {edge_id: query.capacity_estimate(edge_id) for edge_id in edge_ids}
+
+
+def get_tls(query: NetworkQuery, tls_ids: Sequence[str]) -> Mapping[str, Any]:
+    """Controlled edges and signal programs of several traffic lights in one call.
+
+    Raises:
+        KeyError: a tls_id does not exist on this network.
+    """
+    if not tls_ids:
+        raise ValueError("give at least one tls_id")
+    return {tls_id: query.get_tls(tls_id) for tls_id in tls_ids}
 
 
 def get_result(
@@ -402,7 +457,35 @@ _WINDOW = {
     "description": "[start, end) in simulation seconds; omit for the whole run.",
 }
 _MEASURE = {"type": "string", "enum": list(EDGE_MEASURES)}
+_EDGE_IDS = {
+    "type": "array",
+    "items": {"type": "string"},
+    "minItems": 1,
+    "description": "Edge ids, e.g. ['A0A1', 'A1A2'].",
+}
+_TLS_IDS = {
+    "type": "array",
+    "items": {"type": "string"},
+    "minItems": 1,
+    "description": "Traffic light ids.",
+}
 _SCHEMAS: dict[str, Mapping[str, Any]] = {
+    "get_edges": {
+        "type": "object",
+        "properties": {"edge_ids": _EDGE_IDS},
+        "required": ["edge_ids"],
+    },
+    "get_neighbours": {
+        "type": "object",
+        "properties": {"edge_ids": _EDGE_IDS},
+        "required": ["edge_ids"],
+    },
+    "capacity_estimate": {
+        "type": "object",
+        "properties": {"edge_ids": _EDGE_IDS},
+        "required": ["edge_ids"],
+    },
+    "get_tls": {"type": "object", "properties": {"tls_ids": _TLS_IDS}, "required": ["tls_ids"]},
     "edge_stats": {
         "type": "object",
         "properties": {
@@ -538,6 +621,26 @@ def build_expert_tools(
     ]
 
     bound: list[tuple[str, Callable[..., Any], Callable[..., Any]]] = [
+        (
+            "get_edges",
+            get_edges,
+            lambda edge_ids: get_edges(query, edge_ids),
+        ),
+        (
+            "get_neighbours",
+            get_neighbours,
+            lambda edge_ids: get_neighbours(query, edge_ids),
+        ),
+        (
+            "capacity_estimate",
+            capacity_estimate,
+            lambda edge_ids: capacity_estimate(query, edge_ids),
+        ),
+        (
+            "get_tls",
+            get_tls,
+            lambda tls_ids: get_tls(query, tls_ids),
+        ),
         (
             "edge_stats",
             edge_stats,

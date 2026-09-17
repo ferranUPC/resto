@@ -18,6 +18,7 @@ from resto.adapters.sumo.netxml import SumolibNetworkQuery
 from resto.application.ports.llm import Tool
 from resto.application.tools.expert import (
     EXPERT_NETWORK_TOOLS,
+    EXPERT_TOPOLOGY_TOOLS,
     RESULT_TOOLS,
     EvidenceLedger,
     NotAvailableError,
@@ -106,7 +107,7 @@ def _tools(
 
 def test_tool_set_is_the_dod_list_plus_get_scenario(query: SumolibNetworkQuery) -> None:
     tools, _, _ = _tools(query)
-    assert [t.name for t in tools] == [*EXPERT_NETWORK_TOOLS, *RESULT_TOOLS]
+    assert [t.name for t in tools] == [*EXPERT_NETWORK_TOOLS, *EXPERT_TOPOLOGY_TOOLS, *RESULT_TOOLS]
     assert all(t.description and t.input_schema for t in tools)
 
 
@@ -124,16 +125,25 @@ def test_network_tool_reaches_the_real_network_and_is_recorded(
     query: SumolibNetworkQuery,
 ) -> None:
     tools, ledger, _ = _tools(query)
-    response = call_tool(tools, "get_edge", edge_id="A0A1")
-    assert response == {"ref": "q1", "result": query.get_edge("A0A1")}
+    response = call_tool(tools, "get_edges", edge_ids=["A0A1"])
+    assert response == {"ref": "q1", "result": {"A0A1": query.get_edge("A0A1")}}
     entry = ledger.get("q1")
     assert entry is not None
-    assert (entry.tool, entry.arguments) == ("get_edge", {"edge_id": "A0A1"})
+    assert (entry.tool, entry.arguments) == ("get_edges", {"edge_ids": ["A0A1"]})
+
+
+def test_topology_tools_batch_several_ids_in_one_call(query: SumolibNetworkQuery) -> None:
+    tools, _, _ = _tools(query)
+    response = call_tool(tools, "get_neighbours", edge_ids=["A0A1", "A0B0"])
+    assert response["result"] == {
+        "A0A1": query.get_neighbours("A0A1"),
+        "A0B0": query.get_neighbours("A0B0"),
+    }
 
 
 def test_refs_increment_per_successful_call(query: SumolibNetworkQuery) -> None:
     tools, ledger, _ = _tools(query)
-    call_tool(tools, "get_neighbours", edge_id="A0A1")
+    call_tool(tools, "get_neighbours", edge_ids=["A0A1"])
     response = call_tool(tools, "get_result", result_id="res1")
     assert response["ref"] == "q2"
     assert [e.ref for e in ledger.entries] == ["q1", "q2"]
@@ -142,8 +152,14 @@ def test_refs_increment_per_successful_call(query: SumolibNetworkQuery) -> None:
 def test_failed_calls_are_not_recorded(query: SumolibNetworkQuery) -> None:
     tools, ledger, _ = _tools(query)
     with pytest.raises(KeyError):
-        call_tool(tools, "get_edge", edge_id="nope")
+        call_tool(tools, "get_edges", edge_ids=["nope"])
     assert ledger.entries == ()
+
+
+def test_topology_tools_reject_an_empty_id_list(query: SumolibNetworkQuery) -> None:
+    tools, _, _ = _tools(query)
+    with pytest.raises(ValueError, match="edge_id"):
+        call_tool(tools, "get_edges", edge_ids=[])
 
 
 def test_get_result_returns_the_result_as_json(query: SumolibNetworkQuery) -> None:

@@ -10,7 +10,12 @@ from resto.adapters.llm.agents.expert import build_task, run_expert
 from resto.adapters.persistence.memory import InMemoryResultRepository, InMemoryScenarioRepository
 from resto.adapters.sumo.netxml import SumolibNetworkQuery
 from resto.application.ports.llm import AgentTask, Budget, Tool
-from resto.application.tools.expert import EXPERT_NETWORK_TOOLS, RESULT_TOOLS, EvidenceLedger
+from resto.application.tools.expert import (
+    EXPERT_NETWORK_TOOLS,
+    EXPERT_TOPOLOGY_TOOLS,
+    RESULT_TOOLS,
+    EvidenceLedger,
+)
 from resto.domain.value_objects.question import Mode
 from resto.domain.value_objects.tasks import ExpertTask
 from tests.unit.adapters.llm._fakes import FakeToolAgent, call_tool
@@ -74,5 +79,5 @@ def test_run_expert_offers_the_expert_tools_and_returns_the_agent_run() -> None:
 
     assert run.output == expert_answer()
     assert seen["input"] == build_task(TASK).input
-    assert seen["tools"] == [*EXPERT_NETWORK_TOOLS, *RESULT_TOOLS]
+    assert seen["tools"] == [*EXPERT_NETWORK_TOOLS, *EXPERT_TOPOLOGY_TOOLS, *RESULT_TOOLS]
     assert [e.tool for e in ledger.entries] == ["get_result"]

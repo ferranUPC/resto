@@ -44,7 +44,7 @@ def _answer(edge_ids: tuple[str, ...], ref: str = "q1", confidence: float = 0.9)
 
 
 def _cite_one_call(task: AgentTask, tools: Sequence[Tool]) -> None:
-    call_tool(tools, "get_edge", edge_id="B1B0")
+    call_tool(tools, "get_edges", edge_ids=["B1B0"])
 
 
 @pytest.fixture(scope="module")
@@ -81,7 +81,7 @@ def test_every_question_and_repetition_is_stored_with_its_ledger(
     assert first["expert_version"] == EXPERT_VERSION
     assert first["steps"] == []  # the fake agent makes no model calls
     assert first["rejection"] is None
-    assert first["ledger"][0]["tool"] == "get_edge"
+    assert first["ledger"][0]["tool"] == "get_edges"
     assert first["answer"]["values"][0]["edge_ids"] == ["B1B0"]
     assert outcome.cost_usd == pytest.approx(0.04)
 

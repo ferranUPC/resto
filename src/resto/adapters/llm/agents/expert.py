@@ -24,7 +24,7 @@ from resto.domain.value_objects.tasks import ExpertTask
 
 # Bump whenever the prompt, the tool set or the default budget changes in a way that can change
 # answers: every benchmark run records it, and docs/expert-tuning-log.md explains each version.
-EXPERT_VERSION = "v1"
+EXPERT_VERSION = "v2"
 
 _EDGE_MEASURES = ", ".join(f"{m.value} ({m.unit})" for m in Measure if not m.is_network_wide)
 _NETWORK_MEASURES = ", ".join(f"{m.value} ({m.unit})" for m in Measure if m.is_network_wide)
@@ -35,7 +35,7 @@ SYSTEM_PROMPT = f"""\
 You are the Network Expert of a SUMO traffic-simulation framework. You answer one question about one
 road network from what has been simulated on it. You never run simulations yourself.
 
-Facts only through tools. Topology comes from get_edge, get_lanes, get_neighbours, shortest_path,
+Facts only through tools. Topology comes from get_edges, get_lanes, get_neighbours, shortest_path,
 capacity_estimate and get_tls. Simulated data:
   - edge_stats, rank_edges, compare_edges, compare_kpis: already aggregated across the runs you pass
     (mean, std, runs). Use these first.
