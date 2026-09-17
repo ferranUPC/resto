@@ -26,7 +26,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which edges exceed 3.5% occupancy between 0s and 300s in scenario S00 (no interventions)?",
+      "text": "Which edges exceed 3.5% occupancy between 0s and 300s in the scenario with no interventions?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -67,7 +67,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "What is the mean travel time on B2C2 between 0s and 300s in scenario S00 (no interventions)?",
+      "text": "What is the mean travel time on B2C2 between 0s and 300s in the scenario with no interventions?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -112,7 +112,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which three edges form the main bottleneck between 0s and 300s in scenario S00 (no interventions), and why?",
+      "text": "Which three edges form the main bottleneck between 0s and 300s in the scenario with no interventions, and why?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -190,7 +190,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which edges exceed 3.5% occupancy between 0s and 300s in scenario S01 (lane_closure B2C2 lane 0, [0, 300))?",
+      "text": "Which edges exceed 3.5% occupancy between 0s and 300s in the scenario with lane_closure B2C2 lane 0, [0, 300)?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -248,7 +248,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "What is the mean travel time on B2C2 between 0s and 300s in scenario S01 (lane_closure B2C2 lane 0, [0, 300))?",
+      "text": "What is the mean travel time on B2C2 between 0s and 300s in the scenario with lane_closure B2C2 lane 0, [0, 300)?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -310,7 +310,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which three edges form the main bottleneck between 0s and 300s in scenario S01 (lane_closure B2C2 lane 0, [0, 300)), and why?",
+      "text": "Which three edges form the main bottleneck between 0s and 300s in the scenario with lane_closure B2C2 lane 0, [0, 300), and why?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -581,7 +581,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which edges exceed 3.5% occupancy between 0s and 300s in scenario S02 (lane_closure C2D2 lane 0, [0, 300))?",
+      "text": "Which edges exceed 3.5% occupancy between 0s and 300s in the scenario with lane_closure C2D2 lane 0, [0, 300)?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -639,7 +639,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "What is the mean travel time on C2D2 between 0s and 300s in scenario S02 (lane_closure C2D2 lane 0, [0, 300))?",
+      "text": "What is the mean travel time on C2D2 between 0s and 300s in the scenario with lane_closure C2D2 lane 0, [0, 300)?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -701,7 +701,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which three edges form the main bottleneck between 0s and 300s in scenario S02 (lane_closure C2D2 lane 0, [0, 300)), and why?",
+      "text": "Which three edges form the main bottleneck between 0s and 300s in the scenario with lane_closure C2D2 lane 0, [0, 300), and why?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -966,7 +966,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which edges exceed 3.5% occupancy between 0s and 300s in scenario S03 (lane_closure B0C0 lane 0, [0, 300) (bottleneck approach, lane 1 stays open))?",
+      "text": "Which edges exceed 3.5% occupancy between 0s and 300s in the scenario with lane_closure B0C0 lane 0, [0, 300) (bottleneck approach, lane 1 stays open)?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -1024,7 +1024,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "What is the mean travel time on B0C0 between 0s and 300s in scenario S03 (lane_closure B0C0 lane 0, [0, 300) (bottleneck approach, lane 1 stays open))?",
+      "text": "What is the mean travel time on B0C0 between 0s and 300s in the scenario with lane_closure B0C0 lane 0, [0, 300) (bottleneck approach, lane 1 stays open)?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -1086,7 +1086,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which three edges form the main bottleneck between 0s and 300s in scenario S03 (lane_closure B0C0 lane 0, [0, 300) (bottleneck approach, lane 1 stays open)), and why?",
+      "text": "Which three edges form the main bottleneck between 0s and 300s in the scenario with lane_closure B0C0 lane 0, [0, 300) (bottleneck approach, lane 1 stays open), and why?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -1351,7 +1351,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which edges exceed 3.5% occupancy between 0s and 300s in scenario S04 (lane_closure C1D1 lane 0, [0, 300))?",
+      "text": "Which edges exceed 3.5% occupancy between 0s and 300s in the scenario with lane_closure C1D1 lane 0, [0, 300)?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -1409,7 +1409,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "What is the mean travel time on C1D1 between 0s and 300s in scenario S04 (lane_closure C1D1 lane 0, [0, 300))?",
+      "text": "What is the mean travel time on C1D1 between 0s and 300s in the scenario with lane_closure C1D1 lane 0, [0, 300)?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -1471,7 +1471,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which three edges form the main bottleneck between 0s and 300s in scenario S04 (lane_closure C1D1 lane 0, [0, 300)), and why?",
+      "text": "Which three edges form the main bottleneck between 0s and 300s in the scenario with lane_closure C1D1 lane 0, [0, 300), and why?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -1727,7 +1727,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which edges exceed 3.5% occupancy between 0s and 300s in scenario S05 (edge_closure C0D0, [0, 300) (bottleneck exit, single lane - full closure))?",
+      "text": "Which edges exceed 3.5% occupancy between 0s and 300s in the scenario with edge_closure C0D0, [0, 300) (bottleneck exit, single lane - full closure)?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -1784,7 +1784,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "What is the mean travel time on C0D0 between 0s and 300s in scenario S05 (edge_closure C0D0, [0, 300) (bottleneck exit, single lane - full closure))?",
+      "text": "What is the mean travel time on C0D0 between 0s and 300s in the scenario with edge_closure C0D0, [0, 300) (bottleneck exit, single lane - full closure)?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -1845,7 +1845,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which three edges form the main bottleneck between 0s and 300s in scenario S05 (edge_closure C0D0, [0, 300) (bottleneck exit, single lane - full closure)), and why?",
+      "text": "Which three edges form the main bottleneck between 0s and 300s in the scenario with edge_closure C0D0, [0, 300) (bottleneck exit, single lane - full closure), and why?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -2098,7 +2098,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which edges exceed 3.5% occupancy between 0s and 300s in scenario S06 (edge_closure A1B1, [0, 300))?",
+      "text": "Which edges exceed 3.5% occupancy between 0s and 300s in the scenario with edge_closure A1B1, [0, 300)?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -2155,7 +2155,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "What is the mean travel time on A1B1 between 0s and 300s in scenario S06 (edge_closure A1B1, [0, 300))?",
+      "text": "What is the mean travel time on A1B1 between 0s and 300s in the scenario with edge_closure A1B1, [0, 300)?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -2216,7 +2216,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which three edges form the main bottleneck between 0s and 300s in scenario S06 (edge_closure A1B1, [0, 300)), and why?",
+      "text": "Which three edges form the main bottleneck between 0s and 300s in the scenario with edge_closure A1B1, [0, 300), and why?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -2477,7 +2477,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which edges exceed 3.5% occupancy between 0s and 300s in scenario S07 (edge_closure D2E2, [0, 300))?",
+      "text": "Which edges exceed 3.5% occupancy between 0s and 300s in the scenario with edge_closure D2E2, [0, 300)?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -2534,7 +2534,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "What is the mean travel time on D2E2 between 0s and 300s in scenario S07 (edge_closure D2E2, [0, 300))?",
+      "text": "What is the mean travel time on D2E2 between 0s and 300s in the scenario with edge_closure D2E2, [0, 300)?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -2595,7 +2595,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which three edges form the main bottleneck between 0s and 300s in scenario S07 (edge_closure D2E2, [0, 300)), and why?",
+      "text": "Which three edges form the main bottleneck between 0s and 300s in the scenario with edge_closure D2E2, [0, 300), and why?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -2868,7 +2868,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which edges exceed 3.5% occupancy between 0s and 300s in scenario S08 (edge_closure B2C2, [0, 300))?",
+      "text": "Which edges exceed 3.5% occupancy between 0s and 300s in the scenario with edge_closure B2C2, [0, 300)?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -2925,7 +2925,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "What is the mean travel time on B2C2 between 0s and 300s in scenario S08 (edge_closure B2C2, [0, 300))?",
+      "text": "What is the mean travel time on B2C2 between 0s and 300s in the scenario with edge_closure B2C2, [0, 300)?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -2986,7 +2986,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which three edges form the main bottleneck between 0s and 300s in scenario S08 (edge_closure B2C2, [0, 300)), and why?",
+      "text": "Which three edges form the main bottleneck between 0s and 300s in the scenario with edge_closure B2C2, [0, 300), and why?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -3251,7 +3251,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which edges exceed 3.5% occupancy between 0s and 300s in scenario S09 (speed_limit B2C2 lane 0 at 5 m/s, [0, 300))?",
+      "text": "Which edges exceed 3.5% occupancy between 0s and 300s in the scenario with speed_limit B2C2 lane 0 at 5 m/s, [0, 300)?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -3312,7 +3312,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "What is the mean travel time on B2C2 between 0s and 300s in scenario S09 (speed_limit B2C2 lane 0 at 5 m/s, [0, 300))?",
+      "text": "What is the mean travel time on B2C2 between 0s and 300s in the scenario with speed_limit B2C2 lane 0 at 5 m/s, [0, 300)?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -3377,7 +3377,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which three edges form the main bottleneck between 0s and 300s in scenario S09 (speed_limit B2C2 lane 0 at 5 m/s, [0, 300)), and why?",
+      "text": "Which three edges form the main bottleneck between 0s and 300s in the scenario with speed_limit B2C2 lane 0 at 5 m/s, [0, 300), and why?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -3646,7 +3646,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which edges exceed 3.5% occupancy between 0s and 300s in scenario S10 (speed_limit C1D1 lane 0 at 5 m/s, [0, 300))?",
+      "text": "Which edges exceed 3.5% occupancy between 0s and 300s in the scenario with speed_limit C1D1 lane 0 at 5 m/s, [0, 300)?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -3707,7 +3707,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "What is the mean travel time on C1D1 between 0s and 300s in scenario S10 (speed_limit C1D1 lane 0 at 5 m/s, [0, 300))?",
+      "text": "What is the mean travel time on C1D1 between 0s and 300s in the scenario with speed_limit C1D1 lane 0 at 5 m/s, [0, 300)?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -3772,7 +3772,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which three edges form the main bottleneck between 0s and 300s in scenario S10 (speed_limit C1D1 lane 0 at 5 m/s, [0, 300)), and why?",
+      "text": "Which three edges form the main bottleneck between 0s and 300s in the scenario with speed_limit C1D1 lane 0 at 5 m/s, [0, 300), and why?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -4049,7 +4049,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which edges exceed 3.5% occupancy between 0s and 300s in scenario S11 (speed_limit A2B2 lane 0 at 8 m/s, [0, 300))?",
+      "text": "Which edges exceed 3.5% occupancy between 0s and 300s in the scenario with speed_limit A2B2 lane 0 at 8 m/s, [0, 300)?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -4110,7 +4110,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "What is the mean travel time on A2B2 between 0s and 300s in scenario S11 (speed_limit A2B2 lane 0 at 8 m/s, [0, 300))?",
+      "text": "What is the mean travel time on A2B2 between 0s and 300s in the scenario with speed_limit A2B2 lane 0 at 8 m/s, [0, 300)?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -4175,7 +4175,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which three edges form the main bottleneck between 0s and 300s in scenario S11 (speed_limit A2B2 lane 0 at 8 m/s, [0, 300)), and why?",
+      "text": "Which three edges form the main bottleneck between 0s and 300s in the scenario with speed_limit A2B2 lane 0 at 8 m/s, [0, 300), and why?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -4444,7 +4444,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which edges exceed 3.5% occupancy between 0s and 300s in scenario S12 (speed_limit B0C0 lane 0 at 5 m/s, [0, 300))?",
+      "text": "Which edges exceed 3.5% occupancy between 0s and 300s in the scenario with speed_limit B0C0 lane 0 at 5 m/s, [0, 300)?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -4505,7 +4505,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "What is the mean travel time on B0C0 between 0s and 300s in scenario S12 (speed_limit B0C0 lane 0 at 5 m/s, [0, 300))?",
+      "text": "What is the mean travel time on B0C0 between 0s and 300s in the scenario with speed_limit B0C0 lane 0 at 5 m/s, [0, 300)?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -4570,7 +4570,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which three edges form the main bottleneck between 0s and 300s in scenario S12 (speed_limit B0C0 lane 0 at 5 m/s, [0, 300)), and why?",
+      "text": "Which three edges form the main bottleneck between 0s and 300s in the scenario with speed_limit B0C0 lane 0 at 5 m/s, [0, 300), and why?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -4851,7 +4851,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which edges exceed 3.5% occupancy between 100s and 300s in scenario S13 (signal_program C2 -> program 1, [100, 300))?",
+      "text": "Which edges exceed 3.5% occupancy between 100s and 300s in the scenario with signal_program C2 -> program 1, [100, 300)?",
       "time_window": {
         "end": 300.0,
         "start": 100.0
@@ -4910,7 +4910,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "What is the mean travel time on C2D2 between 100s and 300s in scenario S13 (signal_program C2 -> program 1, [100, 300))?",
+      "text": "What is the mean travel time on C2D2 between 100s and 300s in the scenario with signal_program C2 -> program 1, [100, 300)?",
       "time_window": {
         "end": 300.0,
         "start": 100.0
@@ -4973,7 +4973,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which three edges form the main bottleneck between 100s and 300s in scenario S13 (signal_program C2 -> program 1, [100, 300)), and why?",
+      "text": "Which three edges form the main bottleneck between 100s and 300s in the scenario with signal_program C2 -> program 1, [100, 300), and why?",
       "time_window": {
         "end": 300.0,
         "start": 100.0
@@ -5248,7 +5248,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which edges exceed 3.5% occupancy between 300s and 500s in scenario S14 (signal_program B2 -> program 1, [300, 500))?",
+      "text": "Which edges exceed 3.5% occupancy between 300s and 500s in the scenario with signal_program B2 -> program 1, [300, 500)?",
       "time_window": {
         "end": 500.0,
         "start": 300.0
@@ -5307,7 +5307,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "What is the mean travel time on B2C2 between 300s and 500s in scenario S14 (signal_program B2 -> program 1, [300, 500))?",
+      "text": "What is the mean travel time on B2C2 between 300s and 500s in the scenario with signal_program B2 -> program 1, [300, 500)?",
       "time_window": {
         "end": 500.0,
         "start": 300.0
@@ -5370,7 +5370,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which three edges form the main bottleneck between 300s and 500s in scenario S14 (signal_program B2 -> program 1, [300, 500)), and why?",
+      "text": "Which three edges form the main bottleneck between 300s and 500s in the scenario with signal_program B2 -> program 1, [300, 500), and why?",
       "time_window": {
         "end": 500.0,
         "start": 300.0
@@ -5651,7 +5651,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which edges exceed 3.5% occupancy between 500s and 700s in scenario S15 (signal_program D2 -> program 1, [500, 700))?",
+      "text": "Which edges exceed 3.5% occupancy between 500s and 700s in the scenario with signal_program D2 -> program 1, [500, 700)?",
       "time_window": {
         "end": 700.0,
         "start": 500.0
@@ -5710,7 +5710,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "What is the mean travel time on D2E2 between 500s and 700s in scenario S15 (signal_program D2 -> program 1, [500, 700))?",
+      "text": "What is the mean travel time on D2E2 between 500s and 700s in the scenario with signal_program D2 -> program 1, [500, 700)?",
       "time_window": {
         "end": 700.0,
         "start": 500.0
@@ -5773,7 +5773,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which three edges form the main bottleneck between 500s and 700s in scenario S15 (signal_program D2 -> program 1, [500, 700)), and why?",
+      "text": "Which three edges form the main bottleneck between 500s and 700s in the scenario with signal_program D2 -> program 1, [500, 700), and why?",
       "time_window": {
         "end": 700.0,
         "start": 500.0
@@ -6034,7 +6034,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which edges exceed 3.5% occupancy between 700s and 900s in scenario S16 (signal_program A2 -> program 1, [700, 900))?",
+      "text": "Which edges exceed 3.5% occupancy between 700s and 900s in the scenario with signal_program A2 -> program 1, [700, 900)?",
       "time_window": {
         "end": 900.0,
         "start": 700.0
@@ -6093,7 +6093,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "What is the mean travel time on A2B2 between 700s and 900s in scenario S16 (signal_program A2 -> program 1, [700, 900))?",
+      "text": "What is the mean travel time on A2B2 between 700s and 900s in the scenario with signal_program A2 -> program 1, [700, 900)?",
       "time_window": {
         "end": 900.0,
         "start": 700.0
@@ -6156,7 +6156,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which three edges form the main bottleneck between 700s and 900s in scenario S16 (signal_program A2 -> program 1, [700, 900)), and why?",
+      "text": "Which three edges form the main bottleneck between 700s and 900s in the scenario with signal_program A2 -> program 1, [700, 900), and why?",
       "time_window": {
         "end": 900.0,
         "start": 700.0
@@ -6428,7 +6428,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which edges exceed 3.5% occupancy between 0s and 300s in scenario S17 (demand_scale x1.2 (heavier peak))?",
+      "text": "Which edges exceed 3.5% occupancy between 0s and 300s in the scenario with demand_scale x1.2 (heavier peak)?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -6484,7 +6484,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "What is the mean travel time on B2C2 between 0s and 300s in scenario S17 (demand_scale x1.2 (heavier peak))?",
+      "text": "What is the mean travel time on B2C2 between 0s and 300s in the scenario with demand_scale x1.2 (heavier peak)?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -6544,7 +6544,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which three edges form the main bottleneck between 0s and 300s in scenario S17 (demand_scale x1.2 (heavier peak)), and why?",
+      "text": "Which three edges form the main bottleneck between 0s and 300s in the scenario with demand_scale x1.2 (heavier peak), and why?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -6793,7 +6793,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which edges exceed 3.5% occupancy between 0s and 300s in scenario S18 (demand_scale x0.8 (lighter peak))?",
+      "text": "Which edges exceed 3.5% occupancy between 0s and 300s in the scenario with demand_scale x0.8 (lighter peak)?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -6849,7 +6849,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "What is the mean travel time on B2C2 between 0s and 300s in scenario S18 (demand_scale x0.8 (lighter peak))?",
+      "text": "What is the mean travel time on B2C2 between 0s and 300s in the scenario with demand_scale x0.8 (lighter peak)?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -6909,7 +6909,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which three edges form the main bottleneck between 0s and 300s in scenario S18 (demand_scale x0.8 (lighter peak)), and why?",
+      "text": "Which three edges form the main bottleneck between 0s and 300s in the scenario with demand_scale x0.8 (lighter peak), and why?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -7184,7 +7184,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which edges exceed 3.5% occupancy between 0s and 300s in scenario S19 (demand_scale x1.5 (much heavier peak))?",
+      "text": "Which edges exceed 3.5% occupancy between 0s and 300s in the scenario with demand_scale x1.5 (much heavier peak)?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -7240,7 +7240,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "What is the mean travel time on B2C2 between 0s and 300s in scenario S19 (demand_scale x1.5 (much heavier peak))?",
+      "text": "What is the mean travel time on B2C2 between 0s and 300s in the scenario with demand_scale x1.5 (much heavier peak)?",
       "time_window": {
         "end": 300.0,
         "start": 0.0
@@ -7300,7 +7300,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which three edges form the main bottleneck between 0s and 300s in scenario S19 (demand_scale x1.5 (much heavier peak)), and why?",
+      "text": "Which three edges form the main bottleneck between 0s and 300s in the scenario with demand_scale x1.5 (much heavier peak), and why?",
       "time_window": {
         "end": 300.0,
         "start": 0.0

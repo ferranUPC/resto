@@ -119,7 +119,7 @@ def descriptive_occupancy_item(
     )
     text = (
         f"Which edges exceed {DESCRIPTIVE_OCCUPANCY_THRESHOLD_PCT:.1f}% occupancy between "
-        f"{window.start:.0f}s and {window.end:.0f}s in scenario {row.id} ({row.description})?"
+        f"{window.start:.0f}s and {window.end:.0f}s in the scenario with {row.description}?"
     )
     kwargs = _base_kwargs(
         scenario, intent=Intent.DESCRIBE, network_id=network_id, demand_id=demand_id,
@@ -162,7 +162,7 @@ def descriptive_travel_time_item(
     mean_travel_time = mean_edgedata[edge_id][EdgeMeasure.TRAVEL_TIME]
     text = (
         f"What is the mean travel time on {edge_id} between {window.start:.0f}s and "
-        f"{window.end:.0f}s in scenario {row.id} ({row.description})?"
+        f"{window.end:.0f}s in the scenario with {row.description}?"
     )
     kwargs = _base_kwargs(
         scenario, intent=Intent.DESCRIBE, network_id=network_id, demand_id=demand_id,
@@ -205,7 +205,7 @@ def diagnostic_bottleneck_item(
     )
     text = (
         f"Which three edges form the main bottleneck between {window.start:.0f}s and "
-        f"{window.end:.0f}s in scenario {row.id} ({row.description}), and why?"
+        f"{window.end:.0f}s in the scenario with {row.description}, and why?"
     )
     kwargs = _base_kwargs(
         scenario, intent=Intent.DIAGNOSE, network_id=network_id, demand_id=demand_id,
