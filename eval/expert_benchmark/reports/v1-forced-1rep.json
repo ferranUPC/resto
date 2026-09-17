@@ -1,0 +1,150 @@
+{
+  "runs": 117,
+  "expert_versions": [
+    "v1"
+  ],
+  "questions": 117,
+  "repetitions": [
+    1
+  ],
+  "budget_stops": 7,
+  "per_repetition": {
+    "1": {
+      "descriptive_accuracy": 1.0,
+      "desc_occ_accuracy": 1.0,
+      "desc_tt_accuracy": 1.0,
+      "diag_accuracy": 0.7,
+      "diag_mean_jaccard": 0.7,
+      "cf_dir_accuracy": 1.0,
+      "cf_topk_accuracy": 0.9473684210526315,
+      "cf_topk_mean_jaccard": 0.9473684210526315,
+      "cf_band_accuracy": 1.0,
+      "brier": 0.02123,
+      "accepted_share": 0.9401709401709402
+    }
+  },
+  "aggregate": {
+    "descriptive_accuracy": {
+      "mean": 1.0,
+      "std": null,
+      "repetitions": 1
+    },
+    "desc_occ_accuracy": {
+      "mean": 1.0,
+      "std": null,
+      "repetitions": 1
+    },
+    "desc_tt_accuracy": {
+      "mean": 1.0,
+      "std": null,
+      "repetitions": 1
+    },
+    "diag_accuracy": {
+      "mean": 0.7,
+      "std": null,
+      "repetitions": 1
+    },
+    "diag_mean_jaccard": {
+      "mean": 0.7,
+      "std": null,
+      "repetitions": 1
+    },
+    "cf_dir_accuracy": {
+      "mean": 1.0,
+      "std": null,
+      "repetitions": 1
+    },
+    "cf_topk_accuracy": {
+      "mean": 0.9473684210526315,
+      "std": null,
+      "repetitions": 1
+    },
+    "cf_topk_mean_jaccard": {
+      "mean": 0.9473684210526315,
+      "std": null,
+      "repetitions": 1
+    },
+    "cf_band_accuracy": {
+      "mean": 1.0,
+      "std": null,
+      "repetitions": 1
+    },
+    "brier": {
+      "mean": 0.02123,
+      "std": null,
+      "repetitions": 1
+    },
+    "accepted_share": {
+      "mean": 0.9401709401709402,
+      "std": null,
+      "repetitions": 1
+    }
+  },
+  "accuracy_by_basis": {
+    "inferred": {
+      "answers": 1,
+      "accuracy": 1.0
+    },
+    "observed": {
+      "answers": 109,
+      "accuracy": 1.0
+    }
+  },
+  "cost_by_family": {
+    "cf-band": {
+      "runs": 19.0,
+      "steps": 72.0,
+      "text_only_steps": 0.0,
+      "cut_at_limit_steps": 0.0,
+      "input_tokens": 852027.0,
+      "output_tokens": 40068.0,
+      "cost_usd": 0.15184485
+    },
+    "cf-dir": {
+      "runs": 19.0,
+      "steps": 81.0,
+      "text_only_steps": 0.0,
+      "cut_at_limit_steps": 0.0,
+      "input_tokens": 994464.0,
+      "output_tokens": 48466.0,
+      "cost_usd": 0.1782492
+    },
+    "cf-topk": {
+      "runs": 19.0,
+      "steps": 79.0,
+      "text_only_steps": 0.0,
+      "cut_at_limit_steps": 0.0,
+      "input_tokens": 958256.0,
+      "output_tokens": 47136.0,
+      "cost_usd": 0.17202
+    },
+    "desc-occ": {
+      "runs": 20.0,
+      "steps": 67.0,
+      "text_only_steps": 0.0,
+      "cut_at_limit_steps": 0.0,
+      "input_tokens": 620709.0,
+      "output_tokens": 36238.0,
+      "cost_usd": 0.11484915
+    },
+    "desc-tt": {
+      "runs": 20.0,
+      "steps": 62.0,
+      "text_only_steps": 0.0,
+      "cut_at_limit_steps": 0.0,
+      "input_tokens": 556039.0,
+      "output_tokens": 30723.0,
+      "cost_usd": 0.10183965
+    },
+    "diag": {
+      "runs": 20.0,
+      "steps": 111.0,
+      "text_only_steps": 3.0,
+      "cut_at_limit_steps": 3.0,
+      "input_tokens": 1297480.0,
+      "output_tokens": 104967.0,
+      "cost_usd": 0.2576022
+    }
+  },
+  "total_cost_usd": 0.97640505
+}

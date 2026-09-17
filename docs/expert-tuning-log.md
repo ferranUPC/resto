@@ -45,7 +45,7 @@ agent optimisation; they make the baseline measurable and correct.
 |---|---|---|---|---|---|---|---|---|---|---|
 | v0 | 2026-09-17 | Baseline | `v0-forced-1rep` (117 × 1) | 0.68 | 0.10 | 0.79 | 0.89 | 0.08 | 0.59 | 1.54 |
 | v0 re-scored | 2026-09-17 | Same runs, bank with `NoValue` gold (ADR-0021) | `v0-forced-1rep-rescored` | 0.57 | 0.10 | 0.79 | 0.89 | 0.13 | 0.59 | 0 |
-| v1 | 2026-09-17 | Aggregation tools + expert practice in the prompt | `v1-forced-1rep` (running) | — | — | — | — | — | — | — |
+| v1 | 2026-09-17 | Aggregation tools + expert practice in the prompt | `v1-forced-1rep` (117 × 1) | 1.00 | 0.70 | 1.00 | 1.00 | 0.02 | 0.94 | 0.98 |
 
 DoD thresholds (DEV-NET): descriptive ≥ 0.90, diagnostic Jaccard ≥ 0.60, CF direction ≥ 0.75, CF band ≥ 0.50,
 Brier ≤ 0.25, accepted = 1.00.
@@ -117,6 +117,36 @@ with this re-scored v0.
     independent tool calls together and submit as soon as the data supports an answer.
   - Prompt: `get_scenario` takes the `scenario_id` from `get_result`, never a result id (v0 wasted calls).
   - `NoValue` answer kind (ADR-0021).
+- **Sweep.** `v1-forced-1rep`: 117 × 1, forced mode, 6 workers, 0.98 USD, no crashes.
+- **Results** (against v0 re-scored).
+
+  | Family | v0 correct | v1 correct | v1 budget stops |
+  |---|---|---|---|
+  | `-desc-occ` | 11 / 20 | 20 / 20 | 0 |
+  | `-desc-tt` | 12 / 20 | 20 / 20 | 0 |
+  | `-diag` | 2 / 20 | 14 / 20 | 6 |
+  | `-cf-dir` | 15 / 19 | 19 / 19 | 0 |
+  | `-cf-topk` | 0 / 19 | 18 / 19 | 1 |
+  | `-cf-band` | 17 / 19 | 19 / 19 | 0 |
+  | **Total** | **57 / 117** | **110 / 117** | **7** |
+
+  Budget stops 48 → 7; no answer was wrong or rejected; cost 1.54 → 0.98 USD and input tokens 8.4 M →
+  5.3 M (−37 %). `query_edgedata` was called 5 times in 117 runs. All DoD thresholds met on this single
+  repetition except `accepted` (0.94).
+- **Findings.**
+  1. Aggregation tools removed the dominant failure: no text step was cut at the token limit outside the
+     diagnostic family, and every top-k question but one was answered.
+  2. The seed-mean instruction fixed all 8 `-desc-occ` errors; `NoValue` was used on all 8 edges without
+     traffic.
+  3. Remaining stops are diagnostic questions exploring topology to explain the "why" (`get_edge` 35,
+     `get_neighbours` 30 calls across the 6 stops), plus 3 failed submissions.
+  4. Every run fetches each result and scenario to tell baseline from treatment (522 `get_result`, 174
+     `get_scenario` calls): the largest remaining source of steps.
+- **Caveats.** One repetition; the DEV-NET bank is the tuning set, so these numbers are optimistic until
+  3 repetitions and the held-out REAL-NET bank. The tools do more of the work, as intended (ADR-0022):
+  the benchmark now measures choosing the right measure and comparison, not arithmetic.
+- **Conclusion.** Kept. Next: the diagnostic budget stops (topology exploration for the "why") and the
+  per-run `get_result`/`get_scenario` overhead; then a 3-repetition sweep of the retained version.
 - **Risk to watch.** Tools must stay generic (rank by *any* measure); a tool shaped like the gold answer
   would make the benchmark measure tool selection rather than reasoning.
 
