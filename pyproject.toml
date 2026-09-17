@@ -46,8 +46,11 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 # adapters each; nothing but a type checker verifies those implementations actually line up.
 # eval/dev-net/demand/sim_utils.py (E0.6, a notebook helper) is deliberately excluded: it was
 # never written against mypy and fixing its untyped ElementTree navigation is a separate task -
-# only the two mypy-clean eval/ packages are listed here.
-files = ["src", "tests", "conformance", "verify", "eval/scenario_matrix", "eval/benchmarks"]
+# only the mypy-clean eval/ packages are listed here.
+files = [
+    "src", "tests", "conformance", "verify",
+    "eval/scenario_matrix", "eval/benchmarks", "eval/question_bank",
+]
 check_untyped_defs = true
 ignore_missing_imports = true  # traci / sumolib ship no type information
 
