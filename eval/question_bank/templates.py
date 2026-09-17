@@ -159,7 +159,18 @@ def descriptive_travel_time_item(
 ) -> QuestionBankItem:
     window = descriptive_window(row)
     edge_id = target_edge(row)
-    mean_travel_time = mean_edgedata[edge_id][EdgeMeasure.TRAVEL_TIME]
+    # travel time is a per-vehicle mean: undefined in a run no vehicle crossed the edge (the contract
+    # zero-fills it), so only runs with traffic count, and none at all means no value (ADR-0021)
+    with_traffic = [
+        seed[edge_id][EdgeMeasure.TRAVEL_TIME]
+        for seed in seed_edgedata
+        if seed[edge_id][EdgeMeasure.SAMPLED_SECONDS] > 0
+    ]
+    gold: dict[str, Any] = {"edge_id": edge_id}
+    if with_traffic:
+        gold["mean_travel_time_s"] = sum(with_traffic) / len(with_traffic)
+    else:
+        gold["no_value"] = "no_traffic"
     text = (
         f"What is the mean travel time on {edge_id} between {window.start:.0f}s and "
         f"{window.end:.0f}s in the scenario with {row.description}?"
@@ -174,7 +185,7 @@ def descriptive_travel_time_item(
         question=question,
         scenario_id=scenario.scenario_id,
         result_ids=result_ids,
-        gold_answer={"edge_id": edge_id, "mean_travel_time_s": mean_travel_time},
+        gold_answer=gold,
         evidence={
             "measure": EdgeMeasure.TRAVEL_TIME,
             "per_seed_values": [seed[edge_id][EdgeMeasure.TRAVEL_TIME] for seed in seed_edgedata],

@@ -215,7 +215,7 @@
     },
     "gold_answer": {
       "edge_id": "B2C2",
-      "mean_travel_time_s": 0.0
+      "no_value": "no_traffic"
     },
     "id": "S01-desc-tt",
     "question": {
@@ -606,7 +606,7 @@
     },
     "gold_answer": {
       "edge_id": "C2D2",
-      "mean_travel_time_s": 0.0
+      "no_value": "no_traffic"
     },
     "id": "S02-desc-tt",
     "question": {
@@ -991,7 +991,7 @@
     },
     "gold_answer": {
       "edge_id": "B0C0",
-      "mean_travel_time_s": 0.0
+      "no_value": "no_traffic"
     },
     "id": "S03-desc-tt",
     "question": {
@@ -1376,7 +1376,7 @@
     },
     "gold_answer": {
       "edge_id": "C1D1",
-      "mean_travel_time_s": 0.0
+      "no_value": "no_traffic"
     },
     "id": "S04-desc-tt",
     "question": {
@@ -1752,7 +1752,7 @@
     },
     "gold_answer": {
       "edge_id": "C0D0",
-      "mean_travel_time_s": 0.0
+      "no_value": "no_traffic"
     },
     "id": "S05-desc-tt",
     "question": {
@@ -2123,7 +2123,7 @@
     },
     "gold_answer": {
       "edge_id": "A1B1",
-      "mean_travel_time_s": 0.0
+      "no_value": "no_traffic"
     },
     "id": "S06-desc-tt",
     "question": {
@@ -2502,7 +2502,7 @@
     },
     "gold_answer": {
       "edge_id": "D2E2",
-      "mean_travel_time_s": 0.0
+      "no_value": "no_traffic"
     },
     "id": "S07-desc-tt",
     "question": {
@@ -2893,7 +2893,7 @@
     },
     "gold_answer": {
       "edge_id": "B2C2",
-      "mean_travel_time_s": 0.0
+      "no_value": "no_traffic"
     },
     "id": "S08-desc-tt",
     "question": {

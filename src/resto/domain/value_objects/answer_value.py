@@ -130,4 +130,31 @@ class Change:
             raise ValueError("relative_change_pct contradicts the direction")
 
 
-AnswerValue = Edges | Quantity | Change
+class NoValueReason(StrEnum):
+    NO_TRAFFIC = "no_traffic"
+
+
+PER_VEHICLE_MEASURES = frozenset({Measure.TRAVEL_TIME, Measure.SPEED})
+
+
+@dataclass(frozen=True, slots=True)
+class NoValue:
+    """The data shows the measure is undefined, e.g. the mean travel time of an edge no vehicle
+    crossed. Not an abstention: the answer rests on evidence (ADR-0021). Only per-vehicle means can
+    be undefined; a 0 % occupancy or a zero total delay is a real value."""
+
+    measure: Measure
+    edge_id: str
+    reason: NoValueReason = NoValueReason.NO_TRAFFIC
+    kind: Literal["no_value"] = "no_value"
+
+    def __post_init__(self) -> None:
+        if self.measure not in PER_VEHICLE_MEASURES:
+            raise ValueError(
+                f"{self.measure} always has a value; only per-vehicle means can be undefined"
+            )
+        if not self.edge_id:
+            raise ValueError("a NoValue names the edge it refers to")
+
+
+AnswerValue = Edges | Quantity | Change | NoValue

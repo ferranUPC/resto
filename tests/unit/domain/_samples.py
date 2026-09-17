@@ -25,6 +25,7 @@ from resto.domain.value_objects.answer_value import (
     ChangeDirection,
     Edges,
     Measure,
+    NoValue,
     Quantity,
 )
 from resto.domain.value_objects.applied_action import ActionOrigin, AppliedAction
@@ -280,6 +281,7 @@ SAMPLES: dict[type, Callable[[], object]] = {
     ExpertAnswer: expert_answer,
     Evidence: lambda: Evidence(kind=EvidenceKind.ARTIFACT, ref="edgedata.xml", excerpt="E12"),
     Edges: lambda: Edges(edge_ids=("E12", "E07"), ranked=True),
+    NoValue: lambda: NoValue(measure=Measure.TRAVEL_TIME, edge_id="E12"),
     Quantity: lambda: Quantity(measure=Measure.TRAVEL_TIME, value=23.4, edge_id="E12"),
     Change: lambda: Change(
         measure=Measure.MEAN_DELAY, direction=ChangeDirection.INCREASE, relative_change_pct=7.6

@@ -17,6 +17,7 @@ from resto.domain.value_objects.answer_value import (
     ChangeDirection,
     Edges,
     Measure,
+    NoValue,
     Quantity,
 )
 from resto.domain.value_objects.expert_answer import ExpertAnswer
@@ -86,6 +87,15 @@ def _score_desc_occ(question: BenchmarkQuestion, values: tuple[AnswerValue, ...]
 
 def _score_desc_tt(question: BenchmarkQuestion, values: tuple[AnswerValue, ...]) -> Score:
     edge_id = question.gold["edge_id"]
+    said_no_value = any(
+        isinstance(v, NoValue) and (v.measure, v.edge_id) == (Measure.TRAVEL_TIME, edge_id)
+        for v in values
+    )
+    if "no_value" in question.gold:
+        detail = "answered no value" if said_no_value else "gold: no vehicle crossed, no value"
+        return Score(said_no_value, detail)
+    if said_no_value:
+        return Score(False, "answered no value, but the edge had traffic")
     quantity = next(
         (
             v

@@ -9,6 +9,7 @@ from resto.domain.value_objects.answer_value import (
     ChangeDirection,
     Edges,
     Measure,
+    NoValue,
     Quantity,
 )
 
@@ -61,3 +62,12 @@ def test_change_percentage_is_optional_and_unchanged_accepts_either_sign() -> No
     Change(measure=Measure.TIME_LOSS, direction=ChangeDirection.INCREASE, edge_id="B2C2")
     Change(measure=Measure.MEAN_DELAY, direction=ChangeDirection.UNCHANGED, relative_change_pct=-2)
     Change(measure=Measure.MEAN_DELAY, direction=ChangeDirection.UNCHANGED, relative_change_pct=3)
+
+
+def test_no_value_only_for_per_vehicle_means_on_a_named_edge() -> None:
+    assert NoValue(measure=Measure.TRAVEL_TIME, edge_id="E12").reason.value == "no_traffic"
+    NoValue(measure=Measure.SPEED, edge_id="E12")
+    with pytest.raises(ValueError, match="always has a value"):
+        NoValue(measure=Measure.OCCUPANCY, edge_id="E12")
+    with pytest.raises(ValueError, match="names the edge"):
+        NoValue(measure=Measure.TRAVEL_TIME, edge_id="")

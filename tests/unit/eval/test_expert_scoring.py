@@ -15,6 +15,7 @@ from resto.domain.value_objects.answer_value import (
     ChangeDirection,
     Edges,
     Measure,
+    NoValue,
     Quantity,
 )
 from resto.domain.value_objects.expert_answer import Basis, Evidence, EvidenceKind, ExpertAnswer
@@ -139,3 +140,10 @@ def test_cf_band_derives_the_band_from_the_percentage() -> None:
     assert score_answer(BAND, right).correct
     assert not score_answer(BAND, wrong).correct
     assert not score_answer(BAND, no_pct).correct
+
+
+def test_desc_tt_on_an_edge_without_traffic_expects_no_value() -> None:
+    closed = _question("S01-desc-tt", {"edge_id": "B2C2", "no_value": "no_traffic"})
+    assert score_answer(closed, _answer(NoValue(Measure.TRAVEL_TIME, "B2C2"))).correct
+    assert not score_answer(closed, _answer(Quantity(Measure.TRAVEL_TIME, 0.0, "B2C2"))).correct
+    assert not score_answer(TT, _answer(NoValue(Measure.TRAVEL_TIME, "B2C2"))).correct

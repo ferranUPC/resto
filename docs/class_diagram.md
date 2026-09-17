@@ -153,6 +153,11 @@ class Measure {
   DEPARTED
   ARRIVED
 }
+class NoValue {
+  +Measure measure
+  +str edge_id
+  +NoValueReason reason
+}
 class ChangeDirection {
   <<enumeration>>
   INCREASE
@@ -212,6 +217,8 @@ ExpertAnswer "1" *-- "0..*" AnswerValue : values
 AnswerValue <|-- Edges
 AnswerValue <|-- Quantity
 AnswerValue <|-- Change
+AnswerValue <|-- NoValue
+NoValue --> Measure
 Quantity --> Measure
 Change --> Measure
 Change --> ChangeDirection

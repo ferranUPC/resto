@@ -326,6 +326,9 @@
               },
               {
                 "$ref": "#/$defs/Change"
+              },
+              {
+                "$ref": "#/$defs/NoValue"
               }
             ]
           },
@@ -534,6 +537,41 @@
         "forced"
       ],
       "title": "Mode",
+      "type": "string"
+    },
+    "NoValue": {
+      "description": "The data shows the measure is undefined, e.g. the mean travel time of an edge no vehicle\ncrossed. Not an abstention: the answer rests on evidence (ADR-0021). Only per-vehicle means can\nbe undefined; a 0 % occupancy or a zero total delay is a real value.",
+      "properties": {
+        "edge_id": {
+          "title": "Edge Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "no_value",
+          "default": "no_value",
+          "title": "Kind",
+          "type": "string"
+        },
+        "measure": {
+          "$ref": "#/$defs/Measure"
+        },
+        "reason": {
+          "$ref": "#/$defs/NoValueReason",
+          "default": "no_traffic"
+        }
+      },
+      "required": [
+        "measure",
+        "edge_id"
+      ],
+      "title": "NoValue",
+      "type": "object"
+    },
+    "NoValueReason": {
+      "enum": [
+        "no_traffic"
+      ],
+      "title": "NoValueReason",
       "type": "string"
     },
     "Operator": {
