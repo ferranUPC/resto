@@ -6,9 +6,9 @@ Status: ⬜ not started · 🔄 in progress · 🚧 blocked (cannot proceed for 
 the Notes column says why and what unblocks it) · ✅ done (meets its Done/threshold from the DoD, not just
 "code exists")
 
-Last updated: 2026-09-17
+Last updated: 2026-09-18
 
-**Summary: 19 / 65 tasks done (29.2%), 1 blocked** (E7.7 is Stretch, never scheduled — excluded from the count, per work plan §5)
+**Summary: 21 / 65 tasks done (32.3%), 1 blocked** (E7.7 is Stretch, never scheduled — excluded from the count, per work plan §5)
 
 ---
 
@@ -53,8 +53,8 @@ Last updated: 2026-09-17
 | ID | Task | Status | Notes |
 |---|---|---|---|
 | E3.1 | Scenario matrix DEV-NET/peak (15–25 rows × 3 seeds) | ✅ | 2026-09-15, commit `3900171` (verified now): `eval/scenario_matrix/` hand-authors 20 rows (baseline, `lane_closure`, `edge_closure`, `speed_limit`, `signal_program`, `demand_scale`) x 3 seeds = 60 `SimulationResult`s, promoted through the real `build_scenario`/`run_simulation` use cases and stored through an actual MCP `ClientSession` over the SQLite reference backend (not in-process repositories). Each row's DoD §4.5 effect is re-checked before it counts as built. `matrix-report.md` shows plausible real numbers, e.g. `demand_scale` mean departed 1440.0/960.0/1799.3 for ×1.2/×0.8/×1.5 against a 1200.0 baseline — consistent scaling, not placeholder data. Follow-up commit `b71a4f5` (same day) merged duplicate edgedata XML parsers found while building this into one `parse_edgedata` |
-| E3.2 | Question templates + generator + gold answers (≥60 on DEV-NET) | ⬜ | |
-| E3.3 | Metrics harness (exact match, Jaccard, direction, band, Brier, abstention P/R) | ⬜ | |
+| E3.2 | Question templates + generator + gold answers (≥60 on DEV-NET) | ✅ | 2026-09-17, commit `10c85a6`: 117 questions on DEV-NET/peak (floor: 60) — 40 descriptive, 20 diagnostic, 57 counterfactual — over the E3.1 20-row matrix, gold answers computed from `query_edgedata` and KPIs averaged over 3 seeds. Verified now: `question-bank.json` has exactly 117 entries. Landed the same day as E3.3/E4.1 but its tracker row was never flipped — corrected in this review (see `.claude/skills/progress-review/SKILL.md`'s new cross-check step). One documented scope note (not a gap): each diagnostic's `gold_answer["reason"]` is computed but not wired to any grading metric yet — left for E3.3, and E3.3 itself doesn't score it either (see E3.3's note) |
+| E3.3 | Metrics harness (exact match, Jaccard, direction, band, Brier, abstention P/R) | 🔄 | 2026-09-17, commit `2a9d3cd`: `eval/expert_benchmark/` runs the Expert over the question bank × repetitions (resumable, cost-capped, parallel) and scores exact-set/±5%/Jaccard≥0.6/direction/band/Brier against the DoD §4.7 thresholds, mean±std, report generation — verified in `report.py` (`"brier": ("<=", 0.25)` etc.). This is what E4.7's single-rep sweep numbers come from. Not yet ✅: `abstention P/R` from this task's own listed scope is not implemented (no `abstention`/`precision`/`recall` in `report.py`) — correctly blocked on E4.5 (free mode/abstention), which hasn't been built, so there are no abstain answers to score against yet. Was undercounted in the same way as E3.2/E4.1 before this review (row said ⬜, should have said 🔄) |
 | E3.4 | Request bank (50+ NL requests, 10+ ambiguous; gold `Question` + `StudyPlan` + trace) | ⬜ | |
 | E3.5 | Scenario matrix REAL-NET/peak | ⬜ | |
 | E3.6 | Question bank REAL-NET (40+) | ⬜ | |
@@ -63,7 +63,7 @@ Last updated: 2026-09-17
 
 | ID | Task | Status | Notes |
 |---|---|---|---|
-| E4.1 | Refactor v1 Expert onto `ToolAgent` (`ExpertTask` → `ExpertAnswer`); facts via tools; `evidence[]` | ⬜ | |
+| E4.1 | Refactor v1 Expert onto `ToolAgent` (`ExpertTask` → `ExpertAnswer`); facts via tools; `evidence[]` | ✅ | 2026-09-17, commit `d7683b3` (ADR-0018): `ExpertTask` in, `ExpertAnswer` out, facts only through NetworkMCP + result tools (`get_scenario`, `result_ids` allow-list) — every tool call recorded in an `EvidenceLedger` so `ask_expert` rejects any `evidence[]` ref that doesn't resolve to an actual call of the run. Smoke run per the commit message: 5/5 bank questions promoted, 4/5 matched gold, ~$0.06. Verified now: 39 tests pass across `test_expert.py` (agent), `test_ask_expert.py` (use case), `test_expert.py` (tools). Landed the same day as E3.2/E3.3; tracker row was never flipped — corrected in this review |
 | E4.2 | Descriptive questions to Done on DEV-NET (≥90%) | ⬜ | |
 | E4.3 | Diagnostic questions to Done (Jaccard ≥0.6; "why" rubric ≥70%) | ⬜ | |
 | E4.4 | Counterfactual, forced mode (direction ≥75%, band ≥50%) | ⬜ | |
