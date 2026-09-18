@@ -17,6 +17,7 @@ Runs a check of real progress on the RESTO TFM against the plan, and records an 
 ## 2. Update the tracker
 
 - For every task in `docs/progress-tracker.md`, re-check its status (⬜ not started / 🔄 in progress / ✅ done) against the evidence gathered and against its DoD criteria in §4.x of the architecture doc. A task becomes ✅ only when it meets its Done/threshold, never just because related code exists.
+- **Do not trust the tracker's existing state as already correct, even for rows that didn't change since the last commit you can see.** A prior update to this file may have been made interactively (not by this skill) and can be incomplete — e.g. a task's code and tests landed and got described in another task's Notes or in the feasibility write-up's prose, but its own row was never flipped to ✅. Cross-check every non-✅ row against `git log`/the repo tree for evidence it was actually finished, not just against the diff since the tracker's last "Last updated" date.
 - Update each task's Notes with what concretely changed since the last review; leave unchanged tasks alone rather than inventing movement.
 - Refresh the summary count/percentage, the milestone table (M0–M7), and the "Last updated" date at the top of the file.
 
