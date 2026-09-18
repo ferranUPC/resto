@@ -6,7 +6,7 @@ Status: ⬜ not started · 🔄 in progress · 🚧 blocked (cannot proceed for 
 the Notes column says why and what unblocks it) · ✅ done (meets its Done/threshold from the DoD, not just
 "code exists")
 
-Last updated: 2026-09-18
+Last updated: 2026-09-17
 
 **Summary: 19 / 65 tasks done (29.2%), 1 blocked** (E7.7 is Stretch, never scheduled — excluded from the count, per work plan §5)
 
