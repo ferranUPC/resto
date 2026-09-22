@@ -154,8 +154,9 @@ python -m eval.expert_benchmark.run --name <name> --report-only   # re-score sto
 - **Cost cap**: `--max-cost-usd` stops starting new runs once the estimated spend reaches it.
 - **Workers** run questions in parallel, each with its own SQLite connection and network query.
 
-Repetitions: **3** per question. Free mode is **not run for now** (budget decision, 2026-09-17), so the
-abstention metrics (§4.5) are deferred.
+Repetitions: **3** per question. Free mode is **not run for now**, so the abstention metrics (§4.5) are
+deferred — both the forced 3-repetition sweep and the forced+free paired sweep are logged as pending
+paid experiments in §7.
 
 **Budget (principle 6): tokens per family, dollars for the current default model derived from them.**
 Measured on `v1-forced-1rep` (`eval/expert_benchmark/reports/v1-forced-1rep.json`), one repetition over
@@ -244,7 +245,8 @@ expected one (e.g. supporting quantities) are ignored.
 - **Abstention** (DoD: recall ≥ 70 %, false requests ≤ 30 %). Each question runs in forced and free mode;
   a question *should* abstain when the forced answer is incorrect. Recall = abstained in free ∧ incorrect
   in forced / incorrect in forced. False requests = abstained in free ∧ correct in forced / abstained in
-  free. **Deferred**: free mode is not budgeted yet.
+  free. Computed in `eval/expert_benchmark/report.py` (E4.5); the harness supports running each question
+  in both modes (`--mode both`). **Deferred**: the full-bank sweep is a pending paid experiment (§7).
 
 ### 4.6 Aggregation and report
 
@@ -306,10 +308,46 @@ Observations:
 | 2026-09-17 | `time_loss` and `waiting_time` are vehicle-second totals; diagnostic gold ranks by total `time_loss` (ADR-0020). |
 | 2026-09-17 | Every benchmark run records `EXPERT_VERSION`; agent changes are logged in `expert-tuning-log.md`. |
 | 2026-09-17 | Diagnostic budget stops are left as they are until E4.3 tunes the Expert; no budget or prompt change before then, and they score as failures in any sweep run earlier. |
+| 2026-09-22 | CLAUDE.md cost policy: any single experiment/benchmark run estimated above $1 waits for the end-of-project evaluation pass instead of running ad hoc (§7). This supersedes the 2026-09-17 call above that the forced 117 × 3 sweep was "within budget" — it is relisted as pending in §7 under the same rule. |
 
 ## 6. Open questions
 
 - How to grade the diagnostic "why": human rubric, LLM-as-judge, or both with agreement reported.
 - Budget and test choice for the `observed` vs `extrapolated` comparison.
-- When to budget free mode for the abstention metrics.
 - Whether to implement the excerpt-vs-ledger number check before the first full sweep.
+
+## 7. Pending paid experiments
+
+Per CLAUDE.md's cost policy: any single experiment/benchmark run estimated above $1 waits for a
+dedicated evaluation pass at the end of the project — once it is clear whether the project gets
+dedicated funding — instead of running ad hoc. This section has two layers, kept deliberately
+separate:
+
+- **§7.1 Evaluation needs** — *what* still needs measuring against a real model, independent of how
+  it eventually gets run. Add a row whenever a DoD threshold (§4 of this doc, or `tfm-architecture-
+  and-dod.md`) or an open question (§6) can only be answered by spending money. A need is not itself
+  a thing to run.
+- **§7.2 Experiment plans** — concrete paid runs. Each plan covers one or more needs; needs that share
+  the same underlying pass (e.g. two needs that both require a forced-mode sweep) get merged into one
+  plan rather than paid for twice, per the reasoning under EXP-01 below. Costs here — including
+  re-running a plan on a different/stronger model, which separately needs the escalation-model
+  approval CLAUDE.md already requires — are what gets justified to project stakeholders in one pass.
+  A run at or under $1 (smoke tests) is not logged here; it runs directly with its cost stated up
+  front, same as `e45-smoke` was.
+
+### 7.1 Evaluation needs
+
+| ID | Need | Drives | Status |
+|---|---|---|---|
+| N1 | Forced-mode accuracy across repetitions (mean ± std, not a single pass/fail) on the full 117-question bank | E4.2, E4.3, E4.4 (per-family Done thresholds) and E4.7 (DoD report, §4.7) | A 1-repetition sweep (`v1-forced-1rep`) exists and meets every per-family threshold; the DoD's 3-repetition bar is unmet |
+| N2 | Does the Expert abstain (free mode) exactly where its forced-mode answer would have been wrong, at the DoD's recall/false-request thresholds? | E4.5 (`abstention_recall` ≥ 70 %, `abstention_false_requests` ≤ 30 %, §4.5) | Harness built; the 4-question smoke (`e45-smoke`, $0.056) validated it end to end but gave no signal — zero forced-incorrect and zero abstentions in that tiny sample |
+| N3 *(parked)* | Whether 3 repetitions is actually the right count for N1/N2, or fewer/more would materially change the read | Methodology question, not a DoD threshold | Raised 2026-09-22 as a side thought, not yet scoped as something worth spending on — revisit if N1/N2's results look unstable enough to justify it |
+
+Add a row here first, before adding or changing anything in §7.2, whenever a new DoD threshold or
+open question turns out to need a real run.
+
+### 7.2 Experiment plans
+
+| ID | Name | Covers | Scope | Model | Estimated cost | Notes |
+|---|---|---|---|---|---|---|
+| EXP-01 | `forced3-free-abstention` | N1 + N2 | 117 questions × 3 repetitions forced + free mode paired on the same questions, free-mode repetitions TBD | `deepseek/deepseek-v4.1-flash` | ≈ $2.9 (forced, fixed) + ≈ $1.0/repetition (free) → **≈ $3.9** at 1 free repetition or **≈ $5.8** at 3 (§4.2) | N1 and N2 both need a forced-mode sweep of the same questions; running it once at 3 repetitions serves N1 directly and *is* the forced half of N2's abstention pairing, so paying for a second, separate forced-mode pass would be redundant — merged for that reason. Free-mode repetition count (1 vs 3) is an open choice: 3 matches the forced count and gives mean ± std on N2's metrics too; 1 is cheaper with a single-point estimate. `--mode both` in `eval/expert_benchmark/run.py` runs both legs into the same `runs/<name>.jsonl`; use `--name forced3-free-abstention` to keep the file matching this row. |
