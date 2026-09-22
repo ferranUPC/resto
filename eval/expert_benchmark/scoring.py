@@ -11,6 +11,7 @@ from dataclasses import dataclass
 
 from eval.expert_benchmark.bank import BenchmarkQuestion, Family
 from eval.question_bank.gold import magnitude_band
+from resto.domain.services.comparison import within_tolerance
 from resto.domain.value_objects.answer_value import (
     AnswerValue,
     Change,
@@ -22,7 +23,6 @@ from resto.domain.value_objects.answer_value import (
 )
 from resto.domain.value_objects.expert_answer import ExpertAnswer
 
-NUMERIC_TOLERANCE = 0.05
 JACCARD_CORRECT = 0.6
 
 _GOLD_DIRECTION = {
@@ -45,12 +45,6 @@ def jaccard(a: Collection[str], b: Collection[str]) -> float:
     if not sa and not sb:
         return 1.0
     return len(sa & sb) / len(sa | sb)
-
-
-def within_tolerance(predicted: float, gold: float, tolerance: float = NUMERIC_TOLERANCE) -> bool:
-    if gold == 0.0:
-        return predicted == 0.0
-    return abs(predicted - gold) <= tolerance * abs(gold)
 
 
 def score_answer(

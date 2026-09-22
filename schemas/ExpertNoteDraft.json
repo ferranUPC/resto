@@ -9,6 +9,90 @@
       "title": "Basis",
       "type": "string"
     },
+    "Change": {
+      "description": "How a measure changes relative to a reference (usually the baseline): a direction and,\nwhen known, the relative change in percent.",
+      "properties": {
+        "direction": {
+          "$ref": "#/$defs/ChangeDirection"
+        },
+        "edge_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Edge Id"
+        },
+        "kind": {
+          "const": "change",
+          "default": "change",
+          "title": "Kind",
+          "type": "string"
+        },
+        "measure": {
+          "$ref": "#/$defs/Measure"
+        },
+        "relative_change_pct": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Relative Change Pct"
+        }
+      },
+      "required": [
+        "measure",
+        "direction"
+      ],
+      "title": "Change",
+      "type": "object"
+    },
+    "ChangeDirection": {
+      "enum": [
+        "increase",
+        "decrease",
+        "unchanged"
+      ],
+      "title": "ChangeDirection",
+      "type": "string"
+    },
+    "Edges": {
+      "description": "A set of edges, or a ranking when `ranked` (most relevant first). Empty is a valid\nanswer (\"no edge does\").",
+      "properties": {
+        "edge_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Edge Ids",
+          "type": "array"
+        },
+        "kind": {
+          "const": "edges",
+          "default": "edges",
+          "title": "Kind",
+          "type": "string"
+        },
+        "ranked": {
+          "default": false,
+          "title": "Ranked",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "edge_ids"
+      ],
+      "title": "Edges",
+      "type": "object"
+    },
     "Evidence": {
       "properties": {
         "excerpt": {
@@ -38,9 +122,100 @@
       ],
       "title": "EvidenceKind",
       "type": "string"
+    },
+    "Measure": {
+      "description": "What a typed answer measures. The unit is fixed by the measure (`unit`), so an answer\ncan never be stated in a different one. `time_loss` and `waiting_time` are totals summed over\nevery vehicle on the edge (vehicle-seconds), not per-vehicle means (ADR-0020).",
+      "enum": [
+        "travel_time",
+        "time_loss",
+        "waiting_time",
+        "occupancy",
+        "speed",
+        "density",
+        "entered",
+        "left",
+        "mean_delay",
+        "mean_travel_time",
+        "teleports",
+        "departed",
+        "arrived"
+      ],
+      "title": "Measure",
+      "type": "string"
+    },
+    "NoValue": {
+      "description": "The data shows the measure is undefined, e.g. the mean travel time of an edge no vehicle\ncrossed. Not an abstention: the answer rests on evidence (ADR-0021). Only per-vehicle means can\nbe undefined; a 0 % occupancy or a zero total delay is a real value.",
+      "properties": {
+        "edge_id": {
+          "title": "Edge Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "no_value",
+          "default": "no_value",
+          "title": "Kind",
+          "type": "string"
+        },
+        "measure": {
+          "$ref": "#/$defs/Measure"
+        },
+        "reason": {
+          "$ref": "#/$defs/NoValueReason",
+          "default": "no_traffic"
+        }
+      },
+      "required": [
+        "measure",
+        "edge_id"
+      ],
+      "title": "NoValue",
+      "type": "object"
+    },
+    "NoValueReason": {
+      "enum": [
+        "no_traffic"
+      ],
+      "title": "NoValueReason",
+      "type": "string"
+    },
+    "Quantity": {
+      "description": "One measured value, in `measure.unit`, on one edge or (edge_id None) the whole network.",
+      "properties": {
+        "edge_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Edge Id"
+        },
+        "kind": {
+          "const": "quantity",
+          "default": "quantity",
+          "title": "Kind",
+          "type": "string"
+        },
+        "measure": {
+          "$ref": "#/$defs/Measure"
+        },
+        "value": {
+          "title": "Value",
+          "type": "number"
+        }
+      },
+      "required": [
+        "measure",
+        "value"
+      ],
+      "title": "Quantity",
+      "type": "object"
     }
   },
-  "description": "Network Expert output after an experiment: the prose only.\n\n`provenance`, `status`, `note_id` and the references to network/scenario/study are written\nby `write_note`, which knows the experiment the note came from.",
+  "description": "Network Expert output after an experiment: the prose, plus any typed claim worth checking\nagainst a later `SimulationResult` (E4.6; same `AnswerValue` union as `ExpertAnswer.values`).\n\n`provenance`, `status`, `note_id` and the references to network/scenario/study are written\nby `write_note`, which knows the experiment the note came from.",
   "properties": {
     "basis": {
       "$ref": "#/$defs/Basis"
@@ -65,6 +240,27 @@
     "text": {
       "title": "Text",
       "type": "string"
+    },
+    "values": {
+      "default": [],
+      "items": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/Edges"
+          },
+          {
+            "$ref": "#/$defs/Quantity"
+          },
+          {
+            "$ref": "#/$defs/Change"
+          },
+          {
+            "$ref": "#/$defs/NoValue"
+          }
+        ]
+      },
+      "title": "Values",
+      "type": "array"
     }
   },
   "required": [

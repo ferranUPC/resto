@@ -1,0 +1,9 @@
+{
+  "probes": 20,
+  "answered": 18,
+  "violations": 0,
+  "pass_rate": 1.0,
+  "meets_threshold": true,
+  "violation_ids": [],
+  "total_cost_usd": 0.11178089999999999
+}

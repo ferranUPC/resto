@@ -222,6 +222,7 @@ def expert_note() -> ExpertNote:
         basis=Basis.OBSERVED,
         scenario_id="s1",
         context_tags=frozenset({"peak"}),
+        values=(Quantity(measure=Measure.MEAN_DELAY, value=41.2),),
     )
 
 
@@ -265,7 +266,9 @@ SAMPLES: dict[type, Callable[[], object]] = {
     NetworkDraft: network_draft,
     DemandDraft: demand_draft,
     ScenarioDraft: scenario_draft,
-    ExpertNoteDraft: expert_note_draft,
+    ExpertNoteDraft: lambda: expert_note_draft(
+        values=(Change(measure=Measure.MEAN_DELAY, direction=ChangeDirection.INCREASE),)
+    ),
     UnresolvedIssue: lambda: UnresolvedIssue(
         "junction", "J7", "turns point the wrong way", "set_connection"
     ),

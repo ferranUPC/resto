@@ -35,3 +35,4 @@ numbered in the order they were taken.
 | [0021](0021-no-value-answers.md) | `NoValue` — an evidence-backed "this measure is undefined" answer | 2026-09-17 | Accepted |
 | [0022](0022-expert-aggregation-tools.md) | Expert aggregation tools — `edge_stats`, `rank_edges`, `compare_edges`, `compare_kpis` | 2026-09-17 | Accepted |
 | [0023](0023-coordinator-split-deterministic-executor.md) | Coordinator split — Input Parser, one-shot Coordinator (`Question` → `StudyPlan`), deterministic Executor; `Study` in phases | 2026-09-22 | Accepted — supersedes ADR-0001's Coordinator consequence and ADR-0002's `Study` shape |
+| [0024](0024-expert-notes-typed-claims-and-deterministic-status.md) | `ExpertNote` carries typed claims; code confirms or refutes them against `Kpis` | 2026-09-22 | Accepted — extends ADR-0011/ADR-0019 |

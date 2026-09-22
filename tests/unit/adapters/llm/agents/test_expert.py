@@ -6,16 +6,25 @@ from __future__ import annotations
 import re
 from collections.abc import Sequence
 
-from resto.adapters.llm.agents.expert import build_task, run_expert
+from resto.adapters.llm.agents.expert import (
+    build_note_task,
+    build_task,
+    run_expert,
+    run_expert_note,
+)
 from resto.adapters.persistence.memory import InMemoryResultRepository, InMemoryScenarioRepository
 from resto.adapters.sumo.netxml import SumolibNetworkQuery
 from resto.application.ports.llm import AgentTask, Budget, Tool
+from resto.application.schemas import adapter_for
 from resto.application.tools.expert import (
     EXPERT_NETWORK_TOOLS,
     EXPERT_TOPOLOGY_TOOLS,
     RESULT_TOOLS,
     EvidenceLedger,
 )
+from resto.domain.value_objects.drafts import ExpertNoteDraft
+from resto.domain.value_objects.expert_answer import Basis, ExpertAnswer
+from resto.domain.value_objects.expert_round import ExpertRound
 from resto.domain.value_objects.question import Mode
 from resto.domain.value_objects.tasks import ExpertTask
 from tests.unit.adapters.llm._fakes import FakeToolAgent, call_tool
@@ -81,3 +90,34 @@ def test_run_expert_offers_the_expert_tools_and_returns_the_agent_run() -> None:
     assert seen["input"] == build_task(TASK).input
     assert seen["tools"] == [*EXPERT_NETWORK_TOOLS, *EXPERT_TOPOLOGY_TOOLS, *RESULT_TOOLS]
     assert [e.tool for e in ledger.entries] == ["get_result"]
+
+
+ROUND = ExpertRound(question=TASK.question, answer=expert_answer())
+
+
+def test_build_note_task_carries_the_round_as_plain_data() -> None:
+    task = build_note_task(ROUND)
+    assert task.input == {
+        "question": ROUND.question,
+        "answer": adapter_for(ExpertAnswer).dump_python(ROUND.answer, mode="json"),
+    }
+    for rule in ("basis", "context_tags", "values", "submit_output"):
+        assert rule in task.system_prompt
+
+
+def test_run_expert_note_offers_no_tools_and_returns_the_agent_run() -> None:
+    draft = ExpertNoteDraft(
+        text="closing the lane reroutes traffic onto B2C2", basis=Basis.INFERRED
+    )
+    seen: dict[str, object] = {}
+
+    def interact(task: AgentTask, tools: Sequence[Tool]) -> None:
+        seen["input"] = task.input
+        seen["tools"] = list(tools)
+
+    agent = FakeToolAgent(output=draft, interact=interact)
+    run = run_expert_note(ROUND, agent, BUDGET)
+
+    assert run.output == draft
+    assert seen["input"] == build_note_task(ROUND).input
+    assert seen["tools"] == []

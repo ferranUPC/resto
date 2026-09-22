@@ -17,9 +17,12 @@ from resto.application.ports.repositories import (
     ResultRepository,
     ScenarioRepository,
 )
+from resto.application.schemas import adapter_for
 from resto.application.tools.expert import EvidenceLedger, build_expert_tools
 from resto.domain.value_objects.answer_value import Measure
+from resto.domain.value_objects.drafts import ExpertNoteDraft
 from resto.domain.value_objects.expert_answer import ExpertAnswer
+from resto.domain.value_objects.expert_round import ExpertRound
 from resto.domain.value_objects.tasks import ExpertTask
 
 # Bump whenever the prompt, the tool set or the default budget changes in a way that can change
@@ -127,3 +130,43 @@ def run_expert(
         task=task, query=query, results=results, scenarios=scenarios, notes=notes, ledger=ledger
     )
     return agent.run(build_task(task), tools, ExpertAnswer, budget)
+
+
+# The note-writing call reuses the round's own question/answer/evidence as context instead of new
+# tool calls (E4.6): no extra API cost beyond this one call, and every evidence ref it cites must
+# already be in the ledger `write_note` promotes it with.
+NOTE_SYSTEM_PROMPT = """\
+You just answered a question about a SUMO road network as the Network Expert. Write one persistent
+note capturing what is worth remembering, for a future question on this network to retrieve.
+
+`text`: a short, self-contained summary in prose — a future reader will not see the original
+question, so restate what it was about.
+`basis`: same meaning as when you answered (observed / inferred / extrapolated); an observed note
+must carry `evidence` pointing at what was observed, using only refs you were actually given below
+— you have no tools here, so you cannot make a new query.
+`context_tags`: a few short topical tags a later search would use to find this note.
+`values`: any measurement from your answer worth checking again later against a fresh simulation,
+using the same typed kinds as before (edges / quantity / change / no_value). Leave empty if nothing
+is worth tracking as a precise, re-checkable number — most notes will.
+
+Submit with submit_output.
+"""
+
+
+def build_note_task(round_: ExpertRound) -> AgentTask:
+    return AgentTask(
+        system_prompt=NOTE_SYSTEM_PROMPT,
+        input={
+            "question": round_.question,
+            "answer": adapter_for(ExpertAnswer).dump_python(round_.answer, mode="json"),
+        },
+    )
+
+
+def run_expert_note(
+    round_: ExpertRound, agent: ToolAgent, budget: Budget
+) -> AgentRun[ExpertNoteDraft]:
+    """Runs the Expert on writing a note about `round_`. No tools: the note can only cite
+    evidence already in `round_.answer.evidence` — hand the run to `write_note` with the SAME
+    `EvidenceLedger` that round was promoted with."""
+    return agent.run(build_note_task(round_), (), ExpertNoteDraft, budget)

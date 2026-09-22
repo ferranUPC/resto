@@ -147,3 +147,6 @@ CLAUDE.md
 docs/private/
 
 graphify-out/*
+
+# eval/hygiene_probes raw runs, same convention as the expert benchmark
+eval/hygiene_probes/runs/

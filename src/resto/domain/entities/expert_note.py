@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 
+from resto.domain.value_objects.answer_value import AnswerValue
 from resto.domain.value_objects.expert_answer import Basis
 
 
@@ -31,6 +32,7 @@ class ExpertNote:
     status: NoteStatus = NoteStatus.UNVERIFIED
     scenario_id: str | None = None
     context_tags: frozenset[str] = frozenset()
+    values: tuple[AnswerValue, ...] = ()
 
     def __post_init__(self) -> None:
         if not self.text.strip():

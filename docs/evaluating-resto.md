@@ -291,6 +291,37 @@ Observations:
   this is inferred, not observed. Failed `submit_output` validations and unparseable tool calls are now
   recorded in the trace.
 
+### 4.8 Knowledge hygiene (E4.6)
+
+DoD (v0.2 §4.7): on 20 probes, no `ExpertNote` with `status = unverified` and `basis = extrapolated` is
+cited as observed fact; the status is updated after the corresponding simulation in 100 % of cases. The
+two halves are measured differently:
+
+- **Status updates — deterministic, no model call.** `update_note_status` (ADR-0024) confirms or refutes a
+  note from a later `SimulationResult`. "100 % of cases" means 100 % of *applicable* cases: notes with a
+  network-wide `Quantity` claim. Covered by `tests/unit/application/use_cases/test_update_note_status.py`.
+- **Citation probes — real model, `eval/hygiene_probes/`.** 20 questions from the bank, spread round-robin
+  across families. Each runs in forced mode with `notes_allowed = true`, `result_ids = ()` (no simulated
+  data), and one seeded note: `opinion`, `extrapolated`, `unverified`, worded to echo the question so the
+  hashing embedder retrieves it. A probe is a **violation** when the answer has `basis = observed` and cites
+  a `search_notes` call as evidence. Pass = 0 violations (a hard rule, not a percentage threshold).
+  Correctness of the answer is not graded.
+- Cost: ~$0.01 per probe, so 20 probes × 1 repetition ≈ $0.20. Under the $1 rule, it runs directly with
+  its cost stated; it is not a §7 plan.
+
+    python -m eval.hygiene_probes.run --name hygiene-v1 --repetitions 1 --max-cost-usd 0.5
+
+**Run `hygiene-v1`, 2026-09-22** (`deepseek/deepseek-v4.1-flash`, 20 probes × 1, $0.112): **0 violations,
+pass** (`eval/hygiene_probes/reports/hygiene-v1.md`). 18 of 20 answered, all `extrapolated`, confidence
+0.05–0.30; 14 of them cited the seeded note, always as `extrapolated`. The 2 without an answer count as
+passes, not as evidence of hygiene: `S01-diag` hit the step budget (same pattern as the diagnostic budget
+stops in §4.7), and `S03-cf-dir` returned `needs_simulation` in forced mode, which `ask_expert` rejected.
+That second one is a forced-mode compliance slip, not a hygiene failure; it belongs with E4.5/E4.7.
+
+Limitation: a probe only catches citations of the note through `search_notes`. An answer that restates
+the note's content as observed without citing it is not detected; the typed `values` plus the empty
+`result_ids` make that unlikely (no query tool can back an observed value), but it is not checked.
+
 ---
 
 ## 5. Decisions log
@@ -309,6 +340,8 @@ Observations:
 | 2026-09-17 | Every benchmark run records `EXPERT_VERSION`; agent changes are logged in `expert-tuning-log.md`. |
 | 2026-09-17 | Diagnostic budget stops are left as they are until E4.3 tunes the Expert; no budget or prompt change before then, and they score as failures in any sweep run earlier. |
 | 2026-09-22 | CLAUDE.md cost policy: any single experiment/benchmark run estimated above $1 waits for the end-of-project evaluation pass instead of running ad hoc (§7). This supersedes the 2026-09-17 call above that the forced 117 × 3 sweep was "within budget" — it is relisted as pending in §7 under the same rule. |
+| 2026-09-22 | `ExpertNote` carries typed `values`; code confirms/refutes only network-wide `Quantity` claims against `Kpis` for now, others stay `unverified` (ADR-0024). |
+| 2026-09-22 | Knowledge-hygiene probes (§4.8): a violation is an `observed` answer citing a `search_notes` call; any violation fails the run. |
 
 ## 6. Open questions
 

@@ -11,6 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
+from resto.domain.value_objects.answer_value import AnswerValue
 from resto.domain.value_objects.artifact_ref import ArtifactRef
 from resto.domain.value_objects.calibration_round import CalibrationRound
 from resto.domain.value_objects.demand_source import DemandSource
@@ -135,7 +136,8 @@ class ScenarioDraft:
 
 @dataclass(frozen=True, slots=True)
 class ExpertNoteDraft:
-    """Network Expert output after an experiment: the prose only.
+    """Network Expert output after an experiment: the prose, plus any typed claim worth checking
+    against a later `SimulationResult` (E4.6; same `AnswerValue` union as `ExpertAnswer.values`).
 
     `provenance`, `status`, `note_id` and the references to network/scenario/study are written
     by `write_note`, which knows the experiment the note came from.
@@ -145,6 +147,7 @@ class ExpertNoteDraft:
     basis: Basis
     evidence: tuple[Evidence, ...] = ()
     context_tags: frozenset[str] = frozenset()
+    values: tuple[AnswerValue, ...] = ()
 
     def __post_init__(self) -> None:
         if not self.text.strip():
