@@ -39,10 +39,10 @@ class BenchmarkQuestion:
     result_ids: tuple[str, ...]
     gold: Mapping[str, Any]
 
-    def to_task(self) -> ExpertTask:
+    def to_task(self, mode: Mode = Mode.FORCED) -> ExpertTask:
         return ExpertTask(
             question=self.text,
-            mode=Mode.FORCED,
+            mode=mode,
             network_id=self.network_id,
             result_ids=self.result_ids,
             notes_allowed=False,

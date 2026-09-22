@@ -1,0 +1,140 @@
+{
+  "runs": 8,
+  "expert_versions": [
+    "v2"
+  ],
+  "questions": 4,
+  "repetitions": [
+    1
+  ],
+  "budget_stops": 0,
+  "per_repetition": {
+    "1": {
+      "descriptive_accuracy": 1.0,
+      "desc_occ_accuracy": 1.0,
+      "desc_tt_accuracy": 1.0,
+      "diag_accuracy": 1.0,
+      "diag_mean_jaccard": 1.0,
+      "cf_dir_accuracy": 1.0,
+      "cf_topk_accuracy": null,
+      "cf_topk_mean_jaccard": null,
+      "cf_band_accuracy": null,
+      "brier": 0.008100000000000001,
+      "accepted_share": 1.0,
+      "abstention_recall": null,
+      "abstention_false_requests": null
+    }
+  },
+  "aggregate": {
+    "descriptive_accuracy": {
+      "mean": 1.0,
+      "std": null,
+      "repetitions": 1
+    },
+    "desc_occ_accuracy": {
+      "mean": 1.0,
+      "std": null,
+      "repetitions": 1
+    },
+    "desc_tt_accuracy": {
+      "mean": 1.0,
+      "std": null,
+      "repetitions": 1
+    },
+    "diag_accuracy": {
+      "mean": 1.0,
+      "std": null,
+      "repetitions": 1
+    },
+    "diag_mean_jaccard": {
+      "mean": 1.0,
+      "std": null,
+      "repetitions": 1
+    },
+    "cf_dir_accuracy": {
+      "mean": 1.0,
+      "std": null,
+      "repetitions": 1
+    },
+    "cf_topk_accuracy": {
+      "mean": null,
+      "std": null,
+      "repetitions": 0
+    },
+    "cf_topk_mean_jaccard": {
+      "mean": null,
+      "std": null,
+      "repetitions": 0
+    },
+    "cf_band_accuracy": {
+      "mean": null,
+      "std": null,
+      "repetitions": 0
+    },
+    "brier": {
+      "mean": 0.008100000000000001,
+      "std": null,
+      "repetitions": 1
+    },
+    "accepted_share": {
+      "mean": 1.0,
+      "std": null,
+      "repetitions": 1
+    },
+    "abstention_recall": {
+      "mean": null,
+      "std": null,
+      "repetitions": 0
+    },
+    "abstention_false_requests": {
+      "mean": null,
+      "std": null,
+      "repetitions": 0
+    }
+  },
+  "accuracy_by_basis": {
+    "observed": {
+      "answers": 4,
+      "accuracy": 1.0
+    }
+  },
+  "cost_by_family": {
+    "cf-dir": {
+      "runs": 2.0,
+      "steps": 9.0,
+      "text_only_steps": 0.0,
+      "cut_at_limit_steps": 0.0,
+      "input_tokens": 112946.0,
+      "output_tokens": 4472.0,
+      "cost_usd": 0.0196251
+    },
+    "desc-occ": {
+      "runs": 2.0,
+      "steps": 8.0,
+      "text_only_steps": 0.0,
+      "cut_at_limit_steps": 0.0,
+      "input_tokens": 76873.0,
+      "output_tokens": 3194.0,
+      "cost_usd": 0.01344735
+    },
+    "desc-tt": {
+      "runs": 2.0,
+      "steps": 6.0,
+      "text_only_steps": 0.0,
+      "cut_at_limit_steps": 0.0,
+      "input_tokens": 52810.0,
+      "output_tokens": 2255.0,
+      "cost_usd": 0.0092745
+    },
+    "diag": {
+      "runs": 2.0,
+      "steps": 7.0,
+      "text_only_steps": 0.0,
+      "cut_at_limit_steps": 0.0,
+      "input_tokens": 69444.0,
+      "output_tokens": 4732.0,
+      "cost_usd": 0.0132558
+    }
+  },
+  "total_cost_usd": 0.05560275
+}

@@ -16,6 +16,7 @@ from resto.adapters.sumo.netxml import SumolibNetworkQuery
 from resto.application.ports.llm import AgentTask, Budget, Tool
 from resto.domain.value_objects.answer_value import Edges
 from resto.domain.value_objects.expert_answer import Basis, Evidence, EvidenceKind, ExpertAnswer
+from resto.domain.value_objects.question import Mode
 from tests.unit.adapters.llm._fakes import FakeToolAgent, call_tool
 from tests.unit.application.tools.test_expert import DEV_NET
 
@@ -145,3 +146,30 @@ def test_report_aggregates_repetitions_against_thresholds(
     assert "| descriptive_accuracy | 0.50 | 0.71 | >= 0.90 ❌ |" in markdown
     assert "| S00-desc-occ | 2 | ❌ |" in markdown
     assert f"Expert: {EXPERT_VERSION}" in markdown
+
+
+def test_the_record_stores_the_mode_it_was_run_in(
+    tmp_path: Path, query: SumolibNetworkQuery
+) -> None:
+    agent = FakeToolAgent(output=_answer(("B1B0",)), interact=_cite_one_call)
+    _run(agent, tmp_path, query, mode=Mode.FREE)
+    records = load_records(tmp_path / "runs.jsonl")
+    assert {r["mode"] for r in records} == {"free"}
+
+
+def test_forced_and_free_runs_of_the_same_question_coexist_without_colliding(
+    tmp_path: Path, query: SumolibNetworkQuery
+) -> None:
+    agent = FakeToolAgent(output=_answer(("B1B0",)), interact=_cite_one_call)
+    forced = _run(agent, tmp_path, query, mode=Mode.FORCED)
+    free = _run(agent, tmp_path, query, mode=Mode.FREE)
+    assert (forced.ran, forced.skipped_done) == (2, 0)
+    assert (free.ran, free.skipped_done) == (2, 0)
+    records = load_records(tmp_path / "runs.jsonl")
+    assert sorted((r["question_id"], r["mode"]) for r in records) == [
+        ("S00-desc-occ", "forced"), ("S00-desc-occ", "free"),
+        ("S01-desc-occ", "forced"), ("S01-desc-occ", "free"),
+    ]
+    # re-running the same mode still resumes instead of paying again
+    resumed = _run(agent, tmp_path, query, mode=Mode.FORCED)
+    assert (resumed.ran, resumed.skipped_done) == (0, 2)

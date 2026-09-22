@@ -22,6 +22,8 @@ THRESHOLDS: dict[str, tuple[str, float]] = {
     "cf_band_accuracy": (">=", 0.50),
     "brier": ("<=", 0.25),
     "accepted_share": (">=", 1.00),
+    "abstention_recall": (">=", 0.70),
+    "abstention_false_requests": ("<=", 0.30),
 }
 METRIC_ORDER = (
     "descriptive_accuracy",
@@ -35,6 +37,8 @@ METRIC_ORDER = (
     "cf_band_accuracy",
     "brier",
     "accepted_share",
+    "abstention_recall",
+    "abstention_false_requests",
 )
 
 
@@ -72,11 +76,46 @@ def _mean_jaccard(runs: Sequence[ScoredRun]) -> float | None:
     return statistics.mean(values) if values else None
 
 
-def repetition_metrics(runs: Sequence[ScoredRun]) -> dict[str, float | None]:
+def _abstention_metrics(
+    forced: Sequence[ScoredRun], free: Sequence[ScoredRun]
+) -> tuple[float | None, float | None]:
+    """Pairs forced/free runs of the same question (docs/evaluating-resto.md §4.5).
+
+    "Abstained" means the free-mode answer exists and has `needs_simulation = True`, regardless of
+    whether promotion later rejected it (a malformed `proposed_experiment` is still an abstention
+    attempt). A question with no matching free run never counts as abstained.
+
+    Recall = abstained ∧ forced incorrect / forced incorrect. False requests = abstained ∧ forced
+    correct / abstained.
+    """
+    free_by_question = {r.question.id: r for r in free if r.answer is not None}
+    incorrect = recalled = abstained = false_requests = 0
+    for run in forced:
+        free_run = free_by_question.get(run.question.id)
+        did_abstain = (
+            free_run is not None
+            and free_run.answer is not None
+            and free_run.answer.needs_simulation
+        )
+        if not run.score.correct:
+            incorrect += 1
+            recalled += did_abstain
+        if did_abstain:
+            abstained += 1
+            false_requests += run.score.correct
+    recall = recalled / incorrect if incorrect else None
+    false_request_rate = false_requests / abstained if abstained else None
+    return recall, false_request_rate
+
+
+def repetition_metrics(
+    runs: Sequence[ScoredRun], free_runs: Sequence[ScoredRun] = ()
+) -> dict[str, float | None]:
     by_family: dict[Family, list[ScoredRun]] = defaultdict(list)
     for run in runs:
         by_family[run.question.family].append(run)
     answered = [r for r in runs if r.answer is not None]
+    abstention_recall, abstention_false_requests = _abstention_metrics(runs, free_runs)
     return {
         "descriptive_accuracy": _accuracy(by_family[Family.DESC_OCC] + by_family[Family.DESC_TT]),
         "desc_occ_accuracy": _accuracy(by_family[Family.DESC_OCC]),
@@ -95,14 +134,26 @@ def repetition_metrics(runs: Sequence[ScoredRun]) -> dict[str, float | None]:
         "accepted_share": sum(r.record["rejection"] is None for r in runs) / len(runs)
         if runs
         else None,
+        "abstention_recall": abstention_recall,
+        "abstention_false_requests": abstention_false_requests,
     }
 
 
-def summarize(scored: Sequence[ScoredRun]) -> dict[str, Any]:
+def summarize(scored: Sequence[ScoredRun], free_scored: Sequence[ScoredRun] = ()) -> dict[str, Any]:
+    """`scored` (forced mode) drives every accuracy/basis metric. `free_scored`, if given, only
+    feeds the abstention pairing (per repetition) and the cost/token totals — a free-mode answer
+    is never scored against the gold value, since it may legitimately abstain instead of answering.
+    """
     by_rep: dict[int, list[ScoredRun]] = defaultdict(list)
     for run in scored:
         by_rep[run.repetition].append(run)
-    per_rep = {rep: repetition_metrics(runs) for rep, runs in sorted(by_rep.items())}
+    free_by_rep: dict[int, list[ScoredRun]] = defaultdict(list)
+    for run in free_scored:
+        free_by_rep[run.repetition].append(run)
+    per_rep = {
+        rep: repetition_metrics(runs, free_by_rep.get(rep, ()))
+        for rep, runs in sorted(by_rep.items())
+    }
 
     aggregate: dict[str, dict[str, float | int | None]] = {}
     for metric in METRIC_ORDER:
@@ -115,9 +166,11 @@ def summarize(scored: Sequence[ScoredRun]) -> dict[str, Any]:
 
     by_basis: dict[str, list[bool]] = defaultdict(list)
     cost: dict[str, dict[str, float]] = defaultdict(lambda: defaultdict(float))
+    all_runs = [*scored, *free_scored]
     for run in scored:
         if run.answer is not None:
             by_basis[run.answer.basis.value].append(run.score.correct)
+    for run in all_runs:
         family = cost[run.question.family.value]
         family["runs"] += 1
         steps = run.record.get("steps", [])
@@ -129,11 +182,11 @@ def summarize(scored: Sequence[ScoredRun]) -> dict[str, Any]:
         family["cost_usd"] += run.record["cost_usd"] or 0.0
 
     return {
-        "runs": len(scored),
-        "expert_versions": sorted({str(r.record.get("expert_version")) for r in scored}),
+        "runs": len(all_runs),
+        "expert_versions": sorted({str(r.record.get("expert_version")) for r in all_runs}),
         "questions": len({r.question.id for r in scored}),
         "repetitions": sorted(by_rep),
-        "budget_stops": sum(r.record["stop_reason"] == "budget" for r in scored),
+        "budget_stops": sum(r.record["stop_reason"] == "budget" for r in all_runs),
         "per_repetition": per_rep,
         "aggregate": aggregate,
         "accuracy_by_basis": {
@@ -141,7 +194,7 @@ def summarize(scored: Sequence[ScoredRun]) -> dict[str, Any]:
             for basis, hits in sorted(by_basis.items())
         },
         "cost_by_family": {k: dict(v) for k, v in sorted(cost.items())},
-        "total_cost_usd": sum(r.record["cost_usd"] or 0.0 for r in scored),
+        "total_cost_usd": sum(r.record["cost_usd"] or 0.0 for r in all_runs),
     }
 
 

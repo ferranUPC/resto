@@ -1,12 +1,12 @@
 """Runs the Network Expert over benchmark questions × repetitions and stores every raw run
 (docs/evaluating-resto.md §4.2).
 
-One JSON line per (question, repetition) in `out_file`: the Expert version, the answer, the
+One JSON line per (question, repetition, mode) in `out_file`: the Expert version, the answer, the
 promotion outcome, the tool calls, the per-step trace, the full evidence ledger, tokens and
 estimated cost. Scoring happens later from these lines
 (`report.py`), so a scoring rule can change without paying for the runs again.
 
-- **Resumable**: a (question, repetition) already in `out_file` is skipped.
+- **Resumable**: a (question, repetition, mode) already in `out_file` is skipped.
 - **Cost cap**: with `max_cost_usd`, no new run starts once the estimated spend reaches it.
 - **Crashes** (e.g. an API error) are logged and not written, so the next invocation retries them.
 - **Workers** each get their own `Environment` (repositories + network query): a SQLite connection
@@ -37,6 +37,7 @@ from resto.application.use_cases.ask_expert import (
     ask_expert,
 )
 from resto.domain.value_objects.expert_answer import ExpertAnswer
+from resto.domain.value_objects.question import Mode
 
 PriceFn = Callable[[int, int], float | None]
 
@@ -76,6 +77,7 @@ def run_benchmark(
     environment: EnvironmentFactory,
     out_file: Path,
     model: str,
+    mode: Mode = Mode.FORCED,
     price: PriceFn = lambda input_tokens, output_tokens: None,
     workers: int = 1,
     max_cost_usd: float | None = None,
@@ -83,12 +85,13 @@ def run_benchmark(
 ) -> RunOutcome:
     if repetitions < 1 or workers < 1:
         raise ValueError("repetitions and workers must be >= 1")
-    done = {(r["question_id"], r["repetition"]) for r in load_records(out_file)}
+    done = {(r["question_id"], r["repetition"], r.get("mode", Mode.FORCED.value))
+            for r in load_records(out_file)}
     jobs = [
         (q, rep)
         for q in questions
         for rep in range(1, repetitions + 1)
-        if (q.id, rep) not in done
+        if (q.id, rep, mode.value) not in done
     ]
     out_file.parent.mkdir(parents=True, exist_ok=True)
 
@@ -111,7 +114,7 @@ def run_benchmark(
                 counters["budget"] += 1
                 return
         try:
-            record = _run_once(question, repetition, agent, budget, env(), model, price)
+            record = _run_once(question, repetition, agent, budget, env(), model, mode, price)
         except Exception as exc:  # an API/network failure must not stop the other runs
             with lock:
                 counters["crashed"] += 1
@@ -153,9 +156,10 @@ def _run_once(
     budget: Budget,
     env: Environment,
     model: str,
+    mode: Mode,
     price: PriceFn,
 ) -> dict[str, Any]:
-    task = question.to_task()
+    task = question.to_task(mode=mode)
     ledger = EvidenceLedger()
     started = time.monotonic()
     run = run_expert(
@@ -177,6 +181,7 @@ def _run_once(
     return {
         "question_id": question.id,
         "repetition": repetition,
+        "mode": task.mode.value,
         "model": model,
         "expert_version": EXPERT_VERSION,
         "stop_reason": run.stop_reason.value,
