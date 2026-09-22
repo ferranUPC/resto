@@ -12,7 +12,7 @@ numbered in the order they were taken.
 
 | ID | Title | Date | Status |
 |---|---|---|---|
-| [0001](0001-tool-agent-port-and-draft-promotion.md) | Single `ToolAgent` port; agents return drafts, promotion is code | 2026-09-11 | Accepted |
+| [0001](0001-tool-agent-port-and-draft-promotion.md) | Single `ToolAgent` port; agents return drafts, promotion is code | 2026-09-11 | Accepted — Coordinator consequence superseded by ADR-0023 |
 | [0002](0002-domain-model-aggregates-and-identity-policy.md) | Domain model: six aggregates, `Study` as the run-time root, identity by content/request hash vs UUID | 2026-09-11 | Accepted |
 | [0003](0003-network-edits-via-typed-tools-on-plain-xml.md) | Network edits only via typed tools on plain XML; recipe stored and replayable | 2026-09-11 | Accepted |
 | [0004](0004-network-author-vs-scenario-builder-boundary.md) | Network Author vs Scenario Builder boundary — derivation vs intervention | 2026-09-11 | Accepted |
@@ -34,3 +34,4 @@ numbered in the order they were taken.
 | [0020](0020-edgedata-time-loss-and-waiting-time-are-vehicle-second-totals.md) | `time_loss` and `waiting_time` are vehicle-second totals — summed, not averaged | 2026-09-17 | Accepted — amends DatabaseMCP contract v1.0 §5.4 |
 | [0021](0021-no-value-answers.md) | `NoValue` — an evidence-backed "this measure is undefined" answer | 2026-09-17 | Accepted |
 | [0022](0022-expert-aggregation-tools.md) | Expert aggregation tools — `edge_stats`, `rank_edges`, `compare_edges`, `compare_kpis` | 2026-09-17 | Accepted |
+| [0023](0023-coordinator-split-deterministic-executor.md) | Coordinator split — Input Parser, one-shot Coordinator (`Question` → `StudyPlan`), deterministic Executor; `Study` in phases | 2026-09-22 | Accepted — supersedes ADR-0001's Coordinator consequence and ADR-0002's `Study` shape |

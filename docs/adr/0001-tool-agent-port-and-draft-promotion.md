@@ -1,6 +1,6 @@
 # ADR-0001: Single `ToolAgent` port; agents return drafts, promotion is code
 
-- Status: Accepted
+- Status: Accepted — Coordinator consequence superseded by [ADR-0023](0023-coordinator-split-deterministic-executor.md)
 - Date: 2026-09-11
 - Architecture reference: [`tfm-architecture-and-dod.md`](../tfm-architecture-and-dod.md) §1 (principles 3–4), §2.2
 

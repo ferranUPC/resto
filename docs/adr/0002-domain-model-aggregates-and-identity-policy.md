@@ -1,6 +1,6 @@
 # ADR-0002: Domain model — six aggregates, `Study` as the run-time root, identity by content/request hash vs UUID
 
-- Status: Accepted
+- Status: Accepted — `Study`'s internal shape (flat steps/experiments/rounds) superseded by [ADR-0023](0023-coordinator-split-deterministic-executor.md) (phases)
 - Date: 2026-09-11
 - Architecture reference: [`tfm-architecture-and-dod.md`](../tfm-architecture-and-dod.md) §2.3
 
