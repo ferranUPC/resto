@@ -8,3 +8,6 @@ results by `result_id` (ADR-0025 §5)."""
 
 DEFAULT_MAX_ROUNDS = 3
 """Expert rounds per free `Study`; the last one is sent in forced mode (ADR-0025 §4)."""
+
+MAX_NOTES_PER_STUDY = 3
+"""Notes the Expert may write at the end of a completed study (ADR-0026)."""

@@ -21,6 +21,7 @@ from resto.domain.entities.study import Study
 from resto.domain.value_objects.drafts import (
     DemandDraft,
     ExpertNoteDraft,
+    ExpertNoteDrafts,
     NetworkDraft,
     ScenarioDraft,
 )
@@ -28,7 +29,13 @@ from resto.domain.value_objects.expert_answer import ExpertAnswer
 from resto.domain.value_objects.question import Question
 from resto.domain.value_objects.report import Report
 from resto.domain.value_objects.study_plan import ClarificationRequest, StudyPlan
-from resto.domain.value_objects.tasks import DemandTask, ExpertTask, NetworkTask, ScenarioTask
+from resto.domain.value_objects.tasks import (
+    DemandTask,
+    ExpertTask,
+    NetworkTask,
+    NoteTask,
+    ScenarioTask,
+)
 
 SCHEMA_TYPES: dict[str, type] = {
     # aggregates
@@ -49,11 +56,13 @@ SCHEMA_TYPES: dict[str, type] = {
     "DemandDraft": DemandDraft,
     "ScenarioDraft": ScenarioDraft,
     "ExpertNoteDraft": ExpertNoteDraft,
+    "ExpertNoteDrafts": ExpertNoteDrafts,
     # agent inputs
     "NetworkTask": NetworkTask,
     "DemandTask": DemandTask,
     "ScenarioTask": ScenarioTask,
     "ExpertTask": ExpertTask,
+    "NoteTask": NoteTask,
 }
 
 ADAPTERS: dict[str, TypeAdapter[Any]] = {name: TypeAdapter(t) for name, t in SCHEMA_TYPES.items()}

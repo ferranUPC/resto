@@ -11,6 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
+from resto.domain.constants import MAX_NOTES_PER_STUDY
 from resto.domain.value_objects.answer_value import AnswerValue
 from resto.domain.value_objects.artifact_ref import ArtifactRef
 from resto.domain.value_objects.calibration_round import CalibrationRound
@@ -136,11 +137,14 @@ class ScenarioDraft:
 
 @dataclass(frozen=True, slots=True)
 class ExpertNoteDraft:
-    """Network Expert output after an experiment: the prose, plus any typed claim worth checking
-    against a later `SimulationResult` (E4.6; same `AnswerValue` union as `ExpertAnswer.values`).
+    """One note the Network Expert writes at the end of a study: the prose, plus any typed claim
+    worth checking against a later `SimulationResult` (E4.6; same `AnswerValue` union as
+    `ExpertAnswer.values`).
 
-    `provenance`, `status`, `note_id` and the references to network/scenario/study are written
-    by `write_note`, which knows the experiment the note came from.
+    `scenario_ref` is the scenario the note is about, picked from the allow-list of its `NoteTask`
+    (a scenario of the study, or the predicted id of one not simulated), or None for the network in
+    general (ADR-0026). `provenance`, `status`, `note_id` and the network/study references are
+    written by `write_note`.
     """
 
     text: str
@@ -148,9 +152,24 @@ class ExpertNoteDraft:
     evidence: tuple[Evidence, ...] = ()
     context_tags: frozenset[str] = frozenset()
     values: tuple[AnswerValue, ...] = ()
+    scenario_ref: str | None = None
 
     def __post_init__(self) -> None:
         if not self.text.strip():
             raise ValueError("an ExpertNoteDraft requires text")
         if self.basis is Basis.OBSERVED and not self.evidence:
             raise ValueError("an observed note must point at what was observed")
+        if self.scenario_ref is not None and not self.scenario_ref.strip():
+            raise ValueError("scenario_ref must not be blank when given")
+
+
+@dataclass(frozen=True, slots=True)
+class ExpertNoteDrafts:
+    """The note writer's output: 0 to `MAX_NOTES_PER_STUDY` notes, each about one thing. Zero is
+    valid: a study may teach nothing new about the network (ADR-0026)."""
+
+    notes: tuple[ExpertNoteDraft, ...] = ()
+
+    def __post_init__(self) -> None:
+        if len(self.notes) > MAX_NOTES_PER_STUDY:
+            raise ValueError(f"at most {MAX_NOTES_PER_STUDY} notes per study")

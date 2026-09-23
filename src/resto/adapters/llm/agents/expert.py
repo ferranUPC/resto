@@ -19,11 +19,11 @@ from resto.application.ports.repositories import (
 )
 from resto.application.schemas import adapter_for
 from resto.application.tools.expert import EvidenceLedger, build_expert_tools
+from resto.domain.constants import MAX_NOTES_PER_STUDY
 from resto.domain.value_objects.answer_value import Measure
-from resto.domain.value_objects.drafts import ExpertNoteDraft
+from resto.domain.value_objects.drafts import ExpertNoteDrafts
 from resto.domain.value_objects.expert_answer import ExpertAnswer
-from resto.domain.value_objects.expert_round import ExpertRound
-from resto.domain.value_objects.tasks import ExpertTask
+from resto.domain.value_objects.tasks import ExpertTask, NoteTask
 
 # Bump whenever the prompt, the tool set or the default budget changes in a way that can change
 # answers: every benchmark run records it, and docs/expert-tuning-log.md explains each version.
@@ -132,41 +132,58 @@ def run_expert(
     return agent.run(build_task(task), tools, ExpertAnswer, budget)
 
 
-# The note-writing call reuses the round's own question/answer/evidence as context instead of new
-# tool calls (E4.6): no extra API cost beyond this one call, and every evidence ref it cites must
-# already be in the ledger `write_note` promotes it with.
-NOTE_SYSTEM_PROMPT = """\
-You just answered a question about a SUMO road network as the Network Expert. Write one persistent
-note capturing what is worth remembering, for a future question on this network to retrieve.
+# The note-writing call reuses the final round's own question/answer/evidence as context instead of
+# new tool calls (E4.6): no extra API cost beyond this one call per study (ADR-0026), and every
+# evidence ref it cites must already be in the ledger `write_note` promotes it with.
+NOTE_SYSTEM_PROMPT = f"""\
+You just answered a question about a SUMO road network as the Network Expert. Write the persistent
+notes worth remembering about this network, for future questions on it to retrieve: from 0 to
+{MAX_NOTES_PER_STUDY} notes, each about one thing. Write none if the study taught nothing new.
 
+`scenarios` lists what a note may be about. `simulated: true` means the scenario has results in this
+study; `simulated: false` is a scenario that was NOT simulated (your answer about it is a prediction
+that a later simulation will check).
+
+For each note:
 `text`: a short, self-contained summary in prose — a future reader will not see the original
 question, so restate what it was about.
-`basis`: same meaning as when you answered (observed / inferred / extrapolated); an observed note
-must carry `evidence` pointing at what was observed, using only refs you were actually given below
-— you have no tools here, so you cannot make a new query.
+`scenario_ref`: the `scenario_id` of the one scenario the note is about, copied from `scenarios`, or
+null when it is about the network in general. Never invent an id.
+`basis`: same meaning as when you answered (observed / inferred / extrapolated). A note about a
+scenario that was not simulated cannot be observed. An observed note must carry `evidence` pointing
+at what was observed, using only refs you were actually given below — you have no tools here, so
+you cannot make a new query.
 `context_tags`: a few short topical tags a later search would use to find this note.
-`values`: any measurement from your answer worth checking again later against a fresh simulation,
+`values`: any measurement worth checking again later against a fresh simulation of that scenario,
 using the same typed kinds as before (edges / quantity / change / no_value). Leave empty if nothing
 is worth tracking as a precise, re-checkable number — most notes will.
 
-Submit with submit_output.
+Submit {{"notes": [...]}} with submit_output.
 """
 
 
-def build_note_task(round_: ExpertRound) -> AgentTask:
+def build_note_task(task: NoteTask) -> AgentTask:
     return AgentTask(
         system_prompt=NOTE_SYSTEM_PROMPT,
         input={
-            "question": round_.question,
-            "answer": adapter_for(ExpertAnswer).dump_python(round_.answer, mode="json"),
+            "question": task.round.question,
+            "answer": adapter_for(ExpertAnswer).dump_python(task.round.answer, mode="json"),
+            "scenarios": [
+                {
+                    "scenario_id": s.scenario_id,
+                    "arm": s.arm,
+                    "role": s.role.value,
+                    "purpose": s.purpose,
+                    "simulated": s.simulated,
+                }
+                for s in task.scenarios
+            ],
         },
     )
 
 
-def run_expert_note(
-    round_: ExpertRound, agent: ToolAgent, budget: Budget
-) -> AgentRun[ExpertNoteDraft]:
-    """Runs the Expert on writing a note about `round_`. No tools: the note can only cite
-    evidence already in `round_.answer.evidence` — hand the run to `write_note` with the SAME
-    `EvidenceLedger` that round was promoted with."""
-    return agent.run(build_note_task(round_), (), ExpertNoteDraft, budget)
+def run_expert_note(task: NoteTask, agent: ToolAgent, budget: Budget) -> AgentRun[ExpertNoteDrafts]:
+    """Runs the Expert on writing the study's notes. No tools: the notes can only cite evidence
+    already in `task.round.answer.evidence` — hand the run to `write_note` with the SAME
+    `EvidenceLedger` that round was promoted with, and the same `task`."""
+    return agent.run(build_note_task(task), (), ExpertNoteDrafts, budget)

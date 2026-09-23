@@ -22,11 +22,12 @@ from resto.application.tools.expert import (
     RESULT_TOOLS,
     EvidenceLedger,
 )
-from resto.domain.value_objects.drafts import ExpertNoteDraft
+from resto.domain.value_objects.drafts import ExpertNoteDraft, ExpertNoteDrafts
+from resto.domain.value_objects.experiment import ExperimentRole
 from resto.domain.value_objects.expert_answer import Basis, ExpertAnswer
 from resto.domain.value_objects.expert_round import ExpertRound
 from resto.domain.value_objects.question import Mode
-from resto.domain.value_objects.tasks import ExpertTask
+from resto.domain.value_objects.tasks import ExpertTask, NoteScenario, NoteTask
 from tests.unit.adapters.llm._fakes import FakeToolAgent, call_tool
 from tests.unit.application.tools.test_expert import DEV_NET
 from tests.unit.domain._samples import expert_answer
@@ -92,22 +93,50 @@ def test_run_expert_offers_the_expert_tools_and_returns_the_agent_run() -> None:
     assert [e.tool for e in ledger.entries] == ["get_result"]
 
 
-ROUND = ExpertRound(question=TASK.question, answer=expert_answer())
+NOTE_TASK = NoteTask(
+    round=ExpertRound(question=TASK.question, answer=expert_answer()),
+    scenarios=(
+        NoteScenario("s1", "base", ExperimentRole.BASELINE, "as it is", simulated=True),
+        NoteScenario("s2", "treatment", ExperimentRole.TREATMENT, "closure", simulated=False),
+    ),
+)
 
 
-def test_build_note_task_carries_the_round_as_plain_data() -> None:
-    task = build_note_task(ROUND)
+def test_build_note_task_carries_the_round_and_the_allow_list_as_plain_data() -> None:
+    task = build_note_task(NOTE_TASK)
     assert task.input == {
-        "question": ROUND.question,
-        "answer": adapter_for(ExpertAnswer).dump_python(ROUND.answer, mode="json"),
+        "question": NOTE_TASK.round.question,
+        "answer": adapter_for(ExpertAnswer).dump_python(NOTE_TASK.round.answer, mode="json"),
+        "scenarios": [
+            {
+                "scenario_id": "s1",
+                "arm": "base",
+                "role": "baseline",
+                "purpose": "as it is",
+                "simulated": True,
+            },
+            {
+                "scenario_id": "s2",
+                "arm": "treatment",
+                "role": "treatment",
+                "purpose": "closure",
+                "simulated": False,
+            },
+        ],
     }
-    for rule in ("basis", "context_tags", "values", "submit_output"):
+    for rule in ("scenario_ref", "basis", "context_tags", "values", "submit_output", "3 notes"):
         assert rule in task.system_prompt
 
 
 def test_run_expert_note_offers_no_tools_and_returns_the_agent_run() -> None:
-    draft = ExpertNoteDraft(
-        text="closing the lane reroutes traffic onto B2C2", basis=Basis.INFERRED
+    drafts = ExpertNoteDrafts(
+        notes=(
+            ExpertNoteDraft(
+                text="closing the lane reroutes traffic onto B2C2",
+                basis=Basis.INFERRED,
+                scenario_ref="s2",
+            ),
+        )
     )
     seen: dict[str, object] = {}
 
@@ -115,9 +144,9 @@ def test_run_expert_note_offers_no_tools_and_returns_the_agent_run() -> None:
         seen["input"] = task.input
         seen["tools"] = list(tools)
 
-    agent = FakeToolAgent(output=draft, interact=interact)
-    run = run_expert_note(ROUND, agent, BUDGET)
+    agent = FakeToolAgent(output=drafts, interact=interact)
+    run = run_expert_note(NOTE_TASK, agent, BUDGET)
 
-    assert run.output == draft
-    assert seen["input"] == build_note_task(ROUND).input
+    assert run.output == drafts
+    assert seen["input"] == build_note_task(NOTE_TASK).input
     assert seen["tools"] == []

@@ -42,6 +42,7 @@ from resto.domain.value_objects.demand_spec import DemandSpec
 from resto.domain.value_objects.drafts import (
     DemandDraft,
     ExpertNoteDraft,
+    ExpertNoteDrafts,
     NetworkDraft,
     RejectedIntervention,
     ScenarioDraft,
@@ -94,7 +95,14 @@ from resto.domain.value_objects.study_plan import (
     RunSimulationStep,
     StudyPlan,
 )
-from resto.domain.value_objects.tasks import DemandTask, ExpertTask, NetworkTask, ScenarioTask
+from resto.domain.value_objects.tasks import (
+    DemandTask,
+    ExpertTask,
+    NetworkTask,
+    NoteScenario,
+    NoteTask,
+    ScenarioTask,
+)
 from resto.domain.value_objects.time_window import TimeWindow
 from resto.domain.value_objects.topology_modification import (
     AddEdge,
@@ -304,6 +312,9 @@ SAMPLES: dict[type, Callable[[], object]] = {
     ExpertNoteDraft: lambda: expert_note_draft(
         values=(Change(measure=Measure.MEAN_DELAY, direction=ChangeDirection.INCREASE),)
     ),
+    ExpertNoteDrafts: lambda: ExpertNoteDrafts(
+        notes=(expert_note_draft(scenario_ref="s1"), expert_note_draft(basis=Basis.INFERRED))
+    ),
     UnresolvedIssue: lambda: UnresolvedIssue(
         "junction", "J7", "turns point the wrong way", "set_connection"
     ),
@@ -432,6 +443,16 @@ SAMPLES: dict[type, Callable[[], object]] = {
         demand_id="t1",
         interventions=(static_intervention(),),
         context_tags=frozenset({"peak"}),
+    ),
+    NoteScenario: lambda: NoteScenario(
+        "s1", "treatment", ExperimentRole.TREATMENT, "measure the closure", simulated=True
+    ),
+    NoteTask: lambda: NoteTask(
+        round=ExpertRound(question="how bad is it?", answer=expert_answer()),
+        scenarios=(
+            NoteScenario("s1", "treatment", ExperimentRole.TREATMENT, "closure", simulated=True),
+            NoteScenario("s9", "retime", ExperimentRole.TREATMENT, "predicted", simulated=False),
+        ),
     ),
     ExpertTask: lambda: ExpertTask(
         question="where does delay concentrate?",

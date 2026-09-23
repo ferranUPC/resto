@@ -1,4 +1,4 @@
-"""Typed tasks the Coordinator sends to each specialist agent (the *what*)."""
+"""Typed tasks sent to each specialist agent (the *what*)."""
 
 from __future__ import annotations
 
@@ -6,6 +6,8 @@ from dataclasses import dataclass
 
 from resto.domain.value_objects.demand_source import DemandSource
 from resto.domain.value_objects.demand_spec import DemandProfile
+from resto.domain.value_objects.experiment import ExperimentRole
+from resto.domain.value_objects.expert_round import ExpertRound
 from resto.domain.value_objects.intervention import Intervention
 from resto.domain.value_objects.network_source import NetworkSource
 from resto.domain.value_objects.question import Mode
@@ -71,4 +73,39 @@ class ExpertTask:
             raise ValueError("an ExpertTask requires a question")
 
 
-Task = NetworkTask | DemandTask | ScenarioTask | ExpertTask
+@dataclass(frozen=True, slots=True)
+class NoteScenario:
+    """One entry of the note writer's allow-list. `simulated` is true when the scenario has ok
+    results in the study; false for the predicted id of an intervention that was not simulated
+    (ADR-0026)."""
+
+    scenario_id: str
+    arm: str
+    role: ExperimentRole
+    purpose: str
+    simulated: bool
+
+    def __post_init__(self) -> None:
+        if not self.scenario_id:
+            raise ValueError("a NoteScenario requires a scenario_id")
+
+
+@dataclass(frozen=True, slots=True)
+class NoteTask:
+    """The note writer's input: the study's final round and the scenarios a note may be about."""
+
+    round: ExpertRound
+    scenarios: tuple[NoteScenario, ...] = ()
+
+    def __post_init__(self) -> None:
+        if self.round.answer.needs_simulation:
+            raise ValueError("notes are written after the final round, which answers")
+        ids = [s.scenario_id for s in self.scenarios]
+        if len(set(ids)) != len(ids):
+            raise ValueError("a scenario appears twice in the allow-list")
+
+    def scenario(self, scenario_id: str) -> NoteScenario | None:
+        return next((s for s in self.scenarios if s.scenario_id == scenario_id), None)
+
+
+Task = NetworkTask | DemandTask | ScenarioTask | ExpertTask | NoteTask

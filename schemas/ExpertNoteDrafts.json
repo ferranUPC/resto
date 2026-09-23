@@ -123,6 +123,74 @@
       "title": "EvidenceKind",
       "type": "string"
     },
+    "ExpertNoteDraft": {
+      "description": "One note the Network Expert writes at the end of a study: the prose, plus any typed claim\nworth checking against a later `SimulationResult` (E4.6; same `AnswerValue` union as\n`ExpertAnswer.values`).\n\n`scenario_ref` is the scenario the note is about, picked from the allow-list of its `NoteTask`\n(a scenario of the study, or the predicted id of one not simulated), or None for the network in\ngeneral (ADR-0026). `provenance`, `status`, `note_id` and the network/study references are\nwritten by `write_note`.",
+      "properties": {
+        "basis": {
+          "$ref": "#/$defs/Basis"
+        },
+        "context_tags": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Context Tags",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "evidence": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "scenario_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Scenario Ref"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "values": {
+          "default": [],
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Edges"
+              },
+              {
+                "$ref": "#/$defs/Quantity"
+              },
+              {
+                "$ref": "#/$defs/Change"
+              },
+              {
+                "$ref": "#/$defs/NoValue"
+              }
+            ]
+          },
+          "title": "Values",
+          "type": "array"
+        }
+      },
+      "required": [
+        "text",
+        "basis"
+      ],
+      "title": "ExpertNoteDraft",
+      "type": "object"
+    },
     "Measure": {
       "description": "What a typed answer measures. The unit is fixed by the measure (`unit`), so an answer\ncan never be stated in a different one. `time_loss` and `waiting_time` are totals summed over\nevery vehicle on the edge (vehicle-seconds), not per-vehicle means (ADR-0020).",
       "enum": [
@@ -215,70 +283,17 @@
       "type": "object"
     }
   },
-  "description": "One note the Network Expert writes at the end of a study: the prose, plus any typed claim\nworth checking against a later `SimulationResult` (E4.6; same `AnswerValue` union as\n`ExpertAnswer.values`).\n\n`scenario_ref` is the scenario the note is about, picked from the allow-list of its `NoteTask`\n(a scenario of the study, or the predicted id of one not simulated), or None for the network in\ngeneral (ADR-0026). `provenance`, `status`, `note_id` and the network/study references are\nwritten by `write_note`.",
+  "description": "The note writer's output: 0 to `MAX_NOTES_PER_STUDY` notes, each about one thing. Zero is\nvalid: a study may teach nothing new about the network (ADR-0026).",
   "properties": {
-    "basis": {
-      "$ref": "#/$defs/Basis"
-    },
-    "context_tags": {
+    "notes": {
       "default": [],
       "items": {
-        "type": "string"
+        "$ref": "#/$defs/ExpertNoteDraft"
       },
-      "title": "Context Tags",
-      "type": "array",
-      "uniqueItems": true
-    },
-    "evidence": {
-      "default": [],
-      "items": {
-        "$ref": "#/$defs/Evidence"
-      },
-      "title": "Evidence",
-      "type": "array"
-    },
-    "scenario_ref": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Scenario Ref"
-    },
-    "text": {
-      "title": "Text",
-      "type": "string"
-    },
-    "values": {
-      "default": [],
-      "items": {
-        "anyOf": [
-          {
-            "$ref": "#/$defs/Edges"
-          },
-          {
-            "$ref": "#/$defs/Quantity"
-          },
-          {
-            "$ref": "#/$defs/Change"
-          },
-          {
-            "$ref": "#/$defs/NoValue"
-          }
-        ]
-      },
-      "title": "Values",
+      "title": "Notes",
       "type": "array"
     }
   },
-  "required": [
-    "text",
-    "basis"
-  ],
-  "title": "ExpertNoteDraft",
+  "title": "ExpertNoteDrafts",
   "type": "object"
 }

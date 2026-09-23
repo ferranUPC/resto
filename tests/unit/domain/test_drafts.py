@@ -8,14 +8,19 @@ from resto.domain.value_objects.condition import Condition, Metric, Operator
 from resto.domain.value_objects.drafts import (
     DemandDraft,
     ExpertNoteDraft,
+    ExpertNoteDrafts,
     NetworkDraft,
     RejectedIntervention,
     ScenarioDraft,
     UnresolvedIssue,
 )
-from resto.domain.value_objects.expert_answer import Basis, Evidence, EvidenceKind
+from resto.domain.value_objects.experiment import ExperimentRole
+from resto.domain.value_objects.expert_answer import Basis, Evidence, EvidenceKind, ExpertAnswer
+from resto.domain.value_objects.expert_round import ExpertRound
 from resto.domain.value_objects.intervention import Intervention, InterventionType
 from resto.domain.value_objects.mechanism import RegenerateDemandMechanism, ScriptMechanism
+from resto.domain.value_objects.question import Intent, Question
+from resto.domain.value_objects.tasks import NoteScenario, NoteTask
 from tests.unit.domain._fixtures import (
     artifact,
     bad_sanity,
@@ -29,8 +34,9 @@ from tests.unit.domain._fixtures import (
     static_intervention,
     unlinted_script,
 )
+from tests.unit.domain._samples import expert_answer
 
-DRAFTS = (NetworkDraft, DemandDraft, ScenarioDraft, ExpertNoteDraft)
+DRAFTS = (NetworkDraft, DemandDraft, ScenarioDraft, ExpertNoteDraft, ExpertNoteDrafts)
 FORBIDDEN = ("_id", "content_hash", "status", "provenance")
 
 
@@ -220,3 +226,21 @@ def test_dynamic_demand_scale_is_named_as_unsupported_not_sent_round_in_circles(
     for mechanism in (RegenerateDemandMechanism(demand_id="d2"), ScriptMechanism()):
         with pytest.raises(ValueError, match="not supported in v1"):
             scenario_draft(interventions=(dynamic_scale,), mechanisms=(mechanism,))
+
+
+def test_a_note_task_follows_the_final_answer() -> None:
+    abstain = ExpertAnswer(
+        answer="need a run",
+        basis=Basis.EXTRAPOLATED,
+        confidence=0.2,
+        needs_simulation=True,
+        proposed_experiment=Question(text="close E12", intent=Intent.RUN),
+    )
+    with pytest.raises(ValueError, match="final round"):
+        NoteTask(round=ExpertRound(question="q", answer=abstain))
+
+
+def test_a_scenario_appears_once_in_the_allow_list() -> None:
+    entry = NoteScenario("s1", "base", ExperimentRole.BASELINE, "as it is", simulated=True)
+    with pytest.raises(ValueError, match="twice"):
+        NoteTask(round=ExpertRound(question="q", answer=expert_answer()), scenarios=(entry, entry))
