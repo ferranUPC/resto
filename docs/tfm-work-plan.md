@@ -256,6 +256,9 @@ Effort by month (approximate): Sep 134 h · Oct 175 h · Nov 179 h · Dec 114 h 
 - Request/plan banks (split 2026-09-23): E3.4 (request bank) → E5.1 and E3.7; E3.7 (plan bank) → E5.2
   and E5.5. E3.4 needs no DB state, so it can be pulled forward into any gap; E3.7 needs the fixed DB
   state (E3.1's matrix) and the gold `Question`s of E3.4.
+- ADR-0028 (time windows are time of day, 2026-09-23): the DEV-NET demand profiles and the scenario
+  matrix still start at second 0 (now 00:00). Moving them to clock time changes every demand hash, so
+  the matrix and question bank are rebuilt; no task or hours yet — needed before E3.7 and E5.2.
 - ADR-0025/0026 chain (added 2026-09-23): E5.9 (domain) → E3.4, E3.7, E5.2 and E5.10; E4.11 (notes) → E5.10;
   E5.10 (Executor) → E5.3 and E7.1; E5.11 (failure render) → E5.5 and E7.3. E5.9, E4.11, E5.10 and
   E5.11 need no real model calls (fake `ToolAgent` and fake agent ports), so they can be pulled forward

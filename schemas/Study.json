@@ -1790,7 +1790,7 @@
       "type": "object"
     },
     "TimeWindow": {
-      "description": "Simulation-time interval in seconds, [start, end).",
+      "description": "Time of day in seconds since midnight, [start, end): 08:00\u201309:00 is [28800, 32400).\nSimulations run on the same clock (ADR-0028); past midnight the count continues.",
       "properties": {
         "end": {
           "title": "End",

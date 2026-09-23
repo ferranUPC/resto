@@ -5,7 +5,8 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True, slots=True)
 class TimeWindow:
-    """Simulation-time interval in seconds, [start, end)."""
+    """Time of day in seconds since midnight, [start, end): 08:00–09:00 is [28800, 32400).
+    Simulations run on the same clock (ADR-0028); past midnight the count continues."""
 
     start: float
     end: float
