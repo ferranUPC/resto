@@ -59,7 +59,7 @@ already fixes; each procedure is written here when its benchmark task starts, no
 
 | Module | Benchmark asset | Metrics (DoD) | Procedure |
 |---|---|---|---|
-| Input Parser | request bank | schema validity, field match, ambiguity detection, `intent` agreement (§4.1) | E5.1, E5.8 |
+| Input Parser | request bank | schema validity, field match, ambiguity detection, `intent` agreement (§4.1); arm structure ≥ 90 % on multi-arm requests (§5, 2026-09-23) | E5.1, E5.8 |
 | Coordinator | plan bank | routing vs gold plan (§4.2); the `StepRecord` trace is Executor behaviour, checked by fake-agent tests (ADR-0023) | E5.5, E5.8 |
 | Network Author | GEN-LOCATIONS, derivation bank | loadable networks, sanity report, replay determinism, agent stability (§4.3) | E6.4 |
 | Demand Generator | demand profiles, control counts | calibration fidelity ±15 % DEV / ±25 % REAL, replay determinism (§4.4) | E6.5 |
@@ -344,6 +344,10 @@ the note's content as observed without citing it is not detected; the typed `val
 | 2026-09-22 | CLAUDE.md cost policy: any single experiment/benchmark run estimated above $1 waits for the end-of-project evaluation pass instead of running ad hoc (§7). This supersedes the 2026-09-17 call above that the forced 117 × 3 sweep was "within budget" — it is relisted as pending in §7 under the same rule. |
 | 2026-09-22 | `ExpertNote` carries typed `values`; code confirms/refutes only network-wide `Quantity` claims against `Kpis` for now, others stay `unverified` (ADR-0024). |
 | 2026-09-22 | Knowledge-hygiene probes (§4.8): a violation is an `observed` answer citing a `search_notes` call; any violation fails the run. |
+| 2026-09-23 | Input Parser scoring (E3.4/E5.1) compares the effective form (`effective_arms`/`effective_contrasts`), so the flat shorthand and a single arm score the same; using the shorthand for one treatment is reported, not graded. |
+| 2026-09-23 | Arms are matched by content, never by label: the key of an arm is its set of `topology_changes` plus its set of `interventions`. An intervention is compared on `type`, `target`, `window`/`condition` and `params` (numbers within 1 % relative); `description`/`expected_effect` are ignored (`custom`: type, target and window only). `AddEdge.edge_id` is renamed to a positional placeholder in both the change and the interventions targeting it, so only consistency is checked. |
+| 2026-09-23 | §4.1's field-level match on `interventions` and `topology_changes` is computed on the union of distinct items across all effective arms, exact per request — it measures whether the pieces were extracted, not how they were grouped. |
+| 2026-09-23 | New **arm-structure** metric, **gating E5.1 Done at ≥ 90 %** (an extension of §4.1, whose frozen thresholds do not cover ADR-0027): on the non-ambiguous multi-arm requests, a request is correct when both the set of arm keys and the set of contrasts (as unordered pairs of arm keys; `base` always the reference) match gold. Reason: §4.1 alone passes a Parser that merges alternatives into one combined arm, which then plans the wrong simulations. `required_arms` match is reported as a diagnostic. |
 
 ## 6. Open questions
 

@@ -40,8 +40,8 @@ have three different producers: text → `Question` is the Input Parser (no DB s
 are written by the Executor. E3.4 keeps the request bank (Parser, E5.1); the new E3.7 is the plan bank
 (Coordinator, E5.2/E5.5); the per-request `StepRecord` trace is dropped — it is Executor behaviour,
 covered by fake-agent tests (ADR-0023, E5.5). Hours split 5 + 7 from E3.4's 12, so totals are unchanged.
-Open for E3.4/E5.1: §4.1's field-level metrics do not cover `arms`/`contrasts` (ADR-0027) — decide how
-multi-arm requests are scored when the bank is built.
+§4.1's field-level metrics do not cover `arms`/`contrasts` (ADR-0027); decided the same day in
+[`evaluating-resto.md`](evaluating-resto.md) §5: a new arm-structure metric gates E5.1 Done at ≥ 90 %.
 
 **Open point found while building the Executor (added 2026-09-23, E5.10; to be decided in E5.3).**
 `ExpertTask` carries a single `network_id`, and three things depend on it: the Expert's topology tools
@@ -110,7 +110,7 @@ Phase A (Minimal, 58 h): 5 Oct → 16 Oct. Phase B (Done, 52 h): 30 Nov → 11 D
 | E3.1 | Scenario matrix DEV-NET / peak: 15–25 rows × 3 seeds, simulated and stored via DatabaseMCP | matrix in DB | 12 | 16 Oct |
 | E3.2 | Question templates (descriptive / diagnostic / counterfactual) + generator + programmatic gold answers from the matrix; ≥60 questions on DEV-NET | question bank | 16 | 23 Oct |
 | E3.3 | Metrics: exact match, Jaccard top-k, direction, magnitude band, Brier, abstention P/R; harness with repeated runs, mean ± std, report generation | `eval/` | 16 | 27 Oct |
-| E3.4 | Request bank (text → `Question`, Input Parser): 50+ NL requests with a stable id each (10+ ambiguous, with gold `ambiguities[]`; incl. combined and multi-arm requests with gold `arms`/`contrasts`, ADR-0027) and a gold `Question` per request; independent of DB state (`network_ref` stays textual, ADR-0023). Consumer: E5.1 (§4.1). *(split 2026-09-23: plan layer moved to E3.7; the expected `StepRecord` trace is dropped — Executor behaviour, covered by fake-agent tests, ADR-0023)* | request bank | 5 | 18 Nov |
+| E3.4 | Request bank (text → `Question`, Input Parser): 50+ NL requests with a stable id each (10+ ambiguous, with gold `ambiguities[]`, 2–3 of them "together or separately?"; 10+ non-ambiguous multi-arm requests with gold `arms`/`contrasts`, ADR-0027 — alternatives vs base, A vs B, topology + intervention, nested contrast, intervention on an added edge; 3–4 single combined-treatment controls) and a gold `Question` per request; independent of DB state (`network_ref` stays textual, ADR-0023). Scoring: `eval/request_bank/`, rules in `evaluating-resto.md` §5 (2026-09-23). Consumer: E5.1 (§4.1 + arm structure ≥ 90 %). *(split 2026-09-23: plan layer moved to E3.7; the expected `StepRecord` trace is dropped — Executor behaviour, covered by fake-agent tests, ADR-0023)* | request bank | 5 | 18 Nov |
 | E3.5 | Scenario matrix REAL-NET / peak | matrix in DB | 8 | 15 Jan |
 | E3.6 | Question bank REAL-NET (40+) | question bank | 6 | 18 Jan |
 | E3.7 | *(new 2026-09-23, split from E3.4)* Plan bank (`Question` → `StudyPlan`, Coordinator): for a fixed DB state, the gold phase-0 `StudyPlan` of each E3.4 request, keyed by request id, with the gold `Question` as input (isolates Coordinator errors from Parser errors); plans follow ADR-0025 (rules by `intent`, `network_id` + `reused` with role/purpose, zero-step plans valid, no `ask_expert`/`compose_report` steps) and ADR-0027 (exactly `required_arms`, reference side only for `counterfactual`, one `derive_network` per distinct topology); the 4 canonical DB states covered. Consumers: E5.2, E5.5 (§4.2) | plan bank | 7 | 20 Nov |
