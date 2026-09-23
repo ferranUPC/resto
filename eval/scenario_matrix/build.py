@@ -52,6 +52,7 @@ from resto.adapters.sumo.runner import SubprocessSumoRunner
 from resto.application.ports.llm import AgentRun, StopReason
 from resto.application.use_cases.build_scenario import build_scenario
 from resto.application.use_cases.run_simulation import run_simulation
+from resto.domain.constants import DEFAULT_SEEDS
 from resto.domain.entities.demand import Demand
 from resto.domain.entities.network import Network
 from resto.domain.entities.simulation_result import RunStatus, SimulationResult
@@ -69,7 +70,7 @@ DEV_NET_DIR = MATRIX_DIR.parent / "dev-net"
 DB_PATH = MATRIX_DIR / "matrix.db"
 RUNS_DIR = MATRIX_DIR / "runs"
 REPORT_PATH = MATRIX_DIR / "matrix-report.md"
-SEEDS = (1, 2, 3)
+SEEDS = DEFAULT_SEEDS
 CONTEXT_TAGS = frozenset({"peak"})
 
 

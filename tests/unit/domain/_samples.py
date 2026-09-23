@@ -18,7 +18,7 @@ from resto.domain.entities.expert_note import ExpertNote, Provenance
 from resto.domain.entities.network import Network
 from resto.domain.entities.scenario import Scenario
 from resto.domain.entities.simulation_result import RunMode, RunStatus, SimulationResult
-from resto.domain.entities.study import Study, StudyStatus
+from resto.domain.entities.study import Phase, Study, StudyStatus
 from resto.domain.services.note_ranking import ScoredNote
 from resto.domain.value_objects.answer_value import (
     Change,
@@ -74,8 +74,25 @@ from resto.domain.value_objects.probe_report import ProbeReport
 from resto.domain.value_objects.question import Intent, Mode, Question
 from resto.domain.value_objects.report import Claim, Report, ReportSection
 from resto.domain.value_objects.sanity_report import SanityReport
-from resto.domain.value_objects.step_record import StepRecord, StepStatus, Usage
-from resto.domain.value_objects.study_plan import PlanStep, StudyPlan
+from resto.domain.value_objects.step_record import (
+    StepError,
+    StepErrorKind,
+    StepRecord,
+    StepStatus,
+    Usage,
+)
+from resto.domain.value_objects.study_plan import (
+    BuildScenarioStep,
+    ClarificationRequest,
+    DeriveNetworkStep,
+    FromStep,
+    GenerateDemandStep,
+    GenerateNetworkStep,
+    RerouteDemandStep,
+    ReusedExperiment,
+    RunSimulationStep,
+    StudyPlan,
+)
 from resto.domain.value_objects.tasks import DemandTask, ExpertTask, NetworkTask, ScenarioTask
 from resto.domain.value_objects.time_window import TimeWindow
 from resto.domain.value_objects.topology_modification import (
@@ -135,12 +152,19 @@ def expert_answer() -> ExpertAnswer:
 
 def study_plan() -> StudyPlan:
     return StudyPlan(
-        steps=(
-            PlanStep(module="build_scenario", inputs={"network_id": "n1"}),
-            PlanStep(module="run_simulation", depends_on=(0,), expected_artifacts=("edgedata",)),
-        ),
+        network_id="abc123",
         rationale="baseline exists, only the treatment needs running",
-        reuse_decisions=("reused network n1",),
+        steps=(
+            BuildScenarioStep(
+                network_id="abc123",
+                demand_id="t1",
+                role=ExperimentRole.TREATMENT,
+                purpose="measure the closure",
+                interventions=(static_intervention(),),
+            ),
+            RunSimulationStep(scenario_id=FromStep(0), depends_on=(0,)),
+        ),
+        reused=(ReusedExperiment("s0", ExperimentRole.BASELINE, "reference without the closure"),),
     )
 
 
@@ -229,23 +253,27 @@ def expert_note() -> ExpertNote:
 def study() -> Study:
     return Study(
         study_id="st-1",
-        question=question(),
         status=StudyStatus.COMPLETED,
-        plan=study_plan(),
-        steps=(
-            StepRecord(tool="run_simulation", status=StepStatus.OK, usage=Usage(simulations=1)),
-        ),
-        experiments=(
-            Experiment(
-                scenario_id="s1",
-                role=ExperimentRole.TREATMENT,
-                purpose="measure the closure",
-                result_ids=("res1",),
-            ),
-        ),
-        rounds=(
-            ExpertRound(
-                question="how bad is it?", answer=expert_answer(), triggered_experiments=(0,)
+        phases=(
+            Phase(
+                question=question(),
+                plan=study_plan(),
+                steps=(
+                    StepRecord(tool="build_scenario", status=StepStatus.OK, produced_ids=("s1",)),
+                    StepRecord(
+                        tool="run_simulation", status=StepStatus.OK, usage=Usage(simulations=1)
+                    ),
+                ),
+                experiments=(
+                    Experiment("s0", ExperimentRole.BASELINE, "reference", ("res0",), reused=True),
+                    Experiment(
+                        scenario_id="s1",
+                        role=ExperimentRole.TREATMENT,
+                        purpose="measure the closure",
+                        result_ids=("res1",),
+                    ),
+                ),
+                round=ExpertRound(question="how bad is it?", answer=expert_answer()),
             ),
         ),
         report=report(),
@@ -276,11 +304,41 @@ SAMPLES: dict[type, Callable[[], object]] = {
     # study internals
     Question: question,
     StudyPlan: study_plan,
-    PlanStep: lambda: PlanStep(module="ask_expert", inputs={"mode": "free"}),
+    Phase: lambda: Phase(
+        question=question(), clarification=ClarificationRequest("two networks match")
+    ),
+    FromStep: lambda: FromStep(0),
+    GenerateNetworkStep: lambda: GenerateNetworkStep(
+        source=NetworkSource(kind="place", value="Barcelona, Eixample"), goals=("drivable",)
+    ),
+    DeriveNetworkStep: lambda: DeriveNetworkStep(
+        base_network_id=FromStep(0), modifications=(RemoveEdge(edge_id="E07"),), depends_on=(0,)
+    ),
+    GenerateDemandStep: lambda: GenerateDemandStep(
+        network_id="abc123", profile=demand_spec().profile, seed=1, sources=(ParametersSource(),)
+    ),
+    RerouteDemandStep: lambda: RerouteDemandStep(
+        demand_id="t1", network_id=FromStep(1), depends_on=(1,)
+    ),
+    BuildScenarioStep: lambda: BuildScenarioStep(
+        network_id="abc123",
+        demand_id=FromStep(0),
+        role=ExperimentRole.BASELINE,
+        purpose="reference",
+        depends_on=(0,),
+    ),
+    RunSimulationStep: lambda: RunSimulationStep(scenario_id="s1", seeds=(1, 2)),
+    ReusedExperiment: lambda: ReusedExperiment("s1", ExperimentRole.BASELINE, "reference"),
+    ClarificationRequest: lambda: ClarificationRequest(
+        reason='two networks match "Gran Via"', candidates=("gv-2024", "gv-old")
+    ),
     StepRecord: lambda: StepRecord(tool="ask_expert", status=StepStatus.OK),
+    StepError: lambda: StepError(
+        StepErrorKind.USER_INPUT, "the Builder rejected an intervention", ("E99: unknown edge",)
+    ),
     Usage: lambda: Usage(input_tokens=120, output_tokens=45, simulations=1),
     Experiment: lambda: Experiment(scenario_id="s1", role=ExperimentRole.BASELINE, purpose="ref"),
-    ExpertRound: lambda: ExpertRound(question="why?", answer=expert_answer()),
+    ExpertRound: lambda: ExpertRound(question="why?", answer=expert_answer(), forced_by_limit=True),
     ExpertAnswer: expert_answer,
     Evidence: lambda: Evidence(kind=EvidenceKind.ARTIFACT, ref="edgedata.xml", excerpt="E12"),
     Edges: lambda: Edges(edge_ids=("E12", "E07"), ranked=True),

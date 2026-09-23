@@ -97,7 +97,7 @@ def test_a_fully_resolvable_answer_becomes_a_round() -> None:
     round_ = ask_expert(_task(), _run(answer), _ledger(), query=QUERY)
     assert round_.question == _task().question
     assert round_.answer == answer
-    assert round_.triggered_experiments == ()
+    assert not round_.forced_by_limit
 
 
 @pytest.mark.parametrize("ref", ["/runs/r1/edgedata.xml", "h1"])

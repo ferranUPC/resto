@@ -34,6 +34,31 @@
       "title": "AddEdge",
       "type": "object"
     },
+    "ArtifactRef": {
+      "description": "Reference to a file in the artifact store, identified by content hash.",
+      "properties": {
+        "content_hash": {
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "path": {
+          "format": "path",
+          "title": "Path",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "content_hash",
+        "kind"
+      ],
+      "title": "ArtifactRef",
+      "type": "object"
+    },
     "Basis": {
       "enum": [
         "observed",
@@ -42,6 +67,84 @@
       ],
       "title": "Basis",
       "type": "string"
+    },
+    "BuildScenarioStep": {
+      "description": "`role` and `purpose` are the Coordinator's: the Executor copies them into the `Experiment`\nthis scenario and its runs become (ADR-0025 \u00a75).",
+      "properties": {
+        "allow_script": {
+          "default": true,
+          "title": "Allow Script",
+          "type": "boolean"
+        },
+        "context_tags": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Context Tags",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "demand_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/FromStep"
+            }
+          ],
+          "title": "Demand Id"
+        },
+        "depends_on": {
+          "default": [],
+          "items": {
+            "type": "integer"
+          },
+          "title": "Depends On",
+          "type": "array"
+        },
+        "interventions": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Intervention"
+          },
+          "title": "Interventions",
+          "type": "array"
+        },
+        "kind": {
+          "const": "build_scenario",
+          "default": "build_scenario",
+          "title": "Kind",
+          "type": "string"
+        },
+        "network_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/FromStep"
+            }
+          ],
+          "title": "Network Id"
+        },
+        "purpose": {
+          "title": "Purpose",
+          "type": "string"
+        },
+        "role": {
+          "$ref": "#/$defs/ExperimentRole"
+        }
+      },
+      "required": [
+        "network_id",
+        "demand_id",
+        "role",
+        "purpose"
+      ],
+      "title": "BuildScenarioStep",
+      "type": "object"
     },
     "Change": {
       "description": "How a measure changes relative to a reference (usually the baseline): a direction and,\nwhen known, the relative change in percent.",
@@ -132,6 +235,28 @@
       "title": "Claim",
       "type": "object"
     },
+    "ClarificationRequest": {
+      "description": "The Coordinator's other possible output: an ambiguity only the database reveals, e.g. two\nnetworks labelled \"Gran Via\". `candidates` are what the user picks from.",
+      "properties": {
+        "candidates": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Candidates",
+          "type": "array"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "reason"
+      ],
+      "title": "ClarificationRequest",
+      "type": "object"
+    },
     "Condition": {
       "description": "Runtime predicate `metric(target) op value` evaluated by the script's `when(...)`.",
       "properties": {
@@ -157,6 +282,94 @@
         "value"
       ],
       "title": "Condition",
+      "type": "object"
+    },
+    "DemandProfile": {
+      "enum": [
+        "low",
+        "peak",
+        "incident",
+        "custom"
+      ],
+      "title": "DemandProfile",
+      "type": "string"
+    },
+    "DeriveNetworkStep": {
+      "properties": {
+        "base_network_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/FromStep"
+            }
+          ],
+          "title": "Base Network Id"
+        },
+        "depends_on": {
+          "default": [],
+          "items": {
+            "type": "integer"
+          },
+          "title": "Depends On",
+          "type": "array"
+        },
+        "goals": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Goals",
+          "type": "array"
+        },
+        "kind": {
+          "const": "derive_network",
+          "default": "derive_network",
+          "title": "Kind",
+          "type": "string"
+        },
+        "max_rounds": {
+          "default": 5,
+          "title": "Max Rounds",
+          "type": "integer"
+        },
+        "min_scc_ratio": {
+          "default": 0.95,
+          "title": "Min Scc Ratio",
+          "type": "number"
+        },
+        "modifications": {
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RemoveEdge"
+              },
+              {
+                "$ref": "#/$defs/AddEdge"
+              },
+              {
+                "$ref": "#/$defs/SetLanes"
+              },
+              {
+                "$ref": "#/$defs/SetSpeed"
+              }
+            ]
+          },
+          "title": "Modifications",
+          "type": "array"
+        },
+        "probe_teleport_threshold": {
+          "default": 0,
+          "title": "Probe Teleport Threshold",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "base_network_id",
+        "modifications"
+      ],
+      "title": "DeriveNetworkStep",
       "type": "object"
     },
     "EdgeTarget": {
@@ -237,7 +450,7 @@
       "type": "string"
     },
     "Experiment": {
-      "description": "One scenario and its seeded runs, inside a Study.",
+      "description": "One scenario and its seeded runs, inside a Study. `reused` marks a scenario whose stored\nresults the plan reused instead of running it now (ADR-0025 \u00a71).",
       "properties": {
         "purpose": {
           "title": "Purpose",
@@ -250,6 +463,11 @@
           },
           "title": "Result Ids",
           "type": "array"
+        },
+        "reused": {
+          "default": false,
+          "title": "Reused",
+          "type": "boolean"
         },
         "role": {
           "$ref": "#/$defs/ExperimentRole"
@@ -345,22 +563,19 @@
       "type": "object"
     },
     "ExpertRound": {
-      "description": "One iteration of the Expert <-> Simulation loop inside a Study.",
+      "description": "One iteration of the Expert <-> Simulation loop inside a Study. `forced_by_limit` marks the\nlast round of a free study, sent in forced mode because the rounds ran out (ADR-0025 \u00a74).",
       "properties": {
         "answer": {
           "$ref": "#/$defs/ExpertAnswer"
         },
+        "forced_by_limit": {
+          "default": false,
+          "title": "Forced By Limit",
+          "type": "boolean"
+        },
         "question": {
           "title": "Question",
           "type": "string"
-        },
-        "triggered_experiments": {
-          "default": [],
-          "items": {
-            "type": "integer"
-          },
-          "title": "Triggered Experiments",
-          "type": "array"
         }
       },
       "required": [
@@ -368,6 +583,215 @@
         "answer"
       ],
       "title": "ExpertRound",
+      "type": "object"
+    },
+    "ExternalDatasetSource": {
+      "description": "Data the Demand Generator found outside, frozen as an artifact so the demand is\nreproducible even if the URL changes.",
+      "properties": {
+        "kind": {
+          "const": "external_dataset",
+          "default": "external_dataset",
+          "title": "Kind",
+          "type": "string"
+        },
+        "snapshot": {
+          "$ref": "#/$defs/ArtifactRef"
+        },
+        "transformation": {
+          "title": "Transformation",
+          "type": "string"
+        },
+        "url": {
+          "title": "Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "url",
+        "snapshot",
+        "transformation"
+      ],
+      "title": "ExternalDatasetSource",
+      "type": "object"
+    },
+    "FromStep": {
+      "description": "The id produced by step `step` of the same plan.",
+      "properties": {
+        "step": {
+          "title": "Step",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "step"
+      ],
+      "title": "FromStep",
+      "type": "object"
+    },
+    "GenerateDemandStep": {
+      "properties": {
+        "control_edges": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Control Edges",
+          "type": "array"
+        },
+        "depends_on": {
+          "default": [],
+          "items": {
+            "type": "integer"
+          },
+          "title": "Depends On",
+          "type": "array"
+        },
+        "kind": {
+          "const": "generate_demand",
+          "default": "generate_demand",
+          "title": "Kind",
+          "type": "string"
+        },
+        "max_calibration_rounds": {
+          "default": 5,
+          "title": "Max Calibration Rounds",
+          "type": "integer"
+        },
+        "network_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/FromStep"
+            }
+          ],
+          "title": "Network Id"
+        },
+        "profile": {
+          "$ref": "#/$defs/DemandProfile"
+        },
+        "seed": {
+          "title": "Seed",
+          "type": "integer"
+        },
+        "sources": {
+          "default": [],
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ParametersSource"
+              },
+              {
+                "$ref": "#/$defs/HistoricalDbSource"
+              },
+              {
+                "$ref": "#/$defs/ExternalDatasetSource"
+              }
+            ]
+          },
+          "title": "Sources",
+          "type": "array"
+        },
+        "tolerance": {
+          "default": 0.15,
+          "title": "Tolerance",
+          "type": "number"
+        }
+      },
+      "required": [
+        "network_id",
+        "profile",
+        "seed"
+      ],
+      "title": "GenerateDemandStep",
+      "type": "object"
+    },
+    "GenerateNetworkStep": {
+      "properties": {
+        "depends_on": {
+          "default": [],
+          "items": {
+            "type": "integer"
+          },
+          "title": "Depends On",
+          "type": "array"
+        },
+        "goals": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Goals",
+          "type": "array"
+        },
+        "kind": {
+          "const": "generate_network",
+          "default": "generate_network",
+          "title": "Kind",
+          "type": "string"
+        },
+        "max_rounds": {
+          "default": 5,
+          "title": "Max Rounds",
+          "type": "integer"
+        },
+        "min_scc_ratio": {
+          "default": 0.95,
+          "title": "Min Scc Ratio",
+          "type": "number"
+        },
+        "modifications": {
+          "default": [],
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RemoveEdge"
+              },
+              {
+                "$ref": "#/$defs/AddEdge"
+              },
+              {
+                "$ref": "#/$defs/SetLanes"
+              },
+              {
+                "$ref": "#/$defs/SetSpeed"
+              }
+            ]
+          },
+          "title": "Modifications",
+          "type": "array"
+        },
+        "probe_teleport_threshold": {
+          "default": 0,
+          "title": "Probe Teleport Threshold",
+          "type": "integer"
+        },
+        "source": {
+          "$ref": "#/$defs/NetworkSource"
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "title": "GenerateNetworkStep",
+      "type": "object"
+    },
+    "HistoricalDbSource": {
+      "properties": {
+        "kind": {
+          "const": "historical_db",
+          "default": "historical_db",
+          "title": "Kind",
+          "type": "string"
+        },
+        "query": {
+          "additionalProperties": true,
+          "title": "Query",
+          "type": "object"
+        }
+      },
+      "title": "HistoricalDbSource",
       "type": "object"
     },
     "Intent": {
@@ -539,6 +963,29 @@
       "title": "Mode",
       "type": "string"
     },
+    "NetworkSource": {
+      "properties": {
+        "kind": {
+          "enum": [
+            "place",
+            "bbox",
+            "file"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
+      ],
+      "title": "NetworkSource",
+      "type": "object"
+    },
     "NoValue": {
       "description": "The data shows the measure is undefined, e.g. the mean travel time of an edge no vehicle\ncrossed. Not an abstention: the answer rests on evidence (ADR-0021). Only per-vehicle means can\nbe undefined; a 0 % occupancy or a zero total delay is a real value.",
       "properties": {
@@ -584,38 +1031,78 @@
       "title": "Operator",
       "type": "string"
     },
-    "PlanStep": {
+    "ParametersSource": {
       "properties": {
-        "depends_on": {
-          "default": [],
-          "items": {
-            "type": "integer"
-          },
-          "title": "Depends On",
-          "type": "array"
-        },
-        "expected_artifacts": {
-          "default": [],
-          "items": {
-            "type": "string"
-          },
-          "title": "Expected Artifacts",
-          "type": "array"
-        },
-        "inputs": {
-          "additionalProperties": true,
-          "title": "Inputs",
-          "type": "object"
-        },
-        "module": {
-          "title": "Module",
+        "kind": {
+          "const": "parameters",
+          "default": "parameters",
+          "title": "Kind",
           "type": "string"
         }
       },
+      "title": "ParametersSource",
+      "type": "object"
+    },
+    "Phase": {
+      "description": "One question planned and executed, then put to the Expert (ADR-0023 \u00a74). `phases[0]` holds\nthe Input Parser's question; each later phase the previous round's `proposed_experiment`.\n\n`clarification` is the Coordinator asking the user instead of planning (phase 0 only). A phase\nwithout a plan ran nothing: its only possible step is the failed planning itself.",
+      "properties": {
+        "clarification": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ClarificationRequest"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "experiments": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Experiment"
+          },
+          "title": "Experiments",
+          "type": "array"
+        },
+        "plan": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StudyPlan"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "question": {
+          "$ref": "#/$defs/Question"
+        },
+        "round": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExpertRound"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "steps": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/StepRecord"
+          },
+          "title": "Steps",
+          "type": "array"
+        }
+      },
       "required": [
-        "module"
+        "question"
       ],
-      "title": "PlanStep",
+      "title": "Phase",
       "type": "object"
     },
     "Quantity": {
@@ -847,6 +1334,126 @@
       "title": "ReportSection",
       "type": "object"
     },
+    "RerouteDemandStep": {
+      "description": "The same trips re-routed on another network (deterministic, no agent).",
+      "properties": {
+        "demand_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/FromStep"
+            }
+          ],
+          "title": "Demand Id"
+        },
+        "depends_on": {
+          "default": [],
+          "items": {
+            "type": "integer"
+          },
+          "title": "Depends On",
+          "type": "array"
+        },
+        "kind": {
+          "const": "reroute_demand",
+          "default": "reroute_demand",
+          "title": "Kind",
+          "type": "string"
+        },
+        "network_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/FromStep"
+            }
+          ],
+          "title": "Network Id"
+        }
+      },
+      "required": [
+        "demand_id",
+        "network_id"
+      ],
+      "title": "RerouteDemandStep",
+      "type": "object"
+    },
+    "ReusedExperiment": {
+      "description": "A stored scenario whose ok results the Expert is given, without running anything.",
+      "properties": {
+        "purpose": {
+          "title": "Purpose",
+          "type": "string"
+        },
+        "role": {
+          "$ref": "#/$defs/ExperimentRole"
+        },
+        "scenario_id": {
+          "title": "Scenario Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "scenario_id",
+        "role",
+        "purpose"
+      ],
+      "title": "ReusedExperiment",
+      "type": "object"
+    },
+    "RunSimulationStep": {
+      "description": "`seeds=None` means the Executor's `DEFAULT_SEEDS`; one result per seed.",
+      "properties": {
+        "depends_on": {
+          "default": [],
+          "items": {
+            "type": "integer"
+          },
+          "title": "Depends On",
+          "type": "array"
+        },
+        "kind": {
+          "const": "run_simulation",
+          "default": "run_simulation",
+          "title": "Kind",
+          "type": "string"
+        },
+        "scenario_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/FromStep"
+            }
+          ],
+          "title": "Scenario Id"
+        },
+        "seeds": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Seeds"
+        }
+      },
+      "required": [
+        "scenario_id"
+      ],
+      "title": "RunSimulationStep",
+      "type": "object"
+    },
     "SetLanes": {
       "properties": {
         "edge_id": {
@@ -895,20 +1502,56 @@
       "title": "SetSpeed",
       "type": "object"
     },
+    "StepError": {
+      "description": "Why a step failed, classified by the Executor. `details` are the items the rendered study\nlists: the wrong edge, the rejected intervention and its reason, `unresolved[]`, a logs path.",
+      "properties": {
+        "details": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Details",
+          "type": "array"
+        },
+        "kind": {
+          "$ref": "#/$defs/StepErrorKind"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "message"
+      ],
+      "title": "StepError",
+      "type": "object"
+    },
+    "StepErrorKind": {
+      "description": "What the user can do about a failure (ADR-0025 \u00a73): rephrase, narrow or raise the budget,\nretry or change the approach, or nothing (logs given).",
+      "enum": [
+        "user_input",
+        "budget",
+        "agent",
+        "infrastructure"
+      ],
+      "title": "StepErrorKind",
+      "type": "string"
+    },
     "StepRecord": {
-      "description": "One tool call made by the Coordinator, with the typed task it sent (as data).",
+      "description": "One call made by the Executor (a plan step, planning, the Expert or the report), with the\ntyped task it sent (as data).",
       "properties": {
         "error": {
           "anyOf": [
             {
-              "type": "string"
+              "$ref": "#/$defs/StepError"
             },
             {
               "type": "null"
             }
           ],
-          "default": null,
-          "title": "Error"
+          "default": null
         },
         "produced_ids": {
           "default": [],
@@ -951,30 +1594,61 @@
       "type": "string"
     },
     "StudyPlan": {
-      "description": "Emitted by the Coordinator before its first tool call; measured against gold plans.",
+      "description": "Emitted by the Coordinator, one per phase; measured against gold plans. `network_id` is the\nnetwork the study is about (`FromStep` when the plan creates it). Zero steps is valid: the\nExpert then answers from `reused` results only.",
       "properties": {
+        "network_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/FromStep"
+            }
+          ],
+          "title": "Network Id"
+        },
         "rationale": {
           "title": "Rationale",
           "type": "string"
         },
-        "reuse_decisions": {
+        "reused": {
           "default": [],
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/ReusedExperiment"
           },
-          "title": "Reuse Decisions",
+          "title": "Reused",
           "type": "array"
         },
         "steps": {
+          "default": [],
           "items": {
-            "$ref": "#/$defs/PlanStep"
+            "anyOf": [
+              {
+                "$ref": "#/$defs/GenerateNetworkStep"
+              },
+              {
+                "$ref": "#/$defs/DeriveNetworkStep"
+              },
+              {
+                "$ref": "#/$defs/GenerateDemandStep"
+              },
+              {
+                "$ref": "#/$defs/RerouteDemandStep"
+              },
+              {
+                "$ref": "#/$defs/BuildScenarioStep"
+              },
+              {
+                "$ref": "#/$defs/RunSimulationStep"
+              }
+            ]
           },
           "title": "Steps",
           "type": "array"
         }
       },
       "required": [
-        "steps",
+        "network_id",
         "rationale"
       ],
       "title": "StudyPlan",
@@ -1070,16 +1744,8 @@
       "type": "object"
     }
   },
-  "description": "Root of one user request: the question, the plan, every step taken, the experiments\nrun, the Expert rounds and the final report. Framework run-time state, stored through\nStudyRepository (not part of the DatabaseMCP contract).",
+  "description": "Root of one user request, stored in phases: the questions, the plans, every step taken, the\nexperiments run, the Expert rounds and the final report. Framework run-time state, stored\nthrough StudyRepository (not part of the DatabaseMCP contract).",
   "properties": {
-    "experiments": {
-      "default": [],
-      "items": {
-        "$ref": "#/$defs/Experiment"
-      },
-      "title": "Experiments",
-      "type": "array"
-    },
     "max_rounds": {
       "default": 3,
       "title": "Max Rounds",
@@ -1101,19 +1767,12 @@
       "title": "Note Ids",
       "type": "array"
     },
-    "plan": {
-      "anyOf": [
-        {
-          "$ref": "#/$defs/StudyPlan"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null
-    },
-    "question": {
-      "$ref": "#/$defs/Question"
+    "phases": {
+      "items": {
+        "$ref": "#/$defs/Phase"
+      },
+      "title": "Phases",
+      "type": "array"
     },
     "report": {
       "anyOf": [
@@ -1126,25 +1785,8 @@
       ],
       "default": null
     },
-    "rounds": {
-      "default": [],
-      "items": {
-        "$ref": "#/$defs/ExpertRound"
-      },
-      "title": "Rounds",
-      "type": "array"
-    },
     "status": {
-      "$ref": "#/$defs/StudyStatus",
-      "default": "planning"
-    },
-    "steps": {
-      "default": [],
-      "items": {
-        "$ref": "#/$defs/StepRecord"
-      },
-      "title": "Steps",
-      "type": "array"
+      "$ref": "#/$defs/StudyStatus"
     },
     "study_id": {
       "title": "Study Id",
@@ -1153,7 +1795,8 @@
   },
   "required": [
     "study_id",
-    "question"
+    "status",
+    "phases"
   ],
   "title": "Study",
   "type": "object"

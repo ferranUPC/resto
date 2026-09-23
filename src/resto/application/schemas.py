@@ -27,7 +27,7 @@ from resto.domain.value_objects.drafts import (
 from resto.domain.value_objects.expert_answer import ExpertAnswer
 from resto.domain.value_objects.question import Question
 from resto.domain.value_objects.report import Report
-from resto.domain.value_objects.study_plan import StudyPlan
+from resto.domain.value_objects.study_plan import ClarificationRequest, StudyPlan
 from resto.domain.value_objects.tasks import DemandTask, ExpertTask, NetworkTask, ScenarioTask
 
 SCHEMA_TYPES: dict[str, type] = {
@@ -41,6 +41,7 @@ SCHEMA_TYPES: dict[str, type] = {
     # agent outputs
     "Question": Question,
     "StudyPlan": StudyPlan,
+    "ClarificationRequest": ClarificationRequest,
     "ExpertAnswer": ExpertAnswer,
     "Report": Report,
     # agent drafts

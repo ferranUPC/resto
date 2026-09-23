@@ -1,0 +1,22 @@
+{
+  "description": "The Coordinator's other possible output: an ambiguity only the database reveals, e.g. two\nnetworks labelled \"Gran Via\". `candidates` are what the user picks from.",
+  "properties": {
+    "candidates": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Candidates",
+      "type": "array"
+    },
+    "reason": {
+      "title": "Reason",
+      "type": "string"
+    }
+  },
+  "required": [
+    "reason"
+  ],
+  "title": "ClarificationRequest",
+  "type": "object"
+}

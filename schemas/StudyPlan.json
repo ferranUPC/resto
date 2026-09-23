@@ -1,6 +1,408 @@
 {
   "$defs": {
-    "PlanStep": {
+    "AddEdge": {
+      "properties": {
+        "from_junction": {
+          "title": "From Junction",
+          "type": "string"
+        },
+        "kind": {
+          "const": "add_edge",
+          "default": "add_edge",
+          "title": "Kind",
+          "type": "string"
+        },
+        "lanes": {
+          "title": "Lanes",
+          "type": "integer"
+        },
+        "speed": {
+          "title": "Speed",
+          "type": "number"
+        },
+        "to_junction": {
+          "title": "To Junction",
+          "type": "string"
+        }
+      },
+      "required": [
+        "from_junction",
+        "to_junction",
+        "lanes",
+        "speed"
+      ],
+      "title": "AddEdge",
+      "type": "object"
+    },
+    "ArtifactRef": {
+      "description": "Reference to a file in the artifact store, identified by content hash.",
+      "properties": {
+        "content_hash": {
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "path": {
+          "format": "path",
+          "title": "Path",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "content_hash",
+        "kind"
+      ],
+      "title": "ArtifactRef",
+      "type": "object"
+    },
+    "BuildScenarioStep": {
+      "description": "`role` and `purpose` are the Coordinator's: the Executor copies them into the `Experiment`\nthis scenario and its runs become (ADR-0025 \u00a75).",
+      "properties": {
+        "allow_script": {
+          "default": true,
+          "title": "Allow Script",
+          "type": "boolean"
+        },
+        "context_tags": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Context Tags",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "demand_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/FromStep"
+            }
+          ],
+          "title": "Demand Id"
+        },
+        "depends_on": {
+          "default": [],
+          "items": {
+            "type": "integer"
+          },
+          "title": "Depends On",
+          "type": "array"
+        },
+        "interventions": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Intervention"
+          },
+          "title": "Interventions",
+          "type": "array"
+        },
+        "kind": {
+          "const": "build_scenario",
+          "default": "build_scenario",
+          "title": "Kind",
+          "type": "string"
+        },
+        "network_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/FromStep"
+            }
+          ],
+          "title": "Network Id"
+        },
+        "purpose": {
+          "title": "Purpose",
+          "type": "string"
+        },
+        "role": {
+          "$ref": "#/$defs/ExperimentRole"
+        }
+      },
+      "required": [
+        "network_id",
+        "demand_id",
+        "role",
+        "purpose"
+      ],
+      "title": "BuildScenarioStep",
+      "type": "object"
+    },
+    "Condition": {
+      "description": "Runtime predicate `metric(target) op value` evaluated by the script's `when(...)`.",
+      "properties": {
+        "metric": {
+          "$ref": "#/$defs/Metric"
+        },
+        "op": {
+          "$ref": "#/$defs/Operator"
+        },
+        "target": {
+          "title": "Target",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "number"
+        }
+      },
+      "required": [
+        "metric",
+        "target",
+        "op",
+        "value"
+      ],
+      "title": "Condition",
+      "type": "object"
+    },
+    "DemandProfile": {
+      "enum": [
+        "low",
+        "peak",
+        "incident",
+        "custom"
+      ],
+      "title": "DemandProfile",
+      "type": "string"
+    },
+    "DeriveNetworkStep": {
+      "properties": {
+        "base_network_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/FromStep"
+            }
+          ],
+          "title": "Base Network Id"
+        },
+        "depends_on": {
+          "default": [],
+          "items": {
+            "type": "integer"
+          },
+          "title": "Depends On",
+          "type": "array"
+        },
+        "goals": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Goals",
+          "type": "array"
+        },
+        "kind": {
+          "const": "derive_network",
+          "default": "derive_network",
+          "title": "Kind",
+          "type": "string"
+        },
+        "max_rounds": {
+          "default": 5,
+          "title": "Max Rounds",
+          "type": "integer"
+        },
+        "min_scc_ratio": {
+          "default": 0.95,
+          "title": "Min Scc Ratio",
+          "type": "number"
+        },
+        "modifications": {
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RemoveEdge"
+              },
+              {
+                "$ref": "#/$defs/AddEdge"
+              },
+              {
+                "$ref": "#/$defs/SetLanes"
+              },
+              {
+                "$ref": "#/$defs/SetSpeed"
+              }
+            ]
+          },
+          "title": "Modifications",
+          "type": "array"
+        },
+        "probe_teleport_threshold": {
+          "default": 0,
+          "title": "Probe Teleport Threshold",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "base_network_id",
+        "modifications"
+      ],
+      "title": "DeriveNetworkStep",
+      "type": "object"
+    },
+    "EdgeTarget": {
+      "properties": {
+        "edge_id": {
+          "title": "Edge Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "edge",
+          "default": "edge",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "edge_id"
+      ],
+      "title": "EdgeTarget",
+      "type": "object"
+    },
+    "ExperimentRole": {
+      "enum": [
+        "baseline",
+        "treatment",
+        "comparison"
+      ],
+      "title": "ExperimentRole",
+      "type": "string"
+    },
+    "ExternalDatasetSource": {
+      "description": "Data the Demand Generator found outside, frozen as an artifact so the demand is\nreproducible even if the URL changes.",
+      "properties": {
+        "kind": {
+          "const": "external_dataset",
+          "default": "external_dataset",
+          "title": "Kind",
+          "type": "string"
+        },
+        "snapshot": {
+          "$ref": "#/$defs/ArtifactRef"
+        },
+        "transformation": {
+          "title": "Transformation",
+          "type": "string"
+        },
+        "url": {
+          "title": "Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "url",
+        "snapshot",
+        "transformation"
+      ],
+      "title": "ExternalDatasetSource",
+      "type": "object"
+    },
+    "FromStep": {
+      "description": "The id produced by step `step` of the same plan.",
+      "properties": {
+        "step": {
+          "title": "Step",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "step"
+      ],
+      "title": "FromStep",
+      "type": "object"
+    },
+    "GenerateDemandStep": {
+      "properties": {
+        "control_edges": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Control Edges",
+          "type": "array"
+        },
+        "depends_on": {
+          "default": [],
+          "items": {
+            "type": "integer"
+          },
+          "title": "Depends On",
+          "type": "array"
+        },
+        "kind": {
+          "const": "generate_demand",
+          "default": "generate_demand",
+          "title": "Kind",
+          "type": "string"
+        },
+        "max_calibration_rounds": {
+          "default": 5,
+          "title": "Max Calibration Rounds",
+          "type": "integer"
+        },
+        "network_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/FromStep"
+            }
+          ],
+          "title": "Network Id"
+        },
+        "profile": {
+          "$ref": "#/$defs/DemandProfile"
+        },
+        "seed": {
+          "title": "Seed",
+          "type": "integer"
+        },
+        "sources": {
+          "default": [],
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ParametersSource"
+              },
+              {
+                "$ref": "#/$defs/HistoricalDbSource"
+              },
+              {
+                "$ref": "#/$defs/ExternalDatasetSource"
+              }
+            ]
+          },
+          "title": "Sources",
+          "type": "array"
+        },
+        "tolerance": {
+          "default": 0.15,
+          "title": "Tolerance",
+          "type": "number"
+        }
+      },
+      "required": [
+        "network_id",
+        "profile",
+        "seed"
+      ],
+      "title": "GenerateDemandStep",
+      "type": "object"
+    },
+    "GenerateNetworkStep": {
       "properties": {
         "depends_on": {
           "default": [],
@@ -10,55 +412,558 @@
           "title": "Depends On",
           "type": "array"
         },
-        "expected_artifacts": {
+        "goals": {
           "default": [],
           "items": {
             "type": "string"
           },
-          "title": "Expected Artifacts",
+          "title": "Goals",
           "type": "array"
         },
-        "inputs": {
+        "kind": {
+          "const": "generate_network",
+          "default": "generate_network",
+          "title": "Kind",
+          "type": "string"
+        },
+        "max_rounds": {
+          "default": 5,
+          "title": "Max Rounds",
+          "type": "integer"
+        },
+        "min_scc_ratio": {
+          "default": 0.95,
+          "title": "Min Scc Ratio",
+          "type": "number"
+        },
+        "modifications": {
+          "default": [],
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RemoveEdge"
+              },
+              {
+                "$ref": "#/$defs/AddEdge"
+              },
+              {
+                "$ref": "#/$defs/SetLanes"
+              },
+              {
+                "$ref": "#/$defs/SetSpeed"
+              }
+            ]
+          },
+          "title": "Modifications",
+          "type": "array"
+        },
+        "probe_teleport_threshold": {
+          "default": 0,
+          "title": "Probe Teleport Threshold",
+          "type": "integer"
+        },
+        "source": {
+          "$ref": "#/$defs/NetworkSource"
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "title": "GenerateNetworkStep",
+      "type": "object"
+    },
+    "HistoricalDbSource": {
+      "properties": {
+        "kind": {
+          "const": "historical_db",
+          "default": "historical_db",
+          "title": "Kind",
+          "type": "string"
+        },
+        "query": {
           "additionalProperties": true,
-          "title": "Inputs",
+          "title": "Query",
+          "type": "object"
+        }
+      },
+      "title": "HistoricalDbSource",
+      "type": "object"
+    },
+    "Intervention": {
+      "description": "Something that happens *during* a simulation on an unchanged network.\n\nPermanent topology changes are not interventions: see TopologyModification.",
+      "properties": {
+        "condition": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Condition"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "expected_effect": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Effect"
+        },
+        "params": {
+          "additionalProperties": true,
+          "title": "Params",
           "type": "object"
         },
-        "module": {
-          "title": "Module",
+        "target": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EdgeTarget"
+            },
+            {
+              "$ref": "#/$defs/LaneTarget"
+            },
+            {
+              "$ref": "#/$defs/TlsTarget"
+            },
+            {
+              "$ref": "#/$defs/TazTarget"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Target"
+        },
+        "type": {
+          "$ref": "#/$defs/InterventionType"
+        },
+        "window": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TimeWindow"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "type",
+        "target"
+      ],
+      "title": "Intervention",
+      "type": "object"
+    },
+    "InterventionType": {
+      "enum": [
+        "lane_closure",
+        "edge_closure",
+        "speed_limit",
+        "demand_scale",
+        "signal_program",
+        "custom"
+      ],
+      "title": "InterventionType",
+      "type": "string"
+    },
+    "LaneTarget": {
+      "properties": {
+        "edge_id": {
+          "title": "Edge Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "lane",
+          "default": "lane",
+          "title": "Kind",
+          "type": "string"
+        },
+        "lane_index": {
+          "title": "Lane Index",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "edge_id",
+        "lane_index"
+      ],
+      "title": "LaneTarget",
+      "type": "object"
+    },
+    "Metric": {
+      "enum": [
+        "occupancy",
+        "speed",
+        "vehicle_count"
+      ],
+      "title": "Metric",
+      "type": "string"
+    },
+    "NetworkSource": {
+      "properties": {
+        "kind": {
+          "enum": [
+            "place",
+            "bbox",
+            "file"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
           "type": "string"
         }
       },
       "required": [
-        "module"
+        "kind",
+        "value"
       ],
-      "title": "PlanStep",
+      "title": "NetworkSource",
+      "type": "object"
+    },
+    "Operator": {
+      "enum": [
+        ">",
+        ">=",
+        "<",
+        "<="
+      ],
+      "title": "Operator",
+      "type": "string"
+    },
+    "ParametersSource": {
+      "properties": {
+        "kind": {
+          "const": "parameters",
+          "default": "parameters",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "title": "ParametersSource",
+      "type": "object"
+    },
+    "RemoveEdge": {
+      "properties": {
+        "edge_id": {
+          "title": "Edge Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "remove_edge",
+          "default": "remove_edge",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "edge_id"
+      ],
+      "title": "RemoveEdge",
+      "type": "object"
+    },
+    "RerouteDemandStep": {
+      "description": "The same trips re-routed on another network (deterministic, no agent).",
+      "properties": {
+        "demand_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/FromStep"
+            }
+          ],
+          "title": "Demand Id"
+        },
+        "depends_on": {
+          "default": [],
+          "items": {
+            "type": "integer"
+          },
+          "title": "Depends On",
+          "type": "array"
+        },
+        "kind": {
+          "const": "reroute_demand",
+          "default": "reroute_demand",
+          "title": "Kind",
+          "type": "string"
+        },
+        "network_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/FromStep"
+            }
+          ],
+          "title": "Network Id"
+        }
+      },
+      "required": [
+        "demand_id",
+        "network_id"
+      ],
+      "title": "RerouteDemandStep",
+      "type": "object"
+    },
+    "ReusedExperiment": {
+      "description": "A stored scenario whose ok results the Expert is given, without running anything.",
+      "properties": {
+        "purpose": {
+          "title": "Purpose",
+          "type": "string"
+        },
+        "role": {
+          "$ref": "#/$defs/ExperimentRole"
+        },
+        "scenario_id": {
+          "title": "Scenario Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "scenario_id",
+        "role",
+        "purpose"
+      ],
+      "title": "ReusedExperiment",
+      "type": "object"
+    },
+    "RunSimulationStep": {
+      "description": "`seeds=None` means the Executor's `DEFAULT_SEEDS`; one result per seed.",
+      "properties": {
+        "depends_on": {
+          "default": [],
+          "items": {
+            "type": "integer"
+          },
+          "title": "Depends On",
+          "type": "array"
+        },
+        "kind": {
+          "const": "run_simulation",
+          "default": "run_simulation",
+          "title": "Kind",
+          "type": "string"
+        },
+        "scenario_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/FromStep"
+            }
+          ],
+          "title": "Scenario Id"
+        },
+        "seeds": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Seeds"
+        }
+      },
+      "required": [
+        "scenario_id"
+      ],
+      "title": "RunSimulationStep",
+      "type": "object"
+    },
+    "SetLanes": {
+      "properties": {
+        "edge_id": {
+          "title": "Edge Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "set_lanes",
+          "default": "set_lanes",
+          "title": "Kind",
+          "type": "string"
+        },
+        "lanes": {
+          "title": "Lanes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "edge_id",
+        "lanes"
+      ],
+      "title": "SetLanes",
+      "type": "object"
+    },
+    "SetSpeed": {
+      "properties": {
+        "edge_id": {
+          "title": "Edge Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "set_speed",
+          "default": "set_speed",
+          "title": "Kind",
+          "type": "string"
+        },
+        "speed": {
+          "title": "Speed",
+          "type": "number"
+        }
+      },
+      "required": [
+        "edge_id",
+        "speed"
+      ],
+      "title": "SetSpeed",
+      "type": "object"
+    },
+    "TazTarget": {
+      "properties": {
+        "kind": {
+          "const": "taz",
+          "default": "taz",
+          "title": "Kind",
+          "type": "string"
+        },
+        "taz_id": {
+          "title": "Taz Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "taz_id"
+      ],
+      "title": "TazTarget",
+      "type": "object"
+    },
+    "TimeWindow": {
+      "description": "Simulation-time interval in seconds, [start, end).",
+      "properties": {
+        "end": {
+          "title": "End",
+          "type": "number"
+        },
+        "start": {
+          "title": "Start",
+          "type": "number"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ],
+      "title": "TimeWindow",
+      "type": "object"
+    },
+    "TlsTarget": {
+      "properties": {
+        "kind": {
+          "const": "tls",
+          "default": "tls",
+          "title": "Kind",
+          "type": "string"
+        },
+        "tls_id": {
+          "title": "Tls Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "tls_id"
+      ],
+      "title": "TlsTarget",
       "type": "object"
     }
   },
-  "description": "Emitted by the Coordinator before its first tool call; measured against gold plans.",
+  "description": "Emitted by the Coordinator, one per phase; measured against gold plans. `network_id` is the\nnetwork the study is about (`FromStep` when the plan creates it). Zero steps is valid: the\nExpert then answers from `reused` results only.",
   "properties": {
+    "network_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/$defs/FromStep"
+        }
+      ],
+      "title": "Network Id"
+    },
     "rationale": {
       "title": "Rationale",
       "type": "string"
     },
-    "reuse_decisions": {
+    "reused": {
       "default": [],
       "items": {
-        "type": "string"
+        "$ref": "#/$defs/ReusedExperiment"
       },
-      "title": "Reuse Decisions",
+      "title": "Reused",
       "type": "array"
     },
     "steps": {
+      "default": [],
       "items": {
-        "$ref": "#/$defs/PlanStep"
+        "anyOf": [
+          {
+            "$ref": "#/$defs/GenerateNetworkStep"
+          },
+          {
+            "$ref": "#/$defs/DeriveNetworkStep"
+          },
+          {
+            "$ref": "#/$defs/GenerateDemandStep"
+          },
+          {
+            "$ref": "#/$defs/RerouteDemandStep"
+          },
+          {
+            "$ref": "#/$defs/BuildScenarioStep"
+          },
+          {
+            "$ref": "#/$defs/RunSimulationStep"
+          }
+        ]
       },
       "title": "Steps",
       "type": "array"
     }
   },
   "required": [
-    "steps",
+    "network_id",
     "rationale"
   ],
   "title": "StudyPlan",

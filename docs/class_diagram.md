@@ -31,6 +31,9 @@ class Study {
   +List~str~ network_ids
   +List~str~ note_ids
 }
+class Phase {
+  +Question question
+}
 class StudyStatus {
   <<enumeration>>
   PLANNING
@@ -65,15 +68,56 @@ class Mode {
 }
 
 class StudyPlan {
-  +List~PlanStep~ steps
+  +str | FromStep network_id
   +str rationale
-  +List~str~ reuse_decisions
+}
+class ReusedExperiment {
+  +str scenario_id
+  +ExperimentRole role
+  +str purpose
+}
+class ClarificationRequest {
+  +str reason
+  +List~str~ candidates
 }
 class PlanStep {
-  +str module
-  +Dict~str, Any~ inputs
-  +List~str~ expected_artifacts
+  <<union>>
+  kind
   +List~int~ depends_on
+}
+class FromStep {
+  +int step
+}
+class GenerateNetworkStep {
+  +NetworkSource source
+  +List~str~ goals
+  +List~TopologyModification~ modifications
+}
+class DeriveNetworkStep {
+  +str | FromStep base_network_id
+  +List~TopologyModification~ modifications
+  +List~str~ goals
+}
+class GenerateDemandStep {
+  +str | FromStep network_id
+  +DemandProfile profile
+  +int seed
+  +List~DemandSource~ sources
+}
+class RerouteDemandStep {
+  +str | FromStep demand_id
+  +str | FromStep network_id
+}
+class BuildScenarioStep {
+  +str | FromStep network_id
+  +str | FromStep demand_id
+  +ExperimentRole role
+  +str purpose
+  +List~Intervention~ interventions
+}
+class RunSimulationStep {
+  +str | FromStep scenario_id
+  +List~int~? seeds
 }
 
 class StepRecord {
@@ -81,7 +125,18 @@ class StepRecord {
   +StepStatus status
   +Dict~str, Any~ task
   +List~str~ produced_ids
-  +str? error
+}
+class StepError {
+  +StepErrorKind kind
+  +str message
+  +List~str~ details
+}
+class StepErrorKind {
+  <<enumeration>>
+  USER_INPUT
+  BUDGET
+  AGENT
+  INFRASTRUCTURE
 }
 class StepStatus {
   <<enumeration>>
@@ -100,6 +155,7 @@ class Experiment {
   +ExperimentRole role
   +str purpose
   +List~str~ result_ids
+  +bool reused
 }
 class ExperimentRole {
   <<enumeration>>
@@ -110,7 +166,7 @@ class ExperimentRole {
 
 class ExpertRound {
   +str question
-  +List~int~ triggered_experiments
+  +bool forced_by_limit
 }
 
 class ExpertAnswer {
@@ -197,19 +253,33 @@ class Claim {
   +str? value
 }
 
-Study *-- "1" Question : question
-Study "1" o-- "0..1" StudyPlan : plan
-Study "1" *-- "0..*" StepRecord : steps
-Study "1" *-- "0..*" Experiment : experiments
-Study "1" *-- "0..*" ExpertRound : rounds
+Study "1" *-- "1..max_rounds" Phase : phases
 Study "1" o-- "0..1" Report : report
+Phase *-- "1" Question : question
+Phase "1" o-- "0..1" StudyPlan : plan
+Phase "1" o-- "0..1" ClarificationRequest : clarification
+Phase "1" *-- "0..*" StepRecord : steps
+Phase "1" *-- "0..*" Experiment : experiments
+Phase "1" o-- "0..1" ExpertRound : round
 Study --> StudyStatus
 Question --> Intent
 Question --> Mode
 StepRecord --> StepStatus
 StepRecord *-- Usage : usage
+StepRecord "1" o-- "0..1" StepError : error
+StepError --> StepErrorKind
 Experiment --> ExperimentRole
-StudyPlan "1" *-- "1..*" PlanStep : steps
+StudyPlan "1" *-- "0..*" PlanStep : steps
+StudyPlan "1" *-- "0..*" ReusedExperiment : reused
+StudyPlan ..> FromStep : network_id
+ReusedExperiment --> ExperimentRole
+PlanStep <|-- GenerateNetworkStep
+PlanStep <|-- DeriveNetworkStep
+PlanStep <|-- GenerateDemandStep
+PlanStep <|-- RerouteDemandStep
+PlanStep <|-- BuildScenarioStep
+PlanStep <|-- RunSimulationStep
+PlanStep ..> FromStep : ids producidos por pasos anteriores
 ExpertRound *-- "1" ExpertAnswer : answer
 ExpertAnswer --> Basis
 ExpertAnswer "1" *-- "0..*" Evidence : evidence
