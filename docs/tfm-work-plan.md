@@ -13,8 +13,8 @@ v0.2 of this plan (2026-09-11) aligns task wording, outputs and a few estimates 
 | Calendar span | 23 weeks (9 Sep → 18 Feb) |
 | Minus Christmas break (21 Dec → 3 Jan, low-intensity work only) | ≈ 21 working weeks |
 | Capacity at 40 h/week | ≈ 840 h |
-| Planned effort (sum of all tasks below) | 928 h (894 h before 2026-09-23) |
-| Contingency | **none** (−88 h) |
+| Planned effort (sum of all tasks below) | 935 h (894 h before 2026-09-23; +7 h for E3.4's variant pipeline) |
+| Contingency | **none** (−95 h) |
 
 **Pending scope, not counted above (added 2026-09-22):** the Coordinator is split per
 [ADR-0023](adr/0023-coordinator-split-deterministic-executor.md) — Input Parser agent (text → `Question`,
