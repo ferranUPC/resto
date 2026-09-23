@@ -63,6 +63,12 @@ class ScenarioSemanticError(ValueError):
     network, or a cfg SUMO refuses to load."""
 
 
+class UnknownTargetError(ScenarioSemanticError):
+    """An implemented intervention targets an edge, lane or tls the network does not have: the
+    user's question named it (`StepError(user_input)`), unlike the other semantic errors, which
+    point at a wrong plan or draft."""
+
+
 def build_scenario(
     task: ScenarioTask,
     run: AgentRun[ScenarioDraft],
@@ -146,13 +152,13 @@ def _check_targets_exist(draft: ScenarioDraft, query: NetworkQuery) -> None:
     for intervention in draft.interventions:
         target = intervention.target
         if isinstance(target, EdgeTarget) and not query.has_edge(target.edge_id):
-            raise ScenarioSemanticError(f"unknown edge {target.edge_id!r}")
+            raise UnknownTargetError(f"unknown edge {target.edge_id!r}")
         if isinstance(target, LaneTarget) and not query.has_lane(
             target.edge_id, target.lane_index
         ):
-            raise ScenarioSemanticError(f"unknown lane {target.lane_id!r}")
+            raise UnknownTargetError(f"unknown lane {target.lane_id!r}")
         if isinstance(target, TlsTarget) and not query.has_tls(target.tls_id):
-            raise ScenarioSemanticError(f"unknown tls {target.tls_id!r}")
+            raise UnknownTargetError(f"unknown tls {target.tls_id!r}")
 
 
 def _content_hash(draft: ScenarioDraft) -> str:

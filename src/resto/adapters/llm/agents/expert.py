@@ -10,9 +10,14 @@ edges in typed values exist, forced mode never abstains) in
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from dataclasses import dataclass
+from pathlib import Path
+
 from resto.application.ports.llm import AgentRun, AgentTask, Budget, ToolAgent
 from resto.application.ports.network_query import NetworkQuery
 from resto.application.ports.repositories import (
+    NetworkRepository,
     NoteRepository,
     ResultRepository,
     ScenarioRepository,
@@ -187,3 +192,43 @@ def run_expert_note(task: NoteTask, agent: ToolAgent, budget: Budget) -> AgentRu
     already in `task.round.answer.evidence` — hand the run to `write_note` with the SAME
     `EvidenceLedger` that round was promoted with, and the same `task`."""
     return agent.run(build_note_task(task), (), ExpertNoteDrafts, budget)
+
+
+@dataclass(frozen=True, slots=True)
+class ExpertPort:
+    """`ExpertAgent` port (ADR-0025 §6) over `run_expert`, with the infrastructure bound: the
+    Expert queries the network the task names."""
+
+    agent: ToolAgent
+    budget: Budget
+    networks: NetworkRepository
+    results: ResultRepository
+    scenarios: ScenarioRepository
+    notes: NoteRepository | None
+    network_query_factory: Callable[[Path], NetworkQuery]
+
+    def answer(self, task: ExpertTask, ledger: EvidenceLedger) -> AgentRun[ExpertAnswer]:
+        network = self.networks.get(task.network_id)
+        if network is None:
+            raise LookupError(f"network {task.network_id!r} is not stored")
+        return run_expert(
+            task,
+            self.agent,
+            self.budget,
+            query=self.network_query_factory(network.net_xml.path),
+            results=self.results,
+            scenarios=self.scenarios,
+            notes=self.notes,
+            ledger=ledger,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class NoteWriterPort:
+    """`NoteWriterAgent` port over `run_expert_note`."""
+
+    agent: ToolAgent
+    budget: Budget
+
+    def write(self, task: NoteTask) -> AgentRun[ExpertNoteDrafts]:
+        return run_expert_note(task, self.agent, self.budget)

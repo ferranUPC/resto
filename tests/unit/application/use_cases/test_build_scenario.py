@@ -3,10 +3,7 @@ scenario_id, and that a Budget/ERROR stop reason never gets promoted."""
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
-from collections.abc import Set as AbstractSet
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -23,70 +20,15 @@ from resto.application.use_cases.build_scenario import (
     build_scenario,
 )
 from resto.domain.services.ids import scenario_id_for
-from resto.domain.value_objects.artifact_ref import ArtifactRef
 from resto.domain.value_objects.intervention import Intervention, InterventionType
 from resto.domain.value_objects.mechanism import RegenerateDemandMechanism, StaticFileMechanism
 from resto.domain.value_objects.step_record import Usage
 from resto.domain.value_objects.tasks import ScenarioTask
 from resto.domain.value_objects.time_window import TimeWindow
+from tests.unit.application.use_cases._doubles import FakeRunner, StubNetworkQuery
 from tests.unit.domain._fixtures import artifact, scenario_draft, static_intervention
 from tests.unit.domain._samples import demand as sample_demand
 from tests.unit.domain._samples import network as sample_network
-
-
-class StubNetworkQuery:
-    def __init__(
-        self,
-        edges: AbstractSet[str] = frozenset(),
-        lanes: AbstractSet[tuple[str, int]] = frozenset(),
-    ) -> None:
-        self._edges = edges
-        self._lanes = lanes
-
-    def has_edge(self, edge_id: str) -> bool:
-        return edge_id in self._edges
-
-    def has_lane(self, edge_id: str, lane_index: int) -> bool:
-        return (edge_id, lane_index) in self._lanes
-
-    def has_tls(self, tls_id: str) -> bool:
-        raise AssertionError("not used by this intervention")
-
-    def get_edge(self, edge_id: str) -> Mapping[str, Any]:
-        raise AssertionError("not used")
-
-    def get_lanes(self, edge_id: str) -> Sequence[Mapping[str, Any]]:
-        raise AssertionError("not used")
-
-    def get_neighbours(self, edge_id: str) -> Sequence[str]:
-        raise AssertionError("not used")
-
-    def shortest_path(self, from_edge: str, to_edge: str) -> Sequence[str]:
-        raise AssertionError("not used")
-
-    def edges_in_bbox(self, bbox: tuple[float, float, float, float]) -> Sequence[str]:
-        raise AssertionError("not used")
-
-    def capacity_estimate(self, edge_id: str) -> float:
-        raise AssertionError("not used")
-
-    def get_tls(self, tls_id: str) -> Mapping[str, Any]:
-        raise AssertionError("not used")
-
-
-class FakeRunner:
-    def __init__(self, outputs: list[RunOutput]) -> None:
-        self._outputs = outputs
-        self.calls: list[tuple[ArtifactRef, int, Path]] = []
-
-    def run_batch(self, sumocfg: ArtifactRef, seed: int, out_dir: Path) -> RunOutput:
-        self.calls.append((sumocfg, seed, out_dir))
-        return self._outputs.pop(0)
-
-    def run_online(
-        self, sumocfg: ArtifactRef, script: ArtifactRef, seed: int, out_dir: Path
-    ) -> RunOutput:
-        raise AssertionError("not used")
 
 
 def ok_output() -> RunOutput:

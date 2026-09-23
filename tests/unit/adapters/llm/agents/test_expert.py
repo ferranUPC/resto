@@ -5,14 +5,23 @@ from __future__ import annotations
 
 import re
 from collections.abc import Sequence
+from pathlib import Path
+
+import pytest
 
 from resto.adapters.llm.agents.expert import (
+    ExpertPort,
+    NoteWriterPort,
     build_note_task,
     build_task,
     run_expert,
     run_expert_note,
 )
-from resto.adapters.persistence.memory import InMemoryResultRepository, InMemoryScenarioRepository
+from resto.adapters.persistence.memory import (
+    InMemoryNetworkRepository,
+    InMemoryResultRepository,
+    InMemoryScenarioRepository,
+)
 from resto.adapters.sumo.netxml import SumolibNetworkQuery
 from resto.application.ports.llm import AgentTask, Budget, Tool
 from resto.application.schemas import adapter_for
@@ -31,6 +40,7 @@ from resto.domain.value_objects.tasks import ExpertTask, NoteScenario, NoteTask
 from tests.unit.adapters.llm._fakes import FakeToolAgent, call_tool
 from tests.unit.application.tools.test_expert import DEV_NET
 from tests.unit.domain._samples import expert_answer
+from tests.unit.domain._samples import network as sample_network
 from tests.unit.domain._samples import simulation_result as sample_result
 
 TASK = ExpertTask(
@@ -150,3 +160,41 @@ def test_run_expert_note_offers_no_tools_and_returns_the_agent_run() -> None:
     assert run.output == drafts
     assert seen["input"] == build_note_task(NOTE_TASK).input
     assert seen["tools"] == []
+
+
+def expert_port(networks: InMemoryNetworkRepository, opened: list[Path]) -> ExpertPort:
+    def query_for(path: Path) -> SumolibNetworkQuery:
+        opened.append(path)
+        return SumolibNetworkQuery(DEV_NET)
+
+    return ExpertPort(
+        agent=FakeToolAgent(output=expert_answer()),
+        budget=BUDGET,
+        networks=networks,
+        results=InMemoryResultRepository(),
+        scenarios=InMemoryScenarioRepository(),
+        notes=None,
+        network_query_factory=query_for,
+    )
+
+
+def test_the_expert_port_queries_the_network_the_task_names() -> None:
+    networks = InMemoryNetworkRepository()
+    networks.store(sample_network())
+    opened: list[Path] = []
+
+    run = expert_port(networks, opened).answer(TASK, EvidenceLedger())
+
+    assert run.output == expert_answer()
+    assert opened == [sample_network().net_xml.path]
+
+
+def test_the_expert_port_refuses_a_network_that_is_not_stored() -> None:
+    with pytest.raises(LookupError):
+        expert_port(InMemoryNetworkRepository(), []).answer(TASK, EvidenceLedger())
+
+
+def test_the_note_writer_port_runs_the_note_writer() -> None:
+    port = NoteWriterPort(agent=FakeToolAgent(output=ExpertNoteDrafts()), budget=BUDGET)
+
+    assert port.write(NOTE_TASK).output == ExpertNoteDrafts()

@@ -19,9 +19,9 @@ from resto.domain.constants import SUMO_VERSION
 from resto.domain.entities.scenario import Scenario
 from resto.domain.entities.simulation_result import RunMode, RunStatus
 from resto.domain.services.ids import result_id_for
-from resto.domain.value_objects.artifact_ref import ArtifactRef
 from resto.domain.value_objects.kpis import Kpis
 from resto.domain.value_objects.mechanism import StaticFileMechanism
+from tests.unit.application.use_cases._doubles import FakeRunner
 from tests.unit.domain._fixtures import artifact, static_intervention
 from tests.unit.domain._samples import scenario as online_scenario
 
@@ -38,21 +38,6 @@ def batch_scenario() -> Scenario:
         sumocfg=artifact("s.sumocfg", "c1", "sumocfg"),
         content_hash="c1",
     )
-
-
-class FakeRunner:
-    def __init__(self, outputs: list[RunOutput]) -> None:
-        self._outputs = outputs
-        self.calls: list[tuple[ArtifactRef, int, Path]] = []
-
-    def run_batch(self, sumocfg: ArtifactRef, seed: int, out_dir: Path) -> RunOutput:
-        self.calls.append((sumocfg, seed, out_dir))
-        return self._outputs.pop(0)
-
-    def run_online(
-        self, sumocfg: ArtifactRef, script: ArtifactRef, seed: int, out_dir: Path
-    ) -> RunOutput:
-        raise AssertionError("not used")
 
 
 def ok_output(digest: str = "ed1") -> RunOutput:

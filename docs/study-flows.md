@@ -28,9 +28,9 @@ returns a draft to the Executor.
 | Output Composer + traceability checker | agent + code | report prose; the checker verifies numbers | add reasoning of its own | `adapters/llm/agents/composer.py` |
 | Failure / clarification render | code | three blocks: what happened, what was done, what the user can do | — | `interface/render.py` |
 
-The Executor reaches agents through one narrow port per agent (`application/ports/agents.py`, task in,
-`AgentRun[Draft]` out); the `run_<agent>` functions implement them with infrastructure bound in the
-composition root (`interface/cli`).
+The Executor reaches agents through one narrow port per agent (`application/ports/agents/`, one module
+per agent, task in, `AgentRun[Draft]` out); the `run_<agent>` functions implement them with
+infrastructure bound in the composition root (`interface/cli`).
 
 ## 2. Main flow
 

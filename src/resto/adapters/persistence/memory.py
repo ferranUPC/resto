@@ -17,6 +17,7 @@ from resto.domain.entities.expert_note import ExpertNote, NoteStatus
 from resto.domain.entities.network import Network
 from resto.domain.entities.scenario import Scenario
 from resto.domain.entities.simulation_result import SimulationResult
+from resto.domain.entities.study import Study
 from resto.domain.services.ids import scenario_id_for
 from resto.domain.services.note_ranking import rank_notes
 from resto.domain.value_objects.intervention import Intervention
@@ -160,3 +161,14 @@ class InMemoryNoteRepository:
         if note is None:
             raise NotFoundError(f"note {note_id} not found")
         self._notes[note_id] = note.with_status(status)
+
+
+class InMemoryStudyRepository:
+    def __init__(self) -> None:
+        self._studies: dict[str, Study] = {}
+
+    def store(self, study: Study) -> None:
+        self._studies[study.study_id] = study
+
+    def get(self, study_id: str) -> Study | None:
+        return self._studies.get(study_id)

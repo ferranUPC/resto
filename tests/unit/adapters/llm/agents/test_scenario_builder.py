@@ -5,9 +5,17 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from resto.adapters.llm.agents.scenario_builder import build_task, run_scenario_builder
+import pytest
+
+from resto.adapters.llm.agents.scenario_builder import (
+    ScenarioBuilderPort,
+    build_task,
+    run_scenario_builder,
+)
+from resto.adapters.persistence.memory import InMemoryDemandRepository, InMemoryNetworkRepository
 from resto.adapters.sumo.netxml import SumolibNetworkQuery
 from resto.application.ports.llm import Budget, StopReason
+from resto.domain.services.ids import scenario_id_for
 from resto.domain.value_objects.drafts import ScenarioDraft
 from resto.domain.value_objects.intervention import Intervention, InterventionType
 from resto.domain.value_objects.intervention_target import LaneTarget
@@ -154,3 +162,59 @@ def test_budget_exhaustion_surfaces_as_no_output(tmp_path: Path) -> None:
     run_result = run(BudgetExhaustedAgent(), tmp_path)
     assert run_result.output is None
     assert run_result.stop_reason is StopReason.BUDGET
+
+
+def builder_port(tmp_path: Path, agent: FakeToolAgent, **writers: object) -> ScenarioBuilderPort:
+    networks = InMemoryNetworkRepository()
+    networks.store(sample_network())
+    demands = InMemoryDemandRepository()
+    demands.store(sample_demand())
+    return ScenarioBuilderPort(
+        agent=agent,
+        budget=BUDGET,
+        networks=networks,
+        demands=demands,
+        network_query_factory=lambda path: SumolibNetworkQuery(DEV_NET),
+        rerouter_writer=writers.get("rerouter", RecordingAdditionalFileWriter()),  # type: ignore[arg-type]
+        vss_writer=RecordingAdditionalFileWriter(),
+        tls_program_writer=RecordingAdditionalFileWriter(),
+        sumocfg_writer=writers.get("sumocfg", RecordingWriter()),  # type: ignore[arg-type]
+        demand_scaler=RecordingDemandScaler(),
+        duarouter=RecordingDuarouter(),
+        out_dir=tmp_path,
+    )
+
+
+PORT_TASK = ScenarioTask(network_id="abc123", demand_id="t1", interventions=(CLOSURE,))
+
+
+def test_the_builder_port_writes_into_the_requested_scenarios_directory(tmp_path: Path) -> None:
+    rerouter_writer = RecordingAdditionalFileWriter()
+    sumocfg_writer = RecordingWriter()
+
+    def interact(task, tools):  # noqa: ANN001
+        call_tool(tools, "write_rerouter", intervention_index=0)
+        call_tool(tools, "write_sumocfg")
+
+    port = builder_port(
+        tmp_path,
+        FakeToolAgent(output=canned_draft(), interact=interact),
+        rerouter=rerouter_writer,
+        sumocfg=sumocfg_writer,
+    )
+
+    run_result = port.build(PORT_TASK)
+
+    requested = scenario_id_for("abc123", "t1", (CLOSURE,), frozenset())
+    assert run_result.output == canned_draft()
+    assert rerouter_writer.calls == [(CLOSURE, tmp_path / requested)]
+    (settings, _, _), = sumocfg_writer.calls
+    window = sample_demand().spec.window
+    assert (settings.begin, settings.end) == (window.start, window.end)
+
+
+def test_the_builder_port_refuses_an_unknown_demand(tmp_path: Path) -> None:
+    port = builder_port(tmp_path, FakeToolAgent(output=canned_draft()))
+
+    with pytest.raises(LookupError):
+        port.build(ScenarioTask(network_id="abc123", demand_id="nope"))
