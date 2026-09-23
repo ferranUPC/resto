@@ -509,7 +509,12 @@ footer { margin-top: 40px; font-size: 12px; color: var(--ink-3); max-width: 80ch
     $("#headline").innerHTML = ahead == null ? "" :
       `A ${fmt(today)} están cerradas tareas por <strong>${A.doneH} h</strong> del plan. El plan esperaba <strong>${planNow} h</strong> para hoy, y no llega a ${A.doneH} h hasta el <strong>${fmt(eq)}</strong>: ${ahead >= 0 ? `<strong>${ahead} días de adelanto</strong>` : `<strong>${-ahead} días de retraso</strong>`}.`;
 
-    drawBurn(M, start, end, plan, realCurve(M));
+    const real = realCurve(M), host = $("#burn");
+    let lastW = 0;
+    new ResizeObserver(() => {
+      const w = host.clientWidth;
+      if (w > 0 && w !== lastW) { lastW = w; drawBurn(M, start, end, plan, real); }
+    }).observe(host);
 
     // Milestones
     $("#milestones").innerHTML = M.milestones.map(m => {
@@ -550,7 +555,7 @@ footer { margin-top: 40px; font-size: 12px; color: var(--ink-3); max-width: 80ch
   // ---------- Burn-up chart ----------
   function drawBurn(M, start, end, plan, real) {
     const host = $("#burn");
-    const W = Math.max(300, host.clientWidth), H = 300;
+    const W = host.clientWidth, H = 300;
     const m = { l: 44, r: 16, t: 14, b: 44 };
     const total = plan(end);
     const yMax = Math.ceil(total / 100) * 100;
@@ -586,7 +591,7 @@ footer { margin-top: 40px; font-size: 12px; color: var(--ink-3); max-width: 80ch
       months += `<text x="${x(d)}" y="${H - m.b + 34}" text-anchor="middle">${d.toLocaleDateString("es-ES", { month: "short" })}</text>`;
     }
     const tx = x(today), rNow = real(today);
-    host.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+    host.innerHTML = `<svg viewBox="0 0 ${W} ${H}">
       ${grid}
       <line x1="${m.l}" x2="${W - m.r}" y1="${H - m.b}" y2="${H - m.b}" stroke="var(--ink-3)"/>
       ${ms}${months}
@@ -746,7 +751,6 @@ footer { margin-top: 40px; font-size: 12px; color: var(--ink-3); max-width: 80ch
     if (!location.hash) { try { const t = localStorage.getItem("resto-tab"); if (t && VIEWS.includes(t)) history.replaceState(null, "", "#" + t); } catch (e) {} }
     route();
     window.addEventListener("hashchange", route);
-    let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => drawBurn(M, new Date(2026, 8, 9), M.milestones[M.milestones.length - 1].date, planCurve(M), realCurve(M)), 150); });
   }
   main().catch(err => { const l = $("#loading"); l.hidden = false; l.className = "state err"; l.textContent = err.message; });
 })();
