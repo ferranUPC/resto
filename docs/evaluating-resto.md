@@ -42,7 +42,8 @@
 | Scenario matrix DEV-NET / peak (20 rows × 3 seeds) | Expert gold answers | built (E3.1) | `eval/scenario_matrix/` |
 | Question bank DEV-NET (117 questions) | Network Expert | built (E3.2) | `eval/question_bank/` |
 | Expert benchmark harness | Network Expert | built (E3.3) | `eval/expert_benchmark/` |
-| Request bank (50+ requests, 10+ ambiguous) | Coordinator | pending (E3.4) | — |
+| Request bank (50+ requests, 10+ ambiguous; text → gold `Question`) | Input Parser | pending (E3.4) | — |
+| Plan bank (gold phase-0 `StudyPlan` per request, fixed DB state) | Coordinator | pending (E3.7) | — |
 | Builder bank (25–30 specs) | Scenario Builder | pending (E2.7) | — |
 | Derivation bank (10 modifications) | Network Author | pending (E6.4) | — |
 | GEN-LOCATIONS (10 raw OSM locations) | Network Author | pending (E6.4) | — |
@@ -58,7 +59,8 @@ already fixes; each procedure is written here when its benchmark task starts, no
 
 | Module | Benchmark asset | Metrics (DoD) | Procedure |
 |---|---|---|---|
-| Coordinator + Input Parser | request bank | schema validity, field match, ambiguity detection, `intent` agreement, routing vs gold plan and trace (§4.1, §4.2) | E5.1, E5.5, E5.8 |
+| Input Parser | request bank | schema validity, field match, ambiguity detection, `intent` agreement (§4.1) | E5.1, E5.8 |
+| Coordinator | plan bank | routing vs gold plan (§4.2); the `StepRecord` trace is Executor behaviour, checked by fake-agent tests (ADR-0023) | E5.5, E5.8 |
 | Network Author | GEN-LOCATIONS, derivation bank | loadable networks, sanity report, replay determinism, agent stability (§4.3) | E6.4 |
 | Demand Generator | demand profiles, control counts | calibration fidelity ±15 % DEV / ±25 % REAL, replay determinism (§4.4) | E6.5 |
 | Scenario Builder | builder bank | mechanism selection, validity, effect verification ≥ 27/30, authoring determinism (§4.5) | E2.7 |
