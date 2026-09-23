@@ -25,6 +25,15 @@ phases; `StudyOutcome` is dropped. The domain change (`Study` in phases, typed `
 considered now rather than after M6 because the project has run ahead of its own calendar since 13 Sep
 (every `docs/feasability-analisis/` entry since then).
 
+**Pending scope, not counted above (added 2026-09-23):** [ADR-0025](adr/0025-executor-plan-shape-intent-rules-and-failures.md)
+fixes the Executor contract (plan names the network and the reused experiments and may have zero steps;
+planning rules by `intent`; typed `StepError`; forced last round; role/purpose from the Coordinator;
+one port per agent) and [ADR-0026](adr/0026-expert-notes-per-study-and-prediction-verification.md) when
+and how notes are written and verified; flows in [`study-flows.md`](study-flows.md). Almost all of it is
+absorbed by tasks not yet done (E3.4, E5.1–E5.5, E5.9, E5.10, E6.7, E7.1, E7.3 — wording updated below).
+Two tasks are new, hours not yet committed: **E4.11** (note writing per ADR-0026 — E4.6 is done and is
+not reopened) and **E5.11** (deterministic rendering of failed and `awaiting_user` studies).
+
 The plan is overcommitted by ~6 % and has no buffer (v0.1 was ~4 %; the extra 24 h are the agentic Network Author and Demand Generator, `traci_api`, and the Coordinator as a tool-using agent). That is deliberate: it tells you where you are at every milestone. Section 5 lists, in order, which *Done* criteria to downgrade to *Minimal* if a milestone slips. Do not add Stretch work before M6.
 
 ---
@@ -77,7 +86,7 @@ Phase A (Minimal, 58 h): 5 Oct → 16 Oct. Phase B (Done, 52 h): 30 Nov → 11 D
 | E3.1 | Scenario matrix DEV-NET / peak: 15–25 rows × 3 seeds, simulated and stored via DatabaseMCP | matrix in DB | 12 | 16 Oct |
 | E3.2 | Question templates (descriptive / diagnostic / counterfactual) + generator + programmatic gold answers from the matrix; ≥60 questions on DEV-NET | question bank | 16 | 23 Oct |
 | E3.3 | Metrics: exact match, Jaccard top-k, direction, magnitude band, Brier, abstention P/R; harness with repeated runs, mean ± std, report generation | `eval/` | 16 | 27 Oct |
-| E3.4 | Request bank: 50+ NL requests (10+ ambiguous) with gold `Question`, gold `StudyPlan` and expected `StepRecord` trace for a fixed DB state | request bank | 12 | 18 Nov |
+| E3.4 | Request bank: 50+ NL requests (10+ ambiguous) with gold `Question`, gold `StudyPlan` and expected `StepRecord` trace for a fixed DB state; gold plans follow ADR-0025 (planning rules by `intent`, `network_id` + `reused` with role/purpose, zero-step plans valid, no `ask_expert`/`compose_report` steps) | request bank | 12 | 18 Nov |
 | E3.5 | Scenario matrix REAL-NET / peak | matrix in DB | 8 | 15 Jan |
 | E3.6 | Question bank REAL-NET (40+) | question bank | 6 | 18 Jan |
 
@@ -96,19 +105,21 @@ Phase A (DEV-NET, 110 h): 19 Oct → 13 Nov. Phase B (REAL-NET, 50 h): 18 Jan �
 | E4.8 | Port to REAL-NET, tune, full benchmark (descriptive ≥85 %, Jaccard ≥0.5, direction ≥65 %) | report | 24 | 26 Jan |
 | E4.9 | Learning-effect experiment: store size 0 / 5 / 15 / 25, held-out interventions, confidence intervals, plot | figure + data | 18 | 29 Jan |
 | E4.10 | Calibration analysis (Brier, accuracy by `basis`) and ablation facts-only vs facts + notes | figures | 8 | 29 Jan |
+| E4.11 | *(new, hours TBD)* Notes per ADR-0026: note writer returns 0–3 `ExpertNoteDraft`s, each with a `scenario_ref` from an allow-list (study scenarios + predicted `scenario_id`); `write_note` validates the ref and sets `provenance = simulation` only if that scenario has results in the study; tests with the fake agent | notes v2 + tests | **TBD** | 12 Nov |
 
 ### E5 — Input Parser, Coordinator, Executor, Output Composer (104 h) · DoD §4.1, §4.2, §4.8
 Phase A (Minimal + loop, 58 h): 16 Nov → 27 Nov. Phase B (Done, 46 h): 1 Feb → 5 Feb.
 
 | ID | Task | Output | h | Due |
 |---|---|---|---|---|
-| E5.1 | Input Parser (own agent again, ADR-0023): text → `Question`, no tools, retry-then-fail, `ambiguities[]` → `awaiting_user` before the Coordinator runs; evaluate on request bank to Done (§4.1) | parser agent + report | 14 | 18 Nov |
-| E5.2 | Coordinator Minimal (ADR-0023): one `ToolAgent.run` per `Question` with read-only tools (`find_network`, `find_demand`, `find_scenario`, `list_results`) → typed `StudyPlan` or a clarification request; the 4 canonical DB states — **hours to be re-estimated: the tool-using orchestration part moved to E5.10** | coordinator agent | 24 | 23 Nov |
-| E5.3 | Loop closure (ADR-0023): `needs_simulation` → Coordinator plans the `proposed_experiment` as a new phase → Executor runs it → re-ask with the original question and all phases' results, `max_rounds` respected; `ExpertTask` over base + derived networks (open point in ADR-0023); GP-3 / GP-4 / GP-5 passing | tests | 14 | 26 Nov |
-| E5.4 | Output Composer Minimal (agent): closed `Study` → `Report` (claims with `evidence_refs`) → Markdown with evidence table | composer | 6 | 27 Nov |
-| E5.5 | Coordinator Done: routing ≥90 % on `StudyPlan` vs gold plan (gold plans without `ask_expert`/`compose_report` steps, ADR-0023); `StepRecord` trace vs expected is now Executor behaviour, checked by tests with the fake agent; zero redundant simulations (counter); failure injection (incl. agent budget exhausted) yields named failing step | report | 18 | 3 Feb |
-| E5.9 | *(new, hours TBD)* Domain change for ADR-0023: `Phase`, `Study.phases` and its invariants, typed `PlanStep` union with `FromStep` late binding, `ExpertRound` without `triggered_experiments`; schemas and class diagram regenerated | domain + tests | **TBD** | **TBD** |
-| E5.10 | *(new, hours TBD)* Executor (`run_study`, deterministic code, not an agent): resolves `FromStep`, calls specialists, promotes drafts, records `StepRecord`s per phase, guards in code (no re-run of an existing `result_id`, per-`Study` budget, `max_rounds`), runs `ask_expert` and `compose_report` itself, mechanical closing status; a rejected draft is a failed step by name, no re-ask; `Study` persisted after every step | run_study | **TBD** | **TBD** |
+| E5.1 | Input Parser (own agent again, ADR-0023): text → `Question`, no tools, retry-then-fail, `ambiguities[]` → `awaiting_user` before the Coordinator runs; `InputParserAgent` port implementation (ADR-0025); evaluate on request bank to Done (§4.1) | parser agent + report | 14 | 18 Nov |
+| E5.2 | Coordinator Minimal (ADR-0023): one `ToolAgent.run` per `Question` with read-only tools (`find_network`, `find_demand`, `find_scenario`, `list_results`) → typed `StudyPlan` or a clarification request; planning rules by `intent` (ADR-0025: counterfactual plans the baseline only, phases ≥ 1 planned as `run`), `network_id` + `reused` + role/purpose in the plan; `CoordinatorAgent` port; the 4 canonical DB states — **hours to be re-estimated: the tool-using orchestration part moved to E5.10** | coordinator agent | 24 | 23 Nov |
+| E5.3 | Loop closure (ADR-0023): `needs_simulation` → Coordinator plans the `proposed_experiment` as a new phase → Executor runs it → re-ask with the original question and all phases' results, `max_rounds` respected with the last round forced (`forced_by_limit`, ADR-0025); `ExpertTask` over base + derived networks (open point in ADR-0023, decided here); GP-3 / GP-4 / GP-5 passing | tests | 14 | 26 Nov |
+| E5.4 | Output Composer Minimal (agent): completed `Study` → `Report` (claims with `evidence_refs`) → Markdown with evidence table; experiments table marks reused experiments; fixed limitation line added by code when the last round was `forced_by_limit` (ADR-0025) | composer | 6 | 27 Nov |
+| E5.5 | Coordinator Done: routing ≥90 % on `StudyPlan` vs gold plan (gold plans without `ask_expert`/`compose_report` steps, ADR-0023); `StepRecord` trace vs expected is now Executor behaviour, checked by tests with the fake agent; zero redundant simulations (counter); failure injection (incl. agent budget exhausted) yields named failing step with the right `StepError.kind` (ADR-0025) | report | 18 | 3 Feb |
+| E5.9 | *(new, hours TBD)* Domain change for ADR-0023: `Phase`, `Study.phases` and its invariants, typed `PlanStep` union with `FromStep` late binding, `ExpertRound` without `triggered_experiments`; plus ADR-0025: `StudyPlan.network_id` + `reused` (`ReusedExperiment`), zero-step plans, role/purpose on the `build_scenario` step, `Experiment.reused`, `StepError`, `ExpertRound.forced_by_limit`; schemas and class diagram regenerated | domain + tests | **TBD** | 13 Nov |
+| E5.10 | *(new, hours TBD)* Executor (`run_study`, deterministic code, not an agent): resolves `FromStep`, calls specialists, promotes drafts, records `StepRecord`s per phase, guards in code (no re-run of an existing `result_id`, per-`Study` budget, `max_rounds`), runs `ask_expert` and `compose_report` itself, mechanical closing status; a rejected draft is a failed step by name, no re-ask; `Study` persisted after every step; plus ADR-0025/0026: agent ports (`application/ports/agents.py`) + composition root, failures classified into `StepError`, forced last round, `DEFAULT_SEEDS`, note writer after the final round with the scenario allow-list and predicted `scenario_id`, `update_note_status` on new results only | run_study | **TBD** | 25 Nov |
+| E5.11 | *(new, hours TBD)* Deterministic rendering (ADR-0025) of `failed` and `awaiting_user` studies in `interface/render.py`: what happened / what was done / what the user can do, per `StepError.kind`; ambiguities or candidate list; CLI error when no `Study` is created | render + tests | **TBD** | 27 Nov |
 | E5.6 | Capability negotiation with DatabaseMCP; GP-10 | tests | 8 | 3 Feb |
 | E5.7 | Output Composer Done: automatic traceability checker (numbers ↔ artifacts); faithfulness rubric on 20 reports | checker + report | 12 | 5 Feb |
 | E5.8 | Stability: 3 repeated runs of Input Parser and Coordinator benchmarks | report | 8 | 5 Feb |
@@ -124,15 +135,15 @@ Phase A (Minimal + loop, 58 h): 16 Nov → 27 Nov. Phase B (Done, 46 h): 1 Feb �
 | E6.4 | Network Author Done: sanity report (SCC ≥95 %, no zero-length, fringe reachability) + `probe_run` threshold, 10/10 on GEN-LOCATIONS; replay determinism (`replay(recipe)` == `content_hash`, 100 %); agent stability over 3 runs; derivation bank 10/10 (incl. `AddEdge`); catalogue extended from the E6.3 fix log where cheap | report | 24 | 11 Jan |
 | E6.5 | Demand Generator Done: calibration loop (`routeSampler` + `calibration_run`) reaching fidelity ±15 % DEV / ±25 % REAL at the control edges within 5 rounds, `Fidelity.evidence` resolvable; external datasets frozen as artifacts; synthetic `historical_demand` + history-driven generation; `reroute_demand` test on a derived network | report | 26 | 14 Jan |
 | E6.6 | Demand profiles `low` / `peak` / `incident` on REAL-NET | route sets | 6 | 15 Jan |
-| E6.7 | GP-8 (full pipeline from a new place name) and GP-11 (add an edge: derive → reroute → baseline vs treatment) passing | tests | 8 | 15 Jan |
+| E6.7 | GP-8 (full pipeline from a new place name) and GP-11 (add an edge, a `run` request per ADR-0025: derive → reroute → baseline vs treatment) passing; `NetworkAuthorAgent` / `DemandGeneratorAgent` port implementations come with E6.1 / E6.2 | tests | 8 | 15 Jan |
 
 ### E7 — Integration (60 h) · DoD §5
 
 | ID | Task | Output | h | Due |
 |---|---|---|---|---|
-| E7.1 | Golden-path test framework: expected-trace assertions over the trace log; GP-1 … GP-5 | `golden/` | 10 | 27 Nov |
+| E7.1 | Golden-path test framework: expected-trace assertions over the trace log, per phase, starting at the Input Parser (`study-flows.md` §4); GP-1 … GP-5 | `golden/` | 10 | 27 Nov |
 | E7.2 | GP-6 (dynamic path) and GP-7 (compare) | tests | 6 | 11 Dec |
-| E7.3 | Failure-injection suite across all golden paths (netconvert, SUMO crash, invalid scenario, script lint/dry-run failure, tool timeout, agent budget exhausted) | tests | 10 | 4 Feb |
+| E7.3 | Failure-injection suite across all golden paths (netconvert, SUMO crash, invalid scenario, script lint/dry-run failure, tool timeout, agent budget exhausted); asserts `StepError.kind` and the rendered failure blocks (ADR-0025) | tests | 10 | 4 Feb |
 | E7.4 | Cost / latency per golden path recorded; thresholds set from first measurement | table | 6 | 4 Feb |
 | E7.5 | Full run: 11/11 golden paths × 3; GP-2 reproducibility (identical `result_id`s, hashes and conclusions) → **M6** | report | 10 | 5 Feb |
 | E7.6 | Code freeze: tag, README, reproducibility package (one command per experiment in the thesis) | release | 12 | 10 Feb |
@@ -207,6 +218,10 @@ Effort by month (approximate): Sep 134 h · Oct 175 h · Nov 179 h · Dec 114 h 
 
 - E4 (Expert) cannot start benchmarking before E3.1–E3.3; E3.2 depends on E2.4's harness. If W5 slips, W6 absorbs it and E4.1 starts in parallel (it only needs E1).
 - E5.3 (loop) needs E2.1 (batch Runner) and E4.5 (free mode). Both are scheduled before it.
+- ADR-0025/0026 chain (added 2026-09-23): E5.9 (domain) → E3.4, E5.2 and E5.10; E4.11 (notes) → E5.10;
+  E5.10 (Executor) → E5.3 and E7.1; E5.11 (failure render) → E5.5 and E7.3. E5.9, E4.11, E5.10 and
+  E5.11 need no real model calls (fake `ToolAgent` and fake agent ports), so they can be pulled forward
+  into any gap left by E4 work; the dates in the table are the latest that keep their consumers on time.
 - E2.5 (sandbox + online Runner) is the only task in Phase B of E2 that has no fallback: without it GP-6 and the script half of §4.5 cannot pass. It depends on E1.2 (`traci_api`), scheduled two months earlier.
 - E6.5 (calibration) and E6.1 (`probe_run`) both use the Runner as a tool: they depend on E2.1 (batch, ephemeral mode), scheduled in October.
 - E6.4's derivation bank and E6.7's GP-11 depend on E6.2's `reroute_demand`; keep E6.2 before E6.4 even if W14 slips.
