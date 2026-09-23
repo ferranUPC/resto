@@ -1,0 +1,753 @@
+<title>RESTO Progress Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;600;700;800&family=Overpass+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --surface-2: #eceff2;
+  --ink: #15191e;
+  --ink-2: #48515b;
+  --ink-3: #6f7883;
+  --line: #d9dde2;
+  --accent: #1d5fa6;
+  --accent-ink: #ffffff;
+  --accent-soft: #e2ecf7;
+  --good: #0ca30c;
+  --good-soft: #e1f3e1;
+  --warn: #fab219;
+  --warn-soft: #fdf0d2;
+  --crit: #d03b3b;
+  --crit-soft: #f8e1e1;
+  --plan: #8a939e;
+  --focus: #1d5fa6;
+  --font: "Overpass", "Helvetica Neue", Arial, sans-serif;
+  --mono: "Overpass Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #111417;
+    --surface: #191d21;
+    --surface-2: #22272c;
+    --ink: #eef1f4;
+    --ink-2: #b3bbc4;
+    --ink-3: #8a939d;
+    --line: #2d333a;
+    --accent: #3f86d6;
+    --accent-ink: #ffffff;
+    --accent-soft: #1b2a3b;
+    --good-soft: #15301a;
+    --warn-soft: #3a2f13;
+    --crit-soft: #3b1c1c;
+    --plan: #7d8691;
+    --focus: #6aa6ea;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #111417;
+  --surface: #191d21;
+  --surface-2: #22272c;
+  --ink: #eef1f4;
+  --ink-2: #b3bbc4;
+  --ink-3: #8a939d;
+  --line: #2d333a;
+  --accent: #3f86d6;
+  --accent-ink: #ffffff;
+  --accent-soft: #1b2a3b;
+  --good-soft: #15301a;
+  --warn-soft: #3a2f13;
+  --crit-soft: #3b1c1c;
+  --plan: #7d8691;
+  --focus: #6aa6ea;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.5;
+  padding-inline: 16px;
+  padding-block: 0 48px;
+}
+.wrap { max-width: 1120px; margin: 0 auto; }
+h1, h2, h3 { text-wrap: balance; line-height: 1.2; margin: 0; }
+a { color: var(--accent); }
+code { font-family: var(--mono); font-size: 0.88em; background: var(--surface-2); padding: 0.05em 0.3em; border-radius: 3px; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.mono { font-family: var(--mono); }
+.num { font-variant-numeric: tabular-nums; }
+.muted { color: var(--ink-3); }
+
+/* ---------- Masthead ---------- */
+.mast {
+  display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between;
+  gap: 16px; padding-block: 28px 18px;
+}
+.plate {
+  display: inline-flex; align-items: center; gap: 10px;
+  background: var(--accent); color: var(--accent-ink);
+  border-radius: 6px; padding: 6px 12px 4px;
+  box-shadow: inset 0 0 0 2px var(--accent), inset 0 0 0 4px rgba(255,255,255,.85);
+  font-weight: 800; letter-spacing: .06em; font-size: 15px;
+}
+.plate span { font-weight: 600; opacity: .9; letter-spacing: .02em; }
+.mast h1 { font-size: clamp(22px, 3.4vw, 30px); font-weight: 800; margin-top: 12px; max-width: 30ch; }
+.mast .sub { color: var(--ink-2); margin-top: 6px; max-width: 70ch; }
+.asof { font-size: 13px; color: var(--ink-3); text-align: right; }
+.asof strong { color: var(--ink-2); font-weight: 600; }
+
+/* ---------- Tabs ---------- */
+.tabs {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  background: var(--bg); border-bottom: 1px solid var(--line);
+  display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none;
+}
+.tabs a {
+  flex: none; text-decoration: none; color: var(--ink-2); font-weight: 600;
+  padding: 12px 14px 10px; border-bottom: 3px solid transparent; font-size: 14px;
+}
+.tabs a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--accent); }
+.tabs a:hover { color: var(--ink); }
+section.view { padding-top: 24px; }
+
+/* ---------- KPI row ---------- */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; }
+.kpi .lbl { font-size: 12px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-3); font-weight: 600; }
+.kpi .val { font-size: 30px; font-weight: 800; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.kpi .val small { font-size: 15px; font-weight: 600; color: var(--ink-2); }
+.kpi .note { font-size: 13px; color: var(--ink-2); margin-top: 2px; }
+
+.block { margin-top: 32px; }
+.block > header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 12px; }
+.block h2 { font-size: 19px; font-weight: 800; }
+.block header p { margin: 0; color: var(--ink-3); font-size: 13px; }
+
+/* ---------- Burn-up chart ---------- */
+.chartcard { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px; }
+.headline { font-size: 16px; color: var(--ink-2); margin: 0 0 10px; max-width: 75ch; }
+.headline strong { color: var(--ink); }
+.legend { display: flex; flex-wrap: wrap; gap: 16px; font-size: 13px; color: var(--ink-2); margin-bottom: 6px; }
+.legend i { display: inline-block; width: 18px; height: 0; border-top: 2px solid; vertical-align: middle; margin-right: 6px; }
+#burn { position: relative; }
+#burn svg { display: block; width: 100%; height: 300px; }
+#burn text { fill: var(--ink-3); font-family: var(--font); font-size: 11px; }
+#burn .tip {
+  position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 6px; padding: 8px 10px; font-size: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.12);
+  min-width: 150px; color: var(--ink);
+}
+#burn .tip b { display: block; margin-bottom: 2px; }
+#burn .tip div { display: flex; justify-content: space-between; gap: 12px; font-variant-numeric: tabular-nums; }
+
+/* ---------- Milestones ---------- */
+.ms { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+.mcard { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+.mcard.next { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.mtop { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.mid { font-family: var(--mono); font-weight: 600; font-size: 13px; color: var(--ink-2); }
+.mcard h3 { font-size: 16px; font-weight: 700; }
+.mdate { font-size: 13px; color: var(--ink-2); }
+.mcard .acc { font-size: 13px; color: var(--ink-3); }
+.mcard details summary { cursor: pointer; font-size: 13px; color: var(--accent); font-weight: 600; }
+.mcard details p { font-size: 13px; color: var(--ink-2); margin: 6px 0 0; }
+
+.bar { height: 8px; background: var(--surface-2); border-radius: 4px; overflow: hidden; display: flex; gap: 2px; }
+.bar > span { display: block; height: 100%; }
+.bar .s-done { background: var(--good); }
+.bar .s-progress { background: var(--warn); }
+.bar .s-blocked { background: var(--crit); }
+.barmeta { display: flex; justify-content: space-between; font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+
+/* ---------- Pills ---------- */
+.pill { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; border-radius: 999px; padding: 2px 9px 1px; white-space: nowrap; color: var(--ink); }
+.pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex: none; }
+.pill.done { background: var(--good-soft); }
+.pill.done::before { background: var(--good); }
+.pill.progress { background: var(--warn-soft); }
+.pill.progress::before { background: var(--warn); }
+.pill.blocked { background: var(--crit-soft); }
+.pill.blocked::before { background: var(--crit); border-radius: 1px; }
+.pill.todo { background: var(--surface-2); color: var(--ink-2); }
+.pill.todo::before { background: transparent; box-shadow: inset 0 0 0 1.5px var(--ink-3); }
+
+/* ---------- Epics ---------- */
+.epics { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+.erow { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) auto; gap: 8px 20px; align-items: center; padding: 12px 16px; border-top: 1px solid var(--line); }
+.erow:first-child { border-top: 0; }
+.erow .ename { font-weight: 700; }
+.erow .ename .mono { color: var(--ink-3); font-weight: 600; margin-right: 6px; }
+.erow .ewin { font-size: 12px; color: var(--ink-3); }
+.erow .ecount { font-size: 12px; color: var(--ink-2); text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+@media (max-width: 640px) {
+  .erow { grid-template-columns: 1fr auto; }
+  .erow .ebar { grid-column: 1 / -1; grid-row: 2; }
+}
+
+/* ---------- Next up ---------- */
+.nextlist { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+.nextlist li { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 12px; padding: 10px 16px; border-top: 1px solid var(--line); align-items: baseline; }
+.nextlist li:first-child { border-top: 0; }
+.nextlist .t { font-size: 14px; }
+.nextlist .d { font-size: 13px; color: var(--ink-2); white-space: nowrap; text-align: right; }
+
+/* ---------- Task table ---------- */
+.filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--surface); flex-wrap: wrap; }
+.seg button { font: inherit; font-size: 13px; font-weight: 600; border: 0; background: none; color: var(--ink-2); padding: 7px 11px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.filters select, .filters input {
+  font: inherit; font-size: 13px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px;
+  background: var(--surface); color: var(--ink); max-width: 100%;
+}
+.filters input { min-width: 0; flex: 1 1 180px; }
+.count { font-size: 13px; color: var(--ink-3); }
+.tbl { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-3); font-weight: 600; padding: 10px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; background: var(--surface); }
+td { padding: 10px 12px; border-top: 1px solid var(--line); vertical-align: top; }
+#tasks tbody tr.row { cursor: pointer; }
+#tasks tbody tr.row:hover td { background: var(--surface-2); }
+#tasks td.id { font-family: var(--mono); font-weight: 600; white-space: nowrap; }
+#tasks td.h, #tasks td.due, #tasks td.fin { white-space: nowrap; font-variant-numeric: tabular-nums; }
+#tasks td.h { text-align: right; }
+#tasks .ttl { min-width: 260px; }
+#tasks .delta { display: block; font-size: 12px; color: var(--ink-3); }
+#tasks .delta.ahead { color: var(--ink-2); }
+#tasks tr.detail td { background: var(--surface-2); border-top: 0; font-size: 13px; color: var(--ink-2); }
+#tasks tr.detail .dgrid { display: grid; gap: 8px; max-width: 95ch; }
+#tasks tr.detail .k { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-3); font-weight: 600; }
+#tasks .epictag { font-size: 12px; color: var(--ink-3); white-space: nowrap; }
+.chev { display: inline-block; transition: transform .15s; color: var(--ink-3); margin-right: 4px; }
+tr.open .chev { transform: rotate(90deg); }
+.flag { font-size: 11px; font-weight: 700; color: var(--crit); margin-left: 6px; text-transform: uppercase; letter-spacing: .05em; }
+
+/* ---------- Documents ---------- */
+.doclayout { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 28px; align-items: start; }
+.toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 56px); max-height: calc(100vh - 80px); overflow: auto; font-size: 13px; padding-right: 6px; }
+.toc a { display: block; text-decoration: none; color: var(--ink-2); padding: 3px 0; line-height: 1.35; }
+.toc a:hover { color: var(--accent); }
+.toc a.l3 { padding-left: 14px; color: var(--ink-3); }
+.doc { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 24px clamp(16px, 4vw, 40px); min-width: 0; }
+.doc h1 { font-size: 26px; font-weight: 800; margin-bottom: 12px; }
+.doc h2 { font-size: 21px; font-weight: 800; margin: 36px 0 10px; padding-top: 12px; border-top: 1px solid var(--line); scroll-margin-top: 60px; }
+.doc h3 { font-size: 17px; font-weight: 700; margin: 26px 0 8px; scroll-margin-top: 60px; }
+.doc h4 { font-size: 15px; margin: 18px 0 6px; }
+.doc p, .doc li { max-width: 80ch; color: var(--ink); }
+.doc hr { border: 0; border-top: 1px solid var(--line); margin: 24px 0; }
+.doc .tbl { margin: 12px 0; border-radius: 6px; }
+.doc table { font-size: 13px; }
+.doc td, .doc th { padding: 7px 10px; }
+.doc pre { background: var(--surface-2); padding: 12px 14px; border-radius: 6px; overflow-x: auto; font-size: 12px; line-height: 1.45; }
+.doc pre code { background: none; padding: 0; }
+.doc .mermaid { background: #ffffff; border-radius: 6px; padding: 12px; overflow-x: auto; text-align: center; }
+.xref { border-bottom: 1px dotted var(--ink-3); }
+@media (max-width: 860px) {
+  .doclayout { grid-template-columns: 1fr; }
+  .toc { position: static; max-height: none; border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; background: var(--surface); }
+}
+
+.state { padding: 40px 0; color: var(--ink-2); }
+.state.err { color: var(--crit); }
+footer { margin-top: 40px; font-size: 12px; color: var(--ink-3); max-width: 80ch; }
+@media (prefers-reduced-motion: reduce) { .chev { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header class="mast">
+    <div>
+      <div class="plate">RESTO <span>TFM · FIB + DLR</span></div>
+      <h1>Reasoning Experts for SUMO Traffic Orchestration</h1>
+      <p class="sub">Estado del trabajo de fin de máster: tareas, épicas e hitos del plan de trabajo, con el progreso real registrado en el tracker del repositorio.</p>
+    </div>
+    <div class="asof" id="asof"></div>
+  </header>
+
+  <nav class="tabs" aria-label="Secciones">
+    <a href="#resumen" data-view="resumen">Resumen</a>
+    <a href="#tareas" data-view="tareas">Tareas</a>
+    <a href="#plan" data-view="plan">Plan de trabajo</a>
+    <a href="#arquitectura" data-view="arquitectura">Arquitectura y DoD</a>
+  </nav>
+
+  <div id="loading" class="state">Cargando el plan de trabajo…</div>
+
+  <section class="view" id="v-resumen" hidden>
+    <div class="kpis" id="kpis"></div>
+
+    <div class="block">
+      <header><h2>Horas completadas frente al plan</h2><p>Horas estimadas en el plan, no horas dedicadas</p></header>
+      <div class="chartcard">
+        <p class="headline" id="headline"></p>
+        <div class="legend">
+          <span><i style="border-color: var(--plan); border-top-style: dashed"></i>Plan (acumulado por fecha límite)</span>
+          <span><i style="border-color: var(--accent)"></i>Real (acumulado por fecha de cierre)</span>
+        </div>
+        <div id="burn" role="img" aria-label="Gráfico de horas acumuladas: plan frente a real"></div>
+      </div>
+    </div>
+
+    <div class="block">
+      <header><h2>Hitos</h2><p>El % cuenta las horas de las tareas con fecha límite dentro de cada hito</p></header>
+      <div class="ms" id="milestones"></div>
+    </div>
+
+    <div class="block">
+      <header><h2>Épicas</h2><p>Barra en horas del plan: hecho · en curso · bloqueado</p></header>
+      <div class="epics" id="epics"></div>
+    </div>
+
+    <div class="block">
+      <header><h2>Próximas tareas</h2><p>Pendientes, por orden de fecha límite</p></header>
+      <ul class="nextlist" id="nextup"></ul>
+    </div>
+  </section>
+
+  <section class="view" id="v-tareas" hidden>
+    <div class="filters">
+      <div class="seg" id="fStatus" role="group" aria-label="Filtrar por estado"></div>
+      <select id="fEpic" aria-label="Filtrar por épica"></select>
+      <input id="fText" type="search" placeholder="Buscar por id o texto" aria-label="Buscar tareas">
+      <span class="count" id="fCount"></span>
+    </div>
+    <div class="tbl">
+      <table id="tasks">
+        <thead><tr><th>ID</th><th>Tarea</th><th>Épica</th><th style="text-align:right">h</th><th>Límite</th><th>Estado</th><th>Cerrada</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="view" id="v-plan" hidden>
+    <div class="doclayout"><nav class="toc" id="toc-plan" aria-label="Índice del plan"></nav><article class="doc" id="doc-plan"></article></div>
+  </section>
+  <section class="view" id="v-arquitectura" hidden>
+    <div class="doclayout"><nav class="toc" id="toc-arch" aria-label="Índice de la arquitectura"></nav><article class="doc" id="doc-arch"></article></div>
+  </section>
+
+  <footer id="foot">Todo lo que muestra esta página se calcula al abrirla a partir del contenido de tres ficheros del repositorio: <code>docs/tfm-work-plan.md</code> (tareas, horas, fechas límite, hitos), <code>docs/progress-tracker.md</code> (estado y notas de cada tarea) y <code>docs/tfm-architecture-and-dod.md</code>. La fecha de cierre de una tarea es la primera fecha que aparece en su nota del tracker. Las horas son estimaciones del plan; las tareas marcadas «por estimar» cuentan como 0 h.</footer>
+</div>
+
+<script id="docs-data" type="application/json">__DOCS_JSON__</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script>
+(() => {
+  // {plan, arch, track}: the raw Markdown of docs/tfm-work-plan.md, tfm-architecture-and-dod.md and
+  // progress-tracker.md, embedded by build_site.py (the viewer cannot fetch files published alongside).
+  const STATUS = { "✅": "done", "🔄": "progress", "🚧": "blocked", "⬜": "todo" };
+  const SLABEL = { done: "Hecha", progress: "En curso", blocked: "Bloqueada", todo: "Pendiente" };
+  const MONTHS = { Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5, Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11 };
+  const DAY = 86400000;
+  const $ = (s, r = document) => r.querySelector(s);
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  const today = (() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), d.getDate()); })();
+  const iso = d => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  const fromIso = s => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
+  const fmt = (d, withYear) => d.toLocaleDateString("es-ES", withYear ? { day: "numeric", month: "short", year: "numeric" } : { day: "numeric", month: "short" });
+  const days = (a, b) => Math.round((b - a) / DAY);
+
+  // The plan runs Sep 2026 → Feb 2027; dates in it carry no year.
+  function planDate(s) {
+    const m = s.replace(/\*/g, "").trim().match(/(?:\w{3} )?(\d{1,2}) (\w{3})$/);
+    if (!m || !(m[2] in MONTHS)) return null;
+    const mon = MONTHS[m[2]];
+    return new Date(mon >= 8 ? 2026 : 2027, mon, Number(m[1]));
+  }
+  const cells = line => line.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map(c => c.trim());
+
+  function fixLinks(root) {
+    root.querySelectorAll("a[href]").forEach(a => {
+      const href = a.getAttribute("href");
+      if (/^(https?:|#)/.test(href)) { if (!href.startsWith("#")) { a.target = "_blank"; a.rel = "noopener"; } return; }
+      const s = document.createElement("span");
+      s.className = "xref"; s.title = "Documento del repositorio: " + href; s.innerHTML = a.innerHTML;
+      a.replaceWith(s);
+    });
+  }
+  function inline(md) {
+    const el = document.createElement("span");
+    el.innerHTML = marked.parseInline(md || "");
+    fixLinks(el);
+    return el.innerHTML;
+  }
+
+  // ---------- Parsing ----------
+  function parsePlan(md) {
+    const epics = [], tasks = [];
+    const sec1 = md.split(/^## 1\..*$/m)[1]?.split(/^## 2\..*$/m)[0] || "";
+    let cur = null;
+    for (const line of sec1.split("\n")) {
+      const h = line.match(/^### (E\d+) — (.+?)(?: \((\d+) h\))?(?: · (.*))?$/);
+      if (h) { cur = { id: h[1], name: h[2], window: (h[4] || "").trim() }; epics.push(cur); continue; }
+      if (cur && /^\| E\d/.test(line)) {
+        const c = cells(line);
+        tasks.push({
+          id: c[0], epic: cur.id, titleMd: c[1], outputMd: c[2],
+          hours: /^\d+$/.test(c[3]) ? Number(c[3]) : null,
+          due: planDate(c[4]), dueRaw: c[4].replace(/\*/g, ""),
+          stretch: /Stretch/.test(c[1]),
+        });
+      }
+    }
+    const milestones = [];
+    const sec2 = md.split(/^## 2\..*$/m)[1]?.split(/^## 3\..*$/m)[0] || "";
+    for (const line of sec2.split("\n")) {
+      if (!/^\| \*\*M\d/.test(line)) continue;
+      const c = cells(line);
+      milestones.push({ id: c[0].replace(/\*/g, ""), date: planDate(c[1]), name: c[2].replace(/\*/g, ""), accMd: c[3] });
+    }
+    return { epics, tasks, milestones };
+  }
+
+  function parseTracker(md) {
+    const tasks = {}, milestones = {};
+    const [taskPart, msPart = ""] = md.split(/^## Milestone status.*$/m);
+    for (const line of taskPart.split("\n")) {
+      if (!/^\| E\d/.test(line)) continue;
+      const c = cells(line);
+      const i = c.findIndex(x => x in STATUS);
+      if (i < 0) continue;
+      const notes = c.slice(i + 1).join("|").trim();
+      const d = notes.match(/20\d\d-\d\d-\d\d/);
+      tasks[c[0]] = { status: STATUS[c[i]], notes, firstDate: d ? fromIso(d[0]) : null };
+    }
+    for (const line of msPart.split("\n")) {
+      if (!/^\| M\d/.test(line)) continue;
+      const c = cells(line);
+      const d = (c[4] || "").match(/20\d\d-\d\d-\d\d/);
+      milestones[c[0]] = { status: STATUS[c[3]] || "todo", notes: c[4] || "", firstDate: d ? fromIso(d[0]) : null };
+    }
+    const lu = md.match(/Last updated:\s*([0-9-]+)(.*)/);
+    return { tasks, milestones, lastUpdated: lu ? fromIso(lu[1]) : null };
+  }
+
+  function buildModel(planMd, trackMd) {
+    const plan = parsePlan(planMd), tr = parseTracker(trackMd);
+    for (const t of plan.tasks) {
+      const r = tr.tasks[t.id];
+      t.status = r ? r.status : "todo";
+      t.notes = r ? r.notes : "";
+      t.inTracker = !!r;
+      t.doneDate = t.status === "done" && r ? r.firstDate : null;
+      t.title = inline(t.titleMd);
+      t.titleText = t.titleMd.replace(/[`*_]/g, "");
+    }
+    for (const m of plan.milestones) {
+      const r = tr.milestones[m.id] || { status: "todo", notes: "" };
+      m.status = r.status; m.notes = r.notes; m.doneDate = r.status === "done" ? r.firstDate : null;
+    }
+    const last = plan.milestones[plan.milestones.length - 1];
+    for (const t of plan.tasks) {
+      if (t.stretch) { t.milestone = null; continue; }
+      t.milestone = t.due ? (plan.milestones.find(m => t.due <= m.date) || last).id : last.id;
+    }
+    plan.tasks.sort((a, b) => ((a.due || last.date) - (b.due || last.date)) || a.id.localeCompare(b.id, undefined, { numeric: true }));
+    return { ...plan, lastUpdated: tr.lastUpdated, counted: plan.tasks.filter(t => !t.stretch) };
+  }
+
+  // ---------- Aggregates ----------
+  function agg(list) {
+    const a = { n: list.length, h: 0, done: 0, doneH: 0, progressH: 0, blockedH: 0, tbd: 0 };
+    for (const t of list) {
+      const h = t.hours || 0;
+      a.h += h; if (t.hours == null) a.tbd++;
+      if (t.status === "done") { a.done++; a.doneH += h; }
+      if (t.status === "progress") a.progressH += h;
+      if (t.status === "blocked") a.blockedH += h;
+    }
+    a.pct = a.h ? a.doneH / a.h : 0;
+    return a;
+  }
+  const pct = x => Math.round(x * 100) + " %";
+  function bar(a) {
+    const w = v => a.h ? (v / a.h * 100).toFixed(2) + "%" : "0";
+    return `<div class="bar" aria-hidden="true">${a.doneH ? `<span class="s-done" style="width:${w(a.doneH)}"></span>` : ""}${a.progressH ? `<span class="s-progress" style="width:${w(a.progressH)}"></span>` : ""}${a.blockedH ? `<span class="s-blocked" style="width:${w(a.blockedH)}"></span>` : ""}</div>`;
+  }
+  const pill = s => `<span class="pill ${s}">${SLABEL[s]}</span>`;
+
+  // Cumulative planned hours at date d (tasks count on their due date; rolling tasks at the end).
+  function planCurve(M) {
+    const end = M.milestones[M.milestones.length - 1].date;
+    const pts = M.counted.filter(t => t.hours).map(t => [t.due || end, t.hours]).sort((a, b) => a[0] - b[0]);
+    return d => pts.reduce((s, [x, h]) => x <= d ? s + h : s, 0);
+  }
+  function realCurve(M) {
+    const pts = M.counted.filter(t => t.doneDate && t.hours).map(t => [t.doneDate, t.hours]);
+    return d => pts.reduce((s, [x, h]) => x <= d ? s + h : s, 0);
+  }
+
+  // ---------- Render: summary ----------
+  function renderSummary(M) {
+    const A = agg(M.counted);
+    const plan = planCurve(M);
+    const start = new Date(2026, 8, 9), end = M.milestones[M.milestones.length - 1].date;
+    const planNow = plan(today);
+    // Date at which the plan reaches the hours already done.
+    let eq = null;
+    for (let d = new Date(start); d <= end; d = new Date(d.getTime() + DAY)) { if (plan(d) >= A.doneH) { eq = d; break; } }
+    const ahead = eq ? days(today, eq) : null;
+    const nextM = M.milestones.find(m => m.status !== "done");
+    const nextA = nextM ? agg(M.counted.filter(t => t.milestone === nextM.id)) : null;
+    const counts = { progress: M.counted.filter(t => t.status === "progress").length, blocked: M.counted.filter(t => t.status === "blocked").length };
+
+    $("#kpis").innerHTML = `
+      <div class="kpi"><div class="lbl">Progreso global</div><div class="val">${pct(A.pct)}</div>
+        <div class="note">${A.doneH} de ${A.h} h · ${A.done} de ${A.n} tareas</div></div>
+      <div class="kpi"><div class="lbl">Respecto al plan</div><div class="val">${ahead == null ? "—" : ahead >= 0 ? "+" + ahead + " <small>días</small>" : ahead + " <small>días</small>"}</div>
+        <div class="note">${ahead == null ? "" : ahead >= 0 ? "de adelanto" : "de retraso"} · el plan esperaba ${planNow} h a hoy</div></div>
+      <div class="kpi"><div class="lbl">Próximo hito</div><div class="val">${nextM ? nextM.id + " <small>" + pct(nextA.pct) + "</small>" : "—"}</div>
+        <div class="note">${nextM ? esc(nextM.name) + " · " + fmt(nextM.date) + " (en " + days(today, nextM.date) + " días)" : ""}</div></div>
+      <div class="kpi"><div class="lbl">Entrega</div><div class="val">${days(today, end)} <small>días</small></div>
+        <div class="note">${fmt(end, true)} · ${counts.progress} en curso, ${counts.blocked} bloqueadas</div></div>`;
+
+    $("#headline").innerHTML = ahead == null ? "" :
+      `A ${fmt(today)} están cerradas tareas por <strong>${A.doneH} h</strong> del plan. El plan esperaba <strong>${planNow} h</strong> para hoy, y no llega a ${A.doneH} h hasta el <strong>${fmt(eq)}</strong>: ${ahead >= 0 ? `<strong>${ahead} días de adelanto</strong>` : `<strong>${-ahead} días de retraso</strong>`}.`;
+
+    drawBurn(M, start, end, plan, realCurve(M));
+
+    // Milestones
+    $("#milestones").innerHTML = M.milestones.map(m => {
+      const list = M.counted.filter(t => t.milestone === m.id), a = agg(list);
+      const isNext = nextM && m.id === nextM.id;
+      const when = m.status === "done"
+        ? `Cumplido ${m.doneDate ? fmt(m.doneDate) + (days(m.doneDate, m.date) > 0 ? ` · ${days(m.doneDate, m.date)} días antes` : "") : ""}`
+        : (days(today, m.date) >= 0 ? `Faltan ${days(today, m.date)} días` : `Vencido hace ${-days(today, m.date)} días`);
+      return `<article class="mcard${isNext ? " next" : ""}">
+        <div class="mtop"><span class="mid">${m.id}</span>${pill(m.status)}</div>
+        <h3>${esc(m.name)}</h3>
+        <div class="mdate">${fmt(m.date, true)} · ${when}</div>
+        ${bar(a)}
+        <div class="barmeta"><span>${pct(a.pct)} · ${a.doneH}/${a.h} h</span><span>${a.done}/${a.n} tareas${a.tbd ? ` · ${a.tbd} sin horas` : ""}</span></div>
+        <div class="acc">${inline(m.accMd)}</div>
+        ${m.notes ? `<details><summary>Nota del tracker</summary><p>${inline(m.notes)}</p></details>` : ""}
+      </article>`;
+    }).join("");
+
+    // Epics
+    $("#epics").innerHTML = M.epics.map(e => {
+      const list = M.counted.filter(t => t.epic === e.id), a = agg(list);
+      return `<div class="erow">
+        <div><div class="ename"><span class="mono">${e.id}</span>${esc(e.name)}</div><div class="ewin">${inline(e.window)}</div></div>
+        <div class="ebar">${bar(a)}</div>
+        <div class="ecount"><strong>${pct(a.pct)}</strong> · ${a.doneH}/${a.h} h<br>${a.done}/${a.n} tareas</div>
+      </div>`;
+    }).join("");
+
+    // Next up
+    const pending = M.counted.filter(t => t.status !== "done").slice(0, 8);
+    $("#nextup").innerHTML = pending.map(t => `<li>
+      <span class="mono">${t.id}</span>
+      <span class="t">${t.title} ${t.status !== "todo" ? pill(t.status) : ""}</span>
+      <span class="d">${t.due ? fmt(t.due) : esc(t.dueRaw)}${t.hours ? ` · ${t.hours} h` : ""}</span></li>`).join("");
+  }
+
+  // ---------- Burn-up chart ----------
+  function drawBurn(M, start, end, plan, real) {
+    const host = $("#burn");
+    const W = Math.max(300, host.clientWidth), H = 300;
+    const m = { l: 44, r: 16, t: 14, b: 44 };
+    const total = plan(end);
+    const yMax = Math.ceil(total / 100) * 100;
+    const x = d => m.l + (d - start) / (end - start) * (W - m.l - m.r);
+    const y = v => H - m.b - v / yMax * (H - m.t - m.b);
+    const step = f => {
+      let p = "", prev = null;
+      const stopAt = f === real ? today : end;
+      for (let d = new Date(start); d <= stopAt; d = new Date(d.getTime() + DAY)) {
+        const v = f(d);
+        if (prev === null) p += `M${x(d).toFixed(1)},${y(v).toFixed(1)}`;
+        else if (v !== prev) p += `H${x(d).toFixed(1)}V${y(v).toFixed(1)}`;
+        prev = v;
+      }
+      return p + `H${x(stopAt).toFixed(1)}`;
+    };
+    let grid = "";
+    for (let v = 0; v <= yMax; v += 200) {
+      grid += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width="1"/>`;
+      grid += `<text x="${m.l - 8}" y="${y(v) + 4}" text-anchor="end">${v}</text>`;
+    }
+    let ms = "";
+    const narrow = W < 560;
+    M.milestones.forEach((mm, i) => {
+      const xx = x(mm.date);
+      ms += `<line x1="${xx}" x2="${xx}" y1="${H - m.b}" y2="${H - m.b + 5}" stroke="var(--ink-3)"/>`;
+      if (!narrow || i % 2 === 0 || i === M.milestones.length - 1)
+        ms += `<text x="${xx}" y="${H - m.b + 18}" text-anchor="middle" style="font-weight:600;fill:var(--ink-2)">${mm.id}</text>`;
+    });
+    // Month labels
+    let months = "";
+    for (let d = new Date(2026, 9, 1); d <= end; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) {
+      months += `<text x="${x(d)}" y="${H - m.b + 34}" text-anchor="middle">${d.toLocaleDateString("es-ES", { month: "short" })}</text>`;
+    }
+    const tx = x(today), rNow = real(today);
+    host.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+      ${grid}
+      <line x1="${m.l}" x2="${W - m.r}" y1="${H - m.b}" y2="${H - m.b}" stroke="var(--ink-3)"/>
+      ${ms}${months}
+      <line x1="${tx}" x2="${tx}" y1="${m.t}" y2="${H - m.b}" stroke="var(--ink-3)" stroke-dasharray="2 3"/>
+      <text x="${tx + 5}" y="${m.t + 10}" style="fill:var(--ink-2)">hoy</text>
+      <path d="${step(plan)}" fill="none" stroke="var(--plan)" stroke-width="2" stroke-dasharray="6 4"/>
+      <path d="${step(real)}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round"/>
+      <circle cx="${tx}" cy="${y(rNow)}" r="5" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/>
+      <text x="${tx + 9}" y="${y(rNow) - 8}" style="fill:var(--ink);font-weight:700">${rNow} h</text>
+      <text x="${W - m.r}" y="${y(total) - 8}" text-anchor="end" style="fill:var(--ink-2)">${total} h plan</text>
+      <line class="xh" x1="0" x2="0" y1="${m.t}" y2="${H - m.b}" stroke="var(--ink-2)" stroke-width="1" visibility="hidden"/>
+      <rect x="${m.l}" y="${m.t}" width="${W - m.l - m.r}" height="${H - m.t - m.b}" fill="transparent" class="hit"/>
+    </svg><div class="tip" hidden></div>`;
+    const svg = host.querySelector("svg"), tip = host.querySelector(".tip"), xh = host.querySelector(".xh");
+    const move = ev => {
+      const r = svg.getBoundingClientRect();
+      const px = (ev.clientX - r.left) * (W / r.width);
+      const d = new Date(start.getTime() + Math.round((px - m.l) / (W - m.l - m.r) * (end - start) / DAY) * DAY);
+      if (d < start || d > end) return leave();
+      xh.setAttribute("x1", x(d)); xh.setAttribute("x2", x(d)); xh.setAttribute("visibility", "visible");
+      tip.hidden = false;
+      tip.innerHTML = `<b>${fmt(d, true)}</b><div><span>Plan</span><span>${plan(d)} h</span></div>` +
+        (d <= today ? `<div><span>Real</span><span>${real(d)} h</span></div>` : "");
+      const left = (x(d) / W) * r.width;
+      tip.style.left = Math.min(Math.max(0, left + 12), r.width - 170) + "px";
+      tip.style.top = "12px";
+    };
+    const leave = () => { tip.hidden = true; xh.setAttribute("visibility", "hidden"); };
+    svg.addEventListener("pointermove", move);
+    svg.addEventListener("pointerleave", leave);
+  }
+
+  // ---------- Render: tasks ----------
+  const F = { status: "all", epic: "all", text: "" };
+  function renderTaskFilters(M) {
+    const opts = [["all", "Todas"], ["open", "Lo que queda"], ["done", "Hechas"], ["progress", "En curso"], ["blocked", "Bloqueadas"]];
+    $("#fStatus").innerHTML = opts.map(([k, l]) => `<button type="button" data-k="${k}" aria-pressed="${F.status === k}">${l}</button>`).join("");
+    $("#fEpic").innerHTML = `<option value="all">Todas las épicas</option>` + M.epics.map(e => `<option value="${e.id}">${e.id} — ${esc(e.name)}</option>`).join("");
+    $("#fStatus").addEventListener("click", ev => {
+      const b = ev.target.closest("button"); if (!b) return;
+      F.status = b.dataset.k;
+      $("#fStatus").querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b));
+      renderTasks(M);
+    });
+    $("#fEpic").addEventListener("change", ev => { F.epic = ev.target.value; renderTasks(M); });
+    $("#fText").addEventListener("input", ev => { F.text = ev.target.value.trim().toLowerCase(); renderTasks(M); });
+  }
+  function renderTasks(M) {
+    const epicName = Object.fromEntries(M.epics.map(e => [e.id, e.name]));
+    const list = M.tasks.filter(t =>
+      (F.status === "all" || (F.status === "open" ? t.status !== "done" && !t.stretch : t.status === F.status)) &&
+      (F.epic === "all" || t.epic === F.epic) &&
+      (!F.text || (t.id + " " + t.titleText + " " + t.outputMd).toLowerCase().includes(F.text)));
+    const a = agg(list.filter(t => !t.stretch));
+    $("#fCount").textContent = `${list.length} tareas · ${a.h} h`;
+    const body = $("#tasks tbody");
+    body.innerHTML = list.map(t => {
+      let fin = "—";
+      if (t.doneDate) {
+        const dd = t.due ? days(t.doneDate, t.due) : null;
+        fin = `${fmt(t.doneDate)}<span class="delta${dd > 0 ? " ahead" : ""}">${dd == null ? "" : dd > 0 ? dd + " días antes" : dd === 0 ? "en fecha" : -dd + " días tarde"}</span>`;
+      }
+      const overdue = t.status !== "done" && t.due && t.due < today;
+      return `<tr class="row" data-id="${t.id}" tabindex="0" aria-expanded="false">
+        <td class="id"><span class="chev">›</span>${t.id}</td>
+        <td class="ttl">${t.title}</td>
+        <td><span class="epictag">${t.epic}</span></td>
+        <td class="h">${t.hours ?? `<span class="muted" title="Horas por estimar">—</span>`}</td>
+        <td class="due">${t.due ? fmt(t.due) : esc(t.dueRaw)}${overdue ? `<span class="flag">vencida</span>` : ""}</td>
+        <td>${t.stretch ? `<span class="pill todo">Stretch</span>` : pill(t.status)}</td>
+        <td class="fin">${fin}</td></tr>
+        <tr class="detail" data-for="${t.id}" hidden><td colspan="7"><div class="dgrid">
+          <div><div class="k">Épica</div>${t.epic} — ${esc(epicName[t.epic] || "")}${t.milestone ? ` · cuenta para el hito ${t.milestone}` : ""}</div>
+          <div><div class="k">Entregable</div>${inline(t.outputMd)}</div>
+          <div><div class="k">Nota del tracker</div>${t.notes ? inline(t.notes) : t.inTracker ? "Sin nota." : "La tarea todavía no tiene fila en el tracker."}</div>
+        </div></td></tr>`;
+    }).join("");
+  }
+  function bindTaskRows() {
+    const toggle = tr => {
+      const det = tr.nextElementSibling, open = det.hidden;
+      det.hidden = !open; tr.classList.toggle("open", open); tr.setAttribute("aria-expanded", open);
+    };
+    const body = $("#tasks tbody");
+    body.addEventListener("click", ev => {
+      if (ev.target.closest("a")) return;
+      const tr = ev.target.closest("tr.row"); if (tr) toggle(tr);
+    });
+    body.addEventListener("keydown", ev => {
+      const tr = ev.target.closest("tr.row");
+      if (tr && (ev.key === "Enter" || ev.key === " ")) { ev.preventDefault(); toggle(tr); }
+    });
+  }
+
+  // ---------- Render: documents ----------
+  const rendered = {};
+  let mermaidLoading = null;
+  function renderDoc(key, md) {
+    if (rendered[key]) return;
+    rendered[key] = true;
+    const doc = $("#doc-" + key), toc = $("#toc-" + key);
+    doc.innerHTML = marked.parse(md);
+    fixLinks(doc);
+    doc.querySelectorAll("table").forEach(t => { const w = document.createElement("div"); w.className = "tbl"; t.replaceWith(w); w.appendChild(t); });
+    const used = new Set(), items = [];
+    doc.querySelectorAll("h2, h3").forEach(h => {
+      let id = key + "-" + h.textContent.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      while (used.has(id)) id += "-x";
+      used.add(id); h.id = id;
+      items.push(`<a class="l${h.tagName[1]}" href="#${id}">${esc(h.textContent)}</a>`);
+    });
+    toc.innerHTML = items.join("");
+    toc.addEventListener("click", ev => {
+      const a = ev.target.closest("a"); if (!a) return;
+      ev.preventDefault();
+      document.getElementById(a.getAttribute("href").slice(1))?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    });
+    const blocks = [...doc.querySelectorAll("pre > code.language-mermaid")];
+    if (!blocks.length) return;
+    blocks.forEach(c => { const d = document.createElement("div"); d.className = "mermaid"; d.textContent = c.textContent; c.parentElement.replaceWith(d); });
+    mermaidLoading = mermaidLoading || new Promise((res, rej) => {
+      const s = document.createElement("script");
+      s.src = "https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js";
+      s.onload = () => { window.mermaid.initialize({ startOnLoad: false, theme: "neutral", securityLevel: "strict" }); res(window.mermaid); };
+      s.onerror = rej;
+      document.head.appendChild(s);
+    });
+    mermaidLoading.then(mm => mm.run({ nodes: doc.querySelectorAll(".mermaid") })).catch(() => {});
+  }
+
+  // ---------- Routing ----------
+  const VIEWS = ["resumen", "tareas", "plan", "arquitectura"];
+  let docs = null;
+  function route() {
+    const h = location.hash.slice(1);
+    const v = VIEWS.includes(h) ? h : (h.startsWith("plan-") ? "plan" : h.startsWith("arch-") ? "arquitectura" : "resumen");
+    VIEWS.forEach(x => { $("#v-" + x).hidden = x !== v; });
+    document.querySelectorAll(".tabs a").forEach(a => { if (a.dataset.view === v) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
+    if (docs && v === "plan") renderDoc("plan", docs.plan);
+    if (docs && v === "arquitectura") renderDoc("arch", docs.arch);
+    try { localStorage.setItem("resto-tab", v); } catch (e) {}
+  }
+
+  async function main() {
+    if (!window.marked) throw new Error("No se ha podido cargar el intérprete de Markdown.");
+    const { plan, arch, track } = JSON.parse(document.getElementById("docs-data").textContent);
+    if (!plan || !arch || !track) throw new Error("Faltan documentos en la página (plan, arch, track).");
+    docs = { plan, arch };
+    const M = buildModel(plan, track);
+    if (!M.tasks.length) throw new Error("No se han encontrado tareas en el plan de trabajo; puede que haya cambiado su formato.");
+    $("#asof").innerHTML = `Tracker actualizado el <strong>${M.lastUpdated ? fmt(M.lastUpdated, true) : "—"}</strong><br>Hoy: ${fmt(today, true)}`;
+    $("#loading").hidden = true;
+    renderSummary(M);
+    renderTaskFilters(M);
+    renderTasks(M);
+    bindTaskRows();
+    if (!location.hash) { try { const t = localStorage.getItem("resto-tab"); if (t && VIEWS.includes(t)) history.replaceState(null, "", "#" + t); } catch (e) {} }
+    route();
+    window.addEventListener("hashchange", route);
+    let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => drawBurn(M, new Date(2026, 8, 9), M.milestones[M.milestones.length - 1].date, planCurve(M), realCurve(M)), 150); });
+  }
+  main().catch(err => { const l = $("#loading"); l.hidden = false; l.className = "state err"; l.textContent = err.message; });
+})();
+</script>

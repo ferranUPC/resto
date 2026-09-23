@@ -150,3 +150,6 @@ graphify-out/*
 
 # eval/hygiene_probes raw runs, same convention as the expert benchmark
 eval/hygiene_probes/runs/
+
+# Progress site build output (progress-site/build_site.py)
+_site/
