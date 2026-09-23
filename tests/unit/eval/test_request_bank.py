@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import pytest
 from eval.request_bank.concepts import (
     CONCEPTS,
+    LANGUAGES,
+    SPLITS,
     AmbiguousGold,
     Category,
     Concept,
@@ -13,6 +16,7 @@ from eval.request_bank.concepts import (
     Style,
     Vague,
     VariantSpec,
+    _v,
     clock,
     concept_by_id,
 )
@@ -20,6 +24,7 @@ from eval.request_bank.generate import load_variants, pending, render_review, ru
 from eval.request_bank.noise import add_typos, strip_accents
 from eval.request_bank.pipeline import Models, Reply, generate_variant, parse_verdict
 
+from resto.application.schemas import adapter_for
 from resto.domain.value_objects.question import Intent, Question
 
 MODELS = Models(generator="gen", verifier="ver")
@@ -56,6 +61,57 @@ def test_every_concept_builds_and_has_unique_ids() -> None:
     ids = [c.id for c in CONCEPTS]
     assert len(set(ids)) == len(ids)
     assert concept_by_id(ids[0]) is CONCEPTS[0]
+
+
+def test_every_category_and_axis_value_has_at_least_15_variants() -> None:
+    variants = [(c, v) for c in CONCEPTS for v in c.variants]
+    by_category = Counter(c.category for c, _ in variants)
+    assert all(by_category[category] >= 15 for category in Category), by_category
+    axes = Counter(
+        axis for _, v in variants for axis in (v.lang, v.style, v.noise) if axis not in (None, "en")
+    )
+    expected = {*LANGUAGES} - {"en"} | {*Style} | {*Noise}
+    assert all(axes[value] >= 15 for value in expected), axes
+
+
+def test_the_split_is_close_to_70_30_and_every_category_is_held_out() -> None:
+    held_out = [c for c in CONCEPTS if SPLITS[c.id] == "held_out"]
+    assert 0.25 <= len(held_out) / len(CONCEPTS) <= 0.35
+    assert {c.category for c in held_out} == set(Category)
+
+
+def test_gold_shapes_follow_the_category() -> None:
+    for concept in CONCEPTS:
+        gold = concept.gold
+        ambiguous = concept.category in (
+            Category.AMBIGUOUS, Category.UNINTELLIGIBLE, Category.OUT_OF_SCOPE
+        )
+        assert isinstance(gold, AmbiguousGold) is ambiguous or (
+            concept.category is Category.ADVERSARIAL
+        ), concept.id
+        if not isinstance(gold, Question):
+            continue
+        arms = gold.effective_arms
+        if concept.category is Category.MULTI_ARM:
+            assert len(arms) >= 2, concept.id
+        if concept.category is Category.COMBINED:
+            assert len(arms) == 1, concept.id
+            assert len(arms[0].topology_changes) + len(arms[0].interventions) >= 2, concept.id
+        if any(v.vague is Vague.GROUPING for v in concept.variants):
+            changes = {c for a in arms for c in a.topology_changes}
+            assert len(changes) + sum(len(a.interventions) for a in arms) >= 2, concept.id
+
+
+def test_gold_questions_round_trip_through_the_schema() -> None:
+    adapter = adapter_for(Question)
+    for concept in CONCEPTS:
+        if isinstance(concept.gold, Question):
+            assert adapter.validate_json(adapter.dump_json(concept.gold)) == concept.gold
+
+
+def test_variant_keys_parse_back_to_specs() -> None:
+    specs = _v("ca", "es-colloquial-no_accents", "en-vague_place")
+    assert [s.key for s in specs] == ["ca", "es-colloquial-no_accents", "en-vague_place"]
 
 
 def test_clock_times_are_seconds_since_midnight() -> None:

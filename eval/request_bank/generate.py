@@ -20,8 +20,10 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
-from eval.request_bank.concepts import CONCEPTS, AmbiguousGold, Concept, VariantSpec
+from eval.request_bank.concepts import CONCEPTS, SPLITS, AmbiguousGold, Concept, VariantSpec
 from eval.request_bank.pipeline import Chat, Models, VariantRecord, generate_variant
+from resto.domain.value_objects.intervention import Intervention
+from resto.domain.value_objects.topology_modification import TopologyModification
 
 HERE = Path(__file__).resolve().parent
 VARIANTS_PATH = HERE / "variants.json"
@@ -94,21 +96,48 @@ def run(
     return spent
 
 
+def _clock(seconds: float) -> str:
+    return f"{int(seconds // 3600):02d}:{int(seconds % 3600 // 60):02d}"
+
+
+def _item(item: Intervention | TopologyModification) -> str:
+    if not isinstance(item, Intervention):
+        fields = {k: v for k, v in asdict(item).items() if k != "kind" and v is not None}
+        return f"{item.kind}(" + ", ".join(f"{k}={v}" for k, v in fields.items()) + ")"
+    target = item.target and "/".join(str(v) for k, v in asdict(item.target).items() if k != "kind")
+    text = f"{item.type}({target or ''}" + "".join(f", {k}={v}" for k, v in item.params.items())
+    if item.window is not None:
+        text += f", {_clock(item.window.start)}–{_clock(item.window.end)}"
+    if item.condition is not None:
+        c = item.condition
+        text += f", when {c.metric}({c.target}) {c.op} {c.value:g}"
+    return text + ")"
+
+
 def _gold_summary(concept: Concept) -> str:
     gold = concept.gold
     if isinstance(gold, AmbiguousGold):
-        return f"expect `ambiguities[]` ({gold.reason})"
+        intent = f", intent `{gold.intent}`" if gold.intent else ""
+        return f"expect `ambiguities[]` ({gold.reason}{intent})"
     parts = [f"intent `{gold.intent}`"]
     if gold.network_ref:
         parts.append(f"network `{gold.network_ref}`")
     if gold.demand_ref:
         parts.append(f"demand `{gold.demand_ref}`")
-    arms = gold.effective_arms
-    if arms:
-        parts.append(f"{len(arms)} arm(s): " + "; ".join(a.label for a in arms))
+    if gold.time_window:
+        parts.append(f"window {_clock(gold.time_window.start)}–{_clock(gold.time_window.end)}")
     if gold.metrics_of_interest:
         parts.append("metrics " + ", ".join(gold.metrics_of_interest))
-    return " · ".join(parts)
+    lines = [" · ".join(parts)]
+    for arm in gold.effective_arms:
+        items = [*arm.topology_changes, *arm.interventions]
+        lines.append(f"- arm `{arm.label}`: " + " + ".join(f"`{_item(i)}`" for i in items))
+    if gold.arms:
+        lines.append(
+            "- contrasts: "
+            + ", ".join(f"`{c.treatment}` vs `{c.reference}`" for c in gold.effective_contrasts)
+        )
+    return "\n".join(lines)
 
 
 def render_review(records: dict[str, VariantRecord]) -> str:
@@ -127,16 +156,16 @@ def render_review(records: dict[str, VariantRecord]) -> str:
     for concept in CONCEPTS:
         rows = [records[concept.variant_id(v)] for v in concept.variants
                 if concept.variant_id(v) in records]
-        if not rows:
-            continue
         lines += [
-            f"## {concept.id} · {concept.category} · {concept.split}",
+            f"## {concept.id} · {concept.category} · {SPLITS[concept.id]}",
             "",
             f"> {concept.text}",
             "",
             f"Gold: {_gold_summary(concept)}",
             "",
         ]
+        if not rows:
+            lines += ["_No variants generated yet._", ""]
         for r in rows:
             if not r.verified:
                 tag = "FAIL"
