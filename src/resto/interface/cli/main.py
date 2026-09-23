@@ -41,6 +41,7 @@ from resto.application.use_cases.run_study import (
 )
 from resto.domain.entities.study import StudyStatus
 from resto.domain.value_objects.question import Mode
+from resto.interface.render import render_study
 
 AGENT_SECONDS = 300.0
 
@@ -148,8 +149,11 @@ def main(argv: Sequence[str] | None = None, *, deps: StudyDeps | None = None) ->
     finally:
         if db is not None:
             db.close()
-    print(f"study {study.study_id}: {study.status}")
-    return 0 if study.status is StudyStatus.COMPLETED else 1
+    if study.status is StudyStatus.COMPLETED:
+        print(f"study {study.study_id}: completed")  # the report's Markdown comes with E5.4
+        return 0
+    print(render_study(study), end="")
+    return 1
 
 
 if __name__ == "__main__":
