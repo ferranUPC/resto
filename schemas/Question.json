@@ -1,7 +1,20 @@
 {
   "$defs": {
     "AddEdge": {
+      "description": "`edge_id`, when given, is the id the new edge gets, so an intervention of the same arm can\ntarget it (ADR-0027).",
       "properties": {
+        "edge_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Edge Id"
+        },
         "from_junction": {
           "title": "From Junction",
           "type": "string"
@@ -34,6 +47,48 @@
       "title": "AddEdge",
       "type": "object"
     },
+    "Arm": {
+      "properties": {
+        "interventions": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Intervention"
+          },
+          "title": "Interventions",
+          "type": "array"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "topology_changes": {
+          "default": [],
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RemoveEdge"
+              },
+              {
+                "$ref": "#/$defs/AddEdge"
+              },
+              {
+                "$ref": "#/$defs/SetLanes"
+              },
+              {
+                "$ref": "#/$defs/SetSpeed"
+              }
+            ]
+          },
+          "title": "Topology Changes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "label"
+      ],
+      "title": "Arm",
+      "type": "object"
+    },
     "Condition": {
       "description": "Runtime predicate `metric(target) op value` evaluated by the script's `when(...)`.",
       "properties": {
@@ -59,6 +114,25 @@
         "value"
       ],
       "title": "Condition",
+      "type": "object"
+    },
+    "Contrast": {
+      "description": "`treatment` measured against `reference`, both arm labels (`BASE_ARM` included).",
+      "properties": {
+        "reference": {
+          "default": "base",
+          "title": "Reference",
+          "type": "string"
+        },
+        "treatment": {
+          "title": "Treatment",
+          "type": "string"
+        }
+      },
+      "required": [
+        "treatment"
+      ],
+      "title": "Contrast",
       "type": "object"
     },
     "EdgeTarget": {
@@ -364,7 +438,7 @@
       "type": "object"
     }
   },
-  "description": "What the user asked, as understood by the Coordinator. A plain doubt is\n`describe`/`diagnose`; a hypothesis is `counterfactual`/`compare`.",
+  "description": "What the user asked, as understood by the Input Parser. A plain doubt is\n`describe`/`diagnose`; a hypothesis is `counterfactual`/`compare`.\n\nWhat to simulate is said in one of two forms (ADR-0027): the flat `interventions` /\n`topology_changes` are the shorthand for one treatment against the base; `arms` + `contrasts`\nname several combinations and which pairs to compare. Code reads `effective_arms` and\n`effective_contrasts`, which cover both.",
   "properties": {
     "ambiguities": {
       "default": [],
@@ -372,6 +446,14 @@
         "type": "string"
       },
       "title": "Ambiguities",
+      "type": "array"
+    },
+    "arms": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Arm"
+      },
+      "title": "Arms",
       "type": "array"
     },
     "context_tags": {
@@ -382,6 +464,14 @@
       "title": "Context Tags",
       "type": "array",
       "uniqueItems": true
+    },
+    "contrasts": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Contrast"
+      },
+      "title": "Contrasts",
+      "type": "array"
     },
     "demand_ref": {
       "anyOf": [

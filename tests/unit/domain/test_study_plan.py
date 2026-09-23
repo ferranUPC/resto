@@ -19,6 +19,7 @@ BASELINE = ExperimentRole.BASELINE
 
 
 def _build(network_id: str | FromStep = "n1", demand_id: str | FromStep = "d1", **kw):  # noqa: ANN003, ANN202
+    kw.setdefault("arm", "base")
     return BuildScenarioStep(
         network_id=network_id, demand_id=demand_id, role=BASELINE, purpose="reference", **kw
     )
@@ -35,13 +36,14 @@ def _gp11_plan() -> StudyPlan:
             BuildScenarioStep(
                 network_id=FromStep(0),
                 demand_id=FromStep(1),
+                arm="new-edge",
                 role=ExperimentRole.TREATMENT,
                 purpose="new edge J7-J9",
                 depends_on=(0, 1),
             ),
             RunSimulationStep(scenario_id=FromStep(2), depends_on=(2,)),
         ),
-        reused=(ReusedExperiment("s-base", BASELINE, "network as it is"),),
+        reused=(ReusedExperiment("s-base", "base", BASELINE, "network as it is"),),
     )
 
 
@@ -49,7 +51,7 @@ def test_a_plan_may_have_no_steps() -> None:
     plan = StudyPlan(
         network_id="n1",
         rationale="baseline results exist",
-        reused=(ReusedExperiment("s1", BASELINE, "reference"),),
+        reused=(ReusedExperiment("s1", "base", BASELINE, "reference"),),
     )
     assert plan.steps == ()
 
@@ -110,13 +112,13 @@ def test_explicit_seeds_are_non_empty_and_distinct() -> None:
 
 def test_role_and_purpose_are_declared() -> None:
     with pytest.raises(ValueError, match="purpose"):
-        BuildScenarioStep(network_id="n1", demand_id="d1", role=BASELINE, purpose=" ")
+        BuildScenarioStep(network_id="n1", demand_id="d1", arm="base", role=BASELINE, purpose=" ")
     with pytest.raises(ValueError, match="purpose"):
-        ReusedExperiment("s1", BASELINE, "")
+        ReusedExperiment("s1", "base", BASELINE, "")
 
 
 def test_a_scenario_is_reused_once() -> None:
-    reused = ReusedExperiment("s1", BASELINE, "reference")
+    reused = ReusedExperiment("s1", "base", BASELINE, "reference")
     with pytest.raises(ValueError, match="more than once"):
         StudyPlan(network_id="n1", rationale="r", reused=(reused, reused))
 
@@ -124,3 +126,19 @@ def test_a_scenario_is_reused_once() -> None:
 def test_a_clarification_needs_a_reason() -> None:
     with pytest.raises(ValueError):
         ClarificationRequest(reason="", candidates=("gv-2024",))
+
+
+def test_each_arm_is_realised_once_per_plan() -> None:
+    with pytest.raises(ValueError, match="once per plan"):
+        StudyPlan(
+            network_id="n1",
+            rationale="r",
+            steps=(_build(),),
+            reused=(ReusedExperiment("s1", "base", BASELINE, "reference"),),
+        )
+    assert _gp11_plan().arms == ("base", "new-edge")
+
+
+def test_a_build_step_names_its_arm() -> None:
+    with pytest.raises(ValueError, match="arm"):
+        _build(arm="")

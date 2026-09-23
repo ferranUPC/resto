@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 
+from resto.domain.value_objects.arm import BASE_ARM, Arm, Contrast
 from resto.domain.value_objects.intervention import Intervention
 from resto.domain.value_objects.time_window import TimeWindow
 from resto.domain.value_objects.topology_modification import TopologyModification
@@ -16,6 +17,10 @@ class Intent(StrEnum):
     RUN = "run"
 
 
+SHORTHAND_ARM = "treatment"
+"""Label of the arm the flat `interventions` / `topology_changes` stand for."""
+
+
 class Mode(StrEnum):
     FREE = "free"
     FORCED = "forced"
@@ -23,8 +28,13 @@ class Mode(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class Question:
-    """What the user asked, as understood by the Coordinator. A plain doubt is
-    `describe`/`diagnose`; a hypothesis is `counterfactual`/`compare`."""
+    """What the user asked, as understood by the Input Parser. A plain doubt is
+    `describe`/`diagnose`; a hypothesis is `counterfactual`/`compare`.
+
+    What to simulate is said in one of two forms (ADR-0027): the flat `interventions` /
+    `topology_changes` are the shorthand for one treatment against the base; `arms` + `contrasts`
+    name several combinations and which pairs to compare. Code reads `effective_arms` and
+    `effective_contrasts`, which cover both."""
 
     text: str
     intent: Intent
@@ -37,11 +47,42 @@ class Question:
     time_window: TimeWindow | None = None
     context_tags: frozenset[str] = frozenset()
     ambiguities: tuple[str, ...] = ()
+    arms: tuple[Arm, ...] = ()
+    contrasts: tuple[Contrast, ...] = ()
 
     def __post_init__(self) -> None:
         if not self.text.strip():
             raise ValueError("a Question requires text")
+        if self.arms and (self.interventions or self.topology_changes):
+            raise ValueError("use arms or the flat interventions/topology_changes, not both")
+        if self.contrasts and not self.arms:
+            raise ValueError("contrasts compare named arms: give the arms")
+        labels = [a.label for a in self.arms]
+        if len(set(labels)) != len(labels):
+            raise ValueError("arm labels must be unique")
+        contents = [(a.topology_changes, a.interventions) for a in self.arms]
+        # Pairwise, not a set: an Intervention's `params` mapping is not hashable.
+        if any(c in contents[:i] for i, c in enumerate(contents)):
+            raise ValueError("two arms describe the same combination")
+        known = {*labels, BASE_ARM}
+        for c in self.contrasts:
+            if c.treatment not in known or c.reference not in known:
+                raise ValueError(f"contrast {c.treatment} vs {c.reference} names an unknown arm")
+        if len(set(self.contrasts)) != len(self.contrasts):
+            raise ValueError("contrasts must not repeat")
 
     @property
     def is_ambiguous(self) -> bool:
         return bool(self.ambiguities)
+
+    @property
+    def effective_arms(self) -> tuple[Arm, ...]:
+        """The listed arms, or the shorthand as one arm labelled `SHORTHAND_ARM`."""
+        if self.arms or not (self.interventions or self.topology_changes):
+            return self.arms
+        return (Arm(SHORTHAND_ARM, self.topology_changes, self.interventions),)
+
+    @property
+    def effective_contrasts(self) -> tuple[Contrast, ...]:
+        """The listed contrasts, or each arm against the base."""
+        return self.contrasts or tuple(Contrast(a.label) for a in self.effective_arms)

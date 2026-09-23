@@ -29,6 +29,7 @@ from resto.domain.value_objects.answer_value import (
     Quantity,
 )
 from resto.domain.value_objects.applied_action import ActionOrigin, AppliedAction
+from resto.domain.value_objects.arm import Arm, Contrast
 from resto.domain.value_objects.artifact_ref import ArtifactRef
 from resto.domain.value_objects.calibration_round import CalibrationRound
 from resto.domain.value_objects.condition import Condition, Metric, Operator
@@ -158,13 +159,16 @@ def study_plan() -> StudyPlan:
             BuildScenarioStep(
                 network_id="abc123",
                 demand_id="t1",
+                arm="treatment",
                 role=ExperimentRole.TREATMENT,
                 purpose="measure the closure",
                 interventions=(static_intervention(),),
             ),
             RunSimulationStep(scenario_id=FromStep(0), depends_on=(0,)),
         ),
-        reused=(ReusedExperiment("s0", ExperimentRole.BASELINE, "reference without the closure"),),
+        reused=(
+            ReusedExperiment("s0", "base", ExperimentRole.BASELINE, "without the closure"),
+        ),
     )
 
 
@@ -265,9 +269,12 @@ def study() -> Study:
                     ),
                 ),
                 experiments=(
-                    Experiment("s0", ExperimentRole.BASELINE, "reference", ("res0",), reused=True),
+                    Experiment(
+                        "s0", "base", ExperimentRole.BASELINE, "reference", ("res0",), reused=True
+                    ),
                     Experiment(
                         scenario_id="s1",
+                        arm="treatment",
                         role=ExperimentRole.TREATMENT,
                         purpose="measure the closure",
                         result_ids=("res1",),
@@ -323,12 +330,19 @@ SAMPLES: dict[type, Callable[[], object]] = {
     BuildScenarioStep: lambda: BuildScenarioStep(
         network_id="abc123",
         demand_id=FromStep(0),
+        arm="base",
         role=ExperimentRole.BASELINE,
         purpose="reference",
         depends_on=(0,),
     ),
     RunSimulationStep: lambda: RunSimulationStep(scenario_id="s1", seeds=(1, 2)),
-    ReusedExperiment: lambda: ReusedExperiment("s1", ExperimentRole.BASELINE, "reference"),
+    ReusedExperiment: lambda: ReusedExperiment("s1", "base", ExperimentRole.BASELINE, "reference"),
+    Arm: lambda: Arm(
+        "new-edge+closure",
+        topology_changes=(AddEdge("J7", "J9", lanes=1, speed=13.9, edge_id="J7J9"),),
+        interventions=(static_intervention(),),
+    ),
+    Contrast: lambda: Contrast(treatment="new-edge+closure", reference="new-edge"),
     ClarificationRequest: lambda: ClarificationRequest(
         reason='two networks match "Gran Via"', candidates=("gv-2024", "gv-old")
     ),
@@ -337,7 +351,9 @@ SAMPLES: dict[type, Callable[[], object]] = {
         StepErrorKind.USER_INPUT, "the Builder rejected an intervention", ("E99: unknown edge",)
     ),
     Usage: lambda: Usage(input_tokens=120, output_tokens=45, simulations=1),
-    Experiment: lambda: Experiment(scenario_id="s1", role=ExperimentRole.BASELINE, purpose="ref"),
+    Experiment: lambda: Experiment(
+        scenario_id="s1", arm="base", role=ExperimentRole.BASELINE, purpose="ref"
+    ),
     ExpertRound: lambda: ExpertRound(question="why?", answer=expert_answer(), forced_by_limit=True),
     ExpertAnswer: expert_answer,
     Evidence: lambda: Evidence(kind=EvidenceKind.ARTIFACT, ref="edgedata.xml", excerpt="E12"),

@@ -53,6 +53,15 @@ class Question {
   +frozenset~str~ context_tags
   +List~str~ ambiguities
 }
+class Arm {
+  +str label
+  +List~TopologyModification~ topology_changes
+  +List~Intervention~ interventions
+}
+class Contrast {
+  +str treatment
+  +str reference
+}
 class Intent {
   <<enumeration>>
   DESCRIBE
@@ -73,6 +82,7 @@ class StudyPlan {
 }
 class ReusedExperiment {
   +str scenario_id
+  +str arm
   +ExperimentRole role
   +str purpose
 }
@@ -111,6 +121,7 @@ class RerouteDemandStep {
 class BuildScenarioStep {
   +str | FromStep network_id
   +str | FromStep demand_id
+  +str arm
   +ExperimentRole role
   +str purpose
   +List~Intervention~ interventions
@@ -152,6 +163,7 @@ class Usage {
 
 class Experiment {
   +str scenario_id
+  +str arm
   +ExperimentRole role
   +str purpose
   +List~str~ result_ids
@@ -264,6 +276,10 @@ Phase "1" o-- "0..1" ExpertRound : round
 Study --> StudyStatus
 Question --> Intent
 Question --> Mode
+Question "1" *-- "0..*" Arm : arms
+Question "1" *-- "0..*" Contrast : contrasts
+Contrast ..> Arm : treatment / reference (label)
+Experiment ..> Arm : arm (label)
 StepRecord --> StepStatus
 StepRecord *-- Usage : usage
 StepRecord "1" o-- "0..1" StepError : error
@@ -340,6 +356,7 @@ class AddEdge {
   +str to_junction
   +int lanes
   +float speed
+  +str? edge_id
 }
 class SetLanes {
   +str edge_id

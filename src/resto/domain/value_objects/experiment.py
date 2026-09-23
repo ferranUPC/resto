@@ -12,10 +12,12 @@ class ExperimentRole(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class Experiment:
-    """One scenario and its seeded runs, inside a Study. `reused` marks a scenario whose stored
-    results the plan reused instead of running it now (ADR-0025 §1)."""
+    """One scenario and its seeded runs, inside a Study. `arm` is the question's arm it realises
+    (ADR-0027); `reused` marks a scenario whose stored results the plan reused instead of running
+    it now (ADR-0025 §1)."""
 
     scenario_id: str
+    arm: str
     role: ExperimentRole
     purpose: str
     result_ids: tuple[str, ...] = ()

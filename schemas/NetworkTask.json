@@ -1,7 +1,20 @@
 {
   "$defs": {
     "AddEdge": {
+      "description": "`edge_id`, when given, is the id the new edge gets, so an intervention of the same arm can\ntarget it (ADR-0027).",
       "properties": {
+        "edge_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Edge Id"
+        },
         "from_junction": {
           "title": "From Junction",
           "type": "string"

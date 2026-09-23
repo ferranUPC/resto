@@ -12,13 +12,19 @@ class RemoveEdge:
 
 @dataclass(frozen=True, slots=True)
 class AddEdge:
+    """`edge_id`, when given, is the id the new edge gets, so an intervention of the same arm can
+    target it (ADR-0027)."""
+
     from_junction: str
     to_junction: str
     lanes: int
     speed: float
+    edge_id: str | None = None
     kind: Literal["add_edge"] = "add_edge"
 
     def __post_init__(self) -> None:
+        if self.edge_id is not None and not self.edge_id.strip():
+            raise ValueError("edge_id must not be blank when given")
         if self.from_junction == self.to_junction:
             raise ValueError("an edge must join two different junctions")
         if self.lanes < 1:

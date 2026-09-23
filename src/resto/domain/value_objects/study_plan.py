@@ -142,11 +142,12 @@ class RerouteDemandStep:
 
 @dataclass(frozen=True, slots=True)
 class BuildScenarioStep:
-    """`role` and `purpose` are the Coordinator's: the Executor copies them into the `Experiment`
-    this scenario and its runs become (ADR-0025 §5)."""
+    """`arm`, `role` and `purpose` are the Coordinator's: the Executor copies them into the
+    `Experiment` this scenario and its runs become (ADR-0025 §5, ADR-0027 §3)."""
 
     network_id: str | FromStep
     demand_id: str | FromStep
+    arm: str
     role: ExperimentRole
     purpose: str
     interventions: tuple[Intervention, ...] = ()
@@ -156,6 +157,8 @@ class BuildScenarioStep:
     kind: Literal["build_scenario"] = "build_scenario"
 
     def __post_init__(self) -> None:
+        if not self.arm.strip():
+            raise ValueError("a build_scenario step names the arm it realises")
         if not self.purpose.strip():
             raise ValueError("a build_scenario step requires a purpose")
         _check_depends_on(self.inputs, self.depends_on)
@@ -214,12 +217,15 @@ class ReusedExperiment:
     """A stored scenario whose ok results the Expert is given, without running anything."""
 
     scenario_id: str
+    arm: str
     role: ExperimentRole
     purpose: str
 
     def __post_init__(self) -> None:
         if not self.scenario_id:
             raise ValueError("a ReusedExperiment requires a scenario_id")
+        if not self.arm.strip():
+            raise ValueError("a ReusedExperiment names the arm it realises")
         if not self.purpose.strip():
             raise ValueError("a ReusedExperiment requires a purpose")
 
@@ -246,6 +252,15 @@ class StudyPlan:
         scenario_ids = [r.scenario_id for r in self.reused]
         if len(set(scenario_ids)) != len(scenario_ids):
             raise ValueError("a scenario is reused more than once")
+        arms = self.arms
+        if len(set(arms)) != len(arms):
+            raise ValueError("each arm is built or reused once per plan")
+
+    @property
+    def arms(self) -> tuple[str, ...]:
+        """The arms this plan realises: reused first, then built, in order."""
+        built = (s.arm for s in self.steps if isinstance(s, BuildScenarioStep))
+        return (*(r.arm for r in self.reused), *built)
 
     def _check_ref(self, ref: FromStep, expected: Produces, where: str) -> None:
         if ref.step >= len(self.steps):

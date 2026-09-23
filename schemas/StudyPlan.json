@@ -1,7 +1,20 @@
 {
   "$defs": {
     "AddEdge": {
+      "description": "`edge_id`, when given, is the id the new edge gets, so an intervention of the same arm can\ntarget it (ADR-0027).",
       "properties": {
+        "edge_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Edge Id"
+        },
         "from_junction": {
           "title": "From Junction",
           "type": "string"
@@ -60,12 +73,16 @@
       "type": "object"
     },
     "BuildScenarioStep": {
-      "description": "`role` and `purpose` are the Coordinator's: the Executor copies them into the `Experiment`\nthis scenario and its runs become (ADR-0025 \u00a75).",
+      "description": "`arm`, `role` and `purpose` are the Coordinator's: the Executor copies them into the\n`Experiment` this scenario and its runs become (ADR-0025 \u00a75, ADR-0027 \u00a73).",
       "properties": {
         "allow_script": {
           "default": true,
           "title": "Allow Script",
           "type": "boolean"
+        },
+        "arm": {
+          "title": "Arm",
+          "type": "string"
         },
         "context_tags": {
           "default": [],
@@ -131,6 +148,7 @@
       "required": [
         "network_id",
         "demand_id",
+        "arm",
         "role",
         "purpose"
       ],
@@ -733,6 +751,10 @@
     "ReusedExperiment": {
       "description": "A stored scenario whose ok results the Expert is given, without running anything.",
       "properties": {
+        "arm": {
+          "title": "Arm",
+          "type": "string"
+        },
         "purpose": {
           "title": "Purpose",
           "type": "string"
@@ -747,6 +769,7 @@
       },
       "required": [
         "scenario_id",
+        "arm",
         "role",
         "purpose"
       ],
