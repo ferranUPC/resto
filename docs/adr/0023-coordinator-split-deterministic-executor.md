@@ -1,6 +1,7 @@
 # ADR-0023: Coordinator split — Input Parser, one-shot Coordinator, deterministic Executor; `Study` in phases
 
-- Status: Accepted — supersedes ADR-0001's Coordinator consequence and the `Study` shape in ADR-0002
+- Status: Accepted — supersedes ADR-0001's Coordinator consequence and the `Study` shape in ADR-0002;
+  plan shape, failures and the loop's last round completed by [ADR-0025](0025-executor-plan-shape-intent-rules-and-failures.md)
 - Date: 2026-09-22
 - Architecture reference: [`tfm-architecture-and-dod.md`](../tfm-architecture-and-dod.md) §1 (principles
   3, 5, 6), §2.2, §2.3 ("The loop with this model"), §2.4 (Coordinator), §4.1, §4.2, §5, §8;

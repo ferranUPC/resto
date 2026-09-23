@@ -1,6 +1,7 @@
 # ADR-0024: `ExpertNote` carries typed claims; code confirms or refutes them against `Kpis`
 
-- Status: Accepted — extends ADR-0011's `ExpertNote` and ADR-0019's `AnswerValue` to notes
+- Status: Accepted — extends ADR-0011's `ExpertNote` and ADR-0019's `AnswerValue` to notes; when notes
+  are written and how `provenance`/`scenario_id` are set extended by [ADR-0026](0026-expert-notes-per-study-and-prediction-verification.md)
 - Date: 2026-09-22
 - Architecture reference: [`tfm-architecture-and-dod.md`](../tfm-architecture-and-dod.md) §2.2, §2.3
   (`ExpertNote`), §2.4, §4.7; [ADR-0011](0011-network-expert-knowledge-model.md),
