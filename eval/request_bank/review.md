@@ -91,7 +91,7 @@ Gold: intent `compare` · network `DEV-NET` · metrics mean_delay
 
 ### `R003.de` — ok
 
-- text: Auf DEV-NET: Was verringert die mittene Verzögerung mehr: das Schließen der Kante C0D0 von 08:00 bis 08:30 oder die Begrenzung der Kante B2C2 auf 30 km/h im selben Zeitraum?
+- text: Auf DEV-NET: Was verringert die mittlere Verzögerung mehr: das Schließen der Kante C0D0 von 08:00 bis 08:30 oder die Begrenzung der Kante B2C2 auf 30 km/h im selben Zeitraum?
 - back-translation: On DEV-NET: What reduces the median latency more: closing edge C0D0 from 08:00 to 08:30, or limiting edge B2C2 to 30 km/h in the same period?
 
 ### `R003.zh` — ok
@@ -118,7 +118,7 @@ Gold: intent `run` · network `DEV-NET` · metrics mean_delay
 
 ### `R004.es` — ok
 
-- text: Ejecuta una simulación de DEV-NET en la que la carril 1 de B0C0 esté cerrado y el borde B2C2 esté limitado a 30 km/h simultáneamente, ambos desde las 08:00 hasta las 08:30, e informa el retraso medio.
+- text: Ejecuta una simulación de DEV-NET en la que el carril 1 de B0C0 esté cerrado y el borde B2C2 esté limitado a 30 km/h simultáneamente, ambos desde las 08:00 hasta las 08:30, e informa el retraso medio.
 - back-translation: Run a DEV-NET simulation in which lane 1 of B0C0 is closed and the edge B2C2 is limited to 30 km/h simultaneously, both from 08:00 to 08:30, and report the average delay.
 
 ### `R004.zh` — ok
@@ -128,7 +128,7 @@ Gold: intent `run` · network `DEV-NET` · metrics mean_delay
 
 ### `R004.en-telegraphic` — ok
 
-- text: DEV-NET sim: B0C0 lane 1 closed, B2C2 edge 30 km/h, 08:00–08:30. Report mean delay.
+- text: DEV-NET sim, both together: B0C0 lane 1 closed + B2C2 edge 30 km/h, 08:00–08:30. Report mean delay.
 
 ### `R004.de-typos` — ok
 
@@ -143,7 +143,7 @@ Gold: expect `ambiguities[]` (together or separately, and when)
 
 ### `R005.ca` — ok
 
-- text: Què passa si tanc B0C0 i C0D0?
+- text: Què passa si tanco B0C0 i C0D0?
 - back-translation: What happens if you close B0C0 and C0D0?
 
 ### `R005.zh` — ok
@@ -251,7 +251,7 @@ Gold: intent `diagnose` · network `DEV-NET` · window 07:30–08:30 · metrics 
 
 ### `R009.en-messy` — ok
 
-- text: DEV-NET, why are edges B2C2 & C2D2 so backed up 07:30-08:30??
+- text: DEV-NET, why such long waits on edges B2C2 & C2D2 07:30-08:30??
 
 ### `R009.es-typos` — ok
 
@@ -740,7 +740,7 @@ Gold: intent `counterfactual` · network `DEV-NET` · metrics mean_delay
 
 ### `R026.en-telegraphic` — ok
 
-- text: DEV-NET: mean delay vs normal. Edge C0D0 closed 08:00–08:30. Edge B2C2 limited 30 km/h 08:00–08:30. Both together.
+- text: DEV-NET, mean delay vs normal for each of: edge C0D0 closed 08:00–08:30; edge B2C2 limited 30 km/h 08:00–08:30; both together.
 
 ### `R026.de-no_accents` — ok
 
@@ -1403,12 +1403,12 @@ Gold: expect `ambiguities[]` (unintelligible)
 
 ### `R054.ca` — ok
 
-- text: Simula el trànsit a la xarxa xx 0800 zz.
+- text: hgfd trànsit sim sisplau xx 0800 zz
 - back-translation: Simulate the traffic on the network xx 0800 zz.
 
 ### `R054.es` — ok
 
-- text: Simulación de tráfico, por favor: xx 0800 zz.
+- text: hgfd tráfico sim porfa xx 0800 zz
 - back-translation: Traffic simulation, please: xx 0800 zz.
 
 ### `R054.en-typos` — ok

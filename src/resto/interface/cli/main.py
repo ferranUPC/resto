@@ -1,10 +1,10 @@
 """CLI entrypoint and composition root (ADR-0025 §6): the one place where the Executor's agent
 ports meet their implementations and the infrastructure is bound.
 
-Agents that do not exist yet — Input Parser (E5.1), Coordinator (E5.2), Output Composer (E5.4),
-Network Author (E6.1), Demand Generator (E6.2) — and the promotions of their drafts are placeholders
-that raise `NotImplementedError`. With no parser a request ends in `ParserFailed` before any model
-call, and the CLI reports it without creating a Study.
+Agents that do not exist yet — Coordinator (E5.2), Output Composer (E5.4), Network Author (E6.1),
+Demand Generator (E6.2) — and the promotions of their drafts are placeholders that raise
+`NotImplementedError`. A request the Input Parser cannot turn into a `Question` ends in
+`ParserFailed`, and the CLI reports it without creating a Study.
 
     python -m resto.interface.cli.main "how congested is the peak?" [--mode forced]
 """
@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import NoReturn
 
 from resto.adapters.llm.agents.expert import ExpertPort, NoteWriterPort
+from resto.adapters.llm.agents.input_parser import InputParserPort
 from resto.adapters.llm.agents.scenario_builder import ScenarioBuilderPort
 from resto.adapters.persistence.memory import InMemoryStudyRepository
 from resto.adapters.persistence.sqlite.repositories import SqliteDatabase
@@ -67,7 +68,7 @@ def build_deps(
     `has_historical_demand` stays false until capability negotiation is wired (E5.6)."""
     return StudyDeps(
         agents=StudyAgents(
-            parser=_Pending("Input Parser", "E5.1"),
+            parser=InputParserPort(agent=agent, budget=budget),
             coordinator=_Pending("Coordinator", "E5.2"),
             network_author=_Pending("Network Author", "E6.1"),
             demand_generator=_Pending("Demand Generator", "E6.2"),

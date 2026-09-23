@@ -23,6 +23,7 @@ from typing import Any
 from eval.request_bank.concepts import CONCEPTS, SPLITS, AmbiguousGold, Concept, VariantSpec
 from eval.request_bank.pipeline import Chat, Models, VariantRecord, generate_variant
 from resto.domain.value_objects.intervention import Intervention
+from resto.domain.value_objects.question import Question
 from resto.domain.value_objects.topology_modification import TopologyModification
 
 HERE = Path(__file__).resolve().parent
@@ -96,22 +97,48 @@ def run(
     return spent
 
 
-def _clock(seconds: float) -> str:
+def clock_text(seconds: float) -> str:
     return f"{int(seconds // 3600):02d}:{int(seconds % 3600 // 60):02d}"
 
 
-def _item(item: Intervention | TopologyModification) -> str:
+def describe_item(item: Intervention | TopologyModification) -> str:
     if not isinstance(item, Intervention):
         fields = {k: v for k, v in asdict(item).items() if k != "kind" and v is not None}
         return f"{item.kind}(" + ", ".join(f"{k}={v}" for k, v in fields.items()) + ")"
     target = item.target and "/".join(str(v) for k, v in asdict(item.target).items() if k != "kind")
     text = f"{item.type}({target or ''}" + "".join(f", {k}={v}" for k, v in item.params.items())
     if item.window is not None:
-        text += f", {_clock(item.window.start)}–{_clock(item.window.end)}"
+        text += f", {clock_text(item.window.start)}–{clock_text(item.window.end)}"
     if item.condition is not None:
         c = item.condition
         text += f", when {c.metric}({c.target}) {c.op} {c.value:g}"
     return text + ")"
+
+
+def describe_question(question: Question) -> list[str]:
+    """One summary line, then one line per arm, the contrasts and any ambiguities."""
+    parts = [f"intent `{question.intent}`"]
+    if question.network_ref:
+        parts.append(f"network `{question.network_ref}`")
+    if question.demand_ref:
+        parts.append(f"demand `{question.demand_ref}`")
+    if question.time_window:
+        window = question.time_window
+        parts.append(f"window {clock_text(window.start)}–{clock_text(window.end)}")
+    if question.metrics_of_interest:
+        parts.append("metrics " + ", ".join(question.metrics_of_interest))
+    lines = [" · ".join(parts)]
+    for arm in question.effective_arms:
+        items = [*arm.topology_changes, *arm.interventions]
+        lines.append(f"- arm `{arm.label}`: " + " + ".join(f"`{describe_item(i)}`" for i in items))
+    if question.arms:
+        lines.append(
+            "- contrasts: "
+            + ", ".join(f"`{c.treatment}` vs `{c.reference}`" for c in question.effective_contrasts)
+        )
+    if question.ambiguities:
+        lines.append("- ambiguities: " + " | ".join(question.ambiguities))
+    return lines
 
 
 def _gold_summary(concept: Concept) -> str:
@@ -119,25 +146,7 @@ def _gold_summary(concept: Concept) -> str:
     if isinstance(gold, AmbiguousGold):
         intent = f", intent `{gold.intent}`" if gold.intent else ""
         return f"expect `ambiguities[]` ({gold.reason}{intent})"
-    parts = [f"intent `{gold.intent}`"]
-    if gold.network_ref:
-        parts.append(f"network `{gold.network_ref}`")
-    if gold.demand_ref:
-        parts.append(f"demand `{gold.demand_ref}`")
-    if gold.time_window:
-        parts.append(f"window {_clock(gold.time_window.start)}–{_clock(gold.time_window.end)}")
-    if gold.metrics_of_interest:
-        parts.append("metrics " + ", ".join(gold.metrics_of_interest))
-    lines = [" · ".join(parts)]
-    for arm in gold.effective_arms:
-        items = [*arm.topology_changes, *arm.interventions]
-        lines.append(f"- arm `{arm.label}`: " + " + ".join(f"`{_item(i)}`" for i in items))
-    if gold.arms:
-        lines.append(
-            "- contrasts: "
-            + ", ".join(f"`{c.treatment}` vs `{c.reference}`" for c in gold.effective_contrasts)
-        )
-    return "\n".join(lines)
+    return "\n".join(describe_question(gold))
 
 
 def render_review(records: dict[str, VariantRecord]) -> str:

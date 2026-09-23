@@ -9,6 +9,9 @@ from __future__ import annotations
 # model slug -> (USD per 1M input tokens, USD per 1M output tokens)
 _PRICE_PER_MILLION_TOKENS: dict[str, tuple[float, float]] = {
     "deepseek/deepseek-v4.1-flash": (0.15, 0.60),
+    # Parser comparison runs only (CLAUDE.md, evaluation tooling exceptions); catalogue 2026-09-23.
+    "mistralai/ministral-3b-2512": (0.10, 0.10),
+    "google/gemma-3-12b-it": (0.05, 0.15),
 }
 
 

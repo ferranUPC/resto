@@ -1,0 +1,527 @@
+{
+  "requests": 9,
+  "records": 9,
+  "repetitions": [
+    1
+  ],
+  "models": [
+    "deepseek/deepseek-v4.1-flash"
+  ],
+  "parser_versions": [
+    "v1"
+  ],
+  "cost_usd": 0.0099,
+  "mean_input_tokens": 4730,
+  "mean_output_tokens": 648,
+  "stop_reasons": {
+    "output": 9
+  },
+  "metrics": {
+    "schema_validity": {
+      "hits": 9,
+      "total": 9,
+      "value": 1.0
+    },
+    "intent": {
+      "hits": 7,
+      "total": 7,
+      "value": 1.0
+    },
+    "interventions": {
+      "hits": 6,
+      "total": 7,
+      "value": 0.8571428571428571
+    },
+    "topology_changes": {
+      "hits": 6,
+      "total": 7,
+      "value": 0.8571428571428571
+    },
+    "metrics_of_interest": {
+      "hits": 6,
+      "total": 7,
+      "value": 0.8571428571428571
+    },
+    "ambiguity_detection": {
+      "hits": 2,
+      "total": 2,
+      "value": 1.0
+    },
+    "arm_structure": {
+      "hits": 2,
+      "total": 3,
+      "value": 0.6666666666666666
+    },
+    "arm_structure_single": {
+      "hits": 4,
+      "total": 4,
+      "value": 1.0
+    },
+    "required_arms": {
+      "hits": 2,
+      "total": 3,
+      "value": 0.6666666666666666
+    },
+    "spurious_ambiguity": {
+      "hits": 0,
+      "total": 7,
+      "value": 0.0
+    },
+    "used_shorthand": {
+      "hits": 4,
+      "total": 4,
+      "value": 1.0
+    },
+    "network_ref": {
+      "hits": 6,
+      "total": 7,
+      "value": 0.8571428571428571
+    },
+    "demand_ref": {
+      "hits": 7,
+      "total": 7,
+      "value": 1.0
+    },
+    "time_window": {
+      "hits": 7,
+      "total": 7,
+      "value": 1.0
+    }
+  },
+  "done": {
+    "schema_validity": true,
+    "intent": true,
+    "interventions": true,
+    "topology_changes": true,
+    "metrics_of_interest": true,
+    "ambiguity_detection": true,
+    "arm_structure": false
+  },
+  "intent_agreement": null,
+  "consistency": {
+    "hits": 0,
+    "total": 0,
+    "value": null
+  },
+  "breakdowns": {
+    "category": {
+      "adversarial": {
+        "schema_validity": {
+          "hits": 1,
+          "total": 1,
+          "value": 1.0
+        },
+        "intent": {
+          "hits": 1,
+          "total": 1,
+          "value": 1.0
+        },
+        "interventions": {
+          "hits": 1,
+          "total": 1,
+          "value": 1.0
+        },
+        "topology_changes": {
+          "hits": 1,
+          "total": 1,
+          "value": 1.0
+        },
+        "metrics_of_interest": {
+          "hits": 1,
+          "total": 1,
+          "value": 1.0
+        },
+        "ambiguity_detection": {
+          "hits": 0,
+          "total": 0,
+          "value": null
+        },
+        "arm_structure": {
+          "hits": 0,
+          "total": 0,
+          "value": null
+        }
+      },
+      "ambiguous": {
+        "schema_validity": {
+          "hits": 1,
+          "total": 1,
+          "value": 1.0
+        },
+        "intent": {
+          "hits": 0,
+          "total": 0,
+          "value": null
+        },
+        "interventions": {
+          "hits": 0,
+          "total": 0,
+          "value": null
+        },
+        "topology_changes": {
+          "hits": 0,
+          "total": 0,
+          "value": null
+        },
+        "metrics_of_interest": {
+          "hits": 0,
+          "total": 0,
+          "value": null
+        },
+        "ambiguity_detection": {
+          "hits": 1,
+          "total": 1,
+          "value": 1.0
+        },
+        "arm_structure": {
+          "hits": 0,
+          "total": 0,
+          "value": null
+        }
+      },
+      "combined": {
+        "schema_validity": {
+          "hits": 1,
+          "total": 1,
+          "value": 1.0
+        },
+        "intent": {
+          "hits": 1,
+          "total": 1,
+          "value": 1.0
+        },
+        "interventions": {
+          "hits": 1,
+          "total": 1,
+          "value": 1.0
+        },
+        "topology_changes": {
+          "hits": 1,
+          "total": 1,
+          "value": 1.0
+        },
+        "metrics_of_interest": {
+          "hits": 1,
+          "total": 1,
+          "value": 1.0
+        },
+        "ambiguity_detection": {
+          "hits": 0,
+          "total": 0,
+          "value": null
+        },
+        "arm_structure": {
+          "hits": 0,
+          "total": 0,
+          "value": null
+        }
+      },
+      "multi_arm": {
+        "schema_validity": {
+          "hits": 3,
+          "total": 3,
+          "value": 1.0
+        },
+        "intent": {
+          "hits": 3,
+          "total": 3,
+          "value": 1.0
+        },
+        "interventions": {
+          "hits": 2,
+          "total": 3,
+          "value": 0.6666666666666666
+        },
+        "topology_changes": {
+          "hits": 2,
+          "total": 3,
+          "value": 0.6666666666666666
+        },
+        "metrics_of_interest": {
+          "hits": 2,
+          "total": 3,
+          "value": 0.6666666666666666
+        },
+        "ambiguity_detection": {
+          "hits": 0,
+          "total": 0,
+          "value": null
+        },
+        "arm_structure": {
+          "hits": 2,
+          "total": 3,
+          "value": 0.6666666666666666
+        }
+      },
+      "out_of_scope": {
+        "schema_validity": {
+          "hits": 1,
+          "total": 1,
+          "value": 1.0
+        },
+        "intent": {
+          "hits": 0,
+          "total": 0,
+          "value": null
+        },
+        "interventions": {
+          "hits": 0,
+          "total": 0,
+          "value": null
+        },
+        "topology_changes": {
+          "hits": 0,
+          "total": 0,
+          "value": null
+        },
+        "metrics_of_interest": {
+          "hits": 0,
+          "total": 0,
+          "value": null
+        },
+        "ambiguity_detection": {
+          "hits": 1,
+          "total": 1,
+          "value": 1.0
+        },
+        "arm_structure": {
+          "hits": 0,
+          "total": 0,
+          "value": null
+        }
+      },
+      "single": {
+        "schema_validity": {
+          "hits": 2,
+          "total": 2,
+          "value": 1.0
+        },
+        "intent": {
+          "hits": 2,
+          "total": 2,
+          "value": 1.0
+        },
+        "interventions": {
+          "hits": 2,
+          "total": 2,
+          "value": 1.0
+        },
+        "topology_changes": {
+          "hits": 2,
+          "total": 2,
+          "value": 1.0
+        },
+        "metrics_of_interest": {
+          "hits": 2,
+          "total": 2,
+          "value": 1.0
+        },
+        "ambiguity_detection": {
+          "hits": 0,
+          "total": 0,
+          "value": null
+        },
+        "arm_structure": {
+          "hits": 0,
+          "total": 0,
+          "value": null
+        }
+      }
+    },
+    "split": {
+      "dev": {
+        "schema_validity": {
+          "hits": 9,
+          "total": 9,
+          "value": 1.0
+        },
+        "intent": {
+          "hits": 7,
+          "total": 7,
+          "value": 1.0
+        },
+        "interventions": {
+          "hits": 6,
+          "total": 7,
+          "value": 0.8571428571428571
+        },
+        "topology_changes": {
+          "hits": 6,
+          "total": 7,
+          "value": 0.8571428571428571
+        },
+        "metrics_of_interest": {
+          "hits": 6,
+          "total": 7,
+          "value": 0.8571428571428571
+        },
+        "ambiguity_detection": {
+          "hits": 2,
+          "total": 2,
+          "value": 1.0
+        },
+        "arm_structure": {
+          "hits": 2,
+          "total": 3,
+          "value": 0.6666666666666666
+        }
+      }
+    },
+    "lang": {
+      "en": {
+        "schema_validity": {
+          "hits": 9,
+          "total": 9,
+          "value": 1.0
+        },
+        "intent": {
+          "hits": 7,
+          "total": 7,
+          "value": 1.0
+        },
+        "interventions": {
+          "hits": 6,
+          "total": 7,
+          "value": 0.8571428571428571
+        },
+        "topology_changes": {
+          "hits": 6,
+          "total": 7,
+          "value": 0.8571428571428571
+        },
+        "metrics_of_interest": {
+          "hits": 6,
+          "total": 7,
+          "value": 0.8571428571428571
+        },
+        "ambiguity_detection": {
+          "hits": 2,
+          "total": 2,
+          "value": 1.0
+        },
+        "arm_structure": {
+          "hits": 2,
+          "total": 3,
+          "value": 0.6666666666666666
+        }
+      }
+    },
+    "style": {
+      "plain": {
+        "schema_validity": {
+          "hits": 9,
+          "total": 9,
+          "value": 1.0
+        },
+        "intent": {
+          "hits": 7,
+          "total": 7,
+          "value": 1.0
+        },
+        "interventions": {
+          "hits": 6,
+          "total": 7,
+          "value": 0.8571428571428571
+        },
+        "topology_changes": {
+          "hits": 6,
+          "total": 7,
+          "value": 0.8571428571428571
+        },
+        "metrics_of_interest": {
+          "hits": 6,
+          "total": 7,
+          "value": 0.8571428571428571
+        },
+        "ambiguity_detection": {
+          "hits": 2,
+          "total": 2,
+          "value": 1.0
+        },
+        "arm_structure": {
+          "hits": 2,
+          "total": 3,
+          "value": 0.6666666666666666
+        }
+      }
+    },
+    "vague": {
+      "none": {
+        "schema_validity": {
+          "hits": 9,
+          "total": 9,
+          "value": 1.0
+        },
+        "intent": {
+          "hits": 7,
+          "total": 7,
+          "value": 1.0
+        },
+        "interventions": {
+          "hits": 6,
+          "total": 7,
+          "value": 0.8571428571428571
+        },
+        "topology_changes": {
+          "hits": 6,
+          "total": 7,
+          "value": 0.8571428571428571
+        },
+        "metrics_of_interest": {
+          "hits": 6,
+          "total": 7,
+          "value": 0.8571428571428571
+        },
+        "ambiguity_detection": {
+          "hits": 2,
+          "total": 2,
+          "value": 1.0
+        },
+        "arm_structure": {
+          "hits": 2,
+          "total": 3,
+          "value": 0.6666666666666666
+        }
+      }
+    },
+    "noise": {
+      "none": {
+        "schema_validity": {
+          "hits": 9,
+          "total": 9,
+          "value": 1.0
+        },
+        "intent": {
+          "hits": 7,
+          "total": 7,
+          "value": 1.0
+        },
+        "interventions": {
+          "hits": 6,
+          "total": 7,
+          "value": 0.8571428571428571
+        },
+        "topology_changes": {
+          "hits": 6,
+          "total": 7,
+          "value": 0.8571428571428571
+        },
+        "metrics_of_interest": {
+          "hits": 6,
+          "total": 7,
+          "value": 0.8571428571428571
+        },
+        "ambiguity_detection": {
+          "hits": 2,
+          "total": 2,
+          "value": 1.0
+        },
+        "arm_structure": {
+          "hits": 2,
+          "total": 3,
+          "value": 0.6666666666666666
+        }
+      }
+    }
+  }
+}

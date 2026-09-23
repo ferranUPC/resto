@@ -1,5 +1,5 @@
-"""The CLI composition root (E5.10): the real wiring builds, and a request with no Input Parser
-yet ends in an error without creating a Study or calling a model."""
+"""The CLI composition root (E5.10): the real wiring builds, and a request the Input Parser cannot
+turn into a `Question` ends in an error without creating a Study."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ class NullTracer:
         raise AssertionError("no study, no trace")
 
 
-def test_without_an_input_parser_no_study_is_created(
+def test_without_a_question_no_study_is_created(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     db = SqliteDatabase(tmp_path / "resto.sqlite")
@@ -36,7 +36,7 @@ def test_without_an_input_parser_no_study_is_created(
     db.close()
     err = capsys.readouterr().err
     assert code == 1
-    assert "no study was created" in err and "E5.1" in err
+    assert "no study was created" in err and "without a Question" in err
 
 
 def test_a_failed_study_is_rendered(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

@@ -151,5 +151,9 @@ graphify-out/*
 # eval/hygiene_probes raw runs, same convention as the expert benchmark
 eval/hygiene_probes/runs/
 
+# eval/parser_benchmark raw runs (parsed Questions per request, resumable scratch);
+# reports/<name>.md and reports/<name>.json are the committed assets
+eval/parser_benchmark/runs/
+
 # Progress site build output (progress-site/build_site.py)
 _site/

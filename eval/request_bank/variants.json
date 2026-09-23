@@ -261,7 +261,7 @@
     "style": null,
     "vague": null,
     "noise": null,
-    "text": "Auf DEV-NET: Was verringert die mittene Verzögerung mehr: das Schließen der Kante C0D0 von 08:00 bis 08:30 oder die Begrenzung der Kante B2C2 auf 30 km/h im selben Zeitraum?",
+    "text": "Auf DEV-NET: Was verringert die mittlere Verzögerung mehr: das Schließen der Kante C0D0 von 08:00 bis 08:30 oder die Begrenzung der Kante B2C2 auf 30 km/h im selben Zeitraum?",
     "generated": "Auf DEV-NET: Was verringert die mittene Verzögerung mehr: das Schließen der Kante C0D0 von 08:00 bis 08:30 oder die Begrenzung der Kante B2C2 auf 30 km/h im selben Zeitraum?",
     "back_translation": "On DEV-NET: What reduces the median latency more: closing edge C0D0 from 08:00 to 08:30, or limiting edge B2C2 to 30 km/h in the same period?",
     "verified": true,
@@ -270,7 +270,9 @@
     "verifier": "meta-llama/llama-3.3-70b-instruct",
     "prompt_version": "v2",
     "cost_usd": 0.000458,
-    "notes": [],
+    "notes": [
+      "hand-fixed (pilot, full review): 'mittene' -> 'mittlere'"
+    ],
     "verifier_output": "{\"is_user_request\": true, \"same_meaning\": true, \"differences\": []}"
   },
   {
@@ -363,7 +365,7 @@
     "style": "telegraphic",
     "vague": null,
     "noise": null,
-    "text": "DEV-NET sim: B0C0 lane 1 closed, B2C2 edge 30 km/h, 08:00–08:30. Report mean delay.",
+    "text": "DEV-NET sim, both together: B0C0 lane 1 closed + B2C2 edge 30 km/h, 08:00–08:30. Report mean delay.",
     "generated": "DEV-NET sim: B0C0 lane 1 closed, B2C2 edge 30 km/h, 08:00–08:30. Report mean delay.",
     "back_translation": null,
     "verified": true,
@@ -372,7 +374,9 @@
     "verifier": "meta-llama/llama-3.3-70b-instruct",
     "prompt_version": "v2",
     "cost_usd": 6.8e-05,
-    "notes": [],
+    "notes": [
+      "hand-fixed after parser run v3-dev: 'together' was lost; the Parser rightly asked"
+    ],
     "verifier_output": "{\"is_user_request\": true, \"same_meaning\": true, \"differences\": []}"
   },
   {
@@ -382,7 +386,7 @@
     "style": null,
     "vague": null,
     "noise": null,
-    "text": "Ejecuta una simulación de DEV-NET en la que la carril 1 de B0C0 esté cerrado y el borde B2C2 esté limitado a 30 km/h simultáneamente, ambos desde las 08:00 hasta las 08:30, e informa el retraso medio.",
+    "text": "Ejecuta una simulación de DEV-NET en la que el carril 1 de B0C0 esté cerrado y el borde B2C2 esté limitado a 30 km/h simultáneamente, ambos desde las 08:00 hasta las 08:30, e informa el retraso medio.",
     "generated": "Ejecuta una simulación de DEV-NET en la que la carril 1 de B0C0 esté cerrado y el borde B2C2 esté limitado a 30 km/h simultáneamente, ambos desde las 08:00 hasta las 08:30, e informa el retraso medio.",
     "back_translation": "Run a DEV-NET simulation in which lane 1 of B0C0 is closed and the edge B2C2 is limited to 30 km/h simultaneously, both from 08:00 to 08:30, and report the average delay.",
     "verified": true,
@@ -391,7 +395,9 @@
     "verifier": "meta-llama/llama-3.3-70b-instruct",
     "prompt_version": "v2",
     "cost_usd": 0.000102,
-    "notes": [],
+    "notes": [
+      "hand-fixed (pilot, full review): 'la carril' -> 'el carril'"
+    ],
     "verifier_output": "{\"is_user_request\": true, \"same_meaning\": true, \"differences\": []}"
   },
   {
@@ -420,7 +426,7 @@
     "style": null,
     "vague": null,
     "noise": null,
-    "text": "Què passa si tanc B0C0 i C0D0?",
+    "text": "Què passa si tanco B0C0 i C0D0?",
     "generated": "Què passa si tanc B0C0 i C0D0?",
     "back_translation": "What happens if you close B0C0 and C0D0?",
     "verified": true,
@@ -429,7 +435,9 @@
     "verifier": "meta-llama/llama-3.3-70b-instruct",
     "prompt_version": "v2",
     "cost_usd": 9.9e-05,
-    "notes": [],
+    "notes": [
+      "hand-fixed (pilot, full review): 'tanc' -> 'tanco'"
+    ],
     "verifier_output": "{\"is_user_request\": true, \"same_meaning\": true, \"differences\": []}"
   },
   {
@@ -739,7 +747,7 @@
     "style": "messy",
     "vague": null,
     "noise": null,
-    "text": "DEV-NET, why are edges B2C2 & C2D2 so backed up 07:30-08:30??",
+    "text": "DEV-NET, why such long waits on edges B2C2 & C2D2 07:30-08:30??",
     "generated": "DEV-NET, why are edges B2C2 & C2D2 so backed up 07:30-08:30??",
     "back_translation": null,
     "verified": true,
@@ -748,7 +756,9 @@
     "verifier": "meta-llama/llama-3.3-70b-instruct",
     "prompt_version": "v2",
     "cost_usd": 7.4e-05,
-    "notes": [],
+    "notes": [
+      "hand-fixed after parser run v3-dev: 'backed up' named no measure (gold: waiting_time)"
+    ],
     "verifier_output": "{\"is_user_request\": true, \"same_meaning\": true, \"differences\": []}"
   },
   {
@@ -2188,7 +2198,7 @@
     "style": "telegraphic",
     "vague": null,
     "noise": null,
-    "text": "DEV-NET: mean delay vs normal. Edge C0D0 closed 08:00–08:30. Edge B2C2 limited 30 km/h 08:00–08:30. Both together.",
+    "text": "DEV-NET, mean delay vs normal for each of: edge C0D0 closed 08:00–08:30; edge B2C2 limited 30 km/h 08:00–08:30; both together.",
     "generated": "DEV-NET: mean delay vs normal. Edge C0D0 closed 08:00–08:30. Edge B2C2 limited 30 km/h 08:00–08:30. Both together.",
     "back_translation": null,
     "verified": true,
@@ -2197,7 +2207,9 @@
     "verifier": "meta-llama/llama-3.3-70b-instruct",
     "prompt_version": "v2",
     "cost_usd": 7.3e-05,
-    "notes": [],
+    "notes": [
+      "hand-fixed after parser run v3-dev: 'each' was lost, it read as one combined treatment"
+    ],
     "verifier_output": "{\"is_user_request\": true, \"same_meaning\": true, \"differences\": []}"
   },
   {
@@ -4008,7 +4020,7 @@
     "style": null,
     "vague": null,
     "noise": null,
-    "text": "Simula el trànsit a la xarxa xx 0800 zz.",
+    "text": "hgfd trànsit sim sisplau xx 0800 zz",
     "generated": "Simula el trànsit a la xarxa xx 0800 zz.",
     "back_translation": "Simulate the traffic on the network xx 0800 zz.",
     "verified": true,
@@ -4017,7 +4029,9 @@
     "verifier": "meta-llama/llama-3.3-70b-instruct",
     "prompt_version": "v2",
     "cost_usd": 7.5e-05,
-    "notes": [],
+    "notes": [
+      "hand-fixed after parser run v3-dev: the translation was intelligible (simulate network 'xx 0800 zz')"
+    ],
     "verifier_output": "{\"is_user_request\": true, \"same_meaning\": true, \"differences\": []}"
   },
   {
@@ -4048,7 +4062,7 @@
     "style": null,
     "vague": null,
     "noise": null,
-    "text": "Simulación de tráfico, por favor: xx 0800 zz.",
+    "text": "hgfd tráfico sim porfa xx 0800 zz",
     "generated": "Simulación de tráfico, por favor: xx 0800 zz.",
     "back_translation": "Traffic simulation, please: xx 0800 zz.",
     "verified": true,
@@ -4057,7 +4071,9 @@
     "verifier": "meta-llama/llama-3.3-70b-instruct",
     "prompt_version": "v2",
     "cost_usd": 9.7e-05,
-    "notes": [],
+    "notes": [
+      "hand-fixed: same defect as R054.ca, made unintelligible again"
+    ],
     "verifier_output": "{\"is_user_request\": true, \"same_meaning\": true, \"differences\": []}"
   },
   {
