@@ -1,6 +1,7 @@
 ---
 name: progress-review
 description: Reviews docs/tfm-work-plan.md against the real state of the repo, updates docs/progress-tracker.md, and writes a dated subjective feasibility analysis to docs/feasability-analisis/{yyyy-mm-dd}.md. Designed to run unattended on a schedule — commits and pushes its own output.
+model: sonnet
 ---
 
 # Progress review
