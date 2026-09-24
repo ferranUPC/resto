@@ -17,7 +17,9 @@
 2. **Agents are evaluated statistically.** Every agent benchmark runs the same inputs 3 times and reports
    mean ± std; a single run proves nothing about an LLM step.
 3. **Tests never call a real model.** `pytest` uses the shared `FakeToolAgent` (ADR-0001). Benchmarks against
-   a real model are manual runs with an estimated cost confirmed before spending (CLAUDE.md cost policy).
+   a real model are manual runs with an estimated cost confirmed before spending (CLAUDE.md cost policy):
+   a *development run* (smoke, tuning, a 1-repetition check) runs now; a *measurement run* (the figure a
+   DoD threshold reads) waits for a validation pass (§7).
 4. **Raw runs are kept.** A benchmark stores every agent run (output, tool calls, ledger, tokens, cost) so
    metrics can be recomputed or corrected without paying for the runs again.
 5. **Structured before judged.** A metric compares typed values whenever possible; free-text grading
@@ -158,8 +160,8 @@ python -m eval.expert_benchmark.run --name <name> --report-only   # re-score sto
 - **Workers** run questions in parallel, each with its own SQLite connection and network query.
 
 Repetitions: **3** per question. Free mode is **not run for now**, so the abstention metrics (§4.5) are
-deferred — both the forced 3-repetition sweep and the forced+free paired sweep are logged as pending
-paid experiments in §7.
+deferred — the forced 3-repetition sweep and the forced+free paired sweep are measurement runs, one suite
+(EXP-01) in Validation 2 (§7).
 
 **Budget (principle 6): tokens per family, dollars for the current default model derived from them.**
 Measured on `v1-forced-1rep` (`eval/expert_benchmark/reports/v1-forced-1rep.json`), one repetition over
@@ -249,7 +251,7 @@ expected one (e.g. supporting quantities) are ignored.
   a question *should* abstain when the forced answer is incorrect. Recall = abstained in free ∧ incorrect
   in forced / incorrect in forced. False requests = abstained in free ∧ correct in forced / abstained in
   free. Computed in `eval/expert_benchmark/report.py` (E4.5); the harness supports running each question
-  in both modes (`--mode both`). **Deferred**: the full-bank sweep is a pending paid experiment (§7).
+  in both modes (`--mode both`). **Deferred**: the full-bank sweep is a measurement run (EXP-01, §7).
 
 ### 4.6 Aggregation and report
 
@@ -309,8 +311,9 @@ two halves are measured differently:
   hashing embedder retrieves it. A probe is a **violation** when the answer has `basis = observed` and cites
   a `search_notes` call as evidence. Pass = 0 violations (a hard rule, not a percentage threshold).
   Correctness of the answer is not graded.
-- Cost: ~$0.01 per probe, so 20 probes × 1 repetition ≈ $0.20. Under the $1 rule, it runs directly with
-  its cost stated; it is not a §7 plan.
+- Cost: ~$0.01 per probe, so 20 probes × 1 repetition ≈ $0.20. Run under the earlier "> $1 waits" rule,
+  before the development/measurement split (§5, 2026-09-24); E4.6's Done stands on it and is not
+  re-measured.
 
     python -m eval.hygiene_probes.run --name hygiene-v1 --repetitions 1 --max-cost-usd 0.5
 
@@ -372,6 +375,7 @@ the note's content as observed without citing it is not detected; the typed `val
 | 2026-09-24 | **Second blind annotation round** (the user, 24/24, after guide v4; revised several earlier answers): extraction is now near-perfect — interventions, topology and time window 100 %, network 100 %, demand 94 %, arm structure 3/4 (up from 1/4), R042's ambiguity caught — but intent falls to 72 % (13/18), and the misses sit on exactly the boundaries settled today: "simulate X and report Y" labelled `run` (R017, R032, R043, gold `counterfactual` under the rule the user set), R022 ("how much would X reduce… and how much more would Y change") labelled `compare`, R027 ("is it then better to … or …?") labelled `counterfactual`. Even the person who wrote the rule does not apply it the same way twice, so a single gold intent on those boundaries is not a fair target for the Parser either. Other misses: metrics left out on R003, R023 and R032 and added on R068 (which asks for none); R043's "reduced to one lane" entered as two lanes. Pending the user's decision: accept both `run` and `counterfactual` on "simulate X and report Y" requests and report intent strict and lenient. |
 | 2026-09-24 | **Intent graded with accepted second readings** (the user's call). `concepts.ALSO_ACCEPTED` lists, per concept, intents accepted besides the gold one: `run` on the ten "simulate X and report Y" concepts (R004, R015, R017, R019, R032, R034, R040, R041, R043, R063), gold still `counterfactual`. `score_request` takes them; graded `intent` (the E5.1 threshold) accepts either reading, `intent_strict` is reported against the gold alone, in the Parser and the annotation reports. The compare/counterfactual boundary stays strict: "which is better" against "how much does it change" has one reading by the definition. Re-scored for free: Parser v6 on dev 99.4 % both ways (it always reads these as `counterfactual`); the user's second round 89 % (16/18) graded, 72 % strict; the two left are R022 and R027, compare and counterfactual swapped. |
 | 2026-09-24 | **E5.1 held-out pass run** (the user's call, with the external annotation still pending; v6, 114 × 3, $0.376, `eval/parser_benchmark/reports/v6-heldout.md`): every per-run threshold met, **`intent` agreement 93.9 % < 95 %, so E5.1 is not Done**; 94.1 % when only requests with a gold intent are counted, reported but not adopted since it was computed after the result. The held-out split is now spent for tuning: any change made after this pass is chosen on dev, and a second held-out measurement must say it is a second use. Details and the suspect (no temperature set) in `parser-tuning-log.md` §2b. |
+| 2026-09-24 | **Development runs vs measurement runs** (the user's call, [wayfinder #3](https://github.com/ferranUPC/resto/issues/3); supersedes the 2026-09-22 row). The line is purpose, not price: development runs go now, measurement runs wait for Validation 1 (mid-December, reduced checkpoints on dev) or Validation 2 (before E8.5, definitive, each suite once). $30 cap for both passes unless funded; under it suites shrink, they are not dropped. A task whose only missing piece is a measurement suite is ⏳ in the tracker, not 🚧. E5.1's second held-out use happens in Validation 2, with the prompt frozen, and is reported next to the first (93.9 %). |
 
 ## 6. Open questions
 
@@ -379,24 +383,29 @@ the note's content as observed without citing it is not detected; the typed `val
 - Budget and test choice for the `observed` vs `extrapolated` comparison.
 - Whether to implement the excerpt-vs-ledger number check before the first full sweep.
 
-## 7. Pending paid experiments
+## 7. Measurement runs and validation passes
 
-Per CLAUDE.md's cost policy: any single experiment/benchmark run estimated above $1 waits for a
-dedicated evaluation pass at the end of the project — once it is clear whether the project gets
-dedicated funding — instead of running ad hoc. This section has two layers, kept deliberately
-separate:
+Per CLAUDE.md's cost policy, runs are split by purpose. A **development run** (smoke, tuning, a
+1-repetition check) runs now with its cost stated and is not logged here. A **measurement run**
+produces the figure a DoD threshold reads; it waits for one of two passes dated in the work plan:
 
-- **§7.1 Evaluation needs** — *what* still needs measuring against a real model, independent of how
-  it eventually gets run. Add a row whenever a DoD threshold (§4 of this doc, or `tfm-architecture-
-  and-dod.md`) or an open question (§6) can only be answered by spending money. A need is not itself
-  a thing to run.
-- **§7.2 Experiment plans** — concrete paid runs. Each plan covers one or more needs; needs that share
-  the same underlying pass (e.g. two needs that both require a forced-mode sweep) get merged into one
-  plan rather than paid for twice, per the reasoning under EXP-01 below. Costs here — including
-  re-running a plan on a different/stronger model, which separately needs the escalation-model
-  approval CLAUDE.md already requires — are what gets justified to project stakeholders in one pass.
-  A run at or under $1 (smoke tests) is not logged here; it runs directly with its cost stated up
-  front, same as `e45-smoke` was.
+- **Validation 1** (mid-December): reduced checkpoints of what is built by then, on dev splits only, to
+  see how things stand while there is still time to fix them. Its figures are interim; they turn no task
+  ✅. If funding is confirmed by then, frozen modules may be measured at definitive size here.
+- **Validation 2** (before the results chapter, E8.5): every definitive measurement, each suite once. A
+  threshold missed here is reported as a result, not re-tuned.
+
+Both passes together are capped at $30 unless funding arrives; under the cap a suite shrinks in scale
+(inputs × repetitions × models, never below the 2 repetitions a std or an agreement metric needs), it is
+not dropped. Two layers, kept separate:
+
+- **§7.1 Evaluation needs** — *what* still needs measuring against a real model. Add a row whenever a DoD
+  threshold (§4 of this doc, or `tfm-architecture-and-dod.md`) or an open question (§6) can only be
+  answered by a measurement run. A need is not itself a thing to run.
+- **§7.2 Measurement suites** — concrete runs, each covering one or more needs; needs that share a pass
+  are merged into one suite rather than paid for twice (see EXP-01). A suite's final shape (inputs,
+  repetitions, models) is fixed when its benchmark is designed, not before. This table moves to the
+  evaluation budget document for supervisors once that is written (work plan task).
 
 ### 7.1 Evaluation needs
 
@@ -405,6 +414,7 @@ separate:
 | N1 | Forced-mode accuracy across repetitions (mean ± std, not a single pass/fail) on the full 117-question bank | E4.2, E4.3, E4.4 (per-family Done thresholds) and E4.7 (DoD report, §4.7) | A 1-repetition sweep (`v1-forced-1rep`) exists and meets every per-family threshold; the DoD's 3-repetition bar is unmet |
 | N2 | Does the Expert abstain (free mode) exactly where its forced-mode answer would have been wrong, at the DoD's recall/false-request thresholds? | E4.5 (`abstention_recall` ≥ 70 %, `abstention_false_requests` ≤ 30 %, §4.5) | Harness built; the 4-question smoke (`e45-smoke`, $0.056) validated it end to end but gave no signal — zero forced-incorrect and zero abstentions in that tiny sample |
 | N3 *(parked)* | Whether 3 repetitions is actually the right count for N1/N2, or fewer/more would materially change the read | Methodology question, not a DoD threshold | Raised 2026-09-22 as a side thought, not yet scoped as something worth spending on — revisit if N1/N2's results look unstable enough to justify it |
+| N4 | Input Parser on held-out, second use: `intent` agreement ≥ 95 % over 3 runs with every other §4.1 threshold held | E5.1 (the first held-out pass, `v6-heldout`, missed only `intent` agreement: 93.9 %) | Validation 2, with the prompt frozen; labelled a second use and reported next to the first |
 
 Add a row here first, before adding or changing anything in §7.2, whenever a new DoD threshold or
 open question turns out to need a real run.
@@ -413,4 +423,4 @@ open question turns out to need a real run.
 
 | ID | Name | Covers | Scope | Model | Estimated cost | Notes |
 |---|---|---|---|---|---|---|
-| EXP-01 | `forced3-free-abstention` | N1 + N2 | 117 questions × 3 repetitions forced + free mode paired on the same questions, free-mode repetitions TBD | `deepseek/deepseek-v4.1-flash` | ≈ $2.9 (forced, fixed) + ≈ $1.0/repetition (free) → **≈ $3.9** at 1 free repetition or **≈ $5.8** at 3 (§4.2) | N1 and N2 both need a forced-mode sweep of the same questions; running it once at 3 repetitions serves N1 directly and *is* the forced half of N2's abstention pairing, so paying for a second, separate forced-mode pass would be redundant — merged for that reason. Free-mode repetition count (1 vs 3) is an open choice: 3 matches the forced count and gives mean ± std on N2's metrics too; 1 is cheaper with a single-point estimate. `--mode both` in `eval/expert_benchmark/run.py` runs both legs into the same `runs/<name>.jsonl`; use `--name forced3-free-abstention` to keep the file matching this row. |
+| EXP-01 | `forced3-free-abstention` | N1 + N2 | 117 questions × 3 repetitions forced + free mode paired on the same questions, free-mode repetitions TBD | `deepseek/deepseek-v4.1-flash` | ≈ $2.9 (forced, fixed) + ≈ $1.0/repetition (free) → **≈ $3.9** at 1 free repetition or **≈ $5.8** at 3 (§4.2) | Validation 2 (a reduced checkpoint in Validation 1), after the ADR-0028 migration rebuilds the question bank. N1 and N2 both need a forced-mode sweep of the same questions; running it once at 3 repetitions serves N1 directly and *is* the forced half of N2's abstention pairing, so paying for a second, separate forced-mode pass would be redundant — merged for that reason. Free-mode repetition count (1 vs 3) is an open choice: 3 matches the forced count and gives mean ± std on N2's metrics too; 1 is cheaper with a single-point estimate. `--mode both` in `eval/expert_benchmark/run.py` runs both legs into the same `runs/<name>.jsonl`; use `--name forced3-free-abstention` to keep the file matching this row. |
