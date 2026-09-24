@@ -25,16 +25,16 @@ Runs a check of real progress on the RESTO TFM against the plan, and records an 
 - A ⏳ task turns ✅ only on its suite's result in a validation pass; Validation 1's reduced checkpoints are interim and never turn a task ✅.
 - **Do not trust the tracker's existing state as already correct, even for rows that didn't change since the last commit you can see.** A prior update to this file may have been made interactively (not by this skill) and can be incomplete — e.g. a task's code and tests landed and got described in another task's Notes or in the feasibility write-up's prose, but its own row was never flipped to ✅. Cross-check every non-✅ row against `git log`/the repo tree for evidence it was actually finished, not just against the diff since the tracker's last "Last updated" date.
 - Update each task's Notes with what concretely changed since the last review; leave unchanged tasks alone rather than inventing movement.
-- Refresh the summary count/percentage (⏳ tasks and their hours are counted separately, never as done), the milestone table (M0–M7, plus Validation 1 and 2 once the work plan lists them; a build milestone is met when all its tasks are ✅ or ⏳), and the "Last updated" date at the top of the file.
+- Refresh the summary count/percentage (⏳ tasks and their hours are counted separately, never as done), the milestone table (every row of work-plan §2: M0–M7, V1, feature freeze, V2, with target and deadline; M8 is recorded, not planned; a build milestone is met when all its tasks are ✅ or ⏳), and the "Last updated" date at the top of the file.
 
 ## 3. Write the feasibility analysis
 
 - Create `docs/feasability-analisis/{yyyy-mm-dd}.md` using today's date (e.g. `date +%F`).
 - The content is a **subjective, opinionated** read of how the project is going — not a restatement of the tracker table. Cover:
-  - Pace vs. the calendar in `tfm-work-plan.md` (the plan is ~4% overcommitted with zero contingency by design — say plainly whether due dates and weekly hour budgets are being met).
+  - Pace vs. the calendar in `tfm-work-plan.md` (v0.3: plan hours are story points, 38.5 pts/week, ≈ +170 pts of slack; each milestone has a target and a deadline, each task a wave and a latest due — say plainly whether milestone targets are being met, and whether any deadline is at risk).
   - Whether the milestones look achievable at the current velocity, especially **M2, M3, M5**, which §5 of the work plan says must not be cut.
   - Concrete risks or bottlenecks actually observed this review (not generic ones restated from the docs).
-  - A direct recommendation: keep going as planned, or start applying the fallback downgrade order from work-plan §5 (and which item of that ordered list, if so).
+  - A direct recommendation: keep going as planned, or start applying the fallback order from work-plan §5 (and which step of that ordered list, if so).
   - Back every claim with what was actually found in step 1 (specific commits, test results, files present/missing) — this must read as a real assessment, not filler.
 - If there has been no progress since the last review, say so plainly and briefly instead of padding the report. Every scheduled run still produces a dated entry, even a short one — the point is a continuous timeline of honest snapshots.
 
