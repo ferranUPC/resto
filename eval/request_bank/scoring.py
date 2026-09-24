@@ -30,7 +30,7 @@ from resto.domain.services.experiment_design import required_arms
 from resto.domain.value_objects.arm import BASE_ARM
 from resto.domain.value_objects.intervention import Intervention, InterventionType
 from resto.domain.value_objects.intervention_target import EdgeTarget, LaneTarget
-from resto.domain.value_objects.question import Question
+from resto.domain.value_objects.question import Intent, Question
 from resto.domain.value_objects.time_window import TimeWindow
 from resto.domain.value_objects.topology_modification import AddEdge, TopologyModification
 
@@ -213,6 +213,9 @@ class RequestScore:
 
     valid: bool
     intent: bool | None = None
+    """Gold intent or one of the concept's accepted alternatives (graded)."""
+    intent_strict: bool | None = None
+    """Gold intent only (reported)."""
     ambiguity_detected: bool | None = None
     spurious_ambiguity: bool | None = None
     interventions: bool | None = None
@@ -239,24 +242,31 @@ def _same_ref(a: str | None, b: str | None) -> bool:
     return (a or "").strip().lower() == (b or "").strip().lower()
 
 
-def score_request(gold: Gold, pred: Question | None) -> RequestScore:
+def score_request(
+    gold: Gold, pred: Question | None, also: frozenset[Intent] = frozenset()
+) -> RequestScore:
+    """`also`: intents accepted besides the gold one, where people read the request both ways
+    (`concepts.ALSO_ACCEPTED`); `intent` counts them, `intent_strict` does not."""
     if isinstance(gold, AmbiguousGold):
         if pred is None:
+            missed = False if gold.intent is not None else None
             return RequestScore(
-                valid=False,
-                intent=False if gold.intent is not None else None,
-                ambiguity_detected=False,
+                valid=False, intent=missed, intent_strict=missed, ambiguity_detected=False,
             )
+        if gold.intent is None:
+            return RequestScore(valid=True, ambiguity_detected=pred.is_ambiguous)
         return RequestScore(
             valid=True,
-            intent=pred.intent is gold.intent if gold.intent is not None else None,
+            intent=pred.intent is gold.intent or pred.intent in also,
+            intent_strict=pred.intent is gold.intent,
             ambiguity_detected=pred.is_ambiguous,
         )
 
     multi_arm = len(gold.effective_arms) > 1
     if pred is None:
         return RequestScore(
-            valid=False, intent=False, interventions=False, topology_changes=False,
+            valid=False, intent=False, intent_strict=False, interventions=False,
+            topology_changes=False,
             metrics_of_interest=False, arm_structure=False, multi_arm=multi_arm,
             required_arms=False,
         )
@@ -267,7 +277,8 @@ def score_request(gold: Gold, pred: Question | None) -> RequestScore:
     )
     return RequestScore(
         valid=True,
-        intent=pred.intent is gold.intent,
+        intent=pred.intent is gold.intent or pred.intent in also,
+        intent_strict=pred.intent is gold.intent,
         spurious_ambiguity=pred.is_ambiguous,
         interventions=_same_set(
             _union_interventions(gold), _union_interventions(pred), _same_intervention
@@ -312,6 +323,7 @@ def summarize(scores: Sequence[RequestScore]) -> dict[str, Rate]:
         "metrics_of_interest": _rate(s.metrics_of_interest for s in scores),
         "ambiguity_detection": _rate(s.ambiguity_detected for s in scores),
         "arm_structure": _rate(s.arm_structure for s in scores if s.multi_arm),
+        "intent_strict": _rate(s.intent_strict for s in scores),
         "arm_structure_single": _rate(s.arm_structure for s in scores if not s.multi_arm),
         "required_arms": _rate(s.required_arms for s in scores if s.multi_arm),
         "spurious_ambiguity": _rate(s.spurious_ambiguity for s in scores),

@@ -1,0 +1,1101 @@
+<title>RESTO Request Annotator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap">
+<style>
+:root {
+  --bg: #F3F5F3;
+  --surface: #FFFFFF;
+  --sunk: #E9EDEA;
+  --ink: #1B2320;
+  --muted: #5C6964;
+  --line: #D5DBD7;
+  --accent: #17695A;
+  --accent-ink: #FFFFFF;
+  --accent-soft: #DDEEE8;
+  --warn: #9A6206;
+  --warn-soft: #FBEFD9;
+  --ok: #2B7446;
+  --ok-soft: #DDF0E2;
+  --danger: #A33A2C;
+  --focus: #2C8C77;
+  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --serif: "Newsreader", Georgia, "Times New Roman", serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #111614;
+    --surface: #19201D;
+    --sunk: #0D1110;
+    --ink: #E4EBE7;
+    --muted: #97A59F;
+    --line: #2B3531;
+    --accent: #5CC2A7;
+    --accent-ink: #0E1A16;
+    --accent-soft: #1B3730;
+    --warn: #E4AE52;
+    --warn-soft: #3A2D14;
+    --ok: #7ACB93;
+    --ok-soft: #1C3424;
+    --danger: #EE8A7B;
+    --focus: #7FD9C0;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #111614;
+  --surface: #19201D;
+  --sunk: #0D1110;
+  --ink: #E4EBE7;
+  --muted: #97A59F;
+  --line: #2B3531;
+  --accent: #5CC2A7;
+  --accent-ink: #0E1A16;
+  --accent-soft: #1B3730;
+  --warn: #E4AE52;
+  --warn-soft: #3A2D14;
+  --ok: #7ACB93;
+  --ok-soft: #1C3424;
+  --danger: #EE8A7B;
+  --focus: #7FD9C0;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.5 var(--sans);
+  padding-inline: 16px;
+  padding-block: 0 48px;
+}
+.wrap { max-width: 1180px; margin-inline: auto; }
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.mono { font-family: var(--mono); }
+.muted { color: var(--muted); }
+
+/* header */
+header.top {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+  padding-block: 14px 0;
+  display: grid; gap: 12px;
+}
+.brand { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; justify-content: space-between; }
+.brand h1 { font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
+.brand h1 span { font-family: var(--mono); font-weight: 500; font-size: 13px; color: var(--muted); margin-left: 8px; }
+.who { display: flex; align-items: center; gap: 8px; }
+.who label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.who input { width: 180px; max-width: 45vw; }
+nav.tabs { display: flex; gap: 2px; overflow-x: auto; }
+nav.tabs button {
+  border: 0; background: none; padding: 8px 14px 10px; cursor: pointer;
+  color: var(--muted); border-bottom: 2px solid transparent; white-space: nowrap; font-weight: 500;
+}
+nav.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+nav.tabs .count { font-family: var(--mono); font-size: 12px; margin-left: 6px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+main { padding-top: 20px; }
+
+/* form controls */
+input[type="text"], input:not([type]), select, textarea {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
+  padding: 6px 9px; min-width: 0;
+}
+textarea { width: 100%; resize: vertical; }
+input.small { width: 7.5em; }
+input.tiny { width: 5em; }
+.btn {
+  border: 1px solid var(--line); background: var(--surface); border-radius: 6px;
+  padding: 6px 12px; cursor: pointer; font-weight: 500;
+}
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.ghost { background: none; border-color: transparent; color: var(--muted); }
+.btn.ghost:hover { color: var(--ink); }
+.btn.danger { color: var(--danger); }
+.btn:disabled { opacity: 0.5; cursor: default; }
+
+/* annotate layout */
+.split { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 24px; align-items: start; }
+.queue { position: sticky; top: 130px; display: grid; gap: 4px; max-height: calc(100vh - 150px); overflow-y: auto; }
+.queue button {
+  display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center;
+  text-align: left; border: 1px solid transparent; background: none; border-radius: 6px;
+  padding: 7px 9px; cursor: pointer;
+}
+.queue button:hover { background: var(--sunk); }
+.queue button[aria-current="true"] { background: var(--surface); border-color: var(--line); }
+.queue .num { font-family: var(--mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.queue .snip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.queue-select { display: none; }
+.dot { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--muted); }
+.dot.progress { border-color: var(--warn); background: var(--warn-soft); }
+.dot.done { border-color: var(--ok); background: var(--ok); }
+
+.item { display: grid; gap: 18px; }
+.item-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
+.item-head .pos { font-family: var(--mono); font-size: 13px; color: var(--muted); }
+.chip { font-size: 12px; font-weight: 500; padding: 2px 9px; border-radius: 99px; background: var(--sunk); color: var(--muted); }
+.chip.progress { background: var(--warn-soft); color: var(--warn); }
+.chip.done { background: var(--ok-soft); color: var(--ok); }
+.request {
+  font-family: var(--serif); font-size: 21px; line-height: 1.45; margin: 0;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+  padding: 18px 22px; overflow-wrap: anywhere;
+}
+.request-edit textarea { font-family: var(--serif); font-size: 19px; line-height: 1.45; padding: 14px 16px; }
+
+section.block { display: grid; gap: 10px; padding-top: 14px; border-top: 1px solid var(--line); }
+section.block > h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); font-weight: 600; }
+.hint { font-size: 13px; color: var(--muted); margin: 0; max-width: 70ch; }
+
+.intents { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; }
+.opt {
+  display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; align-items: start;
+  border: 1px solid var(--line); border-radius: 7px; padding: 9px 11px; cursor: pointer; background: var(--surface);
+}
+.opt:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.opt input { margin-top: 4px; }
+.opt b { font-weight: 600; }
+.opt small { grid-column: 2; color: var(--muted); font-size: 12.5px; line-height: 1.35; }
+.opt code { font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+
+.row { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
+.field { display: grid; gap: 3px; }
+.field > span { font-size: 12px; color: var(--muted); }
+.inline-check { display: flex; gap: 8px; align-items: center; font-size: 14px; }
+
+.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+.metrics fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 3px; }
+.metrics legend { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.metrics label { display: flex; gap: 8px; align-items: baseline; font-size: 14px; }
+.metrics label code { font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+
+.changes { display: grid; gap: 10px; }
+.change { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; display: grid; gap: 10px; }
+.change.incomplete { border-color: var(--warn); }
+.change-head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.letter {
+  font-family: var(--mono); font-weight: 500; font-size: 13px; width: 26px; height: 26px; flex: none;
+  display: grid; place-items: center; border-radius: 5px; background: var(--ink); color: var(--bg);
+}
+.change-head select { flex: 1 1 220px; }
+.missing { font-size: 12.5px; color: var(--warn); }
+.kind-tag { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+
+.arms { display: grid; gap: 8px; }
+.arm { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+.arm input.label { width: 12em; font-family: var(--mono); font-size: 13px; }
+.arm .members { display: flex; flex-wrap: wrap; gap: 6px 14px; flex: 1 1 260px; }
+.arm .members label { display: flex; gap: 6px; align-items: center; font-size: 13.5px; }
+.contrast { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+.list-inputs { display: grid; gap: 6px; }
+.list-inputs .li { display: flex; gap: 6px; }
+.list-inputs .li input { flex: 1; }
+
+.issues { margin: 0; padding: 10px 14px 10px 30px; background: var(--warn-soft); color: var(--warn); border-radius: 7px; font-size: 13.5px; }
+.issues:empty { display: none; }
+.item-foot { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; padding-top: 14px; border-top: 1px solid var(--line); }
+
+details.json summary { cursor: pointer; font-size: 13px; color: var(--muted); }
+pre.code {
+  font-family: var(--mono); font-size: 12px; background: var(--sunk); border-radius: 7px;
+  padding: 12px; overflow-x: auto; max-height: 420px; margin: 8px 0 0;
+}
+
+/* guide + export */
+.prose { max-width: 72ch; display: grid; gap: 14px; }
+.prose h2 { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+.prose h3 { font-size: 16px; font-weight: 600; margin-top: 8px; }
+.prose p, .prose ul { margin: 0; }
+.prose ul { padding-left: 20px; display: grid; gap: 4px; }
+.prose code { font-family: var(--mono); font-size: 13px; background: var(--sunk); padding: 1px 5px; border-radius: 4px; }
+.prose ol.steps { padding-left: 22px; display: grid; gap: 8px; margin: 0; }
+.scroll { overflow-x: auto; }
+table.examples { border-collapse: collapse; font-size: 13.5px; width: 100%; min-width: 520px; }
+table.examples th { text-align: left; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); padding: 6px 10px 6px 0; border-bottom: 1px solid var(--line); }
+table.examples td { padding: 7px 10px 7px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+table.examples td:nth-child(2) { font-weight: 600; white-space: nowrap; }
+.guide { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 32px; align-items: start; }
+figure.map { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px; position: sticky; top: 130px; }
+figure.map figcaption { font-size: 12.5px; color: var(--muted); margin-top: 8px; line-height: 1.4; }
+figure.map svg { width: 100%; height: auto; display: block; }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; display: grid; gap: 12px; }
+.export-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; align-items: start; }
+.stats { display: flex; flex-wrap: wrap; gap: 8px 24px; font-variant-numeric: tabular-nums; }
+.stats div b { font-size: 20px; font-weight: 600; display: block; }
+.stats div span { font-size: 12px; color: var(--muted); }
+.toast { font-size: 13px; min-height: 1.4em; }
+.toast.ok { color: var(--ok); }
+.toast.err { color: var(--danger); }
+.intro { background: var(--accent-soft); border-radius: 8px; padding: 12px 16px; display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.intro p { margin: 0; max-width: 70ch; }
+.empty { padding: 28px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: 8px; }
+
+@media (max-width: 820px) {
+  .split, .guide { grid-template-columns: 1fr; }
+  .queue { display: none; }
+  .queue-select { display: block; width: 100%; }
+  figure.map { position: static; }
+  header.top { position: static; }
+  .request { font-size: 18px; padding: 14px 16px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1>Request annotation <span>RESTO · Input Parser</span></h1>
+      <div class="who">
+        <label for="annotator">Annotator</label>
+        <input id="annotator" type="text" placeholder="Your name or initials" autocomplete="off">
+      </div>
+    </div>
+    <nav class="tabs" role="tablist" id="tabs"></nav>
+  </header>
+  <main id="main"></main>
+</div>
+
+<script>
+const HELD_OUT = /*__ITEMS__*/[];
+const STORE_KEY = "resto-annotation-v1";
+const FORMAT = "resto-annotation/v1";
+
+const INTENTS = [
+  ["describe", "Describe", "No change. A fact about the network as it is: what, how much, which edges."],
+  ["diagnose", "Diagnose", "No change. Why something happens on the network as it is."],
+  ["counterfactual", "What if", "Wants to know what one or more changes do, against today or another setup the user names. Includes “simulate X and tell me Y”."],
+  ["compare", "Compare", "Wants to choose between alternatives: which option is better, whether or not it says “compare”."],
+  ["run", "Run", "Wants something done as an end in itself, and asks nothing about its effect."],
+];
+const NETWORK_MEASURES = [
+  ["mean_delay", "Mean delay"],
+  ["mean_travel_time", "Mean travel time"],
+  ["arrived", "Vehicles arrived"],
+  ["departed", "Vehicles departed"],
+  ["teleports", "Teleports (jams SUMO resolves)"],
+];
+const EDGE_MEASURES = [
+  ["travel_time", "Travel time on the edge"],
+  ["time_loss", "Delay on the edge"],
+  ["waiting_time", "Waiting time"],
+  ["occupancy", "Occupancy"],
+  ["speed", "Speed"],
+  ["density", "Density"],
+  ["entered", "Vehicles that entered"],
+  ["left", "Vehicles that left the edge"],
+];
+const KINDS = {
+  lane_closure:   { group: "i", label: "Close a lane", fields: ["edge_id", "lane_index"] },
+  edge_closure:   { group: "i", label: "Close a whole edge", fields: ["edge_id"] },
+  speed_limit:    { group: "i", label: "Limit the speed", fields: ["edge_id", "speed_kmh"] },
+  signal_program: { group: "i", label: "Change a traffic light's program", fields: ["tls_id", "program_id"] },
+  demand_scale:   { group: "i", label: "Raise or lower the demand", fields: ["factor_pct"] },
+  custom:         { group: "i", label: "Other intervention", fields: ["edge_opt", "description"] },
+  remove_edge:    { group: "t", label: "Remove an edge", fields: ["edge_id"] },
+  set_lanes:      { group: "t", label: "Change the number of lanes", fields: ["edge_id", "lanes"] },
+  set_speed:      { group: "t", label: "Change the road's speed limit", fields: ["edge_id", "speed_kmh"] },
+  add_edge:       { group: "t", label: "Add a new edge", fields: ["from_junction", "to_junction", "lanes", "speed_kmh", "new_edge_id"] },
+};
+const FIELD_LABELS = {
+  edge_id: ["Edge", "e.g. B0C0", ""],
+  edge_opt: ["Edge (if any)", "optional", ""],
+  lane_index: ["Lane", "0, 1…", "tiny"],
+  tls_id: ["Traffic light (junction)", "e.g. C2", "small"],
+  program_id: ["Program", "e.g. 1", "small"],
+  speed_kmh: ["Speed (km/h)", "km/h", "small"],
+  factor_pct: ["Demand change (%)", "+25 or -15", "small"],
+  lanes: ["Lanes", "count", "tiny"],
+  from_junction: ["From junction", "e.g. C1", "small"],
+  to_junction: ["To junction", "e.g. D2", "small"],
+  new_edge_id: ["New edge's name", "if given", "small"],
+  description: ["What is done", "describe it", ""],
+};
+const OPTIONAL = new Set(["edge_opt", "new_edge_id"]);
+const NO_CHANGE = new Set(["describe", "diagnose"]);
+const TABS = [["guide", "Guide"], ["annotate", "Annotate"], ["write", "Your requests"], ["export", "Export"]];
+
+/* ---------- state ---------- */
+function blankAnn() {
+  return {
+    touched: false, done: false, intent: "", forced: false, network_ref: "", demand: "none",
+    demand_other: "", tw_start: "", tw_end: "", metrics: [], changes: [], grouping: "single",
+    arms: [], contrast_mode: "base", contrasts: [], ambiguities: [], notes: "",
+  };
+}
+function blankChange() {
+  return {
+    uid: Math.random().toString(36).slice(2, 9), kind: "lane_closure", edge_id: "", edge_opt: "",
+    lane_index: "", tls_id: "", program_id: "", speed_kmh: "", factor_pct: "", lanes: "",
+    from_junction: "", to_junction: "", new_edge_id: "", description: "",
+    timing: "window", w_start: "", w_end: "", c_metric: "vehicle_count", c_target: "", c_op: ">", c_value: "",
+  };
+}
+function blankState() {
+  const s = { annotator: "", tab: "guide", current: 0, currentNew: 0, held: {}, fresh: [], introSeen: false };
+  for (const it of HELD_OUT) s.held[it.concept_id] = blankAnn();
+  return s;
+}
+let state = blankState();
+
+function load() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (raw) state = Object.assign(state, JSON.parse(raw));
+  } catch (e) { /* storage unavailable: start empty */ }
+  for (const it of HELD_OUT) if (!state.held[it.concept_id]) state.held[it.concept_id] = blankAnn();
+}
+let saveTimer = null;
+function save() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) { /* ignore */ }
+  }, 250);
+}
+
+/* ---------- helpers ---------- */
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const letter = (i) => String.fromCharCode(65 + i);
+function clock(text) {
+  const m = String(text || "").trim().match(/^(\d{1,2})(?:[:.h](\d{2}))?$/);
+  if (!m) return null;
+  const h = +m[1], min = +(m[2] || 0);
+  if (h > 47 || min > 59) return null;
+  return h * 3600 + min * 60;
+}
+function num(text) {
+  const t = String(text ?? "").trim().replace(",", ".").replace(/^\+/, "");
+  if (t === "" || isNaN(+t)) return null;
+  return +t;
+}
+const round = (x, d) => Math.round(x * 10 ** d) / 10 ** d;
+const slug = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+const NUMERIC = new Set(["lane_index", "lanes", "speed_kmh", "factor_pct"]);
+
+function missingFields(ch) {
+  const miss = [];
+  for (const f of KINDS[ch.kind].fields) {
+    if (OPTIONAL.has(f)) continue;
+    const v = ch[f];
+    if (NUMERIC.has(f) ? num(v) === null : !String(v).trim()) miss.push(FIELD_LABELS[f][0].toLowerCase());
+  }
+  if (KINDS[ch.kind].group === "i") {
+    if (ch.timing === "window") {
+      const s = clock(ch.w_start), e = clock(ch.w_end);
+      if (s === null || e === null) miss.push("time window");
+      else if (e <= s) miss.push("time window (it ends before it starts)");
+    } else if (!ch.c_target.trim() || num(ch.c_value) === null) miss.push("condition");
+  }
+  return miss;
+}
+
+function describeChange(ch) {
+  const k = ch.kind, e = ch.edge_id || "?";
+  const when = KINDS[k].group === "i"
+    ? (ch.timing === "window" ? ` ${ch.w_start || "?"}–${ch.w_end || "?"}` : ` while ${ch.c_metric} ${ch.c_op} ${ch.c_value || "?"} on ${ch.c_target || "?"}`)
+    : " (permanent)";
+  const body = {
+    lane_closure: `close lane ${ch.lane_index || "?"} of ${e}`,
+    edge_closure: `close ${e}`,
+    speed_limit: `${e} at ${ch.speed_kmh || "?"} km/h`,
+    signal_program: `light ${ch.tls_id || "?"} → program ${ch.program_id || "?"}`,
+    demand_scale: `demand ${ch.factor_pct || "?"} %`,
+    custom: ch.description || "other intervention",
+    remove_edge: `remove ${e}`,
+    set_lanes: `${e} with ${ch.lanes || "?"} lanes`,
+    set_speed: `${e} at ${ch.speed_kmh || "?"} km/h`,
+    add_edge: `new edge ${ch.new_edge_id ? ch.new_edge_id + " " : ""}${ch.from_junction || "?"}→${ch.to_junction || "?"}`,
+  }[k];
+  return body + when;
+}
+
+/* ---------- form -> Question (the same JSON the Parser outputs) ---------- */
+function changeToDomain(ch) {
+  const k = ch.kind;
+  if (KINDS[k].group === "t") {
+    if (k === "remove_edge") return { topo: { kind: "remove_edge", edge_id: ch.edge_id.trim() } };
+    if (k === "set_lanes") return { topo: { kind: "set_lanes", edge_id: ch.edge_id.trim(), lanes: Math.round(num(ch.lanes)) } };
+    if (k === "set_speed") return { topo: { kind: "set_speed", edge_id: ch.edge_id.trim(), speed: round(num(ch.speed_kmh) / 3.6, 3) } };
+    return { topo: {
+      kind: "add_edge", from_junction: ch.from_junction.trim(), to_junction: ch.to_junction.trim(),
+      lanes: Math.round(num(ch.lanes)), speed: round(num(ch.speed_kmh) / 3.6, 3), edge_id: ch.new_edge_id.trim() || null,
+    } };
+  }
+  const iv = { type: k, target: null, params: {} };
+  if (k === "lane_closure") iv.target = { kind: "lane", edge_id: ch.edge_id.trim(), lane_index: Math.round(num(ch.lane_index)) };
+  if (k === "edge_closure" || k === "speed_limit") iv.target = { kind: "edge", edge_id: ch.edge_id.trim() };
+  if (k === "speed_limit") iv.params = { speed: round(num(ch.speed_kmh) / 3.6, 3) };
+  if (k === "signal_program") { iv.target = { kind: "tls", tls_id: ch.tls_id.trim() }; iv.params = { program_id: ch.program_id.trim() }; }
+  if (k === "demand_scale") iv.params = { factor: round(1 + num(ch.factor_pct) / 100, 4) };
+  if (k === "custom") { if (ch.edge_opt.trim()) iv.target = { kind: "edge", edge_id: ch.edge_opt.trim() }; iv.description = ch.description.trim(); }
+  if (ch.timing === "window") iv.window = { start: clock(ch.w_start), end: clock(ch.w_end) };
+  else iv.condition = { metric: ch.c_metric, target: ch.c_target.trim(), op: ch.c_op, value: num(ch.c_value) };
+  return { iv };
+}
+
+function issuesOf(ann) {
+  const out = [];
+  if (!ann.intent) out.push("Choose what the request asks for.");
+  ann.changes.forEach((ch, i) => {
+    const miss = missingFields(ch);
+    if (miss.length) out.push(`Change ${letter(i)} is incomplete (${miss.join(", ")}): complete it, or delete it and ask the user for what is missing.`);
+  });
+  if (NO_CHANGE.has(ann.intent) && (ann.tw_start || ann.tw_end) && (clock(ann.tw_start) === null || clock(ann.tw_end) === null || clock(ann.tw_end) <= clock(ann.tw_start)))
+    out.push("The time of day is not valid (use HH:MM, with an end after the start).");
+  if (ann.demand === "other" && !ann.demand_other.trim()) out.push("You chose another demand but did not name it.");
+  if (ann.grouping === "arms" && ann.changes.length) {
+    const arms = ann.arms.filter((a) => a.members.length);
+    if (!arms.length) out.push("You chose several combinations but none has any change.");
+    const labels = arms.map((a) => slug(a.label));
+    if (labels.some((l) => !l)) out.push("Every combination needs a name.");
+    if (new Set(labels).size !== labels.length) out.push("Two combinations share a name.");
+    const keys = arms.map((a) => [...a.members].sort().join(","));
+    if (new Set(keys).size !== keys.length) out.push("Two combinations have exactly the same changes.");
+    if (labels.includes("base")) out.push("“base” is the unchanged network: pick another name.");
+    const used = new Set(arms.flatMap((a) => a.members));
+    const orphan = ann.changes.map((c, i) => used.has(c.uid) ? null : letter(i)).filter(Boolean);
+    if (orphan.length) out.push(`Change${orphan.length > 1 ? "s" : ""} ${orphan.join(", ")} ${orphan.length > 1 ? "are" : "is"} in no combination and won't be simulated.`);
+    if (ann.contrast_mode === "custom") {
+      const known = new Set([...labels, "base"]);
+      const valid = ann.contrasts.filter((c) => c.treatment && c.reference);
+      if (!valid.length) out.push("You chose specific comparisons but listed none.");
+      if (valid.some((c) => c.treatment === c.reference)) out.push("A comparison sets a combination against itself.");
+      if (valid.some((c) => !known.has(c.treatment) || !known.has(c.reference))) out.push("A comparison names a combination that no longer exists.");
+    }
+  }
+  return out;
+}
+
+function toQuestion(ann, text) {
+  if (!ann.intent) return null;
+  const complete = ann.changes.filter((ch) => !missingFields(ch).length);
+  const q = {
+    text, intent: ann.intent, mode: ann.forced ? "forced" : "free",
+    network_ref: ann.network_ref.trim() || null,
+    demand_ref: ann.demand === "none" ? null : ann.demand === "other" ? (ann.demand_other.trim() || null) : ann.demand,
+    interventions: [], topology_changes: [], metrics_of_interest: [...ann.metrics],
+    time_window: null, context_tags: [],
+    ambiguities: ann.ambiguities.map((a) => a.trim()).filter(Boolean),
+    arms: [], contrasts: [],
+  };
+  const s = clock(ann.tw_start), e = clock(ann.tw_end);
+  if (NO_CHANGE.has(ann.intent) && s !== null && e !== null && e > s) q.time_window = { start: s, end: e };
+  if (ann.grouping === "single" || !complete.length) {
+    for (const ch of complete) {
+      const d = changeToDomain(ch);
+      if (d.iv) q.interventions.push(d.iv); else q.topology_changes.push(d.topo);
+    }
+  } else {
+    const byUid = Object.fromEntries(complete.map((c) => [c.uid, changeToDomain(c)]));
+    for (const a of ann.arms) {
+      const label = slug(a.label);
+      const parts = a.members.map((u) => byUid[u]).filter(Boolean);
+      if (!label || !parts.length) continue;
+      q.arms.push({ label, topology_changes: parts.filter((p) => p.topo).map((p) => p.topo), interventions: parts.filter((p) => p.iv).map((p) => p.iv) });
+    }
+    if (ann.contrast_mode === "custom") {
+      const known = new Set([...q.arms.map((a) => a.label), "base"]);
+      q.contrasts = ann.contrasts
+        .filter((c) => c.treatment && c.reference && c.treatment !== c.reference && known.has(c.treatment) && known.has(c.reference))
+        .map((c) => ({ treatment: c.treatment, reference: c.reference }));
+    }
+  }
+  return q;
+}
+
+function statusOf(ann) { return ann.done ? "done" : ann.touched ? "progress" : "todo"; }
+const STATUS_TEXT = { todo: "Not started", progress: "In progress", done: "Done" };
+
+/* ---------- current item ---------- */
+function cur() {
+  if (state.tab === "write") {
+    const f = state.fresh[state.currentNew];
+    return f ? { ann: f.ann, text: f.text, fresh: f } : null;
+  }
+  const it = HELD_OUT[state.current];
+  return it ? { ann: state.held[it.concept_id], text: it.text } : null;
+}
+
+/* ---------- rendering ---------- */
+const $main = document.getElementById("main");
+let dbReady = false;
+
+function renderTabs() {
+  const doneHeld = HELD_OUT.filter((it) => state.held[it.concept_id].done).length;
+  const counts = { annotate: `${doneHeld}/${HELD_OUT.length}`, write: String(state.fresh.length) };
+  document.getElementById("tabs").innerHTML = TABS.map(([id, name]) =>
+    `<button role="tab" data-tab="${id}" aria-selected="${state.tab === id}">${name}${counts[id] ? `<span class="count">${counts[id]}</span>` : ""}</button>`).join("");
+}
+
+function render() {
+  renderTabs();
+  if (state.tab === "guide") $main.innerHTML = guideHTML();
+  else if (state.tab === "annotate") $main.innerHTML = annotateHTML();
+  else if (state.tab === "write") $main.innerHTML = writeHTML();
+  else $main.innerHTML = exportHTML();
+}
+
+function queueHTML(entries, currentIdx, kind) {
+  const buttons = entries.map((e, i) => `
+    <button data-act="goto" data-kind="${kind}" data-i="${i}" aria-current="${i === currentIdx}">
+      <span class="dot ${statusOf(e.ann)}" title="${STATUS_TEXT[statusOf(e.ann)]}"></span>
+      <span class="snip">${esc(e.text || "Request without text")}</span>
+      <span class="num">${String(i + 1).padStart(2, "0")}</span>
+    </button>`).join("");
+  const options = entries.map((e, i) => `<option value="${i}" ${i === currentIdx ? "selected" : ""}>${String(i + 1).padStart(2, "0")} · ${STATUS_TEXT[statusOf(e.ann)]} · ${esc((e.text || "").slice(0, 60))}</option>`).join("");
+  return `<div class="queue" role="list">${buttons}</div>
+    <select class="queue-select" id="queue-select" data-kind="${kind}" aria-label="Request">${options}</select>`;
+}
+
+function annotateHTML() {
+  if (!HELD_OUT.length) return `<div class="empty">No requests loaded. Build the page with <code>python -m eval.request_bank.annotation.build</code>.</div>`;
+  const entries = HELD_OUT.map((it) => ({ ann: state.held[it.concept_id], text: it.text }));
+  const intro = state.introSeen ? "" : `<div class="intro"><p>Before you start, read the <b>Guide</b>: it explains every field in two minutes. If you are also writing requests of your own, write them <b>before</b> annotating these.</p><button class="btn" data-act="intro-ok">Got it</button></div>`;
+  return `${intro}<div class="split" style="margin-top:${intro ? "16px" : "0"}">
+    <div>${queueHTML(entries, state.current, "held")}</div>
+    ${itemHTML(`Request ${state.current + 1} of ${HELD_OUT.length}`, false)}
+  </div>`;
+}
+
+function writeHTML() {
+  const head = `<div class="prose" style="margin-bottom:18px">
+    <p>Write requests the way you would ask an assistant that sets up and runs SUMO traffic simulations. Use DEV-NET (map in the Guide) or any other network you know, in any language and in your own words. Mix kinds: questions about the network as it is, “what would happen if”, comparing options, asking it to simulate something. A request can be unclear if that is how you would really write it.</p>
+    <p>Then annotate each one with what <b>you meant</b>: that annotation becomes its correct answer.</p>
+  </div>`;
+  if (!state.fresh.length) return head + `<div class="empty"><p>You have not written any request yet.</p><button class="btn primary" data-act="new-request">Write a request</button></div>`;
+  const entries = state.fresh.map((f) => ({ ann: f.ann, text: f.text }));
+  return head + `<div class="split">
+    <div style="display:grid;gap:10px">${queueHTML(entries, state.currentNew, "fresh")}<button class="btn" data-act="new-request">+ New request</button></div>
+    ${itemHTML(`Your request ${state.currentNew + 1} of ${state.fresh.length}`, true)}
+  </div>`;
+}
+
+function itemHTML(pos, editable) {
+  const c = cur();
+  if (!c) return "";
+  const a = c.ann, st = statusOf(a);
+  const request = editable
+    ? `<div class="request-edit"><textarea id="req-text" data-f="text" rows="3" placeholder="Write the request as you would ask the assistant…">${esc(c.text)}</textarea></div>`
+    : `<blockquote class="request">${esc(c.text)}</blockquote>`;
+  const intents = INTENTS.map(([v, name, help]) => `
+    <label class="opt"><input type="radio" name="intent" value="${v}" data-f="intent" ${a.intent === v ? "checked" : ""}>
+      <b>${name} <code>${v}</code></b><small>${help}</small></label>`).join("");
+  const measure = (list) => list.map(([v, name]) => `<label><input type="checkbox" data-metric="${v}" ${a.metrics.includes(v) ? "checked" : ""}> ${name} <code>${v}</code></label>`).join("");
+  const issues = issuesOf(a);
+  return `<article class="item">
+    <div class="item-head"><span class="pos">${pos}</span><span class="chip ${st}" id="status-chip">${STATUS_TEXT[st]}</span></div>
+    ${request}
+
+    <section class="block"><h3>What does it ask for?</h3>
+      <div class="intents">${intents}</div>
+      <p class="hint">Decide by what the user wants, not by the verb they use or by what it would take to answer. The Guide has examples.</p>
+      <label class="inline-check"><input type="checkbox" data-f="forced" ${a.forced ? "checked" : ""}> Wants the answer from existing results only, without simulating anything new</label>
+    </section>
+
+    <section class="block"><h3>Context</h3>
+      <div class="row">
+        <label class="field"><span>Network</span><input id="f-network" type="text" data-f="network_ref" value="${esc(a.network_ref)}" placeholder="e.g. DEV-NET"></label>
+        <label class="field"><span>Demand</span>
+          <select id="f-demand" data-f="demand">
+            ${[["none", "Not mentioned"], ["peak", "Peak (peak)"], ["low", "Low demand (low)"], ["other", "Other…"]].map(([v, t]) => `<option value="${v}" ${a.demand === v ? "selected" : ""}>${t}</option>`).join("")}
+          </select></label>
+        ${a.demand === "other" ? `<label class="field"><span>Which one?</span><input id="f-demand-other" type="text" data-f="demand_other" value="${esc(a.demand_other)}"></label>` : ""}
+      </div>
+      ${NO_CHANGE.has(a.intent) ? `<div class="row">
+        <label class="field"><span>Time of day it asks about · from</span><input id="f-tw-start" class="small" type="text" data-f="tw_start" value="${esc(a.tw_start)}" placeholder="HH:MM"></label>
+        <label class="field"><span>to</span><input id="f-tw-end" class="small" type="text" data-f="tw_end" value="${esc(a.tw_end)}" placeholder="HH:MM"></label>
+      </div>
+      <p class="hint">Only the period the question is about (“between 8 and 9…”); leave it empty if it names none.</p>` : `<p class="hint">The time of each change goes on the change itself, below.</p>`}
+    </section>
+
+    <section class="block"><h3>Measures it asks for</h3>
+      <div class="metrics">
+        <fieldset><legend>Whole network</legend>${measure(NETWORK_MEASURES)}</fieldset>
+        <fieldset><legend>One edge</legend>${measure(EDGE_MEASURES)}</fieldset>
+      </div>
+    </section>
+
+    <section class="block"><h3>Changes to simulate</h3>
+      <p class="hint">Only the changes the request fully defines. If something is missing (the time, the value, the place…), don't make it up: write below the question you would ask the user.</p>
+      <div class="changes">${a.changes.map((ch, i) => changeHTML(ch, i)).join("")}</div>
+      <div class="row"><button class="btn" data-act="add-change">+ Add change</button></div>
+    </section>
+
+    ${a.changes.length ? groupingHTML(a) : ""}
+
+    <section class="block"><h3>Questions you would ask the user</h3>
+      <p class="hint">One for each thing you cannot determine from the text, or if the request cannot be understood or is not about simulating traffic. Leave it empty if everything is clear.</p>
+      <div class="list-inputs">${a.ambiguities.map((q, i) => `<div class="li"><input id="amb-${i}" type="text" data-amb="${i}" value="${esc(q)}" placeholder="…?"><button class="btn ghost" data-act="del-amb" data-i="${i}" aria-label="Remove question">✕</button></div>`).join("")}</div>
+      <div class="row"><button class="btn" data-act="add-amb">+ Add question</button></div>
+    </section>
+
+    <section class="block"><h3>Notes</h3>
+      <textarea id="f-notes" data-f="notes" rows="2" placeholder="Doubts, another possible reading, why you chose this one…">${esc(a.notes)}</textarea>
+    </section>
+
+    <ul class="issues" id="issues">${issues.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>
+
+    <details class="json"><summary>Show what will be exported (Question as JSON)</summary><pre class="code" id="json-preview">${esc(JSON.stringify(toQuestion(a, c.text), null, 2))}</pre></details>
+
+    <div class="item-foot">
+      <div class="row">
+        <button class="btn" data-act="prev">← Previous</button>
+        <button class="btn" data-act="next">Next →</button>
+        ${editable ? `<button class="btn ghost danger" data-act="del-request">Delete this request</button>` : ""}
+      </div>
+      <button class="btn ${a.done ? "" : "primary"}" data-act="toggle-done" ${a.intent ? "" : "disabled"}>${a.done ? "Reopen" : "Mark done and continue"}</button>
+    </div>
+  </article>`;
+}
+
+function fieldHTML(ch, f) {
+  const [label, ph, size] = FIELD_LABELS[f];
+  const wide = f === "description" ? ` style="flex:1 1 100%"` : "";
+  return `<label class="field"${wide}><span>${label}</span><input id="c-${ch.uid}-${f}" class="${size}" type="text" data-c="${ch.uid}" data-k="${f}" value="${esc(ch[f])}" placeholder="${ph}"></label>`;
+}
+
+function changeHTML(ch, i) {
+  const miss = missingFields(ch);
+  const kindOpts = (g) => Object.entries(KINDS).filter(([, k]) => k.group === g).map(([v, k]) => `<option value="${v}" ${ch.kind === v ? "selected" : ""}>${k.label}</option>`).join("");
+  const isIv = KINDS[ch.kind].group === "i";
+  const timing = isIv ? `
+    <div class="row">
+      <label class="inline-check"><input type="radio" name="t-${ch.uid}" data-c="${ch.uid}" data-k="timing" value="window" ${ch.timing === "window" ? "checked" : ""}> During a time window</label>
+      <label class="inline-check"><input type="radio" name="t-${ch.uid}" data-c="${ch.uid}" data-k="timing" value="condition" ${ch.timing === "condition" ? "checked" : ""}> While a condition holds</label>
+    </div>
+    ${ch.timing === "window" ? `<div class="row">
+      <label class="field"><span>From</span><input id="c-${ch.uid}-ws" class="small" type="text" data-c="${ch.uid}" data-k="w_start" value="${esc(ch.w_start)}" placeholder="HH:MM"></label>
+      <label class="field"><span>To</span><input id="c-${ch.uid}-we" class="small" type="text" data-c="${ch.uid}" data-k="w_end" value="${esc(ch.w_end)}" placeholder="HH:MM"></label>
+    </div>` : `<div class="row">
+      <label class="field"><span>Measure</span><select id="c-${ch.uid}-cm" data-c="${ch.uid}" data-k="c_metric">${[["vehicle_count", "vehicle count"], ["occupancy", "occupancy"], ["speed", "speed (m/s)"]].map(([v, t]) => `<option value="${v}" ${ch.c_metric === v ? "selected" : ""}>${t}</option>`).join("")}</select></label>
+      <label class="field"><span>On</span><input id="c-${ch.uid}-ct" class="small" type="text" data-c="${ch.uid}" data-k="c_target" value="${esc(ch.c_target)}" placeholder="edge"></label>
+      <label class="field"><span>Operator</span><select id="c-${ch.uid}-co" data-c="${ch.uid}" data-k="c_op">${[">", ">=", "<", "<="].map((o) => `<option ${ch.c_op === o ? "selected" : ""}>${esc(o)}</option>`).join("")}</select></label>
+      <label class="field"><span>Value</span><input id="c-${ch.uid}-cv" class="tiny" type="text" data-c="${ch.uid}" data-k="c_value" value="${esc(ch.c_value)}"></label>
+    </div>`}` : "";
+  return `<div class="change ${miss.length ? "incomplete" : ""}" id="change-${ch.uid}">
+    <div class="change-head">
+      <span class="letter">${letter(i)}</span>
+      <select id="c-${ch.uid}-kind" data-c="${ch.uid}" data-k="kind" aria-label="Kind of change">
+        <optgroup label="During the simulation, on the unchanged network">${kindOpts("i")}</optgroup>
+        <optgroup label="Permanent change to the network">${kindOpts("t")}</optgroup>
+      </select>
+      <span class="kind-tag">${isIv ? "intervention" : "topology"}</span>
+      <button class="btn ghost" data-act="del-change" data-uid="${ch.uid}" aria-label="Delete change ${letter(i)}">✕</button>
+    </div>
+    <div class="row">${KINDS[ch.kind].fields.map((f) => fieldHTML(ch, f)).join("")}</div>
+    ${timing}
+    <div class="missing" data-missing="${ch.uid}">${miss.length ? "Missing: " + esc(miss.join(", ")) : ""}</div>
+  </div>`;
+}
+
+function groupingHTML(a) {
+  const arms = a.grouping === "arms" ? `
+    <div class="arms">${a.arms.map((arm, ai) => `
+      <div class="arm">
+        <label class="field"><span>Name</span><input id="arm-${ai}-label" class="label" type="text" data-arm="${ai}" data-k="label" value="${esc(arm.label)}" placeholder="e.g. closure"></label>
+        <div class="members">${a.changes.map((ch, ci) => `<label><input type="checkbox" data-arm="${ai}" data-member="${ch.uid}" ${arm.members.includes(ch.uid) ? "checked" : ""}><b class="mono">${letter(ci)}</b> ${esc(describeChange(ch))}</label>`).join("")}</div>
+        <button class="btn ghost" data-act="del-arm" data-i="${ai}" aria-label="Delete combination">✕</button>
+      </div>`).join("")}
+    </div>
+    <div class="row"><button class="btn" data-act="add-arm">+ Add combination</button></div>
+    <h3 style="font-size:13px;margin-top:6px">What is compared with what?</h3>
+    <label class="inline-check"><input type="radio" name="cmode" data-f="contrast_mode" value="base" ${a.contrast_mode === "base" ? "checked" : ""}> Each combination against the unchanged network</label>
+    <label class="inline-check"><input type="radio" name="cmode" data-f="contrast_mode" value="custom" ${a.contrast_mode === "custom" ? "checked" : ""}> Specific comparisons</label>
+    ${a.contrast_mode === "custom" ? `<p class="hint">To compare against something other than the unchanged network (say, the network with only the new edge), add that as a combination of its own above, then pick it here.</p>${contrastsHTML(a)}` : ""}` : "";
+  return `<section class="block"><h3>How the changes are grouped</h3>
+    <p class="hint">A combination is a set of changes simulated together, in one simulation. The unchanged network is called <b>base</b> and never needs adding.</p>
+    <label class="inline-check"><input type="radio" name="grouping" data-f="grouping" value="single" ${a.grouping === "single" ? "checked" : ""}> One simulation with all the changes, compared with the unchanged network</label>
+    <label class="inline-check"><input type="radio" name="grouping" data-f="grouping" value="arms" ${a.grouping === "arms" ? "checked" : ""}> Several combinations</label>
+    ${arms}
+  </section>`;
+}
+
+function contrastsHTML(a) {
+  const labels = a.arms.map((x) => slug(x.label)).filter(Boolean);
+  const opts = (sel) => [...labels, "base"].map((l) => `<option value="${esc(l)}" ${sel === l ? "selected" : ""}>${l === "base" ? "base (unchanged network)" : esc(l)}</option>`).join("");
+  return `<div class="list-inputs">${a.contrasts.map((c, i) => `
+    <div class="contrast">
+      <select id="ct-${i}-t" data-ct="${i}" data-k="treatment" aria-label="What is measured"><option value="">—</option>${opts(c.treatment)}</select>
+      <span class="muted">compared with</span>
+      <select id="ct-${i}-r" data-ct="${i}" data-k="reference" aria-label="Against what"><option value="">—</option>${opts(c.reference)}</select>
+      <button class="btn ghost" data-act="del-contrast" data-i="${i}" aria-label="Delete comparison">✕</button>
+    </div>`).join("")}</div>
+    <div class="row"><button class="btn" data-act="add-contrast">+ Add comparison</button></div>`;
+}
+
+function mapSVG() {
+  const s = 58, m = 34, cols = "ABCDE", pos = (c, r) => [m + c * s, m + (4 - r) * s];
+  let lines = "", nodes = "";
+  for (let c = 0; c < 5; c++) for (let r = 0; r < 5; r++) {
+    const [x, y] = pos(c, r);
+    if (c < 4) {
+      const [x2] = pos(c + 1, r), bottleneck = r === 0 && c === 1;
+      lines += `<line x1="${x}" y1="${y}" x2="${x2}" y2="${y}" stroke="${bottleneck ? "var(--warn)" : r === 2 ? "var(--accent)" : "var(--line)"}" stroke-width="${bottleneck ? 6 : r === 2 ? 3 : 2}"/>`;
+    }
+    if (r < 4) { const [, y2] = pos(c, r + 1); lines += `<line x1="${x}" y1="${y}" x2="${x}" y2="${y2}" stroke="var(--line)" stroke-width="2"/>`; }
+  }
+  for (let c = 0; c < 5; c++) for (let r = 0; r < 5; r++) {
+    const [x, y] = pos(c, r);
+    nodes += r === 2
+      ? `<rect x="${x - 6}" y="${y - 6}" width="12" height="12" rx="2" fill="var(--accent)"/>`
+      : `<circle cx="${x}" cy="${y}" r="5" fill="var(--surface)" stroke="var(--muted)" stroke-width="1.5"/>`;
+    nodes += `<text x="${x + 8}" y="${y - 8}" font-size="10" font-family="IBM Plex Mono, monospace" fill="var(--muted)">${cols[c]}${r}</text>`;
+  }
+  const [bx, by] = pos(1.5, 0);
+  return `<svg viewBox="0 0 300 300" role="img" aria-label="DEV-NET map: a 5 by 5 grid">${lines}${nodes}
+    <text x="${bx}" y="${by + 20}" font-size="10" text-anchor="middle" fill="var(--warn)" font-family="IBM Plex Sans, sans-serif">B0C0: 2 lanes</text></svg>`;
+}
+
+function guideHTML() {
+  return `<div class="guide">
+    <div class="prose">
+      <h2>What you will do</h2>
+      <p>RESTO is an assistant that takes natural-language requests about traffic simulations (SUMO) and turns them into a structure: what the user asks for, on which network, which changes to simulate and which measures they want. This page records <b>how a person reads those requests</b>, to compare it with what the author of the test bank decided.</p>
+      <p>For each request, fill in what you would prepare if it were handed to you to set up the simulations. There is no official answer to guess: if you hesitate between two readings, pick the one that seems most natural to you and describe the other in <b>Notes</b>. Work on your own, without asking anyone.</p>
+
+      <h3>When information is missing</h3>
+      <p>The assistant must not make data up: if setting up the simulation would force you to assume something the text does not say, write the question you would ask the user under <b>Questions you would ask the user</b>, and leave out the change you cannot complete. You decide what counts as missing.</p>
+
+      <h3>What does it ask for?</h3>
+      <p>This is the field that matters most. Decide it by <b>what the user wants</b>, not by the verb they use (“simulate”, “compare” or “what if” can each appear in any of these), and not by what it would take to answer: whether anything gets simulated is decided later, by the system.</p>
+      <ul>
+        <li><b>Describe</b> and <b>Diagnose</b>: nothing is changed. The user wants a fact about the network as it is (Describe) or why something happens on it (Diagnose).</li>
+        <li><b>What if</b>: the user wants to know what one or more changes do, meaning how things would be with them, against today or against another setup they name (“what would closing X add on top of the new edge?”). “Let's try X and see what happens”, “with and without X” and “simulate X and tell me the delay” are all What if. Several changes each measured on their own are still What if.</li>
+        <li><b>Compare</b>: the user wants to <i>choose</i> between alternatives, meaning which option is better, even if the word “compare” never appears. “I have the budget for one works project: a new lane on this edge or a new lane on that one. Which is better?” is Compare.</li>
+        <li><b>Run</b>: the user wants something done as an end in itself and asks nothing about what it does: “add an edge from P1 to Q3”, “set up this scenario so I can use it”.</li>
+      </ul>
+      <div class="scroll"><table class="examples">
+        <thead><tr><th>Request (on a made-up network)</th><th>Asks for</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td>Which edges on RIVERSIDE are busiest between 17:00 and 18:00?</td><td>Describe</td><td>a fact, nothing changed</td></tr>
+          <tr><td>Why do queues build up at junction N5 in the evening?</td><td>Diagnose</td><td>a cause, nothing changed</td></tr>
+          <tr><td>Simulate RIVERSIDE with P2P3 removed and give me the arrivals and the mean delay.</td><td>What if</td><td>what the removal does</td></tr>
+          <tr><td>Let's try closing N4N5 from 16:00 to 16:30 and see what happens to the delay.</td><td>What if</td><td>the effect of the closure</td></tr>
+          <tr><td>Compare the waiting time with and without program 2 at junction N5.</td><td>What if</td><td>the effect of one change; nothing to choose</td></tr>
+          <tr><td>I can afford one project: widen N4N5 or build a new edge from P1 to Q3. Which helps more?</td><td>Compare</td><td>a choice between two options</td></tr>
+          <tr><td>Add a two-lane edge from P1 to Q3 to RIVERSIDE.</td><td>Run</td><td>an action, no question about its effect</td></tr>
+        </tbody>
+      </table></div>
+      <p>Tick “existing results only” only when the user explicitly asks for an answer without any new simulation.</p>
+
+      <h3>Changes</h3>
+      <ul>
+        <li><b>Intervention</b>: something that happens <i>during</i> the simulation, on the unchanged network, in a time window or while a condition holds (closing a lane from 8:00 to 8:30, limiting the speed, switching a traffic light's program, raising the demand…).</li>
+        <li><b>Topology</b>: the network is changed permanently (removing an edge, changing its number of lanes, adding a new edge…).</li>
+      </ul>
+      <p>Times are times of day (<code>08:00</code>). Speeds in km/h and demand as a % change (<code>+25</code>, <code>-15</code>): the page converts them.</p>
+
+      <h3>Combinations and comparisons</h3>
+      <p>When there is more than one change, decide how they are simulated: all together in one simulation, or as separate <b>combinations</b> (each one a simulation with its own set of changes). Then say what is compared with what: each combination against the unchanged network (<b>base</b>), or specific comparisons between combinations.</p>
+
+      <h3>Measures</h3>
+      <p>Tick only the ones the request names or describes; none if it names none.</p>
+
+      <h3>When you finish</h3>
+      <p>Go to <b>Export</b> and download the JSON (or press “Send to Claude” if you were asked to). Until then your work is kept in this browser only.</p>
+    </div>
+    <figure class="map">${mapSVG()}
+      <figcaption><b>DEV-NET</b>: a 5×5 grid of junctions 200 m apart. Columns A–E, rows 0–4. Edges are named by their two junctions in the direction of travel: <code>B0C0</code> goes from B0 to C0, and every edge exists in both directions. One lane and 50 km/h by default; lanes are numbered from 0. Row 2 junctions (squares) have traffic lights; <code>B0C0</code> has 2 lanes.</figcaption>
+    </figure>
+  </div>`;
+}
+
+function exportPayload() {
+  const held = HELD_OUT.map((it, i) => {
+    const a = state.held[it.concept_id];
+    return { source: "held_out", concept_id: it.concept_id, order: i + 1, text: it.text, done: a.done,
+      question: toQuestion(a, it.text), issues: issuesOf(a), notes: a.notes.trim(), form: a };
+  });
+  const fresh = state.fresh.map((f, i) => ({ source: "external", id: `N${String(i + 1).padStart(2, "0")}`, text: f.text.trim(), done: f.ann.done,
+    question: toQuestion(f.ann, f.text.trim() || "."), issues: issuesOf(f.ann), notes: f.ann.notes.trim(), form: f.ann }));
+  return { format: FORMAT, annotator: state.annotator.trim(), exported_at: new Date().toISOString(), held_out: held, external: fresh };
+}
+
+function markdownOf(p) {
+  const lines = [`# Request annotation — ${p.annotator || "anonymous"}`, "", `Exported: ${p.exported_at}`, ""];
+  const block = (e, title) => {
+    lines.push(`## ${title}`, "", `> ${e.text || "(no text)"}`, "");
+    const q = e.question;
+    if (!q) { lines.push("_Not annotated._", ""); return; }
+    lines.push(`- intent: \`${q.intent}\`${q.mode === "forced" ? " (existing results only)" : ""}`);
+    if (q.network_ref) lines.push(`- network: ${q.network_ref}`);
+    if (q.demand_ref) lines.push(`- demand: ${q.demand_ref}`);
+    if (q.time_window) lines.push(`- time of day: ${q.time_window.start}–${q.time_window.end} s`);
+    if (q.metrics_of_interest.length) lines.push(`- measures: ${q.metrics_of_interest.join(", ")}`);
+    const form = e.form;
+    if (form.changes.length) lines.push(`- changes: ${form.changes.map((c, i) => `${letter(i)} ${describeChange(c)}`).join("; ")}`);
+    if (q.arms.length) {
+      lines.push(`- combinations: ${q.arms.map((a) => a.label).join(", ")}`);
+      lines.push(`- comparisons: ${q.contrasts.length ? q.contrasts.map((c) => `${c.treatment} vs ${c.reference}`).join(", ") : "each against base"}`);
+    } else if (form.changes.length) lines.push("- grouping: one simulation");
+    if (q.ambiguities.length) lines.push(`- questions for the user: ${q.ambiguities.join(" | ")}`);
+    if (e.notes) lines.push(`- notes: ${e.notes}`);
+    if (e.issues.length) lines.push(`- warnings: ${e.issues.join(" ")}`);
+    lines.push("");
+  };
+  p.held_out.forEach((e) => block(e, `Held-out ${String(e.order).padStart(2, "0")} (${e.concept_id})`));
+  p.external.forEach((e) => block(e, `Own request ${e.id}`));
+  return lines.join("\n");
+}
+
+function exportHTML() {
+  const p = exportPayload();
+  const doneHeld = p.held_out.filter((e) => e.done).length;
+  const withIssues = [...p.held_out, ...p.external].filter((e) => e.done && e.issues.length).length;
+  return `<div class="export-grid">
+    <div class="panel">
+      <h2 style="font-size:18px">Your work</h2>
+      <div class="stats">
+        <div><b>${doneHeld}/${p.held_out.length}</b><span>held-out done</span></div>
+        <div><b>${p.external.length}</b><span>own requests</span></div>
+        <div><b>${withIssues}</b><span>done with warnings</span></div>
+      </div>
+      ${state.annotator.trim() ? "" : `<p class="toast err">Enter your name or initials at the top before exporting.</p>`}
+      <div class="row">
+        <button class="btn primary" data-act="dl-json">Download JSON</button>
+        <button class="btn" data-act="dl-md">Download Markdown</button>
+        <button class="btn" data-act="copy-json">Copy JSON</button>
+        <button class="btn" data-act="send-db" id="send-db" ${dbReady ? "" : "hidden"}>Send to Claude</button>
+      </div>
+      <p class="toast" id="export-toast"></p>
+      <details class="json"><summary>Show the full JSON</summary><textarea id="export-text" rows="12" readonly class="mono" style="font-size:12px">${esc(JSON.stringify(p, null, 2))}</textarea></details>
+    </div>
+    <div class="panel">
+      <h2 style="font-size:18px">Load an export</h2>
+      <p class="hint">To continue in another browser, load the JSON you downloaded. It replaces what is on this page.</p>
+      <input type="file" id="import-file" accept=".json,application/json">
+      <textarea id="import-text" rows="4" placeholder="…or paste the JSON here"></textarea>
+      <div class="row"><button class="btn" data-act="import">Load</button></div>
+      <p class="toast" id="import-toast"></p>
+      <hr style="border:0;border-top:1px solid var(--line);width:100%">
+      <div class="row" id="reset-row"><button class="btn ghost danger" data-act="reset-ask">Clear everything in this browser</button></div>
+    </div>
+  </div>`;
+}
+
+/* ---------- partial refresh while typing (keeps focus) ---------- */
+function refreshLive() {
+  const c = cur();
+  if (!c) return;
+  const a = c.ann, st = statusOf(a);
+  const chip = document.getElementById("status-chip");
+  if (chip) { chip.className = `chip ${st}`; chip.textContent = STATUS_TEXT[st]; }
+  const iss = document.getElementById("issues");
+  if (iss) iss.innerHTML = issuesOf(a).map((t) => `<li>${esc(t)}</li>`).join("");
+  const pre = document.getElementById("json-preview");
+  if (pre) pre.textContent = JSON.stringify(toQuestion(a, c.text), null, 2);
+  for (const ch of a.changes) {
+    const miss = missingFields(ch);
+    const el = document.querySelector(`[data-missing="${ch.uid}"]`);
+    if (el) el.textContent = miss.length ? "Missing: " + miss.join(", ") : "";
+    const box = document.getElementById(`change-${ch.uid}`);
+    if (box) box.classList.toggle("incomplete", miss.length > 0);
+  }
+  const doneBtn = document.querySelector('[data-act="toggle-done"]');
+  if (doneBtn) doneBtn.disabled = !a.intent;
+  document.querySelectorAll(".queue button[aria-current='true'] .dot").forEach((d) => { d.className = `dot ${st}`; });
+  if (c.fresh) document.querySelectorAll(".queue button[aria-current='true'] .snip").forEach((s) => { s.textContent = c.text || "Request without text"; });
+}
+
+/* ---------- events ---------- */
+function onField(el) {
+  const c = cur();
+  if (!c) return;
+  const a = c.ann;
+  let rerender = false;
+  if (el.dataset.f) {
+    const f = el.dataset.f;
+    if (f === "text") { c.fresh.text = el.value; c.text = el.value; }
+    else if (el.type === "checkbox") a[f] = el.checked;
+    else a[f] = el.value;
+    if (["intent", "demand", "grouping", "contrast_mode"].includes(f)) rerender = true;
+    if (f === "grouping" && el.value === "arms" && !a.arms.length) {
+      a.arms = a.changes.map((ch, i) => ({ label: `option_${i + 1}`, members: [ch.uid] }));
+    }
+  } else if (el.dataset.metric) {
+    const v = el.dataset.metric;
+    a.metrics = el.checked ? [...new Set([...a.metrics, v])] : a.metrics.filter((m) => m !== v);
+  } else if (el.dataset.c) {
+    const ch = a.changes.find((x) => x.uid === el.dataset.c);
+    if (!ch) return;
+    ch[el.dataset.k] = el.value;
+    if (["kind", "timing"].includes(el.dataset.k)) rerender = true;
+  } else if (el.dataset.member) {
+    const arm = a.arms[+el.dataset.arm];
+    arm.members = el.checked ? [...new Set([...arm.members, el.dataset.member])] : arm.members.filter((u) => u !== el.dataset.member);
+  } else if (el.dataset.arm !== undefined && el.dataset.k === "label") {
+    a.arms[+el.dataset.arm].label = el.value;
+  } else if (el.dataset.ct !== undefined) {
+    a.contrasts[+el.dataset.ct][el.dataset.k] = el.value;
+  } else if (el.dataset.amb !== undefined) {
+    a.ambiguities[+el.dataset.amb] = el.value;
+  } else return;
+  a.touched = true;
+  if (!a.intent) a.done = false;
+  save();
+  if (rerender) render(); else refreshLive();
+}
+
+document.addEventListener("input", (ev) => {
+  const el = ev.target;
+  if (el.id === "annotator") { state.annotator = el.value; save(); return; }
+  if (el.id === "import-text" || el.id === "export-text") return;
+  if (el.matches("input[type=text], textarea")) onField(el);
+});
+document.addEventListener("change", (ev) => {
+  const el = ev.target;
+  if (el.id === "queue-select") {
+    if (el.dataset.kind === "held") state.current = +el.value; else state.currentNew = +el.value;
+    save(); render(); scrollTo({ top: 0 }); return;
+  }
+  if (el.id === "import-file") {
+    const file = el.files && el.files[0];
+    if (file) file.text().then((t) => { document.getElementById("import-text").value = t; });
+    return;
+  }
+  if (el.matches("select, input[type=radio], input[type=checkbox]")) onField(el);
+});
+// Renaming a combination changes the options of the comparison selects: redraw once the name is left.
+document.addEventListener("focusout", (ev) => {
+  const el = ev.target;
+  if (el.dataset && el.dataset.arm !== undefined && el.dataset.k === "label") render();
+});
+
+function toast(id, text, kind) {
+  const el = document.getElementById(id);
+  if (el) { el.textContent = text; el.className = `toast ${kind || ""}`; }
+}
+
+async function download(filename, data) {
+  const dl = await downloadsP;
+  if (!dl) { toast("export-toast", "Downloads are not available here: use “Copy JSON” or copy the text below.", "err"); return; }
+  try { await dl.save({ filename, data }); toast("export-toast", `Saved: ${filename}`, "ok"); }
+  catch (e) {
+    const code = e && e.code;
+    if (code === "declined") toast("export-toast", "Download cancelled.", "");
+    else if (code === "rate_limited") toast("export-toast", "A download is already waiting for confirmation.", "err");
+    else toast("export-toast", "Could not download: use “Copy JSON”.", "err");
+  }
+}
+
+document.addEventListener("click", async (ev) => {
+  const tabBtn = ev.target.closest("[data-tab]");
+  if (tabBtn) { state.tab = tabBtn.dataset.tab; save(); render(); scrollTo({ top: 0 }); return; }
+  const b = ev.target.closest("[data-act]");
+  if (!b) return;
+  const act = b.dataset.act;
+  const c = cur();
+  const a = c && c.ann;
+  const list = state.tab === "write" ? state.fresh : HELD_OUT;
+  const idxKey = state.tab === "write" ? "currentNew" : "current";
+  switch (act) {
+    case "intro-ok": state.introSeen = true; break;
+    case "goto": if (b.dataset.kind === "held") state.current = +b.dataset.i; else state.currentNew = +b.dataset.i; scrollTo({ top: 0 }); break;
+    case "prev": state[idxKey] = Math.max(0, state[idxKey] - 1); scrollTo({ top: 0 }); break;
+    case "next": state[idxKey] = Math.min(list.length - 1, state[idxKey] + 1); scrollTo({ top: 0 }); break;
+    case "toggle-done":
+      a.touched = true; a.done = !a.done;
+      if (a.done) { state[idxKey] = Math.min(list.length - 1, state[idxKey] + 1); scrollTo({ top: 0 }); }
+      break;
+    case "add-change": a.changes.push(blankChange()); a.touched = true; break;
+    case "del-change":
+      a.changes = a.changes.filter((x) => x.uid !== b.dataset.uid);
+      a.arms.forEach((arm) => { arm.members = arm.members.filter((u) => u !== b.dataset.uid); });
+      break;
+    case "add-arm": a.arms.push({ label: `option_${a.arms.length + 1}`, members: [] }); break;
+    case "del-arm": a.arms.splice(+b.dataset.i, 1); break;
+    case "add-contrast": a.contrasts.push({ treatment: "", reference: "base" }); break;
+    case "del-contrast": a.contrasts.splice(+b.dataset.i, 1); break;
+    case "add-amb": {
+      a.ambiguities.push(""); a.touched = true; save(); render();
+      const el = document.getElementById(`amb-${a.ambiguities.length - 1}`);
+      if (el) el.focus();
+      return;
+    }
+    case "del-amb": a.ambiguities.splice(+b.dataset.i, 1); break;
+    case "new-request": {
+      state.fresh.push({ text: "", ann: blankAnn() }); state.currentNew = state.fresh.length - 1;
+      save(); render();
+      const el = document.getElementById("req-text");
+      if (el) el.focus();
+      return;
+    }
+    case "del-request":
+      if (b.dataset.confirm !== "1") { b.dataset.confirm = "1"; b.textContent = "Press again to delete it"; return; }
+      state.fresh.splice(state.currentNew, 1); state.currentNew = Math.max(0, state.currentNew - 1); break;
+    case "dl-json": {
+      const p = exportPayload();
+      await download(`annotation-${slug(p.annotator) || "anonymous"}.json`, JSON.stringify(p, null, 2)); return;
+    }
+    case "dl-md": {
+      const p = exportPayload();
+      await download(`annotation-${slug(p.annotator) || "anonymous"}.md`, markdownOf(p)); return;
+    }
+    case "copy-json": {
+      const text = JSON.stringify(exportPayload(), null, 2);
+      try { await navigator.clipboard.writeText(text); toast("export-toast", "JSON copied to the clipboard.", "ok"); }
+      catch (e) {
+        const ta = document.getElementById("export-text");
+        ta.closest("details").open = true; ta.focus(); ta.select();
+        toast("export-toast", "Could not copy automatically: the text is selected, copy it with Ctrl/Cmd+C.", "err");
+      }
+      return;
+    }
+    case "send-db": {
+      const p = exportPayload();
+      if (!p.annotator) { toast("export-toast", "Enter your name or initials at the top before sending.", "err"); return; }
+      const db = await dbP;
+      if (!db) { toast("export-toast", "Sending is not available here: download the JSON.", "err"); return; }
+      try {
+        await db.doc(`submissions/${slug(p.annotator)}`).set({ annotator: p.annotator, exported_at: p.exported_at, payload: JSON.stringify(p) });
+        toast("export-toast", `Sent to Claude as “${slug(p.annotator)}”. You can send again after changing anything.`, "ok");
+      } catch (e) { toast("export-toast", "This account cannot send from here. Download the JSON and pass it to whoever asked you to annotate.", "err"); }
+      return;
+    }
+    case "import": {
+      const raw = document.getElementById("import-text").value.trim();
+      try {
+        const p = JSON.parse(raw);
+        if (p.format !== FORMAT) throw new Error("it is not an export from this page");
+        state.annotator = p.annotator || "";
+        for (const e of p.held_out || []) if (e.form && state.held[e.concept_id]) state.held[e.concept_id] = Object.assign(blankAnn(), e.form);
+        state.fresh = (p.external || []).map((e) => ({ text: e.text, ann: Object.assign(blankAnn(), e.form) }));
+        state.current = 0; state.currentNew = 0;
+        document.getElementById("annotator").value = state.annotator;
+        save(); render(); toast("import-toast", "Export loaded.", "ok");
+      } catch (e) { toast("import-toast", `Could not load it: ${e.message}.`, "err"); }
+      return;
+    }
+    case "reset-ask":
+      document.getElementById("reset-row").innerHTML = `<span class="muted">This deletes all your annotations in this browser.</span><button class="btn danger" data-act="reset">Yes, delete everything</button><button class="btn ghost" data-act="reset-cancel">Cancel</button>`;
+      return;
+    case "reset-cancel": render(); return;
+    case "reset":
+      state = blankState();
+      document.getElementById("annotator").value = "";
+      break;
+    default: return;
+  }
+  save(); render();
+});
+
+/* ---------- boot ---------- */
+load();
+document.getElementById("annotator").value = state.annotator;
+render();
+const use = (name) => (window.claude && window.claude.use ? window.claude.use(name).catch(() => null) : Promise.resolve(null));
+const downloadsP = use("downloads");
+const dbP = use("db");
+dbP.then((db) => {
+  dbReady = !!db;
+  const btn = document.getElementById("send-db");
+  if (btn) btn.hidden = !dbReady;
+});
+</script>

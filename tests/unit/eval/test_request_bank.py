@@ -80,6 +80,24 @@ def test_the_split_is_close_to_70_30_and_every_category_is_held_out() -> None:
     assert {c.category for c in held_out} == set(Category)
 
 
+def test_the_split_is_frozen_so_new_concepts_never_move_old_ones() -> None:
+    first_held_out = {
+        "R003", "R007", "R012", "R013", "R016", "R017", "R022", "R023", "R027", "R032",
+        "R033", "R037", "R042", "R043", "R046", "R052", "R053", "R056", "R057", "R062",
+    }
+    first = {c.id for c in CONCEPTS if int(c.id[1:]) <= 65}
+    assert {c for c in first if SPLITS[c] == "held_out"} == first_held_out
+
+
+def test_every_intent_is_in_both_splits() -> None:
+    for split in ("dev", "held_out"):
+        intents = {
+            c.gold.intent for c in CONCEPTS
+            if SPLITS[c.id] == split and isinstance(c.gold, Question)
+        }
+        assert intents == set(Intent), (split, intents)
+
+
 def test_gold_shapes_follow_the_category() -> None:
     for concept in CONCEPTS:
         gold = concept.gold

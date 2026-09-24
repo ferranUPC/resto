@@ -23,7 +23,7 @@ from resto.domain.value_objects.question import Question
 
 # Bump whenever the prompt or the budget changes in a way that can change parses: every benchmark
 # run records it (eval/parser_benchmark).
-PARSER_VERSION = "v4"
+PARSER_VERSION = "v6"
 
 PARSER_MAX_STEPS = 2
 PARSER_MAX_OUTPUT_TOKENS = 4096
@@ -42,17 +42,22 @@ lane, junction and program ids exactly as written.
 
 FIELDS
 - text: write "." (the system fills in the request).
-- intent:
-  - describe: a fact about the network as it is ("what is", "how many", "which edges").
-  - diagnose: why something happens ("why", "what is causing").
-  - counterfactual: what would happen if something changed ("what would happen if", "how would
-    ... change if", "does ... help").
-  - compare: the user asks to compare options, or which one is better.
-  - run: the user asks to run or simulate a given setup and report results, including an
-    imperative that sets up changes and asks for a result ("switch X to ..., and report Y"), even
-    when part of it is ambiguous.
-  The form of the question decides, not the number of options: "what would happen if A, if B, and
-  if both" is counterfactual; "which of A or B is better" or "compare A and B" is compare.
+- intent: what the user wants, never the verb they use nor what it takes to answer ("simulate",
+  "compare" and "what if" can appear with any intent; whether anything is simulated is decided
+  later, not by you).
+  - describe: a fact about the network as it is, nothing changed ("what is", "how many", "which
+    edges").
+  - diagnose: why something happens on the network as it is ("why", "what is causing").
+  - counterfactual: what one or more changes do, i.e. how things would be with them, against
+    today or another setup the user names ("what would happen if", "try X and see what happens",
+    "with and without X", "what would X add on top of Y", "does X help", and also "run/simulate X
+    and report Y"). Several changes, each measured on its own, are still counterfactual.
+  - compare: a choice between alternatives: the user wants to know which option is better or which
+    to pick ("which is better", "A or B?", "which reduces X most"), with or without the word
+    "compare".
+  - run: the user wants something done as an end in itself and asks nothing about its effect
+    ("add an edge from J7 to J9", "set up this scenario so I can use it"), even when part of it is
+    ambiguous.
 - mode: "free", unless the user explicitly asks for an answer from existing results only, without
   running any new simulation: then "forced".
 - network_ref: the network the user names, verbatim (e.g. "RIVERSIDE"); null if none.

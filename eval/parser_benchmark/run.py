@@ -83,9 +83,10 @@ def main(argv: list[str] | None = None) -> int:
     if not args.report_only:
         if args.model is None:
             parser.error("--model is required unless --report-only")
-        if args.split != "dev" and not args.final and not (args.requests or args.concepts):
-            parser.error("held-out is for measuring Done once: pass --final to run it")
         requests = select(args.split, args.requests, args.concepts)
+        # Checked on what was selected, so --requests/--concepts cannot reach held-out either.
+        if not args.final and any(r.split == "held_out" for r in requests):
+            parser.error("held-out is for measuring Done once: pass --final to run it")
         runs = len(requests) * args.repetitions
         estimate = estimate_usd(args.model, runs)
         print(

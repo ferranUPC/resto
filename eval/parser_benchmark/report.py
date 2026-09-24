@@ -8,13 +8,14 @@ prompt change can be read per language, register, vagueness, noise and category.
 
 from __future__ import annotations
 
+import random
 from collections import Counter, defaultdict
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
 from eval.request_bank.bank import BankRequest
-from eval.request_bank.concepts import AmbiguousGold
+from eval.request_bank.concepts import ALSO_ACCEPTED, AmbiguousGold
 from eval.request_bank.generate import describe_question
 from eval.request_bank.scoring import (
     AXES,
@@ -70,8 +71,13 @@ def score_records(
             continue
         predicted = prediction(record)
         scored.append(
-            Scored(request, record["repetition"], score_request(request.gold, predicted),
-                   predicted, record)
+            Scored(
+                request, record["repetition"],
+                score_request(
+                    request.gold, predicted, ALSO_ACCEPTED.get(request.concept_id, frozenset())
+                ),
+                predicted, record,
+            )
         )
     return sorted(scored, key=lambda s: (s.request.id, s.repetition))
 
@@ -85,6 +91,42 @@ def failed_fields(scored: Scored) -> list[str]:
         if getattr(score, attr) is False:
             failed.append(metric)
     return failed
+
+
+BOOTSTRAP_SAMPLES = 2000
+
+
+def concept_interval(
+    scored: Sequence[Scored], metric: str, samples: int = BOOTSTRAP_SAMPLES, seed: int = 0
+) -> dict[str, Any] | None:
+    """95 % percentile bootstrap interval of `metric`, resampling whole concepts: a concept's
+    variants and repetitions are not independent, so they move together. `concepts` is how many
+    concepts the metric is measured on (the multi-arm gate on held-out rests on only a few)."""
+    groups: dict[str, list[RequestScore]] = defaultdict(list)
+    for s in scored:
+        groups[s.request.concept_id].append(s.score)
+    rates = [r for g in groups.values() if (r := summarize(g)[metric]).total]
+    if not rates:
+        return None
+    n = len(rates)
+    # Every concept perfect (or every one wrong): resampling cannot move the rate, so the
+    # percentile interval collapses to a point. The rule of three gives the 95 % bound instead.
+    if all(r.hits == r.total for r in rates):
+        return {"low": max(0.0, 1 - 3 / n), "high": 1.0, "concepts": n, "method": "rule of three"}
+    if all(r.hits == 0 for r in rates):
+        return {"low": 0.0, "high": min(1.0, 3 / n), "concepts": n, "method": "rule of three"}
+    rng = random.Random(seed)
+    values = []
+    for _ in range(samples):
+        draw = [rng.choice(rates) for _ in rates]
+        values.append(sum(r.hits for r in draw) / sum(r.total for r in draw))
+    values.sort()
+    return {
+        "low": values[int(0.025 * samples)],
+        "high": values[int(0.975 * samples) - 1],
+        "concepts": n,
+        "method": "bootstrap",
+    }
 
 
 def _rate(rate: Rate) -> dict[str, Any]:
@@ -127,6 +169,7 @@ def summarize_run(scored: Sequence[Scored]) -> dict[str, Any]:
         if records else 0,
         "stop_reasons": dict(Counter(r["stop_reason"] for r in records)),
         "metrics": {name: _rate(rate) for name, rate in summary.items()},
+        "intervals": {name: concept_interval(scored, name) for name in GRADED},
         "done": verdict,
         "intent_agreement": None if agreement is None else _rate(agreement),
         "consistency": _rate(consistency(list(requests.values()), by_rep.get(first, {}))),
@@ -147,6 +190,14 @@ def _gold_lines(request: BankRequest) -> list[str]:
     return describe_question(gold)
 
 
+def _interval(interval: Mapping[str, Any] | None) -> str:
+    if interval is None:
+        return "—"
+    rule = ", rule of three" if interval.get("method") == "rule of three" else ""
+    return (f"{100 * interval['low']:.0f}–{100 * interval['high']:.0f} % "
+            f"({interval['concepts']} concepts{rule})")
+
+
 def render_markdown(name: str, summary: Mapping[str, Any], scored: Sequence[Scored]) -> str:
     lines = [
         f"# Input Parser benchmark — {name}",
@@ -157,19 +208,28 @@ def render_markdown(name: str, summary: Mapping[str, Any], scored: Sequence[Scor
         f"{summary['mean_input_tokens']} input / {summary['mean_output_tokens']} output tokens; "
         f"stop reasons {summary['stop_reasons']}.",
         "",
-        "| Metric | Result | E5.1 threshold | Met |",
-        "|---|---|---|---|",
+        "| Metric | Result | 95 % CI by concept | E5.1 threshold | Met |",
+        "|---|---|---|---|---|",
     ]
+    intervals = summary.get("intervals", {})
     for metric, threshold in THRESHOLDS.items():
         met = "yes" if summary["done"][metric] else "**no**"
         result = _pct(summary["metrics"][metric])
-        lines.append(f"| {metric} | {result} | ≥ {threshold:.0%} | {met} |")
+        lines.append(
+            f"| {metric} | {result} | {_interval(intervals.get(metric))} | ≥ {threshold:.0%} "
+            f"| {met} |"
+        )
     if summary["intent_agreement"] is not None:
         met = "yes" if summary["done"]["intent_agreement"] else "**no**"
         lines.append(
-            f"| intent_agreement | {_pct(summary['intent_agreement'])} | "
+            f"| intent_agreement | {_pct(summary['intent_agreement'])} | — | "
             f"≥ {INTENT_AGREEMENT_THRESHOLD:.0%} | {met} |"
         )
+    lines += ["", "Met is judged on the point estimate. The interval resamples whole concepts "
+              "(bootstrap), so it shows how much the result could move with another draw of "
+              "concepts; when every concept is right it is the rule-of-three bound 1 − 3/n. "
+              "`intent` also accepts the second reading listed in `concepts.ALSO_ACCEPTED`; "
+              "`intent_strict` below is against the gold intent alone."]
     lines += ["", "Reported, not graded:", ""]
     for metric, rate in summary["metrics"].items():
         if metric not in THRESHOLDS:

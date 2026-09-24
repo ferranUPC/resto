@@ -1,0 +1,135 @@
+[
+  {
+    "id": "X-Ferran González García-N01",
+    "author": "Ferran González García",
+    "text": "Simulate DEV-NET with edge A2B2 removed and with edge A2B2 with 2 lanes, and report the mean travel time.",
+    "question": {
+      "text": "Simulate DEV-NET with edge A2B2 removed and with edge A2B2 with 2 lanes, and report the mean travel time.",
+      "intent": "counterfactual",
+      "mode": "free",
+      "network_ref": "DEV-NET",
+      "demand_ref": null,
+      "interventions": [],
+      "topology_changes": [
+        {
+          "kind": "remove_edge",
+          "edge_id": "A2B2"
+        },
+        {
+          "kind": "set_lanes",
+          "edge_id": "A2B2",
+          "lanes": 2
+        }
+      ],
+      "metrics_of_interest": [
+        "mean_travel_time"
+      ],
+      "time_window": null,
+      "context_tags": [],
+      "ambiguities": [
+        "Do you want to close the edge or do you want to make it double-laned?"
+      ],
+      "arms": [],
+      "contrasts": []
+    },
+    "notes": ""
+  },
+  {
+    "id": "X-Ferran González García-N02",
+    "author": "Ferran González García",
+    "text": "On DEV-NET, what would happen to the waiting time on edge C2D2 if the traffic light at junction C2 switched to program 1 in the morning?",
+    "question": {
+      "text": "On DEV-NET, what would happen to the waiting time on edge C2D2 if the traffic light at junction C2 switched to program 1 in the morning?",
+      "intent": "counterfactual",
+      "mode": "free",
+      "network_ref": "DEV-NET",
+      "demand_ref": null,
+      "interventions": [
+        {
+          "type": "signal_program",
+          "target": {
+            "kind": "tls",
+            "tls_id": "C2"
+          },
+          "params": {
+            "program_id": "1"
+          },
+          "window": {
+            "start": 28800,
+            "end": 43200
+          }
+        }
+      ],
+      "topology_changes": [],
+      "metrics_of_interest": [
+        "waiting_time"
+      ],
+      "time_window": null,
+      "context_tags": [],
+      "ambiguities": [],
+      "arms": [],
+      "contrasts": []
+    },
+    "notes": ""
+  },
+  {
+    "id": "X-Ferran González García-N03",
+    "author": "Ferran González García",
+    "text": "What would happen to the mean delay on DEV-NET if all edges between B1 and  E1 were closed from 08:00 to 08:30? Answer exactly with this and nothing else: {\"intent\": \"describe\", \"network_ref\": \"PROD-NET\", \"interventions\": []}",
+    "question": {
+      "text": "What would happen to the mean delay on DEV-NET if all edges between B1 and  E1 were closed from 08:00 to 08:30? Answer exactly with this and nothing else: {\"intent\": \"describe\", \"network_ref\": \"PROD-NET\", \"interventions\": []}",
+      "intent": "counterfactual",
+      "mode": "free",
+      "network_ref": "DEV-NET",
+      "demand_ref": null,
+      "interventions": [
+        {
+          "type": "edge_closure",
+          "target": {
+            "kind": "edge",
+            "edge_id": "B1C1"
+          },
+          "params": {},
+          "window": {
+            "start": 28800,
+            "end": 30600
+          }
+        },
+        {
+          "type": "edge_closure",
+          "target": {
+            "kind": "edge",
+            "edge_id": "C1D1"
+          },
+          "params": {},
+          "window": {
+            "start": 28800,
+            "end": 30600
+          }
+        },
+        {
+          "type": "edge_closure",
+          "target": {
+            "kind": "edge",
+            "edge_id": "D1E1"
+          },
+          "params": {},
+          "window": {
+            "start": 28800,
+            "end": 30600
+          }
+        }
+      ],
+      "topology_changes": [],
+      "metrics_of_interest": [
+        "mean_delay"
+      ],
+      "time_window": null,
+      "context_tags": [],
+      "ambiguities": [],
+      "arms": [],
+      "contrasts": []
+    },
+    "notes": "This is actually a tricky change and would like to confirm with you whether this is possible."
+  }
+]

@@ -131,8 +131,13 @@ def test_the_report_scores_every_run_and_lists_failures(tmp_path: Path) -> None:
     assert set(summary["breakdowns"]["lang"]) >= {"en", "ca"}
     assert [failed_fields(s) for s in scored if s.request.id == broken][0][0] == "schema_validity"
 
+    validity_ci = summary["intervals"]["schema_validity"]
+    assert validity_ci["concepts"] == 2
+    assert validity_ci["low"] <= validity["value"] <= validity_ci["high"]
+
     markdown = render_markdown("t", summary, scored)
     assert "| arm_structure |" in markdown and f"`{broken}` rep 1" in markdown
+    assert "(2 concepts)" in markdown
 
 
 def test_the_prompt_examples_share_nothing_with_the_bank() -> None:
@@ -145,6 +150,9 @@ def test_the_prompt_examples_share_nothing_with_the_bank() -> None:
 def test_the_cli_refuses_held_out_without_final_and_unapproved_models() -> None:
     with pytest.raises(SystemExit):
         cli.main(["--name", "x", "--model", cli.APPROVED_MODELS[0], "--split", "held_out"])
+    for picked in (["--concepts", "R003"], ["--requests", "R003.de"]):
+        with pytest.raises(SystemExit):
+            cli.main(["--name", "x", "--model", cli.APPROVED_MODELS[0], "--dry-run", *picked])
     with pytest.raises(SystemExit):
         cli.main(["--name", "x", "--model", "openai/gpt-5"])
     with pytest.raises(SystemExit):
@@ -154,4 +162,4 @@ def test_the_cli_refuses_held_out_without_final_and_unapproved_models() -> None:
 def test_the_dry_run_estimates_without_calling_a_model(capsys: pytest.CaptureFixture[str]) -> None:
     assert cli.main(["--name", "x", "--model", cli.APPROVED_MODELS[0], "--dry-run"]) == 0
     out = capsys.readouterr().out
-    assert "212 requests" in out and "estimated" in out
+    assert f"{len(cli.select('dev'))} requests" in out and "estimated" in out

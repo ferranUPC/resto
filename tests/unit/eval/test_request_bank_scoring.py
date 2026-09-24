@@ -5,6 +5,7 @@ from dataclasses import replace
 import pytest
 from eval.request_bank.bank import BankRequest, bank_requests
 from eval.request_bank.concepts import (
+    ALSO_ACCEPTED,
     AmbiguousGold,
     Category,
     Concept,
@@ -302,3 +303,21 @@ def test_the_bank_holds_bases_and_verified_variants_only() -> None:
     assert [r.id for r in requests] == ["R001", "R001.ca", "R001.es-vague_time"]
     assert isinstance(requests[1].gold, Question) and requests[1].gold.text == "Tanca el carril"
     assert isinstance(requests[2].gold, AmbiguousGold)
+
+
+def test_an_accepted_second_intent_counts_for_intent_but_not_for_intent_strict() -> None:
+    gold = _question(intent=Intent.COUNTERFACTUAL)
+    pred = _question(intent=Intent.RUN)
+    lenient = score_request(gold, pred, frozenset({Intent.RUN}))
+    assert lenient.intent is True and lenient.intent_strict is False
+    assert score_request(gold, pred).intent is False
+    unclear = AmbiguousGold("edge", Intent.COUNTERFACTUAL)
+    flagged = replace(pred, ambiguities=("which edge?",))
+    assert score_request(unclear, flagged, frozenset({Intent.RUN})).intent is True
+    assert score_request(unclear, flagged, frozenset({Intent.RUN})).intent_strict is False
+
+
+def test_every_accepted_alternative_names_a_concept_and_differs_from_its_gold() -> None:
+    for concept_id, intents in ALSO_ACCEPTED.items():
+        gold = concept_by_id(concept_id).gold
+        assert gold.intent is not None and gold.intent not in intents, concept_id

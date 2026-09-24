@@ -8,11 +8,11 @@
     "deepseek/deepseek-v4.1-flash"
   ],
   "parser_versions": [
-    "v4"
+    "v5"
   ],
-  "cost_usd": 0.227,
-  "mean_input_tokens": 4991,
-  "mean_output_tokens": 537,
+  "cost_usd": 0.2407,
+  "mean_input_tokens": 5332,
+  "mean_output_tokens": 559,
   "stop_reasons": {
     "output": 212
   },
@@ -23,9 +23,9 @@
       "value": 1.0
     },
     "intent": {
-      "hits": 159,
+      "hits": 153,
       "total": 159,
-      "value": 1.0
+      "value": 0.9622641509433962
     },
     "interventions": {
       "hits": 124,
@@ -48,9 +48,9 @@
       "value": 0.9886363636363636
     },
     "arm_structure": {
-      "hits": 41,
+      "hits": 42,
       "total": 43,
-      "value": 0.9534883720930233
+      "value": 0.9767441860465116
     },
     "arm_structure_single": {
       "hits": 81,
@@ -58,9 +58,9 @@
       "value": 1.0
     },
     "required_arms": {
-      "hits": 42,
+      "hits": 43,
       "total": 43,
-      "value": 0.9767441860465116
+      "value": 1.0
     },
     "spurious_ambiguity": {
       "hits": 0,
@@ -96,10 +96,10 @@
       "method": "rule of three"
     },
     "intent": {
-      "low": 0.9090909090909091,
+      "low": 0.9038461538461539,
       "high": 1.0,
       "concepts": 33,
-      "method": "rule of three"
+      "method": "bootstrap"
     },
     "interventions": {
       "low": 0.8888888888888888,
@@ -126,7 +126,7 @@
       "method": "bootstrap"
     },
     "arm_structure": {
-      "low": 0.8604651162790697,
+      "low": 0.9302325581395349,
       "high": 1.0,
       "concepts": 10,
       "method": "bootstrap"
@@ -143,9 +143,9 @@
   },
   "intent_agreement": null,
   "consistency": {
-    "hits": 41,
+    "hits": 38,
     "total": 45,
-    "value": 0.9111111111111111
+    "value": 0.8444444444444444
   },
   "breakdowns": {
     "category": {
@@ -193,9 +193,9 @@
           "value": 1.0
         },
         "intent": {
-          "hits": 24,
+          "hits": 19,
           "total": 24,
-          "value": 1.0
+          "value": 0.7916666666666666
         },
         "interventions": {
           "hits": 0,
@@ -230,9 +230,9 @@
           "value": 1.0
         },
         "intent": {
-          "hits": 18,
+          "hits": 17,
           "total": 18,
-          "value": 1.0
+          "value": 0.9444444444444444
         },
         "interventions": {
           "hits": 18,
@@ -292,9 +292,9 @@
           "value": 0.8333333333333334
         },
         "arm_structure": {
-          "hits": 41,
+          "hits": 42,
           "total": 43,
-          "value": 0.9534883720930233
+          "value": 0.9767441860465116
         }
       },
       "out_of_scope": {
@@ -417,9 +417,9 @@
           "value": 1.0
         },
         "intent": {
-          "hits": 159,
+          "hits": 153,
           "total": 159,
-          "value": 1.0
+          "value": 0.9622641509433962
         },
         "interventions": {
           "hits": 124,
@@ -442,9 +442,9 @@
           "value": 0.9886363636363636
         },
         "arm_structure": {
-          "hits": 41,
+          "hits": 42,
           "total": 43,
-          "value": 0.9534883720930233
+          "value": 0.9767441860465116
         }
       }
     },
@@ -456,9 +456,9 @@
           "value": 1.0
         },
         "intent": {
-          "hits": 23,
+          "hits": 22,
           "total": 23,
-          "value": 1.0
+          "value": 0.9565217391304348
         },
         "interventions": {
           "hits": 18,
@@ -493,9 +493,9 @@
           "value": 1.0
         },
         "intent": {
-          "hits": 22,
+          "hits": 21,
           "total": 22,
-          "value": 1.0
+          "value": 0.9545454545454546
         },
         "interventions": {
           "hits": 17,
@@ -518,9 +518,9 @@
           "value": 0.9090909090909091
         },
         "arm_structure": {
-          "hits": 6,
+          "hits": 7,
           "total": 7,
-          "value": 0.8571428571428571
+          "value": 1.0
         }
       },
       "en": {
@@ -530,9 +530,9 @@
           "value": 1.0
         },
         "intent": {
-          "hits": 70,
+          "hits": 67,
           "total": 70,
-          "value": 1.0
+          "value": 0.9571428571428572
         },
         "interventions": {
           "hits": 53,
@@ -604,9 +604,9 @@
           "value": 1.0
         },
         "intent": {
-          "hits": 19,
+          "hits": 18,
           "total": 19,
-          "value": 1.0
+          "value": 0.9473684210526315
         },
         "interventions": {
           "hits": 16,
@@ -680,9 +680,9 @@
           "value": 1.0
         },
         "intent": {
-          "hits": 12,
+          "hits": 11,
           "total": 12,
-          "value": 1.0
+          "value": 0.9166666666666666
         },
         "interventions": {
           "hits": 9,
@@ -717,9 +717,9 @@
           "value": 1.0
         },
         "intent": {
-          "hits": 107,
+          "hits": 103,
           "total": 107,
-          "value": 1.0
+          "value": 0.9626168224299065
         },
         "interventions": {
           "hits": 81,
@@ -742,9 +742,9 @@
           "value": 0.9848484848484849
         },
         "arm_structure": {
-          "hits": 25,
+          "hits": 26,
           "total": 27,
-          "value": 0.9259259259259259
+          "value": 0.9629629629629629
         }
       },
       "technical": {
@@ -791,9 +791,9 @@
           "value": 1.0
         },
         "intent": {
-          "hits": 6,
+          "hits": 5,
           "total": 6,
-          "value": 1.0
+          "value": 0.8333333333333334
         },
         "interventions": {
           "hits": 6,
@@ -904,9 +904,9 @@
           "value": 1.0
         },
         "intent": {
-          "hits": 148,
+          "hits": 142,
           "total": 148,
-          "value": 1.0
+          "value": 0.9594594594594594
         },
         "interventions": {
           "hits": 124,
@@ -929,9 +929,9 @@
           "value": 1.0
         },
         "arm_structure": {
-          "hits": 41,
+          "hits": 42,
           "total": 43,
-          "value": 0.9534883720930233
+          "value": 0.9767441860465116
         }
       },
       "place": {
@@ -1091,9 +1091,9 @@
           "value": 1.0
         },
         "intent": {
-          "hits": 141,
+          "hits": 135,
           "total": 141,
-          "value": 1.0
+          "value": 0.9574468085106383
         },
         "interventions": {
           "hits": 108,
@@ -1116,9 +1116,9 @@
           "value": 0.9875
         },
         "arm_structure": {
-          "hits": 37,
+          "hits": 38,
           "total": 39,
-          "value": 0.9487179487179487
+          "value": 0.9743589743589743
         }
       },
       "typos": {
