@@ -32,6 +32,7 @@ flowchart LR
     E43["E4.3 diagnostic (dev sweep) · 18"]:::pending
     E44["E4.4 counterfactual (dev sweep) · 24"]:::pending
     E45["E4.5 free mode ⏳"]:::await
+    E49["E4.9 learning-effect setup (DEV-NET) · 18"]:::pending
   end
 
   subgraph SPINE["Coordinator spine"]
@@ -40,7 +41,7 @@ flowchart LR
     E53["E5.3 loop closure · 14"]:::pending
     E54["E5.4 Composer Min · 6"]:::frontier
     E51["E5.1 Input Parser ⏳"]:::await
-    E71["E7.1 golden-path fw, GP-1…5 · 10"]:::pending
+    E71["E7.1 golden-path fw, GP-1…5 + GP-9 · 10"]:::pending
     E55["E5.5 Coordinator Done (build) · 18"]:::pending
     E57["E5.7 traceability checker · 12"]:::pending
     E56["E5.6 capability neg. + GP-10 · 8"]:::pending
@@ -64,7 +65,6 @@ flowchart LR
     E35["E3.5 REAL-NET matrix · 8"]:::pending
     E36["E3.6 REAL-NET question bank · 6"]:::pending
     E48["E4.8 Expert on REAL-NET (port+tune) · 24"]:::pending
-    E49["E4.9 learning-effect setup · 18"]:::pending
     E67["E6.7 GP-8, GP-11 · 8"]:::pending
   end
 
@@ -76,6 +76,7 @@ flowchart LR
 
   %% Expert
   E38 --> E42 & E43 & E44
+  E42 & E43 & E44 --> E49
   E42 & E43 & E44 & E45 --> M2
 
   %% Coordinator spine (critical for M3, M4, M6)
@@ -102,7 +103,7 @@ flowchart LR
   E61 & E62 & E63 --> E65
   E61 & E62 --> E67
   E61 --> E73
-  E63 ==> E66 ==> E35 ==> E36 ==> E48 ==>|"? network not fixed by DoD"| E49
+  E63 ==> E66 ==> E35 ==> E36 ==> E48
   E64 & E65 & E35 & E67 --> M4
   E48 & E49 --> M5
   E55 & E56 & E57 & E73 --> M6
@@ -132,7 +133,7 @@ flowchart LR
   BUILT(("all built<br/>(end of §1 DAG)")):::pass
   V1{{"Validation 1 · mid-Dec<br/>dev splits, interim, turns nothing ✅"}}:::pass
   V2{{"Validation 2 · before E8.5<br/>definitive, each suite once"}}:::pass
-  FRZ{{"CONFLICT: code freeze E7.6 is 10 Feb,<br/>after V2 — V2 would measure unfrozen code"}}:::risk
+  FRZ{{"Feature freeze<br/>(no behaviour change after it)"}}:::pass
 
   S1(["EXP-01 forced×3 + free abstention · $3.9–5.8"]):::suite
   S2(["N4 Parser held-out, 2nd use · ≈ $0.4"]):::suite
@@ -145,8 +146,7 @@ flowchart LR
   S9(["Golden paths 11×3 · $1–3"]):::suite
 
   M3 --> V1
-  BUILT --> V2
-  FRZ -.-> V2
+  BUILT --> FRZ --> V2
   V1 -.->|"reduced checkpoint"| S1 & S3 & S4
   V2 --> S1 & S2 & S3 & S4 & S5 & S6 & S7 & S8 & S9
 
@@ -163,7 +163,7 @@ flowchart LR
   S1 & S8 --> E410["E4.10 calibration + ablation · 8"]:::task
   T1 & T7 & T8 & E410 --> E85["E8.5 results · 20 · due 8 Feb"]:::task
   E85 --> E86["E8.6 discussion · 12"]:::task --> E87["E8.7 draft + revision · 20"]:::task --> E88(("M7 · 18 Feb")):::pass
-  T9 --> E76["E7.6 code freeze · 12 · 10 Feb"]:::task --> E88
+  T9 --> E76["E7.6 release: tag, README, repro package · 12 · 10 Feb"]:::task --> E88
 ```
 
 ## 3. Critical paths (longest chain of pending build points to each milestone)
@@ -173,15 +173,24 @@ flowchart LR
 | M2 (build) | 34 | E3.8 → E4.4 |
 | M3 (build) | 59 | E3.8 → E3.7 → E5.2 → E5.3 → E7.1 → E7.2 |
 | M4 (build) | 61 | E3.8 → E3.7 → E5.2 → E5.3 → E7.1 → E6.7 |
-| M5 (build) | 78 | E6.3 → E6.6 → E3.5 → E3.6 → E4.8 → E4.9 |
+| M5 (build) | 60 | E6.3 → E6.6 → E3.5 → E3.6 → E4.8 (E4.9 on DEV-NET: E3.8 → E4.4 → E4.9 = 52) |
 | M6 (build) | 71 | E3.8 → E3.7 → E5.2 → E5.3 → E7.1 → E6.7 → E7.3 |
-| Validation 2 (all built) | 78 | = M5 chain |
+| Validation 2 (all built) | 71 | = M6 chain: the Coordinator spine is the critical path of the whole plan |
 | *Total pending build points* | *383* | |
 
 After V2: E4.10 (8) → E8.5 (20) → E8.6 (12) → E8.7 (20) → E8.8 (8) = 68 points of tail, plus the V2
 runs themselves.
 
-## 4. What the DAG says (for the maintainer to react to)
+## 4. Verdict (maintainer, 2026-09-24)
+
+- The DAG is **correct as drawn**; it is the input of the re-sequencing ticket.
+- **E4.9 runs on DEV-NET** (the DoD does not fix the network). It leaves the REAL-NET chain: M5 drops
+  78 → 60 points, and the plan's overall critical path becomes the Coordinator spine (71).
+- **Feature freeze before Validation 2**: V2 measures frozen code; E7.6 (10 Feb) becomes release
+  packaging only (tag, README, reproducibility package), no behaviour changes.
+- **GP-9 belongs to E7.1** (the golden-path framework starts at the Input Parser).
+
+## 5. What the DAG says (as presented, before the verdict)
 
 1. **The plan is capacity-bound, not dependency-bound.** The longest chain is 78 of 383 pending build
    points (≈ 20 %). Order is mostly free; dates are set by how much fits per week, not by who waits for
