@@ -161,6 +161,7 @@ section.view { padding-top: 24px; }
 .bar > span { display: block; height: 100%; }
 .bar .s-done { background: var(--good); }
 .bar .s-progress { background: var(--warn); }
+.bar .s-awaiting { background: var(--accent); }
 .bar .s-blocked { background: var(--crit); }
 .barmeta { display: flex; justify-content: space-between; font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
 
@@ -173,6 +174,8 @@ section.view { padding-top: 24px; }
 .pill.progress::before { background: var(--warn); }
 .pill.blocked { background: var(--crit-soft); }
 .pill.blocked::before { background: var(--crit); border-radius: 1px; }
+.pill.awaiting { background: var(--accent-soft); }
+.pill.awaiting::before { background: var(--accent); border-radius: 2px; }
 .pill.todo { background: var(--surface-2); color: var(--ink-2); }
 .pill.todo::before { background: transparent; box-shadow: inset 0 0 0 1.5px var(--ink-3); }
 
@@ -214,7 +217,7 @@ td { padding: 10px 12px; border-top: 1px solid var(--line); vertical-align: top;
 #tasks tbody tr.row { cursor: pointer; }
 #tasks tbody tr.row:hover td { background: var(--surface-2); }
 #tasks td.id { font-family: var(--mono); font-weight: 600; white-space: nowrap; }
-#tasks td.h, #tasks td.due, #tasks td.fin { white-space: nowrap; font-variant-numeric: tabular-nums; }
+#tasks td.h, #tasks td.wave, #tasks td.due, #tasks td.fin { white-space: nowrap; font-variant-numeric: tabular-nums; }
 #tasks td.h { text-align: right; }
 #tasks .ttl { min-width: 260px; }
 #tasks .delta { display: block; font-size: 12px; color: var(--ink-3); }
@@ -281,29 +284,29 @@ footer { margin-top: 40px; font-size: 12px; color: var(--ink-3); max-width: 80ch
     <div class="kpis" id="kpis"></div>
 
     <div class="block">
-      <header><h2>Horas completadas frente al plan</h2><p>Horas estimadas en el plan, no horas dedicadas</p></header>
+      <header><h2>Puntos completados frente al plan</h2><p>Puntos del plan (1 pt = 1 h estimada), no horas dedicadas</p></header>
       <div class="chartcard">
         <p class="headline" id="headline"></p>
         <div class="legend">
-          <span><i style="border-color: var(--plan); border-top-style: dashed"></i>Plan (acumulado por fecha límite)</span>
+          <span><i style="border-color: var(--plan); border-top-style: dashed"></i>Plan (acumulado por objetivo de ola; lo cerrado antes de v0.3, por su fecha límite)</span>
           <span><i style="border-color: var(--accent)"></i>Real (acumulado por fecha de cierre)</span>
         </div>
-        <div id="burn" role="img" aria-label="Gráfico de horas acumuladas: plan frente a real"></div>
+        <div id="burn" role="img" aria-label="Gráfico de puntos acumulados: plan frente a real"></div>
       </div>
     </div>
 
     <div class="block">
-      <header><h2>Hitos</h2><p>El % cuenta las horas de las tareas con fecha límite dentro de cada hito</p></header>
+      <header><h2>Hitos</h2><p>Objetivo y fecha límite de cada hito; el % cuenta los puntos de las tareas asignadas a él (por ola o por fecha límite)</p></header>
       <div class="ms" id="milestones"></div>
     </div>
 
     <div class="block">
-      <header><h2>Épicas</h2><p>Barra en horas del plan: hecho · en curso · bloqueado</p></header>
+      <header><h2>Épicas</h2><p>Barra en puntos del plan: hecho · por medir · en curso · bloqueado</p></header>
       <div class="epics" id="epics"></div>
     </div>
 
     <div class="block">
-      <header><h2>Próximas tareas</h2><p>Pendientes, por orden de fecha límite</p></header>
+      <header><h2>Próximas tareas</h2><p>Pendientes, por ola y fecha límite</p></header>
       <ul class="nextlist" id="nextup"></ul>
     </div>
   </section>
@@ -317,7 +320,7 @@ footer { margin-top: 40px; font-size: 12px; color: var(--ink-3); max-width: 80ch
     </div>
     <div class="tbl">
       <table id="tasks">
-        <thead><tr><th>ID</th><th>Tarea</th><th>Épica</th><th style="text-align:right">h</th><th>Límite</th><th>Estado</th><th>Cerrada</th></tr></thead>
+        <thead><tr><th>ID</th><th>Tarea</th><th>Épica</th><th style="text-align:right">pts</th><th>Ola</th><th>Límite</th><th>Estado</th><th>Cerrada</th></tr></thead>
         <tbody></tbody>
       </table>
     </div>
@@ -330,7 +333,7 @@ footer { margin-top: 40px; font-size: 12px; color: var(--ink-3); max-width: 80ch
     <div class="doclayout"><nav class="toc" id="toc-arch" aria-label="Índice de la arquitectura"></nav><article class="doc" id="doc-arch"></article></div>
   </section>
 
-  <footer id="foot">Todo lo que muestra esta página se calcula al abrirla a partir del contenido de tres ficheros del repositorio: <code>docs/tfm-work-plan.md</code> (tareas, horas, fechas límite, hitos), <code>docs/progress-tracker.md</code> (estado y notas de cada tarea) y <code>docs/tfm-architecture-and-dod.md</code>. La fecha de cierre de una tarea es la primera fecha que aparece en su nota del tracker. Las horas son estimaciones del plan; las tareas marcadas «por estimar» cuentan como 0 h.</footer>
+  <footer id="foot">Todo lo que muestra esta página se calcula al abrirla a partir del contenido de tres ficheros del repositorio: <code>docs/tfm-work-plan.md</code> (tareas, puntos, olas, fechas límite, hitos con objetivo y límite), <code>docs/progress-tracker.md</code> (estado y notas de cada tarea) y <code>docs/tfm-architecture-and-dod.md</code>. La fecha de cierre de una tarea es la primera fecha que aparece en su nota del tracker. Los puntos son las horas estimadas del plan (1 pt = 1 h); las tareas sin puntos cuentan como 0. «Por medir» (⏳) es una tarea construida a la espera de su medición en una validación: no cuenta como hecha.</footer>
 </div>
 
 <script id="docs-data" type="application/json">__DOCS_JSON__</script>
@@ -339,8 +342,8 @@ footer { margin-top: 40px; font-size: 12px; color: var(--ink-3); max-width: 80ch
 (() => {
   // {plan, arch, track}: the raw Markdown of docs/tfm-work-plan.md, tfm-architecture-and-dod.md and
   // progress-tracker.md, embedded by build_site.py (the viewer cannot fetch files published alongside).
-  const STATUS = { "✅": "done", "🔄": "progress", "🚧": "blocked", "⬜": "todo" };
-  const SLABEL = { done: "Hecha", progress: "En curso", blocked: "Bloqueada", todo: "Pendiente" };
+  const STATUS = { "✅": "done", "⏳": "awaiting", "🔄": "progress", "🚧": "blocked", "⬜": "todo" };
+  const SLABEL = { done: "Hecha", awaiting: "Por medir", progress: "En curso", blocked: "Bloqueada", todo: "Pendiente" };
   const MONTHS = { Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5, Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11 };
   const DAY = 86400000;
   const $ = (s, r = document) => r.querySelector(s);
@@ -352,14 +355,24 @@ footer { margin-top: 40px; font-size: 12px; color: var(--ink-3); max-width: 80ch
   const fmt = (d, withYear) => d.toLocaleDateString("es-ES", withYear ? { day: "numeric", month: "short", year: "numeric" } : { day: "numeric", month: "short" });
   const days = (a, b) => Math.round((b - a) / DAY);
 
-  // The plan runs Sep 2026 → Feb 2027; dates in it carry no year.
+  // The plan runs Sep 2026 → Feb 2027; dates in it carry no year. A cell may hold a struck-through old
+  // date, a range ("14 → 18 Dec") or a note in brackets: the date that counts is the last one left.
   function planDate(s) {
-    const m = s.replace(/\*/g, "").trim().match(/(?:\w{3} )?(\d{1,2}) (\w{3})$/);
-    if (!m || !(m[2] in MONTHS)) return null;
-    const mon = MONTHS[m[2]];
+    const t = (s || "").replace(/~~[^~]*~~/g, "").replace(/\([^)]*\)/g, "").replace(/\*/g, "");
+    const all = [...t.matchAll(/(\d{1,2}) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\b/g)];
+    if (!all.length) return null;
+    const m = all[all.length - 1], mon = MONTHS[m[2]];
     return new Date(mon >= 8 ? 2026 : 2027, mon, Number(m[1]));
   }
   const cells = line => line.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map(c => c.trim());
+  // Column index by header name, so a new or reordered column does not shift the others.
+  function columns(headerLine, names) {
+    const hs = cells(headerLine).map(h => h.toLowerCase());
+    const out = {};
+    for (const [key, alts] of Object.entries(names)) out[key] = hs.findIndex(h => alts.includes(h));
+    return out;
+  }
+  const at = (c, i) => (i >= 0 && i < c.length ? c[i] : "");
 
   function fixLinks(root) {
     root.querySelectorAll("a[href]").forEach(a => {
@@ -381,28 +394,60 @@ footer { margin-top: 40px; font-size: 12px; color: var(--ink-3); max-width: 80ch
   function parsePlan(md) {
     const epics = [], tasks = [];
     const sec1 = md.split(/^## 1\..*$/m)[1]?.split(/^## 2\..*$/m)[0] || "";
-    let cur = null;
+    let cur = null, col = null;
     for (const line of sec1.split("\n")) {
-      const h = line.match(/^### (E\d+) — (.+?)(?: \((\d+) h\))?(?: · (.*))?$/);
+      const h = line.match(/^### (E\d+) — (.+?)(?: \((\d+)(?: h| pts)?\))?(?: · (.*))?$/);
       if (h) { cur = { id: h[1], name: h[2], window: (h[4] || "").trim() }; epics.push(cur); continue; }
-      if (cur && /^\| E\d/.test(line)) {
-        const c = cells(line);
+      if (/^\| ID \|/.test(line)) {
+        col = columns(line, { title: ["task"], output: ["output"], pts: ["pts", "h"], wave: ["wave"], due: ["latest due", "due"] });
+        continue;
+      }
+      if (cur && col && /^\| E\d/.test(line)) {
+        const c = cells(line), dueCell = at(c, col.due);
         tasks.push({
-          id: c[0], epic: cur.id, titleMd: c[1], outputMd: c[2],
-          hours: /^\d+$/.test(c[3]) ? Number(c[3]) : null,
-          due: planDate(c[4]), dueRaw: c[4].replace(/\*/g, ""),
-          stretch: /Stretch/.test(c[1]),
+          id: c[0], epic: cur.id, titleMd: at(c, col.title), outputMd: at(c, col.output),
+          hours: /^\d+$/.test(at(c, col.pts)) ? Number(at(c, col.pts)) : null,
+          wave: at(c, col.wave).replace(/\*/g, ""),
+          due: planDate(dueCell), dueRaw: dueCell.replace(/\*/g, ""),
+          stretch: /Stretch/.test(at(c, col.title)),
         });
       }
     }
     const milestones = [];
     const sec2 = md.split(/^## 2\..*$/m)[1]?.split(/^## 3\..*$/m)[0] || "";
+    let mc = null;
     for (const line of sec2.split("\n")) {
-      if (!/^\| \*\*M\d/.test(line)) continue;
-      const c = cells(line);
-      milestones.push({ id: c[0].replace(/\*/g, ""), date: planDate(c[1]), name: c[2].replace(/\*/g, ""), accMd: c[3] });
+      if (/^\| ID \|/.test(line)) {
+        mc = columns(line, { target: ["target", "date"], deadline: ["deadline"], name: ["milestone"], acc: ["acceptance check"] });
+        continue;
+      }
+      if (!mc || !/^\| \*\*(M\d|V\d|FF)\*\*/.test(line)) continue;
+      const c = cells(line), target = planDate(at(c, mc.target));
+      milestones.push({
+        id: c[0].replace(/\*/g, ""), date: target, deadline: planDate(at(c, mc.deadline)) || target,
+        targetRaw: at(c, mc.target).replace(/\*/g, ""), deadlineRaw: at(c, mc.deadline).replace(/\*/g, ""),
+        name: at(c, mc.name).replace(/\*/g, ""), accMd: at(c, mc.acc),
+      });
     }
-    return { epics, tasks, milestones };
+    // §3 build waves: the target date of each wave and the milestone it closes ("| 1a | … | **M2: Fri 9 Oct** |");
+    // a wave that names no milestone feeds the next one that does.
+    const waves = {}, order = [];
+    const sec3 = md.split(/^## 3\..*$/m)[1]?.split(/^## 4\..*$/m)[0] || "";
+    let wc = null;
+    for (const line of sec3.split("\n")) {
+      if (/^\| Wave \|/.test(line)) { wc = columns(line, { target: ["target"] }); continue; }
+      if (!/^\|/.test(line)) { wc = null; continue; }
+      if (!wc || /^\|\s*-/.test(line)) continue;
+      const c = cells(line), cell = at(c, wc.target), d = planDate(cell);
+      if (!d || c[0] === "—") continue;
+      const ms = cell.match(/\b(M\d|V\d|FF)\b/);
+      waves[c[0]] = { date: d, ms: ms ? ms[1] : null };
+      order.push(waves[c[0]]);
+    }
+    order.forEach((w, i) => { if (!w.ms) w.ms = order.slice(i + 1).find(x => x.ms)?.ms || null; });
+    const v2 = milestones.find(m => m.id === "V2");
+    if (v2 && v2.date && !waves.V2) waves.V2 = { date: v2.date, ms: "V2" };
+    return { epics, tasks, milestones, waves };
   }
 
   function parseTracker(md) {
@@ -418,10 +463,13 @@ footer { margin-top: 40px; font-size: 12px; color: var(--ink-3); max-width: 80ch
       tasks[c[0]] = { status: STATUS[c[i]], notes, firstDate: d ? fromIso(d[0]) : null };
     }
     for (const line of msPart.split("\n")) {
-      if (!/^\| M\d/.test(line)) continue;
+      if (!/^\| (M\d|V\d|FF) /.test(line)) continue;
       const c = cells(line);
-      const d = (c[4] || "").match(/20\d\d-\d\d-\d\d/);
-      milestones[c[0]] = { status: STATUS[c[3]] || "todo", notes: c[4] || "", firstDate: d ? fromIso(d[0]) : null };
+      // The status cell is found by its emoji, so extra date columns (target, deadline) do not shift it.
+      const i = c.findIndex(x => x in STATUS);
+      const notes = i >= 0 ? c.slice(i + 1).join("|").trim() : "";
+      const d = notes.match(/20\d\d-\d\d-\d\d/);
+      milestones[c[0]] = { status: i >= 0 ? STATUS[c[i]] : "todo", notes, firstDate: d ? fromIso(d[0]) : null };
     }
     const lu = md.match(/Last updated:\s*([0-9-]+)(.*)/);
     return { tasks, milestones, lastUpdated: lu ? fromIso(lu[1]) : null };
@@ -442,22 +490,34 @@ footer { margin-top: 40px; font-size: 12px; color: var(--ink-3); max-width: 80ch
       const r = tr.milestones[m.id] || { status: "todo", notes: "" };
       m.status = r.status; m.notes = r.notes; m.doneDate = r.status === "done" ? r.firstDate : null;
     }
-    const last = plan.milestones[plan.milestones.length - 1];
+    // Milestones without a date (M8, delivery in May, not planned) get a card but stay off the chart.
+    const dated = plan.milestones.filter(m => m.date);
+    const last = dated[dated.length - 1], undated = plan.milestones.find(m => !m.date);
     for (const t of plan.tasks) {
+      // A task in a build wave (or V2) counts at the wave's target and belongs to the first milestone
+      // whose target it meets; any other task counts at its latest due, matched against deadlines.
+      const wave = plan.waves[t.wave] || null, waveDate = wave ? wave.date : null;
+      t.unplanned = t.wave === "M8";
+      t.planned = t.unplanned ? null : (waveDate || t.due);
       if (t.stretch) { t.milestone = null; continue; }
-      t.milestone = t.due ? (plan.milestones.find(m => t.due <= m.date) || last).id : last.id;
+      if (t.unplanned) { t.milestone = (undated || last).id; continue; }
+      const m = wave ? (dated.find(m => m.id === wave.ms) || dated.find(m => waveDate <= m.date))
+        : t.due ? dated.find(m => t.due <= m.deadline) : null;
+      t.milestone = (m || last).id;
     }
-    plan.tasks.sort((a, b) => ((a.due || last.date) - (b.due || last.date)) || a.id.localeCompare(b.id, undefined, { numeric: true }));
-    return { ...plan, lastUpdated: tr.lastUpdated, counted: plan.tasks.filter(t => !t.stretch) };
+    const key = t => t.planned || t.due || (t.unplanned ? new Date(2027, 11, 31) : last.date);
+    plan.tasks.sort((a, b) => (key(a) - key(b)) || a.id.localeCompare(b.id, undefined, { numeric: true }));
+    return { ...plan, dated, end: last.date, lastUpdated: tr.lastUpdated, counted: plan.tasks.filter(t => !t.stretch) };
   }
 
   // ---------- Aggregates ----------
   function agg(list) {
-    const a = { n: list.length, h: 0, done: 0, doneH: 0, progressH: 0, blockedH: 0, tbd: 0 };
+    const a = { n: list.length, h: 0, done: 0, doneH: 0, awaiting: 0, awaitingH: 0, progressH: 0, blockedH: 0, tbd: 0 };
     for (const t of list) {
       const h = t.hours || 0;
       a.h += h; if (t.hours == null) a.tbd++;
       if (t.status === "done") { a.done++; a.doneH += h; }
+      if (t.status === "awaiting") { a.awaiting++; a.awaitingH += h; }
       if (t.status === "progress") a.progressH += h;
       if (t.status === "blocked") a.blockedH += h;
     }
@@ -467,14 +527,15 @@ footer { margin-top: 40px; font-size: 12px; color: var(--ink-3); max-width: 80ch
   const pct = x => Math.round(x * 100) + " %";
   function bar(a) {
     const w = v => a.h ? (v / a.h * 100).toFixed(2) + "%" : "0";
-    return `<div class="bar" aria-hidden="true">${a.doneH ? `<span class="s-done" style="width:${w(a.doneH)}"></span>` : ""}${a.progressH ? `<span class="s-progress" style="width:${w(a.progressH)}"></span>` : ""}${a.blockedH ? `<span class="s-blocked" style="width:${w(a.blockedH)}"></span>` : ""}</div>`;
+    return `<div class="bar" aria-hidden="true">${a.doneH ? `<span class="s-done" style="width:${w(a.doneH)}"></span>` : ""}${a.awaitingH ? `<span class="s-awaiting" style="width:${w(a.awaitingH)}"></span>` : ""}${a.progressH ? `<span class="s-progress" style="width:${w(a.progressH)}"></span>` : ""}${a.blockedH ? `<span class="s-blocked" style="width:${w(a.blockedH)}"></span>` : ""}</div>`;
   }
   const pill = s => `<span class="pill ${s}">${SLABEL[s]}</span>`;
 
-  // Cumulative planned hours at date d (tasks count on their due date; rolling tasks at the end).
+  // Cumulative planned points at date d (a task counts at its wave's target, else at its latest due;
+  // rolling tasks at the end; tasks left for the M8 window are not planned).
   function planCurve(M) {
-    const end = M.milestones[M.milestones.length - 1].date;
-    const pts = M.counted.filter(t => t.hours).map(t => [t.due || end, t.hours]).sort((a, b) => a[0] - b[0]);
+    const end = M.end;
+    const pts = M.counted.filter(t => t.hours && !t.unplanned).map(t => [t.planned || end, t.hours]).sort((a, b) => a[0] - b[0]);
     return d => pts.reduce((s, [x, h]) => x <= d ? s + h : s, 0);
   }
   function realCurve(M) {
@@ -486,28 +547,30 @@ footer { margin-top: 40px; font-size: 12px; color: var(--ink-3); max-width: 80ch
   function renderSummary(M) {
     const A = agg(M.counted);
     const plan = planCurve(M);
-    const start = new Date(2026, 8, 9), end = M.milestones[M.milestones.length - 1].date;
+    const start = new Date(2026, 8, 9), end = M.end, lastM = M.dated[M.dated.length - 1];
     const planNow = plan(today);
     // Date at which the plan reaches the hours already done.
     let eq = null;
     for (let d = new Date(start); d <= end; d = new Date(d.getTime() + DAY)) { if (plan(d) >= A.doneH) { eq = d; break; } }
     const ahead = eq ? days(today, eq) : null;
-    const nextM = M.milestones.find(m => m.status !== "done");
+    const nextM = M.dated.find(m => m.status !== "done");
     const nextA = nextM ? agg(M.counted.filter(t => t.milestone === nextM.id)) : null;
     const counts = { progress: M.counted.filter(t => t.status === "progress").length, blocked: M.counted.filter(t => t.status === "blocked").length };
+    // "9 oct (en 15 días) · límite 13 nov" — the target drives the countdown, the deadline is the hard line.
+    const dl = m => m.deadline && m.deadline - m.date ? ` · límite ${fmt(m.deadline)}` : "";
 
     $("#kpis").innerHTML = `
       <div class="kpi"><div class="lbl">Progreso global</div><div class="val">${pct(A.pct)}</div>
-        <div class="note">${A.doneH} de ${A.h} h · ${A.done} de ${A.n} tareas</div></div>
+        <div class="note">${A.doneH} de ${A.h} pts · ${A.done} de ${A.n} tareas${A.awaiting ? ` · ${A.awaiting} por medir (${A.awaitingH} pts)` : ""}</div></div>
       <div class="kpi"><div class="lbl">Respecto al plan</div><div class="val">${ahead == null ? "—" : ahead >= 0 ? "+" + ahead + " <small>días</small>" : ahead + " <small>días</small>"}</div>
-        <div class="note">${ahead == null ? "" : ahead >= 0 ? "de adelanto" : "de retraso"} · el plan esperaba ${planNow} h a hoy</div></div>
+        <div class="note">${ahead == null ? "" : ahead >= 0 ? "de adelanto" : "de retraso"} · el plan esperaba ${planNow} pts a hoy</div></div>
       <div class="kpi"><div class="lbl">Próximo hito</div><div class="val">${nextM ? nextM.id + " <small>" + pct(nextA.pct) + "</small>" : "—"}</div>
-        <div class="note">${nextM ? esc(nextM.name) + " · " + fmt(nextM.date) + " (en " + days(today, nextM.date) + " días)" : ""}</div></div>
-      <div class="kpi"><div class="lbl">Entrega</div><div class="val">${days(today, end)} <small>días</small></div>
-        <div class="note">${fmt(end, true)} · ${counts.progress} en curso, ${counts.blocked} bloqueadas</div></div>`;
+        <div class="note">${nextM ? esc(nextM.name) + " · objetivo " + fmt(nextM.date) + " (en " + days(today, nextM.date) + " días)" + dl(nextM) : ""}</div></div>
+      <div class="kpi"><div class="lbl">Hasta ${esc(lastM.id)}</div><div class="val">${days(today, end)} <small>días</small></div>
+        <div class="note">${esc(lastM.name)} · ${fmt(end, true)} · ${counts.progress} en curso, ${counts.blocked} bloqueadas</div></div>`;
 
     $("#headline").innerHTML = ahead == null ? "" :
-      `A ${fmt(today)} están cerradas tareas por <strong>${A.doneH} h</strong> del plan. El plan esperaba <strong>${planNow} h</strong> para hoy, y no llega a ${A.doneH} h hasta el <strong>${fmt(eq)}</strong>: ${ahead >= 0 ? `<strong>${ahead} días de adelanto</strong>` : `<strong>${-ahead} días de retraso</strong>`}.`;
+      `A ${fmt(today)} están cerradas tareas por <strong>${A.doneH} pts</strong> del plan. El plan esperaba <strong>${planNow} pts</strong> para hoy, y no llega a ${A.doneH} pts hasta el <strong>${fmt(eq)}</strong>: ${ahead >= 0 ? `<strong>${ahead} días de adelanto</strong>` : `<strong>${-ahead} días de retraso</strong>`}.`;
 
     const real = realCurve(M), host = $("#burn");
     let lastW = 0;
@@ -520,15 +583,20 @@ footer { margin-top: 40px; font-size: 12px; color: var(--ink-3); max-width: 80ch
     $("#milestones").innerHTML = M.milestones.map(m => {
       const list = M.counted.filter(t => t.milestone === m.id), a = agg(list);
       const isNext = nextM && m.id === nextM.id;
-      const when = m.status === "done"
-        ? `Cumplido ${m.doneDate ? fmt(m.doneDate) + (days(m.doneDate, m.date) > 0 ? ` · ${days(m.doneDate, m.date)} días antes` : "") : ""}`
-        : (days(today, m.date) >= 0 ? `Faltan ${days(today, m.date)} días` : `Vencido hace ${-days(today, m.date)} días`);
+      const when = !m.date ? "No planificado en este plan"
+        : m.status === "done"
+        ? `Cumplido ${m.doneDate ? fmt(m.doneDate) + (days(m.doneDate, m.date) > 0 ? ` · ${days(m.doneDate, m.date)} días antes del objetivo` : "") : ""}`
+        : days(today, m.date) >= 0 ? `Faltan ${days(today, m.date)} días`
+        : days(today, m.deadline) >= 0 ? `Objetivo superado · ${days(today, m.deadline)} días hasta el límite`
+        : `Límite vencido hace ${-days(today, m.deadline)} días`;
+      const dates = !m.date ? esc(m.targetRaw)
+        : m.deadline - m.date ? `Objetivo ${fmt(m.date, true)} · límite ${fmt(m.deadline, true)}` : fmt(m.date, true);
       return `<article class="mcard${isNext ? " next" : ""}">
         <div class="mtop"><span class="mid">${m.id}</span>${pill(m.status)}</div>
         <h3>${esc(m.name)}</h3>
-        <div class="mdate">${fmt(m.date, true)} · ${when}</div>
+        <div class="mdate">${dates}<br>${when}</div>
         ${bar(a)}
-        <div class="barmeta"><span>${pct(a.pct)} · ${a.doneH}/${a.h} h</span><span>${a.done}/${a.n} tareas${a.tbd ? ` · ${a.tbd} sin horas` : ""}</span></div>
+        <div class="barmeta"><span>${pct(a.pct)} · ${a.doneH}/${a.h} pts</span><span>${a.done}/${a.n} tareas${a.awaiting ? ` · ${a.awaiting} por medir` : ""}${a.tbd ? ` · ${a.tbd} sin puntos` : ""}</span></div>
         <div class="acc">${inline(m.accMd)}</div>
         ${m.notes ? `<details><summary>Nota del tracker</summary><p>${inline(m.notes)}</p></details>` : ""}
       </article>`;
@@ -540,7 +608,7 @@ footer { margin-top: 40px; font-size: 12px; color: var(--ink-3); max-width: 80ch
       return `<div class="erow">
         <div><div class="ename"><span class="mono">${e.id}</span>${esc(e.name)}</div><div class="ewin">${inline(e.window)}</div></div>
         <div class="ebar">${bar(a)}</div>
-        <div class="ecount"><strong>${pct(a.pct)}</strong> · ${a.doneH}/${a.h} h<br>${a.done}/${a.n} tareas</div>
+        <div class="ecount"><strong>${pct(a.pct)}</strong> · ${a.doneH}/${a.h} pts<br>${a.done}/${a.n} tareas${a.awaiting ? ` · ${a.awaiting} por medir` : ""}</div>
       </div>`;
     }).join("");
 
@@ -549,7 +617,7 @@ footer { margin-top: 40px; font-size: 12px; color: var(--ink-3); max-width: 80ch
     $("#nextup").innerHTML = pending.map(t => `<li>
       <span class="mono">${t.id}</span>
       <span class="t">${t.title} ${t.status !== "todo" ? pill(t.status) : ""}</span>
-      <span class="d">${t.due ? fmt(t.due) : esc(t.dueRaw)}${t.hours ? ` · ${t.hours} h` : ""}</span></li>`).join("");
+      <span class="d">${t.wave ? `ola ${esc(t.wave)} · ` : ""}${t.due ? fmt(t.due) : esc(t.dueRaw)}${t.hours ? ` · ${t.hours} pts` : ""}</span></li>`).join("");
   }
 
   // ---------- Burn-up chart ----------
@@ -579,10 +647,10 @@ footer { margin-top: 40px; font-size: 12px; color: var(--ink-3); max-width: 80ch
     }
     let ms = "";
     const narrow = W < 560;
-    M.milestones.forEach((mm, i) => {
+    M.dated.forEach((mm, i) => {
       const xx = x(mm.date);
       ms += `<line x1="${xx}" x2="${xx}" y1="${H - m.b}" y2="${H - m.b + 5}" stroke="var(--ink-3)"/>`;
-      if (!narrow || i % 2 === 0 || i === M.milestones.length - 1)
+      if (!narrow || i % 2 === 0 || i === M.dated.length - 1)
         ms += `<text x="${xx}" y="${H - m.b + 18}" text-anchor="middle" style="font-weight:600;fill:var(--ink-2)">${mm.id}</text>`;
     });
     // Month labels
@@ -600,8 +668,8 @@ footer { margin-top: 40px; font-size: 12px; color: var(--ink-3); max-width: 80ch
       <path d="${step(plan)}" fill="none" stroke="var(--plan)" stroke-width="2" stroke-dasharray="6 4"/>
       <path d="${step(real)}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round"/>
       <circle cx="${tx}" cy="${y(rNow)}" r="5" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/>
-      <text x="${tx + 9}" y="${y(rNow) - 8}" style="fill:var(--ink);font-weight:700">${rNow} h</text>
-      <text x="${W - m.r}" y="${y(total) - 8}" text-anchor="end" style="fill:var(--ink-2)">${total} h plan</text>
+      <text x="${tx + 9}" y="${y(rNow) - 8}" style="fill:var(--ink);font-weight:700">${rNow} pts</text>
+      <text x="${W - m.r}" y="${y(total) - 8}" text-anchor="end" style="fill:var(--ink-2)">${total} pts plan</text>
       <line class="xh" x1="0" x2="0" y1="${m.t}" y2="${H - m.b}" stroke="var(--ink-2)" stroke-width="1" visibility="hidden"/>
       <rect x="${m.l}" y="${m.t}" width="${W - m.l - m.r}" height="${H - m.t - m.b}" fill="transparent" class="hit"/>
     </svg><div class="tip" hidden></div>`;
@@ -613,8 +681,8 @@ footer { margin-top: 40px; font-size: 12px; color: var(--ink-3); max-width: 80ch
       if (d < start || d > end) return leave();
       xh.setAttribute("x1", x(d)); xh.setAttribute("x2", x(d)); xh.setAttribute("visibility", "visible");
       tip.hidden = false;
-      tip.innerHTML = `<b>${fmt(d, true)}</b><div><span>Plan</span><span>${plan(d)} h</span></div>` +
-        (d <= today ? `<div><span>Real</span><span>${real(d)} h</span></div>` : "");
+      tip.innerHTML = `<b>${fmt(d, true)}</b><div><span>Plan</span><span>${plan(d)} pts</span></div>` +
+        (d <= today ? `<div><span>Real</span><span>${real(d)} pts</span></div>` : "");
       const left = (x(d) / W) * r.width;
       tip.style.left = Math.min(Math.max(0, left + 12), r.width - 170) + "px";
       tip.style.top = "12px";
@@ -627,7 +695,7 @@ footer { margin-top: 40px; font-size: 12px; color: var(--ink-3); max-width: 80ch
   // ---------- Render: tasks ----------
   const F = { status: "all", epic: "all", text: "" };
   function renderTaskFilters(M) {
-    const opts = [["all", "Todas"], ["open", "Lo que queda"], ["done", "Hechas"], ["progress", "En curso"], ["blocked", "Bloqueadas"]];
+    const opts = [["all", "Todas"], ["open", "Lo que queda"], ["done", "Hechas"], ["awaiting", "Por medir"], ["progress", "En curso"], ["blocked", "Bloqueadas"]];
     $("#fStatus").innerHTML = opts.map(([k, l]) => `<button type="button" data-k="${k}" aria-pressed="${F.status === k}">${l}</button>`).join("");
     $("#fEpic").innerHTML = `<option value="all">Todas las épicas</option>` + M.epics.map(e => `<option value="${e.id}">${e.id} — ${esc(e.name)}</option>`).join("");
     $("#fStatus").addEventListener("click", ev => {
@@ -646,7 +714,7 @@ footer { margin-top: 40px; font-size: 12px; color: var(--ink-3); max-width: 80ch
       (F.epic === "all" || t.epic === F.epic) &&
       (!F.text || (t.id + " " + t.titleText + " " + t.outputMd).toLowerCase().includes(F.text)));
     const a = agg(list.filter(t => !t.stretch));
-    $("#fCount").textContent = `${list.length} tareas · ${a.h} h`;
+    $("#fCount").textContent = `${list.length} tareas · ${a.h} pts`;
     const body = $("#tasks tbody");
     body.innerHTML = list.map(t => {
       let fin = "—";
@@ -654,16 +722,17 @@ footer { margin-top: 40px; font-size: 12px; color: var(--ink-3); max-width: 80ch
         const dd = t.due ? days(t.doneDate, t.due) : null;
         fin = `${fmt(t.doneDate)}<span class="delta${dd > 0 ? " ahead" : ""}">${dd == null ? "" : dd > 0 ? dd + " días antes" : dd === 0 ? "en fecha" : -dd + " días tarde"}</span>`;
       }
-      const overdue = t.status !== "done" && t.due && t.due < today;
+      const overdue = t.status !== "done" && t.status !== "awaiting" && t.due && t.due < today;
       return `<tr class="row" data-id="${t.id}" tabindex="0" aria-expanded="false">
         <td class="id"><span class="chev">›</span>${t.id}</td>
         <td class="ttl">${t.title}</td>
         <td><span class="epictag">${t.epic}</span></td>
-        <td class="h">${t.hours ?? `<span class="muted" title="Horas por estimar">—</span>`}</td>
+        <td class="h">${t.hours ?? `<span class="muted" title="Sin puntos">—</span>`}</td>
+        <td class="wave">${t.wave ? esc(t.wave) : `<span class="muted">—</span>`}</td>
         <td class="due">${t.due ? fmt(t.due) : esc(t.dueRaw)}${overdue ? `<span class="flag">vencida</span>` : ""}</td>
         <td>${t.stretch ? `<span class="pill todo">Stretch</span>` : pill(t.status)}</td>
         <td class="fin">${fin}</td></tr>
-        <tr class="detail" data-for="${t.id}" hidden><td colspan="7"><div class="dgrid">
+        <tr class="detail" data-for="${t.id}" hidden><td colspan="8"><div class="dgrid">
           <div><div class="k">Épica</div>${t.epic} — ${esc(epicName[t.epic] || "")}${t.milestone ? ` · cuenta para el hito ${t.milestone}` : ""}</div>
           <div><div class="k">Entregable</div>${inline(t.outputMd)}</div>
           <div><div class="k">Nota del tracker</div>${t.notes ? inline(t.notes) : t.inTracker ? "Sin nota." : "La tarea todavía no tiene fila en el tracker."}</div>
