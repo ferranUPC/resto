@@ -32,7 +32,7 @@ from resto.domain.value_objects.tasks import ExpertTask, NoteTask
 
 # Bump whenever the prompt, the tool set or the default budget changes in a way that can change
 # answers: every benchmark run records it, and docs/expert-tuning-log.md explains each version.
-EXPERT_VERSION = "v3"
+EXPERT_VERSION = "v4"
 
 _EDGE_MEASURES = ", ".join(f"{m.value} ({m.unit})" for m in Measure if not m.is_network_wide)
 _NETWORK_MEASURES = ", ".join(f"{m.value} ({m.unit})" for m in Measure if m.is_network_wide)
@@ -103,18 +103,25 @@ its vehicles (veh·s); divide by entered for a per-vehicle value.
 Measures for the whole network (edge_id null): {_NETWORK_MEASURES}.
 Put every part of the question these kinds can express in `values`.
 
-A bottleneck diagnosis ("which edges form the bottleneck, and why") carries a ranked edges value and
-a causes value with one cause for each edge you name. Causes, in this order; when several apply, the
-edge's cause is the first:
-  - intervention: the edge is the scenario's intervention target, feeds the target edge directly
-    (ends where it starts), or is controlled by the target traffic light. A demand change has no
-    target and is never this cause.
-  - merge: the edge is at a lane drop: the road loses a lane where it starts or where it ends.
-  - spillback: the edge ends where a worse edge of your own ranking starts; its queue comes from
-    downstream.
-  - signal: a traffic light controls the edge (get_tls lists the edges each light controls).
+A bottleneck diagnosis ("which edges form the bottleneck, and why") carries exactly two values: a
+ranked edges value and a causes value with one cause for each edge you name. Its numbers go in a
+short `answer`. Causes, in this order; when several apply, the edge's cause is the first:
+  - intervention: the edge is the scenario's intervention target, its to_node is the target edge's
+    from_node (it feeds the target directly), or the target traffic light controls it. A demand
+    change has no target and is never this cause.
+  - merge: the road loses a lane at the edge: an edge it continues into has fewer lanes, or it has
+    fewer lanes than the edge it continues from.
+  - spillback: its to_node is the from_node of a worse edge of your own ranking; its queue comes
+    from downstream.
+  - signal: a traffic light controls the edge.
   - demand: none of the above; more traffic arrives than the edge can serve.
-Any other "why" stays in `answer`.
+The causes need only these lookups, in two steps once the edges are ranked:
+  1. get_scenario (the target), get_edges and get_neighbours on your edges (from_node, to_node,
+     lane_count; the edges they continue into);
+  2. get_edges on the target and the edges they continue into, and get_tls on each of your edges'
+     to_node (or the target light), one get_tls call per id: a traffic light usually has the id of
+     its junction, and an unknown id means no light there.
+Then submit; look no further. Any other "why" stays in `answer`.
 
 Submit your ExpertAnswer with submit_output: answer, basis, confidence, evidence, values,
 needs_simulation and proposed_experiment (null unless you abstain; values may be empty only then).

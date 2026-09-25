@@ -1,0 +1,119 @@
+{
+  "runs": 20,
+  "expert_versions": [
+    "v3"
+  ],
+  "questions": 20,
+  "repetitions": [
+    1
+  ],
+  "budget_stops": 18,
+  "per_repetition": {
+    "1": {
+      "descriptive_accuracy": null,
+      "desc_occ_accuracy": null,
+      "desc_tt_accuracy": null,
+      "diag_accuracy": 0.1,
+      "diag_mean_jaccard": 0.1,
+      "diag_cause_accuracy": 1.0,
+      "cf_dir_accuracy": null,
+      "cf_topk_accuracy": null,
+      "cf_topk_mean_jaccard": null,
+      "cf_band_accuracy": null,
+      "brier": 0.01625,
+      "accepted_share": 0.1,
+      "abstention_recall": 0.0,
+      "abstention_false_requests": null
+    }
+  },
+  "aggregate": {
+    "descriptive_accuracy": {
+      "mean": null,
+      "std": null,
+      "repetitions": 0
+    },
+    "desc_occ_accuracy": {
+      "mean": null,
+      "std": null,
+      "repetitions": 0
+    },
+    "desc_tt_accuracy": {
+      "mean": null,
+      "std": null,
+      "repetitions": 0
+    },
+    "diag_accuracy": {
+      "mean": 0.1,
+      "std": null,
+      "repetitions": 1
+    },
+    "diag_mean_jaccard": {
+      "mean": 0.1,
+      "std": null,
+      "repetitions": 1
+    },
+    "diag_cause_accuracy": {
+      "mean": 1.0,
+      "std": null,
+      "repetitions": 1
+    },
+    "cf_dir_accuracy": {
+      "mean": null,
+      "std": null,
+      "repetitions": 0
+    },
+    "cf_topk_accuracy": {
+      "mean": null,
+      "std": null,
+      "repetitions": 0
+    },
+    "cf_topk_mean_jaccard": {
+      "mean": null,
+      "std": null,
+      "repetitions": 0
+    },
+    "cf_band_accuracy": {
+      "mean": null,
+      "std": null,
+      "repetitions": 0
+    },
+    "brier": {
+      "mean": 0.01625,
+      "std": null,
+      "repetitions": 1
+    },
+    "accepted_share": {
+      "mean": 0.1,
+      "std": null,
+      "repetitions": 1
+    },
+    "abstention_recall": {
+      "mean": 0.0,
+      "std": null,
+      "repetitions": 1
+    },
+    "abstention_false_requests": {
+      "mean": null,
+      "std": null,
+      "repetitions": 0
+    }
+  },
+  "accuracy_by_basis": {
+    "observed": {
+      "answers": 2,
+      "accuracy": 1.0
+    }
+  },
+  "cost_by_family": {
+    "diag": {
+      "runs": 20.0,
+      "steps": 117.0,
+      "text_only_steps": 21.0,
+      "cut_at_limit_steps": 21.0,
+      "input_tokens": 1641992.0,
+      "output_tokens": 129789.0,
+      "cost_usd": 0.3241721999999999
+    }
+  },
+  "total_cost_usd": 0.32417219999999997
+}

@@ -41,15 +41,21 @@ agent optimisation; they make the baseline measurable and correct.
 
 ## 3. Versions
 
-| Version | Date | Change | Sweep | Descriptive acc. | Diagnostic Jaccard | CF direction | CF band | Brier | Accepted | Cost (USD) |
-|---|---|---|---|---|---|---|---|---|---|---|
-| v0 | 2026-09-17 | Baseline | `v0-forced-1rep` (117 × 1) | 0.68 | 0.10 | 0.79 | 0.89 | 0.08 | 0.59 | 1.54 |
-| v0 re-scored | 2026-09-17 | Same runs, bank with `NoValue` gold (ADR-0021) | `v0-forced-1rep-rescored` | 0.57 | 0.10 | 0.79 | 0.89 | 0.13 | 0.59 | 0 |
-| v1 | 2026-09-17 | Aggregation tools + expert practice in the prompt | `v1-forced-1rep` (117 × 1) | 1.00 | 0.70 | 1.00 | 1.00 | 0.02 | 0.94 | 0.98 |
-| v2 | 2026-09-25 | Batched topology tools; **E3.8 (clock-time) bank** | `v2-e38-forced-1rep` (117 × 1) | 1.00 | 0.80 | 1.00 | 1.00 | 0.03 | 0.97 | 0.99 |
+| Version | Date | Change | Sweep | Descriptive acc. | Diagnostic Jaccard | Diagnostic cause acc. | CF direction | CF band | Brier | Accepted | Cost (USD) |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| v0 | 2026-09-17 | Baseline | `v0-forced-1rep` (117 × 1) | 0.68 | 0.10 | — | 0.79 | 0.89 | 0.08 | 0.59 | 1.54 |
+| v0 re-scored | 2026-09-17 | Same runs, bank with `NoValue` gold (ADR-0021) | `v0-forced-1rep-rescored` | 0.57 | 0.10 | — | 0.79 | 0.89 | 0.13 | 0.59 | 0 |
+| v1 | 2026-09-17 | Aggregation tools + expert practice in the prompt | `v1-forced-1rep` (117 × 1) | 1.00 | 0.70 | — | 1.00 | 1.00 | 0.02 | 0.94 | 0.98 |
+| v2 | 2026-09-25 | Batched topology tools; **E3.8 (clock-time) bank** | `v2-e38-forced-1rep` (117 × 1) | 1.00 | 0.80 | 0.00 ¹ | 1.00 | 1.00 | 0.03 | 0.97 | 0.99 |
+| v3 | 2026-09-25 | Bottleneck cause per edge (ADR-0029) | `v3-diag-1rep` (20 `-diag` × 1) | — ² | 0.10 | 1.00 (6 edges) | — | — | — | 0.10 | 0.32 |
+| v4 | 2026-09-25 | Cause lookups in two steps; two-value diagnosis | `v4-diag-1rep` (20 `-diag` × 1) | — ² | 0.60 | 0.89 (36 edges) | — | — | — | 0.60 | 0.28 |
 
-DoD thresholds (DEV-NET): descriptive ≥ 0.90, diagnostic Jaccard ≥ 0.60, CF direction ≥ 0.75, CF band ≥ 0.50,
-Brier ≤ 0.25, accepted = 1.00.
+DoD thresholds (DEV-NET): descriptive ≥ 0.90, diagnostic Jaccard ≥ 0.60, diagnostic cause (the "why",
+ADR-0029) ≥ 0.70, CF direction ≥ 0.75, CF band ≥ 0.50, Brier ≤ 0.25, accepted = 1.00.
+
+¹ Re-scored after ADR-0029: v2 has no cause value, so every shared edge counts as wrong.
+² Diagnostic-only sweeps: the other families were not run, and Brier and accepted cover the 20
+diagnostic questions only. v3 and v4 changed only the diagnostic part of the prompt.
 
 ### v0 — baseline
 
@@ -151,11 +157,12 @@ with this re-scored v0.
 - **Risk to watch.** Tools must stay generic (rank by *any* measure); a tool shaped like the gold answer
   would make the benchmark measure tool selection rather than reasoning.
 
-### v2 — batched topology tools (in progress, sweep deferred)
+### v2 — batched topology tools
 
 - **Status.** Code changed and unit-tested; a small-scale check on v1's 7 budget stops is done
-  ($0.10); the DoD's 3-repetition sweep over the full bank is **deferred**, see below — do not treat
-  this entry as a reported result yet.
+  ($0.10); the DoD's 3-repetition sweep over the full bank is **deferred**, see below. *Update
+  2026-09-25:* a 1-repetition development sweep of v2 ran on the rebuilt E3.8 bank; see
+  "Development sweep on the rebuilt bank" below.
 - **Configuration** (`EXPERT_VERSION = "v2"`; prompt and budget otherwise unchanged from v1):
   `get_edge`, `get_neighbours`, `capacity_estimate` and `get_tls` are replaced, Expert-side only, by
   `get_edges`/`get_neighbours`/`capacity_estimate`/`get_tls` taking a **list** of ids instead of one
@@ -270,8 +277,164 @@ $0.99 (cap $1.30), no crashes. Report: `eval/expert_benchmark/reports/v2-e38-for
   family. The clock-time move (ADR-0028) cost no accuracy, and batching (v2) cut the diagnostic budget
   stops from 6 to 4.
 
-Spent on Expert runs so far: **$3.87** (v0 $1.54, v1 $0.98, v2 retry $0.10, smokes $0.27,
-`v2-e38-forced-1rep` $0.99).
+### v3: a typed Bottleneck cause per edge (E4.3, ADR-0029)
+
+- **Configuration** (`EXPERT_VERSION = "v3"`, commit `c759a21`; tools, budget and model as v2):
+  - a new answer value kind, `causes` (`BottleneckCauses`), holds one (edge, cause) pair for each
+    bottleneck edge;
+  - the prompt lists the kind and defines the five causes in precedence order: `intervention` >
+    `merge` > `spillback` > `signal` > `demand`, first match wins;
+  - the diagnostic question text now asks "why is each of them congested?" (bank rebuild `b137b36`);
+  - the benchmark grades the cause of every edge the answer shares with the gold (`537d910`).
+- **Hypothesis.** A judge model is not needed to grade the "why" of a diagnosis if the Expert states
+  it as a closed category. The facts it needs (the target, the traffic lights, the lanes) come from
+  tools the Expert already calls when it explains a bottleneck in prose. The new value should
+  therefore cost little more than a few output tokens in the final submission. Risk noted in the
+  spec: the diagnostic family already reached the 2,048-token limit.
+- **Sweep.** `v3-diag-1rep`: the 20 `-diag` questions × 1, forced, 6 workers, $0.32 (estimated
+  $0.25, cap $0.40). The other families are unaffected and were not rerun. Report:
+  `eval/expert_benchmark/reports/v3-diag-1rep.md`.
+- **Results** (against v2 on the same 20 questions of the E3.8 bank, taken from `v2-e38-forced-1rep`).
+
+  | | v2 | v3 |
+  |---|---|---|
+  | Answered (all with Jaccard 1.00) | 16 / 20 | 2 / 20 |
+  | Diagnostic Jaccard | 0.80 | 0.10 |
+  | Cause accuracy | 0.00 (no value) | 1.00 (6 / 6 edges) |
+  | Budget stops | 4 | 18 |
+  | Steps | 100 | 117 |
+  | Text-only steps cut at 2,048 tokens | 4 | 21 |
+  | Tool calls (failed) | 222 (3) | 315 (30) |
+  | `get_tls` calls (failed) | 9 (1) | 48 (24) |
+  | Output tokens | 84.8 k | 129.8 k |
+  | Cost (USD) | 0.23 | 0.32 |
+
+- **Findings.** The value itself works: both answers named the right three edges and gave the right
+  cause for all six. The failures came before that point. The traces show three mechanisms:
+  1. *Guessing traffic-light ids.* `signal` and one form of `intervention` depend on which light
+     controls an edge. No tool lists the lights: `get_tls` takes ids, so the Expert guessed them (`B1`,
+     `A1`, `B2C2`, `tls_A1`, `0`, …). One unknown id fails the whole batched call. 24 of the 48
+     `get_tls` calls failed, and every failure cost a step. S06 made 10 `get_tls` calls, 6 of them
+     failed, and it never answered.
+  2. *Hunting for lane drops.* To check `merge` ("the road loses a lane"), the Expert called
+     `get_lanes` on one edge after another, up to 8 times in one step, although `get_edges` already
+     returns `lane_count`.
+  3. *Deliberation cut at the token limit.* 21 steps ended with `finish_reason = length` and produced
+     no text and no tool call. The model spent its 2,048 output tokens reasoning about the precedence
+     rule before it acted (S00, S04, S07 and S11 lost three steps each this way).
+  Each of the 18 stops falls into one of three groups:
+  - 10 lose at least one step to a cut text-only step (S00, S02, S03, S04, S07, S09, S11, S12, S17,
+    S18);
+  - 6 use up all 6 steps on tool calls, mostly failed `get_tls` calls and `get_lanes` (S05, S06, S10,
+    S14, S16, S19);
+  - 2 submit an answer cut at the limit that has lost its `evidence`, which is rejected (S01, S13).
+- **Conclusion.** The contract stays: the value, the gold rule and the grading are kept. The prompt
+  must also tell the Expert how to get the facts cheaply. Cause accuracy is formally ≥ 0.70, but
+  measured on 6 edges it means nothing, and Jaccard 0.10 fails E4.3. Next version: v4.
+
+### v4: cause lookups in two steps, a diagnosis with two values
+
+- **Configuration** (`EXPERT_VERSION = "v4"`; prompt only, with tools, budget and model as v3). The
+  diagnosis paragraph of the prompt:
+  - says a diagnosis carries exactly two values (ranked edges and causes) and puts its numbers in a
+    short `answer`; v3 also sent `quantity` and `no_value` values (S08 submitted 7);
+  - defines each cause with fields the tools return (`to_node`, `from_node`, `lane_count`) instead of
+    in words ("feeds", "loses a lane");
+  - lists the lookups the causes need, in two steps once the edges are ranked:
+    1. `get_scenario`, then `get_edges` and `get_neighbours` on the ranked edges;
+    2. `get_edges` on the target and on the edges the ranked edges lead into, and `get_tls` on each
+       edge's `to_node`, one call per id: a light usually has its junction's id (netconvert's
+       default, general SUMO knowledge rather than anything specific to DEV-NET), and an unknown id
+       only means there is no light;
+  - ends with "Then submit; look no further."
+
+  Caveat: the lookups fetch the edges a ranked edge leads into, not the edges that lead into it. A
+  lane drop at the *start* of an edge is only visible if its feeder is fetched for some other reason.
+  DEV-NET's gold has no `merge` cause, so this sweep cannot show the gap; REAL-NET's bank (E3.6) can.
+- **Hypothesis.** v3's stops came from searching for facts (light ids, lane counts) and from
+  deliberating over the rule. Naming the fields and the exact lookups should remove the search, and
+  with one `get_tls` call per id a miss no longer costs a step. With fewer open choices, the
+  reasoning should also get shorter.
+- **Sweep.** `v4-diag-1rep`: the 20 `-diag` questions × 1, forced, 6 workers, $0.28 (estimated
+  $0.30, cap $0.40). Report: `eval/expert_benchmark/reports/v4-diag-1rep.md`.
+- **Results.**
+
+  | | v2 | v3 | v4 |
+  |---|---|---|---|
+  | Answered (all with Jaccard 1.00) | 16 / 20 | 2 / 20 | 12 / 20 |
+  | Diagnostic Jaccard | 0.80 | 0.10 | 0.60 |
+  | Cause accuracy | 0.00 (no value) | 1.00 (6 / 6) | 0.89 (32 / 36) |
+  | Budget stops | 4 | 18 | 8 |
+  | Steps | 100 | 117 | 113 |
+  | Text-only steps cut at 2,048 tokens | 4 | 21 | 11 |
+  | Tool calls (failed) | 222 (3) | 315 (30) | 238 (11) |
+  | `get_tls` calls (failed) | 9 (1) | 48 (24) | 40 (10) |
+  | Rejected `submit_output` attempts | 6 | 2 | 8 |
+  | Output tokens | 84.8 k | 129.8 k | 104.7 k |
+  | Cost (USD) | 0.23 | 0.32 | 0.28 |
+
+- **Findings.**
+  1. As in v2, every answer names the gold top-3 (Jaccard 1.00 on all 12). The diagnostic Jaccard
+     is therefore the share of questions answered: 0.60 means 12 answers out of 20.
+  2. The spelled-out lookups did their job: failed tool calls fell from 30 to 11 and failed
+     `get_tls` calls from 24 to 10, and text-only steps cut at the limit fell from 21 to 11.
+  3. All 4 wrong causes (out of 36) are a `spillback` given too readily:
+     - S00 A2B2 and S12 A2B2 and B2C2 are labelled `spillback` because they lead into another edge
+       of the top-3. That edge is ranked *lower*, however, and the rule needs a worse (higher-ranked)
+       edge downstream. Gold: `signal`.
+     - S09 A2B2 does lead into the top-ranked edge, but the target light controls it, so
+       `intervention` comes first. The Expert missed the precedence.
+  4. The 8 stops, one by one:
+     - 6 lose steps to reasoning cut at 2,048 tokens with no tool call (S03, S04, S05, S07, S11,
+       S14);
+     - 1 has a tool call cut at the limit: its `edge_stats` call lost its `edge_ids` argument and
+       failed, and the retry took the last step (S10);
+     - 1 submits an answer cut at the limit that has no `evidence`, and has no step left to retry
+       (S19).
+  5. The limit also shows up in the submissions: 8 `submit_output` attempts were cut at 2,048 tokens
+     and rejected (7 had lost `evidence` or `values`, 1 was invalid JSON). 7 of them succeeded on a
+     second submission one step later (S00, S02, S08, S12, S15, S16, S18). Only S19 had no step left.
+  Every remaining failure, whether a stop or a rejected submission, is the 2,048-token output limit
+  per step: the reasoning and the prose `answer` do not fit in the final step, or the reasoning over
+  the rule fills a step with nothing to show for it.
+- **Against the DoD** (one repetition on the tuning bank, not a reported result). Jaccard 0.60 ≥ 0.60
+  and cause accuracy 0.89 ≥ 0.70: the E4.3 development sweep meets both bars. The Jaccard margin is
+  zero, because one more stop would fail it.
+- **Conclusion.** v4 is kept. It recovers most of what v3 lost (stops 18 → 8) but not v2's level (4).
+  The next levers are each the maintainer's decision and none is taken here:
+  - the `spillback` wording ("a *higher-ranked* edge") and a reminder of precedence: a prompt change
+    that fixes at most 4 edges and does nothing for the stops;
+  - the output limit of 2,048 tokens per step, which is now the only mechanism behind every stop. A
+    raise for the Expert's call is a deliberate `Budget` decision (CLAUDE.md), with its cost stated
+    first;
+  - `tool_choice="required"` (see v2), which is outside E4.3.
+
+### Diagnostic questions from v0 to v4
+
+The diagnostic family is the one that drove most of the tuning. Its history in one table (1
+repetition each, 20 questions; v0–v1 on the old bank, v2–v4 on the E3.8 bank):
+
+| Version | What changed for the diagnosis | Answered | Jaccard | Cause acc. | Budget stops | Main failure |
+|---|---|---|---|---|---|---|
+| v0 | Baseline: raw per-seed edgedata | 2 | 0.10 | — | 18 | Aggregation done in text, cut at 2,048 tokens |
+| v1 | Aggregation tools (`rank_edges`, `edge_stats`, …) | 14 | 0.70 | — | 6 | Topology survey for the prose "why", one id per call |
+| v2 | Batched topology tools | 16 | 0.80 | not asked | 4 | Text or tool arguments cut at 2,048 tokens |
+| v3 | Typed cause per edge (ADR-0029) | 2 | 0.10 | 1.00 (6 edges) | 18 | Guessing light ids, hunting lane drops, deliberation cut |
+| v4 | Cause lookups spelled out; a diagnosis with two values | 12 | 0.60 | 0.89 (36 edges) | 8 | Reasoning cut at 2,048 tokens |
+
+The same pattern holds in every version: when the Expert answers, it names the right edges, and what
+changes is whether it answers within 6 steps of 2,048 output tokens. The versions changed this as
+follows:
+- v1 moved the arithmetic into tools and v2 cut the number of topology calls;
+- v3 asked for more, a typed cause per edge, and left the Expert to find the facts on its own, which
+  spent its budget on searching;
+- v4 told the Expert which fields answer each cause and which calls fetch them. That recovered most
+  of the loss, with 0.89 cause accuracy.
+
+The limit left at the end is the one first seen in v0: the output-token budget per step.
+
+Spent on Expert runs so far: **$4.47** (v0 $1.54, v1 $0.98, v2 retry $0.10, smokes $0.27,
+`v2-e38-forced-1rep` $0.99, `v3-diag-1rep` $0.32, `v4-diag-1rep` $0.28). E4.3's share is $0.60.
 
 ## 4. Entry template
 
