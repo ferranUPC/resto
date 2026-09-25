@@ -157,4 +157,15 @@ class NoValue:
             raise ValueError("a NoValue names the edge it refers to")
 
 
+class BottleneckCause(StrEnum):
+    """Why one edge of a diagnosed bottleneck is congested (ADR-0029). Declared in precedence
+    order: when several apply, the first one is the edge's cause."""
+
+    INTERVENTION = "intervention"
+    MERGE = "merge"
+    SPILLBACK = "spillback"
+    SIGNAL = "signal"
+    DEMAND = "demand"
+
+
 AnswerValue = Edges | Quantity | Change | NoValue

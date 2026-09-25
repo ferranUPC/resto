@@ -25,15 +25,23 @@ from __future__ import annotations
 import json
 import statistics
 import sys
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
+import sumolib
 from mcp.client._memory import InMemoryTransport
 
 from eval.question_bank import templates
-from eval.question_bank.gold import mean_edgedata
+from eval.question_bank.gold import NetworkTopology, mean_edgedata
 from eval.question_bank.templates import QuestionBankItem, descriptive_window
-from eval.scenario_matrix.build import CONTEXT_TAGS, SEEDS, _dev_net_network, _peak_demand
+from eval.scenario_matrix.build import (
+    CONTEXT_TAGS,
+    DEV_NET_DIR,
+    SEEDS,
+    _dev_net_network,
+    _peak_demand,
+)
 from eval.scenario_matrix.build import DB_PATH as MATRIX_DB_PATH
 from eval.scenario_matrix.rows import ROWS, MatrixRow, build_draft
 from resto.adapters.persistence.mcp_client import McpClientDatabase
@@ -60,10 +68,36 @@ REPORT_PATH = BANK_DIR / "question-bank-report.md"
 REBUILD_DIR = BANK_DIR / "_rebuild"
 MIN_QUESTIONS = 60
 
+# DEV-NET's designed 2->1 lane merge (eval/dev-net/README.md): a lane drop is a design fact the
+# compiled network does not state, so each network's bank names its own (ADR-0029).
+DEV_NET_LANE_DROP_EDGES = frozenset({"B0C0", "C0D0"})
+
 
 class QuestionBankBuildError(RuntimeError):
     """A row's data could not be re-derived from the matrix, or the bank ended up below the
     work-plan's 60-question floor - the bank must not be marked built while incomplete."""
+
+
+def network_topology(net_xml: Path, lane_drop_edges: frozenset[str]) -> NetworkTopology:
+    """The plain topology the diagnostic "why" rule reads (ADR-0029): each edge's (from, to)
+    node and each traffic light's controlled edges, the same set `get_tls` reports - read per
+    light, not per junction, so a joined TLS controlling several junctions still works."""
+    net = sumolib.net.readNet(str(net_xml))
+    return NetworkTopology(
+        edge_nodes={
+            edge.getID(): (edge.getFromNode().getID(), edge.getToNode().getID())
+            for edge in net.getEdges()
+        },
+        tls_controlled_edges={
+            tls.getID(): frozenset(edge.getID() for edge in tls.getEdges())
+            for tls in net.getTrafficLights()
+        },
+        lane_drop_edges=lane_drop_edges,
+    )
+
+
+def dev_net_topology() -> NetworkTopology:
+    return network_topology(DEV_NET_DIR / "dev-net.net.xml", DEV_NET_LANE_DROP_EDGES)
 
 
 def _rebuild_row(
@@ -131,6 +165,7 @@ def generate_question_bank() -> list[QuestionBankItem]:
     server = build_server(backend)
     db = McpClientDatabase(lambda: InMemoryTransport(server))
     runner = SubprocessSumoRunner()
+    topology = dev_net_topology()
 
     items: list[QuestionBankItem] = []
     try:
@@ -185,6 +220,7 @@ def generate_question_bank() -> list[QuestionBankItem]:
                 templates.diagnostic_bottleneck_item(
                     row, scenario, network_id=network_id, demand_id=demand_id,
                     context_tags=CONTEXT_TAGS, mean_edgedata=mean_edges, result_ids=result_ids,
+                    topology=topology,
                 )
             )
 
@@ -246,6 +282,14 @@ def _write_bank_json(items: list[QuestionBankItem]) -> None:
     BANK_JSON_PATH.write_text(text, encoding="utf-8")
 
 
+def _diagnostic_cause_totals(items: list[QuestionBankItem]) -> dict[str, int]:
+    totals = Counter(
+        cause for item in items if item.id.endswith("-diag")
+        for cause in item.gold_answer["causes"].values()
+    )
+    return {str(cause): n for cause, n in totals.most_common()}
+
+
 def _write_report(items: list[QuestionBankItem]) -> None:
     by_family = {"desc": 0, "diag": 0, "cf": 0}
     for item in items:
@@ -269,12 +313,11 @@ def _write_report(items: list[QuestionBankItem]) -> None:
     lines.append(f"Full bank: `{BANK_JSON_PATH.name}` ({len(items)} entries).")
     lines.append("")
     lines.append(
-        '**Scope note on diagnostic items:** each `-diag` entry\'s `gold_answer["top_3"]` is '
-        "machine-gradeable today (Jaccard against the Expert's own answer, DoD §4.7). "
-        '`gold_answer["reason"]` (merge/signal/demand) is *not* wired to any grading metric yet '
-        '- how to score the Expert\'s free-text "why" against it is an open question '
-        "(architecture doc §8), left for E3.3 to decide. The field is present and free to "
-        "compute, just unused by any metric today."
+        "**Diagnostic gold:** each `-diag` entry's `gold_answer` holds `top_3` (graded by Jaccard "
+        'against the Expert\'s own answer, DoD §4.7) and `causes`, one **Bottleneck cause** per '
+        "`top_3` edge from the network's topology and the scenario's interventions (ADR-0029): "
+        + ", ".join(f"{n} `{cause}`" for cause, n in _diagnostic_cause_totals(items).items())
+        + "."
     )
     lines.append("")
     REPORT_PATH.write_text("\n".join(lines), encoding="utf-8")

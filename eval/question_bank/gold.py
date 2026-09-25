@@ -1,17 +1,22 @@
 """Pure gold-answer math for the question bank (work-plan E3.2) — no I/O, no SUMO, no DatabaseMCP.
 
 Everything here takes already-fetched `query_edgedata`-shaped mappings (`{edge_id: {measure:
-value}}`, DATABASE_MCP_CONTRACT.md §5.4) or plain floats, and returns a classification or a ranked
-list. Kept separate from `templates.py` (which does the fetching) so the boundary math — band
-edges, zero-baseline handling — has a fast, deterministic unit test (`tests/unit/eval/
-test_gold.py`).
+value}}`, DATABASE_MCP_CONTRACT.md §5.4), plain floats, or a plain `NetworkTopology` (the
+diagnostic "why"), and returns a classification or a ranked list. Kept separate from
+`templates.py` (which does the fetching) so the boundary math — band edges, zero-baseline
+handling, cause precedence — has a fast, deterministic unit test (`tests/unit/eval/test_gold.py`).
 """
 
 from __future__ import annotations
 
 import math
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from enum import StrEnum
+
+from resto.domain.value_objects.answer_value import BottleneckCause
+from resto.domain.value_objects.intervention import Intervention
+from resto.domain.value_objects.intervention_target import EdgeTarget, LaneTarget, TlsTarget
 
 EdgeMeasures = Mapping[str, Mapping[str, float]]
 
@@ -46,10 +51,15 @@ class MagnitudeBand(StrEnum):
     OVER_50 = ">50%"
 
 
-class BottleneckReason(StrEnum):
-    MERGE = "merge"
-    SIGNAL = "signal"
-    DEMAND = "demand"
+@dataclass(frozen=True, slots=True)
+class NetworkTopology:
+    """What the "why" rule needs to know about a network (ADR-0029): each edge's (from, to)
+    node, the edges each traffic light controls, and the network's known lane drops. Plain data,
+    so the rule carries no network of its own and REAL-NET's bank can reuse it unchanged."""
+
+    edge_nodes: Mapping[str, tuple[str, str]]
+    tls_controlled_edges: Mapping[str, frozenset[str]]
+    lane_drop_edges: frozenset[str]
 
 
 def mean_edgedata(per_seed: list[EdgeMeasures]) -> dict[str, dict[str, float]]:
@@ -101,19 +111,46 @@ def magnitude_band(pct_change_value: float) -> MagnitudeBand:
     return MagnitudeBand.OVER_50
 
 
-def bottleneck_reason(
-    edge_id: str, *, merge_edges: frozenset[str], signalised_edges: frozenset[str]
-) -> BottleneckReason:
-    """The DoD §3 "why" rubric bucket for the top bottleneck edge. `merge_edges`/
-    `signalised_edges` name a network's own known-by-construction topology groups (e.g. DEV-NET's
-    designed 2->1 lane merge and row-2 signalised corridor, `templates.py`'s own constants) -
-    `gold.py` stays network-agnostic so it can be reused for a different network's question bank
-    without carrying DEV-NET's topology inside what is otherwise generic classification math."""
-    if edge_id in merge_edges:
-        return BottleneckReason.MERGE
-    if edge_id in signalised_edges:
-        return BottleneckReason.SIGNAL
-    return BottleneckReason.DEMAND
+def bottleneck_causes(
+    top_edges: Sequence[str], interventions: Sequence[Intervention], topology: NetworkTopology
+) -> list[BottleneckCause]:
+    """The gold `BottleneckCause` of each ranked bottleneck edge, in order (ADR-0029 §3; first
+    match wins): `intervention` if the edge is an intervention's target edge, feeds it directly
+    (ends where it starts) or is controlled by a target traffic light; `merge` if it is a known
+    lane drop; `spillback` if it ends where a higher-ranked edge starts; `signal` if a traffic
+    light controls it; `demand` otherwise. A `demand_scale` intervention has no target, so it
+    never matches: the cause is the local mechanism, more demand only makes it worse."""
+    target_edges: set[str] = set()
+    target_tls: set[str] = set()
+    for intervention in interventions:
+        target = intervention.target
+        if isinstance(target, EdgeTarget | LaneTarget):
+            target_edges.add(target.edge_id)
+        elif isinstance(target, TlsTarget):
+            target_tls.add(target.tls_id)
+    target_start_nodes = {topology.edge_nodes[edge_id][0] for edge_id in target_edges}
+    target_tls_edges = set().union(*(topology.tls_controlled_edges[t] for t in target_tls))
+    signalised_edges = set().union(*topology.tls_controlled_edges.values())
+
+    causes: list[BottleneckCause] = []
+    for rank, edge_id in enumerate(top_edges):
+        end_node = topology.edge_nodes[edge_id][1]
+        higher_ranked_starts = {topology.edge_nodes[e][0] for e in top_edges[:rank]}
+        if (
+            edge_id in target_edges
+            or end_node in target_start_nodes
+            or edge_id in target_tls_edges
+        ):
+            causes.append(BottleneckCause.INTERVENTION)
+        elif edge_id in topology.lane_drop_edges:
+            causes.append(BottleneckCause.MERGE)
+        elif end_node in higher_ranked_starts:
+            causes.append(BottleneckCause.SPILLBACK)
+        elif edge_id in signalised_edges:
+            causes.append(BottleneckCause.SIGNAL)
+        else:
+            causes.append(BottleneckCause.DEMAND)
+    return causes
 
 
 def top_bottleneck_edges(edgedata: EdgeMeasures, k: int = 3) -> list[str]:

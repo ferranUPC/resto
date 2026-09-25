@@ -95,7 +95,11 @@
       }
     },
     "gold_answer": {
-      "reason": "signal",
+      "causes": {
+        "A2B2": "signal",
+        "B2C2": "signal",
+        "E3E2": "signal"
+      },
       "top_3": [
         "A2B2",
         "E3E2",
@@ -118,7 +122,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which three edges form the main bottleneck between 08:00 and 08:05 in the scenario with no interventions, and why?",
+      "text": "Which three edges form the main bottleneck between 08:00 and 08:05 in the scenario with no interventions, and why is each of them congested?",
       "time_window": {
         "end": 29100.0,
         "start": 28800.0
@@ -282,7 +286,11 @@
       }
     },
     "gold_answer": {
-      "reason": "demand",
+      "causes": {
+        "A2B2": "intervention",
+        "B1B2": "intervention",
+        "B3B2": "intervention"
+      },
       "top_3": [
         "B1B2",
         "A2B2",
@@ -322,7 +330,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which three edges form the main bottleneck between 08:00 and 08:05 in the scenario with lane_closure B2C2 lane 0, 08:00-08:05, and why?",
+      "text": "Which three edges form the main bottleneck between 08:00 and 08:05 in the scenario with lane_closure B2C2 lane 0, 08:00-08:05, and why is each of them congested?",
       "time_window": {
         "end": 29100.0,
         "start": 28800.0
@@ -685,7 +693,11 @@
       }
     },
     "gold_answer": {
-      "reason": "signal",
+      "causes": {
+        "A2B2": "spillback",
+        "B2C2": "intervention",
+        "C3C2": "intervention"
+      },
       "top_3": [
         "B2C2",
         "C3C2",
@@ -725,7 +737,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which three edges form the main bottleneck between 08:00 and 08:05 in the scenario with lane_closure C2D2 lane 0, 08:00-08:05, and why?",
+      "text": "Which three edges form the main bottleneck between 08:00 and 08:05 in the scenario with lane_closure C2D2 lane 0, 08:00-08:05, and why is each of them congested?",
       "time_window": {
         "end": 29100.0,
         "start": 28800.0
@@ -1082,7 +1094,11 @@
       }
     },
     "gold_answer": {
-      "reason": "demand",
+      "causes": {
+        "A2B2": "signal",
+        "B1B0": "intervention",
+        "E3E2": "signal"
+      },
       "top_3": [
         "B1B0",
         "A2B2",
@@ -1122,7 +1138,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which three edges form the main bottleneck between 08:00 and 08:05 in the scenario with lane_closure B0C0 lane 0, 08:00-08:05 (bottleneck approach, lane 1 stays open), and why?",
+      "text": "Which three edges form the main bottleneck between 08:00 and 08:05 in the scenario with lane_closure B0C0 lane 0, 08:00-08:05 (bottleneck approach, lane 1 stays open), and why is each of them congested?",
       "time_window": {
         "end": 29100.0,
         "start": 28800.0
@@ -1479,7 +1495,11 @@
       }
     },
     "gold_answer": {
-      "reason": "demand",
+      "causes": {
+        "A2B2": "signal",
+        "B1C1": "intervention",
+        "E3E2": "signal"
+      },
       "top_3": [
         "B1C1",
         "A2B2",
@@ -1519,7 +1539,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which three edges form the main bottleneck between 08:00 and 08:05 in the scenario with lane_closure C1D1 lane 0, 08:00-08:05, and why?",
+      "text": "Which three edges form the main bottleneck between 08:00 and 08:05 in the scenario with lane_closure C1D1 lane 0, 08:00-08:05, and why is each of them congested?",
       "time_window": {
         "end": 29100.0,
         "start": 28800.0
@@ -1866,7 +1886,11 @@
       }
     },
     "gold_answer": {
-      "reason": "merge",
+      "causes": {
+        "A2B2": "signal",
+        "B0C0": "intervention",
+        "E3E2": "signal"
+      },
       "top_3": [
         "B0C0",
         "A2B2",
@@ -1905,7 +1929,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which three edges form the main bottleneck between 08:00 and 08:05 in the scenario with edge_closure C0D0, 08:00-08:05 (bottleneck exit, single lane - full closure), and why?",
+      "text": "Which three edges form the main bottleneck between 08:00 and 08:05 in the scenario with edge_closure C0D0, 08:00-08:05 (bottleneck exit, single lane - full closure), and why is each of them congested?",
       "time_window": {
         "end": 29100.0,
         "start": 28800.0
@@ -2249,7 +2273,11 @@
       }
     },
     "gold_answer": {
-      "reason": "demand",
+      "causes": {
+        "A2A1": "intervention",
+        "A2B2": "signal",
+        "E3E2": "signal"
+      },
       "top_3": [
         "A2A1",
         "A2B2",
@@ -2288,7 +2316,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which three edges form the main bottleneck between 08:00 and 08:05 in the scenario with edge_closure A1B1, 08:00-08:05, and why?",
+      "text": "Which three edges form the main bottleneck between 08:00 and 08:05 in the scenario with edge_closure A1B1, 08:00-08:05, and why is each of them congested?",
       "time_window": {
         "end": 29100.0,
         "start": 28800.0
@@ -2640,7 +2668,11 @@
       }
     },
     "gold_answer": {
-      "reason": "signal",
+      "causes": {
+        "A2B2": "signal",
+        "C2D2": "intervention",
+        "E3E2": "signal"
+      },
       "top_3": [
         "C2D2",
         "A2B2",
@@ -2679,7 +2711,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which three edges form the main bottleneck between 08:00 and 08:05 in the scenario with edge_closure D2E2, 08:00-08:05, and why?",
+      "text": "Which three edges form the main bottleneck between 08:00 and 08:05 in the scenario with edge_closure D2E2, 08:00-08:05, and why is each of them congested?",
       "time_window": {
         "end": 29100.0,
         "start": 28800.0
@@ -3043,7 +3075,11 @@
       }
     },
     "gold_answer": {
-      "reason": "demand",
+      "causes": {
+        "A2B2": "intervention",
+        "B1B2": "intervention",
+        "B3B2": "intervention"
+      },
       "top_3": [
         "B1B2",
         "A2B2",
@@ -3082,7 +3118,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which three edges form the main bottleneck between 08:00 and 08:05 in the scenario with edge_closure B2C2, 08:00-08:05, and why?",
+      "text": "Which three edges form the main bottleneck between 08:00 and 08:05 in the scenario with edge_closure B2C2, 08:00-08:05, and why is each of them congested?",
       "time_window": {
         "end": 29100.0,
         "start": 28800.0
@@ -3442,7 +3478,11 @@
       }
     },
     "gold_answer": {
-      "reason": "signal",
+      "causes": {
+        "A2B2": "intervention",
+        "B2C2": "intervention",
+        "E3E2": "signal"
+      },
       "top_3": [
         "B2C2",
         "A2B2",
@@ -3485,7 +3525,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which three edges form the main bottleneck between 08:00 and 08:05 in the scenario with speed_limit B2C2 lane 0 at 5 m/s, 08:00-08:05, and why?",
+      "text": "Which three edges form the main bottleneck between 08:00 and 08:05 in the scenario with speed_limit B2C2 lane 0 at 5 m/s, 08:00-08:05, and why is each of them congested?",
       "time_window": {
         "end": 29100.0,
         "start": 28800.0
@@ -3849,7 +3889,11 @@
       }
     },
     "gold_answer": {
-      "reason": "signal",
+      "causes": {
+        "A2B2": "signal",
+        "B2C2": "signal",
+        "E3E2": "signal"
+      },
       "top_3": [
         "A2B2",
         "E3E2",
@@ -3892,7 +3936,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which three edges form the main bottleneck between 08:00 and 08:05 in the scenario with speed_limit C1D1 lane 0 at 5 m/s, 08:00-08:05, and why?",
+      "text": "Which three edges form the main bottleneck between 08:00 and 08:05 in the scenario with speed_limit C1D1 lane 0 at 5 m/s, 08:00-08:05, and why is each of them congested?",
       "time_window": {
         "end": 29100.0,
         "start": 28800.0
@@ -4264,7 +4308,11 @@
       }
     },
     "gold_answer": {
-      "reason": "signal",
+      "causes": {
+        "B2C2": "signal",
+        "C2D2": "signal",
+        "E3E2": "signal"
+      },
       "top_3": [
         "B2C2",
         "C2D2",
@@ -4307,7 +4355,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which three edges form the main bottleneck between 08:00 and 08:05 in the scenario with speed_limit A2B2 lane 0 at 8 m/s, 08:00-08:05, and why?",
+      "text": "Which three edges form the main bottleneck between 08:00 and 08:05 in the scenario with speed_limit A2B2 lane 0 at 8 m/s, 08:00-08:05, and why is each of them congested?",
       "time_window": {
         "end": 29100.0,
         "start": 28800.0
@@ -4671,7 +4719,11 @@
       }
     },
     "gold_answer": {
-      "reason": "demand",
+      "causes": {
+        "A2B2": "signal",
+        "B2C2": "signal",
+        "E3E2": "signal"
+      },
       "top_3": [
         "E3E2",
         "A2B2",
@@ -4714,7 +4766,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which three edges form the main bottleneck between 08:00 and 08:05 in the scenario with speed_limit B0C0 lane 0 at 5 m/s, 08:00-08:05, and why?",
+      "text": "Which three edges form the main bottleneck between 08:00 and 08:05 in the scenario with speed_limit B0C0 lane 0 at 5 m/s, 08:00-08:05, and why is each of them congested?",
       "time_window": {
         "end": 29100.0,
         "start": 28800.0
@@ -5088,7 +5140,11 @@
       }
     },
     "gold_answer": {
-      "reason": "signal",
+      "causes": {
+        "A2B2": "spillback",
+        "B2C2": "intervention",
+        "D2C2": "intervention"
+      },
       "top_3": [
         "B2C2",
         "D2C2",
@@ -5129,7 +5185,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which three edges form the main bottleneck between 08:02 and 08:05 in the scenario with signal_program C2 -> program 1, 08:02-08:05, and why?",
+      "text": "Which three edges form the main bottleneck between 08:02 and 08:05 in the scenario with signal_program C2 -> program 1, 08:02-08:05, and why is each of them congested?",
       "time_window": {
         "end": 29100.0,
         "start": 28920.0
@@ -5503,7 +5559,11 @@
       }
     },
     "gold_answer": {
-      "reason": "demand",
+      "causes": {
+        "B2A2": "signal",
+        "C2B2": "intervention",
+        "D2C2": "spillback"
+      },
       "top_3": [
         "C2B2",
         "B2A2",
@@ -5544,7 +5604,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which three edges form the main bottleneck between 08:05 and 08:08 in the scenario with signal_program B2 -> program 1, 08:05-08:08, and why?",
+      "text": "Which three edges form the main bottleneck between 08:05 and 08:08 in the scenario with signal_program B2 -> program 1, 08:05-08:08, and why is each of them congested?",
       "time_window": {
         "end": 29280.0,
         "start": 29100.0
@@ -5912,7 +5972,11 @@
       }
     },
     "gold_answer": {
-      "reason": "signal",
+      "causes": {
+        "C2D2": "intervention",
+        "D2C2": "spillback",
+        "E2D2": "intervention"
+      },
       "top_3": [
         "C2D2",
         "E2D2",
@@ -5953,7 +6017,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which three edges form the main bottleneck between 08:08 and 08:11 in the scenario with signal_program D2 -> program 1, 08:08-08:11, and why?",
+      "text": "Which three edges form the main bottleneck between 08:08 and 08:11 in the scenario with signal_program D2 -> program 1, 08:08-08:11, and why is each of them congested?",
       "time_window": {
         "end": 29460.0,
         "start": 29280.0
@@ -6315,7 +6379,11 @@
       }
     },
     "gold_answer": {
-      "reason": "demand",
+      "causes": {
+        "B2A2": "intervention",
+        "C2D2": "signal",
+        "E2D2": "signal"
+      },
       "top_3": [
         "B2A2",
         "E2D2",
@@ -6356,7 +6424,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which three edges form the main bottleneck between 08:11 and 08:14 in the scenario with signal_program A2 -> program 1, 08:11-08:14, and why?",
+      "text": "Which three edges form the main bottleneck between 08:11 and 08:14 in the scenario with signal_program A2 -> program 1, 08:11-08:14, and why is each of them congested?",
       "time_window": {
         "end": 29640.0,
         "start": 29460.0
@@ -6718,7 +6786,11 @@
       }
     },
     "gold_answer": {
-      "reason": "signal",
+      "causes": {
+        "A2B2": "signal",
+        "B1B2": "signal",
+        "C2D2": "signal"
+      },
       "top_3": [
         "A2B2",
         "C2D2",
@@ -6756,7 +6828,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which three edges form the main bottleneck between 08:00 and 08:05 in the scenario with demand_scale x1.2 (heavier peak), and why?",
+      "text": "Which three edges form the main bottleneck between 08:00 and 08:05 in the scenario with demand_scale x1.2 (heavier peak), and why is each of them congested?",
       "time_window": {
         "end": 29100.0,
         "start": 28800.0
@@ -7095,7 +7167,11 @@
       }
     },
     "gold_answer": {
-      "reason": "demand",
+      "causes": {
+        "A2B2": "signal",
+        "A3A2": "spillback",
+        "E3E2": "signal"
+      },
       "top_3": [
         "E3E2",
         "A2B2",
@@ -7133,7 +7209,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which three edges form the main bottleneck between 08:00 and 08:05 in the scenario with demand_scale x0.8 (lighter peak), and why?",
+      "text": "Which three edges form the main bottleneck between 08:00 and 08:05 in the scenario with demand_scale x0.8 (lighter peak), and why is each of them congested?",
       "time_window": {
         "end": 29100.0,
         "start": 28800.0
@@ -7498,7 +7574,11 @@
       }
     },
     "gold_answer": {
-      "reason": "signal",
+      "causes": {
+        "A2B2": "spillback",
+        "B2C2": "signal",
+        "C2D2": "signal"
+      },
       "top_3": [
         "B2C2",
         "C2D2",
@@ -7536,7 +7616,7 @@
       ],
       "mode": "forced",
       "network_ref": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
-      "text": "Which three edges form the main bottleneck between 08:00 and 08:05 in the scenario with demand_scale x1.5 (much heavier peak), and why?",
+      "text": "Which three edges form the main bottleneck between 08:00 and 08:05 in the scenario with demand_scale x1.5 (much heavier peak), and why is each of them congested?",
       "time_window": {
         "end": 29100.0,
         "start": 28800.0

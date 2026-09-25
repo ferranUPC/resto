@@ -1,17 +1,19 @@
 """Unit tests for the question bank's pure gold-answer math (eval/question_bank/gold.py,
-work-plan E3.2). No SUMO, no DatabaseMCP - synthetic `query_edgedata`-shaped mappings only."""
+work-plan E3.2). No SUMO, no DatabaseMCP - synthetic `query_edgedata`-shaped mappings, a toy
+topology, and DEV-NET's topology read from its committed `.net.xml` (ADR-0029's cases)."""
 
 from __future__ import annotations
 
 import math
 
 import pytest
+from eval.question_bank.build import dev_net_topology
 from eval.question_bank.gold import (
-    BottleneckReason,
     Direction,
     EdgeMeasure,
     MagnitudeBand,
-    bottleneck_reason,
+    NetworkTopology,
+    bottleneck_causes,
     classify_direction,
     edges_above_threshold,
     magnitude_band,
@@ -20,6 +22,11 @@ from eval.question_bank.gold import (
     top_bottleneck_edges,
     top_k_by_delta,
 )
+
+from resto.domain.value_objects.answer_value import BottleneckCause
+from resto.domain.value_objects.intervention import Intervention, InterventionType
+from resto.domain.value_objects.intervention_target import EdgeTarget, LaneTarget, TlsTarget
+from resto.domain.value_objects.time_window import TimeWindow
 
 
 def _edge(time_loss: float = 0.0, entered: float = 0.0, occupancy: float = 0.0) -> dict[str, float]:
@@ -94,36 +101,105 @@ class TestMagnitudeBand:
         assert magnitude_band(-30.0) == magnitude_band(30.0)
 
 
-_MERGE_EDGES = frozenset({"B0C0", "C0D0"})
-_SIGNAL_EDGES = frozenset({"A2B2", "B2C2", "C2D2", "D2E2"})
-
-
-class TestBottleneckReason:
-    def test_merge_edges(self) -> None:
-        assert (
-            bottleneck_reason("B0C0", merge_edges=_MERGE_EDGES, signalised_edges=_SIGNAL_EDGES)
-            == BottleneckReason.MERGE
+def _intervention(target: EdgeTarget | LaneTarget | TlsTarget | None) -> Intervention:
+    if target is None:
+        return Intervention(
+            InterventionType.DEMAND_SCALE, None, {"factor": 1.2}, window=TimeWindow(0.0, 300.0)
         )
+    kind = (
+        InterventionType.SIGNAL_PROGRAM if isinstance(target, TlsTarget)
+        else InterventionType.LANE_CLOSURE
+    )
+    return Intervention(kind, target, window=TimeWindow(0.0, 300.0))
 
-    def test_signalised_edges(self) -> None:
-        assert (
-            bottleneck_reason("B2C2", merge_edges=_MERGE_EDGES, signalised_edges=_SIGNAL_EDGES)
-            == BottleneckReason.SIGNAL
-        )
 
-    def test_everything_else_is_demand(self) -> None:
-        assert (
-            bottleneck_reason("A1B1", merge_edges=_MERGE_EDGES, signalised_edges=_SIGNAL_EDGES)
-            == BottleneckReason.DEMAND
-        )
+# a toy corridor W -> X -> Y -> Z plus a side street S -> X; one lane drop (XY), no traffic light
+# at Y or Z, a traffic light at X controlling the side street only
+_TOY = NetworkTopology(
+    edge_nodes={"WX": ("W", "X"), "XY": ("X", "Y"), "YZ": ("Y", "Z"), "SX": ("S", "X")},
+    tls_controlled_edges={"X": frozenset({"SX"})},
+    lane_drop_edges=frozenset({"XY"}),
+)
 
-    def test_edge_sets_are_a_parameter_not_a_hardcoded_default(self) -> None:
-        # a different network's topology groups must change the classification - proves gold.py
-        # carries no DEV-NET-specific knowledge of its own.
-        assert (
-            bottleneck_reason("A1B1", merge_edges=frozenset({"A1B1"}), signalised_edges=frozenset())
-            == BottleneckReason.MERGE
-        )
+
+@pytest.fixture(scope="module")
+def dev_net() -> NetworkTopology:
+    return dev_net_topology()
+
+
+class TestBottleneckCauses:
+    def test_a_known_lane_drop_is_a_merge(self) -> None:
+        assert bottleneck_causes(["XY"], (), _TOY) == [BottleneckCause.MERGE]
+
+    def test_an_edge_with_nothing_at_its_end_is_demand(self) -> None:
+        assert bottleneck_causes(["YZ"], (), _TOY) == [BottleneckCause.DEMAND]
+
+    def test_one_cause_per_edge_in_rank_order(self) -> None:
+        # WX ends where the higher-ranked XY starts: its queue comes from downstream
+        assert bottleneck_causes(["YZ", "XY", "WX"], (), _TOY) == [
+            BottleneckCause.DEMAND,
+            BottleneckCause.MERGE,
+            BottleneckCause.SPILLBACK,
+        ]
+
+    def test_spillback_only_looks_at_higher_ranked_edges(self) -> None:
+        assert bottleneck_causes(["WX", "XY"], (), _TOY)[0] is BottleneckCause.DEMAND
+
+    def test_an_edge_matching_several_causes_gets_the_first(self) -> None:
+        # XY is the target (intervention), a lane drop (merge) and feeds a higher-ranked YZ
+        # (spillback): intervention wins
+        causes = bottleneck_causes(["YZ", "XY"], (_intervention(EdgeTarget("XY")),), _TOY)
+        assert causes == [BottleneckCause.DEMAND, BottleneckCause.INTERVENTION]
+        # without the intervention, merge wins over spillback
+        assert bottleneck_causes(["YZ", "XY"], (), _TOY)[1] is BottleneckCause.MERGE
+
+    def test_signal_means_controlled_by_a_traffic_light_not_ending_at_its_node(self) -> None:
+        # WX ends at X, which has a traffic light, but the light does not control WX
+        assert bottleneck_causes(["SX", "WX"], (), _TOY) == [
+            BottleneckCause.SIGNAL,
+            BottleneckCause.DEMAND,
+        ]
+
+    def test_s03_the_direct_feeder_of_a_closed_edge_is_intervention(
+        self, dev_net: NetworkTopology
+    ) -> None:
+        closure = _intervention(LaneTarget("B0C0", 0))
+        causes = bottleneck_causes(["B1B0", "A2B2", "E3E2"], (closure,), dev_net)
+        assert causes[0] is BottleneckCause.INTERVENTION
+
+    def test_s13_an_edge_feeding_a_higher_ranked_edge_is_spillback(
+        self, dev_net: NetworkTopology
+    ) -> None:
+        program = _intervention(TlsTarget("C2"))
+        causes = bottleneck_causes(["B2C2", "D2C2", "A2B2"], (program,), dev_net)
+        assert causes == [
+            BottleneckCause.INTERVENTION,
+            BottleneckCause.INTERVENTION,
+            BottleneckCause.SPILLBACK,
+        ]
+
+    def test_s14_an_edge_controlled_by_the_target_traffic_light_is_intervention(
+        self, dev_net: NetworkTopology
+    ) -> None:
+        program = _intervention(TlsTarget("B2"))
+        causes = bottleneck_causes(["C2B2", "B2A2", "D2C2"], (program,), dev_net)
+        assert causes == [
+            BottleneckCause.INTERVENTION,
+            BottleneckCause.SIGNAL,
+            BottleneckCause.SPILLBACK,
+        ]
+
+    def test_s10_a_signalised_edge_far_from_the_intervention_is_signal(
+        self, dev_net: NetworkTopology
+    ) -> None:
+        speed_limit = _intervention(LaneTarget("C1D1", 0))
+        causes = bottleneck_causes(["A2B2", "E3E2", "B2C2"], (speed_limit,), dev_net)
+        assert causes[0] is BottleneckCause.SIGNAL
+
+    def test_s17_demand_scale_never_yields_intervention(self, dev_net: NetworkTopology) -> None:
+        causes = bottleneck_causes(["A2B2", "C2D2", "B1B2"], (_intervention(None),), dev_net)
+        assert BottleneckCause.INTERVENTION not in causes
+        assert causes == [BottleneckCause.SIGNAL] * 3
 
 
 class TestTopBottleneckEdges:

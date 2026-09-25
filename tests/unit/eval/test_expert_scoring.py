@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from collections.abc import Mapping
 from typing import Any
 
@@ -63,6 +64,17 @@ def test_the_real_bank_loads_with_baseline_results_for_counterfactuals() -> None
     assert task.mode.value == "forced"
     assert not task.notes_allowed
     assert "S09" not in task.question
+
+
+def test_the_real_bank_carries_a_gold_cause_for_each_diagnostic_edge() -> None:
+    diagnostic = [q for q in load_bank() if q.family is Family.DIAG]
+    assert len(diagnostic) == 20
+    for question in diagnostic:
+        assert sorted(question.gold["causes"]) == sorted(question.gold["top_3"])
+        assert "reason" not in question.gold
+        assert question.text.endswith("and why is each of them congested?")
+    totals = Counter(cause for q in diagnostic for cause in q.gold["causes"].values())
+    assert totals == {"intervention": 21, "signal": 33, "spillback": 6}
 
 
 def test_jaccard_and_tolerance_helpers() -> None:

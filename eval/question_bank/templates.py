@@ -13,7 +13,8 @@ from typing import Any
 
 from eval.question_bank.gold import (
     EdgeMeasure,
-    bottleneck_reason,
+    NetworkTopology,
+    bottleneck_causes,
     classify_direction,
     edges_above_threshold,
     magnitude_band,
@@ -47,13 +48,6 @@ DEFAULT_TARGET_EDGE = "B2C2"
 # signal_program rows name a TLS junction, not an edge - the edge immediately downstream of it
 # (same row-2 corridor sequence A2 -> B2 -> C2 -> D2 -> E2 documented in rows.py) stands in for it.
 _TLS_DOWNSTREAM_EDGE = {"A2": "A2B2", "B2": "B2C2", "C2": "C2D2", "D2": "D2E2"}
-
-# DEV-NET topology groups for the diagnostic "why" rubric (eval/dev-net/README.md;
-# eval/scenario_matrix/rows.py's own docstring): the designed 2->1 lane merge, and the row-2
-# signalised corridor. Kept here rather than in gold.py so that module's classification math stays
-# network-agnostic - see bottleneck_reason's own docstring.
-MERGE_BOTTLENECK_EDGES = frozenset({"B0C0", "C0D0"})
-SIGNALISED_CORRIDOR_EDGES = frozenset({"A2B2", "B2C2", "C2D2", "D2E2"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -209,21 +203,18 @@ def diagnostic_bottleneck_item(
     context_tags: frozenset[str],
     mean_edgedata: EdgeMeasures,
     result_ids: tuple[str, ...],
+    topology: NetworkTopology,
 ) -> QuestionBankItem:
-    """`gold_answer["top_3"]` is machine-gradeable today (Jaccard against the Expert's own top-3,
-    DoD §4.7's own metric). `gold_answer["reason"]` is NOT wired to any grading metric yet - how
-    to score the Expert's free-text "why" against it (human rubric / LLM-as-judge / both with
-    agreement reported) is still an open question (architecture doc §8), to be decided in E3.3.
-    The field is kept here because it is free to compute and will be needed whenever that
-    decision is made - it just is not evaluated by anything today."""
+    """`gold_answer["top_3"]` is graded by Jaccard against the Expert's own top-3 (DoD §4.7);
+    `gold_answer["causes"]` holds one Bottleneck cause per `top_3` edge (ADR-0029), keyed by
+    edge, graded on the edges both answers share."""
     window = descriptive_window(row)
     top3 = top_bottleneck_edges(mean_edgedata, k=3)
-    reason = bottleneck_reason(
-        top3[0], merge_edges=MERGE_BOTTLENECK_EDGES, signalised_edges=SIGNALISED_CORRIDOR_EDGES
-    )
+    causes = bottleneck_causes(top3, scenario.interventions, topology)
     text = (
         f"Which three edges form the main bottleneck between {clock(window.start)} and "
-        f"{clock(window.end)} in the scenario with {row.description}, and why?"
+        f"{clock(window.end)} in the scenario with {row.description}, and why is each of them "
+        "congested?"
     )
     kwargs = _base_kwargs(
         scenario, intent=Intent.DIAGNOSE, network_id=network_id, demand_id=demand_id,
@@ -235,7 +226,7 @@ def diagnostic_bottleneck_item(
         question=question,
         scenario_id=scenario.scenario_id,
         result_ids=result_ids,
-        gold_answer={"top_3": top3, "reason": reason},
+        gold_answer={"top_3": top3, "causes": dict(zip(top3, causes, strict=True))},
         evidence={
             "score_measure": "total time_loss, vehicle-seconds (mean of 3 seeds)",
             "scores": {edge_id: mean_edgedata[edge_id][EdgeMeasure.TIME_LOSS] for edge_id in top3},
