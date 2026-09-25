@@ -211,6 +211,18 @@ with this re-scored v0.
 - **Conclusion.** Kept, pending the full sweep. `EXPERT_VERSION` is already bumped to `"v2"` so any
   future run is labelled correctly.
 
+### Measurement fix after v2: the bank in clock time (E3.8, 2026-09-24)
+
+ADR-0028 makes every window time of day. The DEV-NET demands moved from `[0, 3600)` to 08:00–09:00, and
+the matrix and the question bank were rebuilt on them. Question text now reads "between 08:00 and 08:05"
+instead of "between 0s and 300s", and every `scenario_id`/`result_id` changed. Gold answers are the
+same except on the `signal_program` rows (S13–S16), whose windows moved to whole minutes (18 gold
+answers). The Expert's tools now describe `window` as seconds since midnight, with 08:00–08:05 =
+`[28800, 29100]` as the example, where they used to say "simulation seconds". Without that, a correct
+reading of the new question text would query an empty window. This is a measurement fix, not an
+optimisation: `EXPERT_VERSION` stays `"v2"`, and the v0–v2 figures above come from the old bank. The
+first sweep on the rebuilt bank is v2's own sweep (E4.2–E4.4).
+
 ## 4. Entry template
 
 ```markdown

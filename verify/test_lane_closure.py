@@ -3,9 +3,10 @@ zero flow on the closed edge during the window, nonzero outside, >=90% of schedu
 still depart despite the closure.
 
 B2C2 (an interior, single-lane, three-way-connected junction pair - not a fringe dead end) and
-window `[0, 300)` are not arbitrary: they are exactly what made the Runner's `--ignore-route-errors`
-fix and the edgedata-period-alignment requirement reproducible - see `adapters/sumo/runner.py`'s
-and this package's own docstrings.
+window `[28800, 29100)` (08:00-08:05, the first 300 s of the `peak` demand) are not arbitrary:
+they are exactly what made the Runner's `--ignore-route-errors` fix and the
+edgedata-period-alignment requirement reproducible - see `adapters/sumo/runner.py`'s and this
+package's own docstrings.
 """
 
 from __future__ import annotations
@@ -29,8 +30,9 @@ DEV_NET_DIR = Path(__file__).resolve().parent.parent / "eval" / "dev-net"
 NET = DEV_NET_DIR / "dev-net.net.xml"
 PEAK_ROUTES = DEV_NET_DIR / "demand" / "peak.rou.xml"
 EDGE = "B2C2"
-WINDOW = TimeWindow(0.0, 300.0)
-END_S = 600.0
+BEGIN_S = 28800.0  # 08:00, the peak demand's first departure (ADR-0028)
+WINDOW = TimeWindow(28800.0, 29100.0)
+END_S = 29400.0
 
 
 @pytest.fixture(scope="module")
@@ -43,7 +45,8 @@ def closure_cfg(tmp_path_factory: pytest.TempPathFactory) -> ArtifactRef:
     )
     _, rerouter_ref = RerouterWriter().write(closure, out_dir)
     settings = SimulationSettings(
-        net_file=NET, route_files=(PEAK_ROUTES,), additional_files=(rerouter_ref.path,), end=END_S
+        net_file=NET, route_files=(PEAK_ROUTES,), additional_files=(rerouter_ref.path,),
+        begin=BEGIN_S, end=END_S,
     )
     return SumocfgFileWriter().write(settings, out_dir, "scenario.sumocfg")
 

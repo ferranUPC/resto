@@ -13,7 +13,7 @@ content/request hashes (see that module's own docstring), so this touches no SUM
 reads back what E3.1 already stored. Gold answers come from `db.results.query_edgedata` (edge-level
 measures) and `SimulationResult.kpis.mean_delay` (network-wide), averaged over each row's 3 seeds.
 
-The 3.5% occupancy threshold and the [0, 300) default window (both in `templates.py`) were picked
+The 3.5% occupancy threshold and the 08:00-08:05 default window (both in `templates.py`) were picked
 by inspecting the matrix's own edgedata while building this: DEV-NET/peak's baseline occupancy
 tops out at ~3% in that window, a lane closure's upstream queue at ~6% (`eval/scenario_matrix/
 runs/S00` vs `S03`) - a threshold in between gives descriptive questions a genuine, non-degenerate

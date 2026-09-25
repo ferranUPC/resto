@@ -250,7 +250,7 @@ def _per_run(
     for result_id in result_ids:
         _require_available(available, result_id)
     if window is not None and len(window) != 2:
-        raise ValueError("window must be [start, end] in simulation seconds")
+        raise ValueError("window must be [start, end] in seconds since midnight")
     bounds = None if window is None else (float(window[0]), float(window[1]))
     return [results.query_edgedata(rid, list(edge_ids), bounds) for rid in result_ids]
 
@@ -395,7 +395,8 @@ def query_edgedata(
     """EXPENSIVE raw per-run data of every edge (~17,000 characters per result): prefer edge_stats,
     rank_edges or compare_edges, and use this only when they cannot express what you need.
 
-    Per-edge measures of one result over `[start, end)` simulation seconds (None: whole run).
+    Per-edge measures of one result over `[start, end)`, time of day in seconds since midnight
+    (None: whole run).
     Empty `edge_ids` means every edge. Measures: sampled_seconds, density, occupancy, speed,
     waiting_time, time_loss, travel_time, entered, left (DATABASE_MCP_CONTRACT.md §5.4);
     waiting_time and time_loss are totals over all vehicles (vehicle-seconds).
@@ -406,7 +407,7 @@ def query_edgedata(
     """
     _require_available(available, result_id)
     if window is not None and len(window) != 2:
-        raise ValueError("window must be [start, end] in simulation seconds")
+        raise ValueError("window must be [start, end] in seconds since midnight")
     bounds = None if window is None else (float(window[0]), float(window[1]))
     return results.query_edgedata(result_id, list(edge_ids), bounds)
 
@@ -454,7 +455,10 @@ _WINDOW = {
     "items": {"type": "number"},
     "minItems": 2,
     "maxItems": 2,
-    "description": "[start, end) in simulation seconds; omit for the whole run.",
+    "description": (
+        "[start, end) as time of day in seconds since midnight (08:00-08:05 is "
+        "[28800, 29100]); omit for the whole run."
+    ),
 }
 _MEASURE = {"type": "string", "enum": list(EDGE_MEASURES)}
 _EDGE_IDS = {
@@ -548,7 +552,10 @@ _SCHEMAS: dict[str, Mapping[str, Any]] = {
                 "items": {"type": "number"},
                 "minItems": 2,
                 "maxItems": 2,
-                "description": "[start, end) in simulation seconds; omit for the whole run.",
+                "description": (
+                    "[start, end) as time of day in seconds since midnight (08:00-08:05 is "
+                    "[28800, 29100]); omit for the whole run."
+                ),
             },
         },
         "required": ["result_id"],

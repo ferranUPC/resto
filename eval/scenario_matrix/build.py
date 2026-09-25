@@ -42,7 +42,7 @@ from verify.effects import (
     verify_speed_limit,
 )
 
-from eval.scenario_matrix.rows import ROWS, MatrixRow, build_draft
+from eval.scenario_matrix.rows import BEGIN_S, END_S, ROWS, MatrixRow, build_draft
 from resto.adapters.persistence.filesystem import artifact_ref
 from resto.adapters.persistence.mcp_client import McpClientDatabase
 from resto.adapters.persistence.sqlite.repositories import SqliteDatabase
@@ -101,7 +101,7 @@ def _peak_demand(network_id: str) -> Demand:
         demand_id=trips_ref.content_hash,
         network_id=network_id,
         spec=DemandSpec(
-            profile=DemandProfile.PEAK, window=TimeWindow(0.0, 3600.0), seed=1,
+            profile=DemandProfile.PEAK, window=TimeWindow(BEGIN_S, END_S), seed=1,
             vehicles_per_hour=1200.0,
         ),
         trips=trips_ref,

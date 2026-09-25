@@ -22,8 +22,9 @@ DEV_NET_DIR = Path(__file__).resolve().parent.parent / "eval" / "dev-net"
 NET = DEV_NET_DIR / "dev-net.net.xml"
 PEAK_ROUTES = DEV_NET_DIR / "demand" / "peak.rou.xml"
 EDGE = "B2C2"
-WINDOW = TimeWindow(0.0, 300.0)
-END_S = 600.0
+BEGIN_S = 28800.0  # 08:00, the peak demand's first departure (ADR-0028)
+WINDOW = TimeWindow(28800.0, 29100.0)
+END_S = 29400.0
 LIMIT_MPS = 5.0
 
 
@@ -38,7 +39,8 @@ def speed_limit_cfg(tmp_path_factory: pytest.TempPathFactory) -> ArtifactRef:
     )
     _, vss_ref = VssWriter().write(intervention, out_dir)
     settings = SimulationSettings(
-        net_file=NET, route_files=(PEAK_ROUTES,), additional_files=(vss_ref.path,), end=END_S
+        net_file=NET, route_files=(PEAK_ROUTES,), additional_files=(vss_ref.path,),
+        begin=BEGIN_S, end=END_S,
     )
     return SumocfgFileWriter().write(settings, out_dir, "scenario.sumocfg")
 

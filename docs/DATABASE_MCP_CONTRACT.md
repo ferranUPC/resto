@@ -219,8 +219,8 @@ defined as `1.0` here, so baselines match baselines.
 `query_edgedata` is how the Network Expert reaches evidence, so its semantics are pinned tightly:
 
 - **`edge_ids` empty means every edge** present in the result's edgedata.
-- **`window` is `[start, end)`** in simulation seconds, matching `TimeWindow`. `null` means the
-  whole simulation.
+- **`window` is `[start, end)`** as time of day in seconds since midnight, matching `TimeWindow`
+  (ADR-0028; SUMO runs on the same clock). `null` means the whole simulation.
 - **Aggregation.** SUMO writes edgedata in intervals. Every interval **overlapping** the window
   contributes, clipped to the overlap. Counters (`entered`, `left`, `departed`, `arrived`) are
   summed over the clipped intervals, prorated by the overlapping fraction of each interval and

@@ -4,16 +4,16 @@ Built by `python -m eval.question_bank.build` from `eval/scenario_matrix/rows.py
 
 | id | intent | text |
 |---|---|---|
-| S00-desc-occ | describe | Which edges exceed 3.5% occupancy between 0s and 300s in the scenario with no interventions? |
-| S00-desc-tt | describe | What is the mean travel time on B2C2 between 0s and 300s in the scenario with no interventions? |
-| S00-diag | diagnose | Which three edges form the main bottleneck between 0s and 300s in the scenario with no interventions, and why? |
-| S01-desc-occ | describe | Which edges exceed 3.5% occupancy between 0s and 300s in the scenario with lane_closure B2C2 lane 0, [0, 300)? |
-| S01-desc-tt | describe | What is the mean travel time on B2C2 between 0s and 300s in the scenario with lane_closure B2C2 lane 0, [0, 300)? |
-| S01-diag | diagnose | Which three edges form the main bottleneck between 0s and 300s in the scenario with lane_closure B2C2 lane 0, [0, 300), and why? |
-| S01-cf-dir | counterfactual | If lane_closure B2C2 lane 0, [0, 300), does the total delay (time lost by all vehicles) on B2C2 increase, decrease, or stay within 5% relative to the baseline, over 0s-300s? |
-| S01-cf-topk | counterfactual | If lane_closure B2C2 lane 0, [0, 300), which 5 edges change the most in total delay (time lost by all vehicles) relative to the baseline, over 0s-300s? |
-| S01-cf-band | counterfactual | By roughly how much does network-wide mean delay change if lane_closure B2C2 lane 0, [0, 300)? |
-| S02-desc-occ | describe | Which edges exceed 3.5% occupancy between 0s and 300s in the scenario with lane_closure C2D2 lane 0, [0, 300)? |
+| S00-desc-occ | describe | Which edges exceed 3.5% occupancy between 08:00 and 08:05 in the scenario with no interventions? |
+| S00-desc-tt | describe | What is the mean travel time on B2C2 between 08:00 and 08:05 in the scenario with no interventions? |
+| S00-diag | diagnose | Which three edges form the main bottleneck between 08:00 and 08:05 in the scenario with no interventions, and why? |
+| S01-desc-occ | describe | Which edges exceed 3.5% occupancy between 08:00 and 08:05 in the scenario with lane_closure B2C2 lane 0, 08:00-08:05? |
+| S01-desc-tt | describe | What is the mean travel time on B2C2 between 08:00 and 08:05 in the scenario with lane_closure B2C2 lane 0, 08:00-08:05? |
+| S01-diag | diagnose | Which three edges form the main bottleneck between 08:00 and 08:05 in the scenario with lane_closure B2C2 lane 0, 08:00-08:05, and why? |
+| S01-cf-dir | counterfactual | If lane_closure B2C2 lane 0, 08:00-08:05, does the total delay (time lost by all vehicles) on B2C2 increase, decrease, or stay within 5% relative to the baseline, over 08:00-08:05? |
+| S01-cf-topk | counterfactual | If lane_closure B2C2 lane 0, 08:00-08:05, which 5 edges change the most in total delay (time lost by all vehicles) relative to the baseline, over 08:00-08:05? |
+| S01-cf-band | counterfactual | By roughly how much does network-wide mean delay change if lane_closure B2C2 lane 0, 08:00-08:05? |
+| S02-desc-occ | describe | Which edges exceed 3.5% occupancy between 08:00 and 08:05 in the scenario with lane_closure C2D2 lane 0, 08:00-08:05? |
 
 Full bank: `question-bank.json` (117 entries).
 

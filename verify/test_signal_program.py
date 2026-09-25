@@ -30,8 +30,9 @@ DEV_NET_DIR = Path(__file__).resolve().parent.parent / "eval" / "dev-net"
 NET = DEV_NET_DIR / "dev-net.net.xml"
 PEAK_ROUTES = DEV_NET_DIR / "demand" / "peak.rou.xml"
 TLS = "C2"
-WINDOW = TimeWindow(100.0, 300.0)
-END_S = 600.0
+BEGIN_S = 28800.0  # 08:00, the peak demand's first departure (ADR-0028)
+WINDOW = TimeWindow(28900.0, 29100.0)
+END_S = 29400.0
 ORIGINAL_PROGRAM = "0"
 ALT_PROGRAM = "1"
 # C2's own phase `state` strings (dev-net.net.xml, programID="0"), retimed for programID="1".
@@ -69,6 +70,7 @@ def signal_program_cfg(tmp_path_factory: pytest.TempPathFactory) -> ArtifactRef:
         net_file=NET,
         route_files=(PEAK_ROUTES,),
         additional_files=(alt_program, waut_ref.path),
+        begin=BEGIN_S,
         end=END_S,
     )
     return SumocfgFileWriter().write(settings, out_dir, "scenario.sumocfg")

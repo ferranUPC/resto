@@ -162,7 +162,7 @@ def write_sumocfg(
     (the Runner adds those per run). Paths are stored relative to the cfg.
 
     Example: write_sumocfg(writer, net, [routes], out_dir, additional_files=[closure],
-        begin=0, end=3600) -> ArtifactRef(path=out_dir/"scenario.sumocfg", kind="sumocfg")
+        begin=28800, end=32400) -> ArtifactRef(path=out_dir/"scenario.sumocfg", kind="sumocfg")
 
     Raises:
         ValueError: no route file, or an inconsistent time window.

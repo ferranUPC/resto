@@ -21,8 +21,8 @@ cd "$(dirname "$0")"
 RANDOM_TRIPS="$(python3 -c 'import sumo, os; print(os.path.join(os.path.dirname(sumo.__file__), "tools", "randomTrips.py"))')"
 NET_FILE="../dev-net.net.xml"
 SEED=1
-BEGIN=0
-END=3600
+BEGIN=28800  # 08:00 - time of day, ADR-0028
+END=32400    # 09:00
 
 gen() {
   local profile="$1" rate="$2"

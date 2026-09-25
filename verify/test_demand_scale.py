@@ -21,6 +21,7 @@ DEV_NET_DIR = Path(__file__).resolve().parent.parent / "eval" / "dev-net"
 NET = artifact_ref(DEV_NET_DIR / "dev-net.net.xml", "net")
 LOW_TRIPS = artifact_ref(DEV_NET_DIR / "demand" / "low.trips.xml", "trips")
 FACTOR = 1.5
+BEGIN_S = 28800.0  # 08:00, the low demand's first departure (ADR-0028)
 
 
 @pytest.fixture(scope="module")
@@ -28,7 +29,7 @@ def scaled_scenario_cfg(tmp_path_factory: pytest.TempPathFactory) -> ArtifactRef
     out_dir = tmp_path_factory.mktemp("demand_scale")
     scaled_trips = SumoDemandScaler().scale(LOW_TRIPS, FACTOR, out_dir)
     routes = SumoDemandTools().duarouter(NET, scaled_trips, seed=1, out_dir=out_dir)
-    settings = SimulationSettings(net_file=NET.path, route_files=(routes.path,))
+    settings = SimulationSettings(net_file=NET.path, route_files=(routes.path,), begin=BEGIN_S)
     return SumocfgFileWriter().write(settings, out_dir, "scenario.sumocfg")
 
 

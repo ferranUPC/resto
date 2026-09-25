@@ -51,9 +51,15 @@ architecture doc's own example matrix rows S05 (`condition` script) and S06 (der
 need E2.6 and E6.1 respectively, neither of which exists yet — out of scope here by construction,
 not an oversight.
 
-Every `lane_closure`/`edge_closure`/`speed_limit` row's window is `[0, 300)` — found empirically
+Windows are time of day (ADR-0028): the `peak` demand covers 08:00–09:00 and every run starts
+SUMO at 08:00. The matrix was first built on `[0, 3600)` and rebuilt in the morning by E3.8, which
+changed every `Demand`, `Scenario` and `SimulationResult` id.
+
+Every `lane_closure`/`edge_closure`/`speed_limit` row's window is 08:00–08:05 (`[28800, 29100)`,
+the demand's first 300 s) — found empirically
 while first building this matrix (see `rows.py`'s own docstring): a later window in the hour-long
 `peak` run can have a vehicle already mid-edge when the window opens, which the edgedata-based
 effect check cannot distinguish from the closure not working. Diversity across these rows comes
 from location (5 named DEV-NET edges) and mechanism, not window offset. `signal_program` windows
-are unrestricted, since those rows are not edgedata-checked.
+are unrestricted, since those rows are not edgedata-checked; they are three-minute windows on whole
+minutes from 08:02.

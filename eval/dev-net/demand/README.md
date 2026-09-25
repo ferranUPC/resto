@@ -51,9 +51,18 @@ of "≈10-20% edges congested").
 
 ## Profiles
 
-All three share `window = [0, 3600)` (1 h), `seed = 1`, Poisson-distributed departures
+All three share `window = [28800, 32400)` (08:00–09:00), `seed = 1`, Poisson-distributed departures
 (`--poisson`), random depart/arrival position on the edge, and are validated for connectivity
 (`--validate`) before routing with `duarouter`.
+
+**Time of day (ADR-0028).** Windows are seconds since midnight, and simulations run on the same
+clock: `sim_utils.run_sim` starts SUMO at `--begin 28800`. `low` / `peak` / `incident` are
+intensity labels, not times — all three are the same morning hour. The profiles were first built
+on `[0, 3600)` and moved to 08:00 by E3.8: with the same `randomTrips` seed the new files are the
+old ones with every `depart` shifted by exactly 28800 s (same trips, same routes), and since
+DEV-NET's signal cycle is 90 s (28800 = 320 cycles) the signals are in the same phase at 08:00 as
+they were at 0. The re-run of `verification.ipynb` reproduced every figure below and
+`control_counts.json` byte for byte.
 
 | profile | `vehicles_per_hour` | routing | congestion (mean, 9 sim seeds) | teleports |
 |---|---|---|---|---|

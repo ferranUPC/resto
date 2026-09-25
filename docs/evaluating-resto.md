@@ -99,12 +99,14 @@ Generation rules:
 - **Seeds.** Every gold value is the mean over the row's 3 seeds; per-seed values are kept in `evidence`.
 - **Delay.** SUMO's `time_loss` is the total time lost by all vehicles on the edge (vehicle-seconds), so
   it already is "per-vehicle delay × flow"; bottlenecks rank by it directly (ADR-0020).
-- **Window.** The row's own intervention window; `[0, 300)` for rows without one (baseline, `demand_scale`).
+- **Window.** Time of day (ADR-0028). The row's own intervention window; 08:00–08:05 (`[28800, 29100)`,
+  the `peak` demand's first 300 s) for rows without one (baseline, `demand_scale`). Question text
+  writes clock times ("between 08:00 and 08:05").
   Counterfactuals query the baseline with the *row's* window, never the baseline's default.
 - **Target edge.** The row's intervention edge; the edge downstream of the junction for `signal_program`
   rows (`A2`→`A2B2`, …); `B2C2` for `demand_scale` rows.
 - **Occupancy threshold 3.5 %.** Chosen from the matrix itself: baseline occupancy tops out near 3 % in
-  `[0, 300)`, a lane closure's upstream queue near 6 %.
+  08:00–08:05, a lane closure's upstream queue near 6 %.
 - **Bottleneck reason.** `merge` if the top edge is `B0C0`/`C0D0`, `signal` if it is on the row-2 corridor,
   `demand` otherwise. Computed but **not graded** (§4.4).
 - **Question text** names the scenario by its description only; matrix row labels (`S00`, …) never appear
@@ -376,6 +378,7 @@ the note's content as observed without citing it is not detected; the typed `val
 | 2026-09-24 | **Intent graded with accepted second readings** (the user's call). `concepts.ALSO_ACCEPTED` lists, per concept, intents accepted besides the gold one: `run` on the ten "simulate X and report Y" concepts (R004, R015, R017, R019, R032, R034, R040, R041, R043, R063), gold still `counterfactual`. `score_request` takes them; graded `intent` (the E5.1 threshold) accepts either reading, `intent_strict` is reported against the gold alone, in the Parser and the annotation reports. The compare/counterfactual boundary stays strict: "which is better" against "how much does it change" has one reading by the definition. Re-scored for free: Parser v6 on dev 99.4 % both ways (it always reads these as `counterfactual`); the user's second round 89 % (16/18) graded, 72 % strict; the two left are R022 and R027, compare and counterfactual swapped. |
 | 2026-09-24 | **E5.1 held-out pass run** (the user's call, with the external annotation still pending; v6, 114 × 3, $0.376, `eval/parser_benchmark/reports/v6-heldout.md`): every per-run threshold met, **`intent` agreement 93.9 % < 95 %, so E5.1 is not Done**; 94.1 % when only requests with a gold intent are counted, reported but not adopted since it was computed after the result. The held-out split is now spent for tuning: any change made after this pass is chosen on dev, and a second held-out measurement must say it is a second use. Details and the suspect (no temperature set) in `parser-tuning-log.md` §2b. |
 | 2026-09-24 | **Development runs vs measurement runs** (the user's call, [wayfinder #3](https://github.com/ferranUPC/resto/issues/3); supersedes the 2026-09-22 row). The line is purpose, not price: development runs go now, measurement runs wait for Validation 1 (mid-December, reduced checkpoints on dev) or Validation 2 (before E8.5, definitive, each suite once). $30 cap for both passes unless funded; under it suites shrink, they are not dropped. A task whose only missing piece is a measurement suite is ⏳ in the tracker, not 🚧. E5.1's second held-out use happens in Validation 2, with the prompt frozen, and is reported next to the first (93.9 %). |
+| 2026-09-24 | **DEV-NET assets in clock time** (E3.8, ADR-0028): the three demands cover 08:00–09:00 (`[28800, 32400)`, every `depart` shifted by exactly 28800 s, same trips and routes); the matrix and the question bank are rebuilt on it, with every id changed. Gold answers are unchanged except on the four `signal_program` rows, whose windows moved to whole minutes (08:02–08:05, …, 08:11–08:14; 18 gold answers). The Expert's `window` argument is described as seconds since midnight. Expert sweeps before this (v0–v2) ran on the old bank and are not compared with later ones as if on the same bank. |
 
 ## 6. Open questions
 

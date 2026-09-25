@@ -28,6 +28,11 @@ NET_FILE = DEV_NET_DIR / "dev-net.net.xml"
 CONGESTION_SPEED_RATIO = 0.5
 CONGESTION_MIN_OCCUPANCY = 0.5
 
+# Every profile's departures cover 08:00-09:00 (ADR-0028: time of day, seconds since midnight).
+# SUMO begins at the window's start so the whole-run edgedata interval averages over the demand
+# hour, not over eight empty hours before it.
+BEGIN_S = 28800
+
 CONTROL_EDGES = {
     "B0C0": "bottleneck approach (2 lanes, row 0)",
     "C0D0": "bottleneck exit (1 lane, row 0)",
@@ -62,6 +67,8 @@ def run_sim(profile: str, sim_seed: int, route_path: Path | None = None) -> dict
             str(NET_FILE),
             "--route-files",
             str(route_path),
+            "--begin",
+            str(BEGIN_S),
             "--seed",
             str(sim_seed),
             "--edgedata-output",

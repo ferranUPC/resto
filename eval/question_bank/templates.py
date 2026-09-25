@@ -34,9 +34,10 @@ EdgeMeasures = Mapping[str, Mapping[str, float]]
 DESCRIPTIVE_OCCUPANCY_THRESHOLD_PCT = 3.5
 
 # Window used for every descriptive/diagnostic/counterfactual edge-level question on a row with
-# no window of its own (baseline, demand_scale) - the same [0, 300) every other row already uses
-# (rows.py's own docstring), so descriptive questions stay comparable across scenarios.
-DEFAULT_WINDOW = TimeWindow(0.0, 300.0)
+# no window of its own (baseline, demand_scale) - the same 08:00-08:05 every closure and speed-limit
+# row already uses (rows.py's own docstring), so descriptive questions stay comparable across
+# scenarios. Time of day, seconds since midnight (ADR-0028).
+DEFAULT_WINDOW = TimeWindow(28800.0, 29100.0)
 
 # demand_scale rows change every edge's load a little rather than one edge a lot, so they have no
 # natural "target edge" of their own - B2C2 is an interior row-2 corridor edge already used by
@@ -66,6 +67,11 @@ class QuestionBankItem:
     result_ids: tuple[str, ...]
     gold_answer: Mapping[str, Any]
     evidence: Mapping[str, Any]
+
+
+def clock(seconds: float) -> str:
+    """Time of day as a user would write it: `28800.0` -> `"08:00"`, `28920.0` -> `"08:02"`."""
+    return f"{int(seconds // 3600):02d}:{int(seconds % 3600 // 60):02d}"
 
 
 def descriptive_window(row: MatrixRow) -> TimeWindow:
@@ -119,7 +125,7 @@ def descriptive_occupancy_item(
     )
     text = (
         f"Which edges exceed {DESCRIPTIVE_OCCUPANCY_THRESHOLD_PCT:.1f}% occupancy between "
-        f"{window.start:.0f}s and {window.end:.0f}s in the scenario with {row.description}?"
+        f"{clock(window.start)} and {clock(window.end)} in the scenario with {row.description}?"
     )
     kwargs = _base_kwargs(
         scenario, intent=Intent.DESCRIBE, network_id=network_id, demand_id=demand_id,
@@ -173,8 +179,8 @@ def descriptive_travel_time_item(
     else:
         gold["no_value"] = "no_traffic"
     text = (
-        f"What is the mean travel time on {edge_id} between {window.start:.0f}s and "
-        f"{window.end:.0f}s in the scenario with {row.description}?"
+        f"What is the mean travel time on {edge_id} between {clock(window.start)} and "
+        f"{clock(window.end)} in the scenario with {row.description}?"
     )
     kwargs = _base_kwargs(
         scenario, intent=Intent.DESCRIBE, network_id=network_id, demand_id=demand_id,
@@ -216,8 +222,8 @@ def diagnostic_bottleneck_item(
         top3[0], merge_edges=MERGE_BOTTLENECK_EDGES, signalised_edges=SIGNALISED_CORRIDOR_EDGES
     )
     text = (
-        f"Which three edges form the main bottleneck between {window.start:.0f}s and "
-        f"{window.end:.0f}s in the scenario with {row.description}, and why?"
+        f"Which three edges form the main bottleneck between {clock(window.start)} and "
+        f"{clock(window.end)} in the scenario with {row.description}, and why?"
     )
     kwargs = _base_kwargs(
         scenario, intent=Intent.DIAGNOSE, network_id=network_id, demand_id=demand_id,
@@ -258,7 +264,7 @@ def counterfactual_direction_item(
     text = (
         f"If {row.description}, does the total delay (time lost by all vehicles) on {edge_id} "
         "increase, decrease, or stay "
-        f"within 5% relative to the baseline, over {window.start:.0f}s-{window.end:.0f}s?"
+        f"within 5% relative to the baseline, over {clock(window.start)}-{clock(window.end)}?"
     )
     kwargs = _base_kwargs(
         scenario, intent=Intent.COUNTERFACTUAL, network_id=network_id, demand_id=demand_id,
@@ -304,7 +310,7 @@ def counterfactual_top_k_item(
     text = (
         f"If {row.description}, which {k} edges change the most in total delay (time lost by all "
         "vehicles) relative to the "
-        f"baseline, over {window.start:.0f}s-{window.end:.0f}s?"
+        f"baseline, over {clock(window.start)}-{clock(window.end)}?"
     )
     kwargs = _base_kwargs(
         scenario, intent=Intent.COUNTERFACTUAL, network_id=network_id, demand_id=demand_id,

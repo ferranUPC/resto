@@ -37,13 +37,16 @@ DEV_NET_DIR = Path(__file__).resolve().parents[4] / "eval" / "dev-net"
 NET = DEV_NET_DIR / "dev-net.net.xml"
 LOW_ROUTES = DEV_NET_DIR / "demand" / "low.rou.xml"
 PEAK_ROUTES = DEV_NET_DIR / "demand" / "peak.rou.xml"
-END_S = 600.0
+BEGIN_S = 28800.0  # 08:00, the demand profiles' first departure (ADR-0028)
+END_S = 29400.0
 
 
 @pytest.fixture(scope="module")
 def scenario_cfg(tmp_path_factory: pytest.TempPathFactory) -> ArtifactRef:
     out_dir = tmp_path_factory.mktemp("scenario")
-    settings = SimulationSettings(net_file=NET, route_files=(LOW_ROUTES,), end=END_S)
+    settings = SimulationSettings(
+        net_file=NET, route_files=(LOW_ROUTES,), begin=BEGIN_S, end=END_S
+    )
     return SumocfgFileWriter().write(settings, out_dir, "scenario.sumocfg")
 
 
@@ -55,11 +58,12 @@ def closure_scenario_cfg(tmp_path_factory: pytest.TempPathFactory) -> ArtifactRe
     closure = Intervention(
         type=InterventionType.LANE_CLOSURE,
         target=LaneTarget(edge_id="B2C2", lane_index=0),
-        window=TimeWindow(100.0, 300.0),
+        window=TimeWindow(28900.0, 29100.0),
     )
     _, rerouter_ref = RerouterWriter().write(closure, out_dir)
     settings = SimulationSettings(
-        net_file=NET, route_files=(PEAK_ROUTES,), additional_files=(rerouter_ref.path,), end=END_S
+        net_file=NET, route_files=(PEAK_ROUTES,), additional_files=(rerouter_ref.path,),
+        begin=BEGIN_S, end=END_S,
     )
     return SumocfgFileWriter().write(settings, out_dir, "scenario.sumocfg")
 
@@ -170,8 +174,8 @@ def test_edgedata_is_aggregated_in_fixed_intervals(
         (float(i.get("begin", 0)), float(i.get("end", 0))) for i in root.findall("interval")
     ]
 
-    assert len(intervals) == END_S / EDGEDATA_PERIOD_S
-    assert intervals[0] == (0.0, EDGEDATA_PERIOD_S)
+    assert len(intervals) == (END_S - BEGIN_S) / EDGEDATA_PERIOD_S
+    assert intervals[0] == (BEGIN_S, BEGIN_S + EDGEDATA_PERIOD_S)  # aligned to SUMO's begin
     assert all(end - begin == EDGEDATA_PERIOD_S for begin, end in intervals)
 
 
