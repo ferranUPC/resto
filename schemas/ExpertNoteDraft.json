@@ -9,6 +9,41 @@
       "title": "Basis",
       "type": "string"
     },
+    "BottleneckCause": {
+      "description": "Why one edge of a diagnosed bottleneck is congested (ADR-0029). Declared in precedence\norder: when several apply, the first one is the edge's cause.",
+      "enum": [
+        "intervention",
+        "merge",
+        "spillback",
+        "signal",
+        "demand"
+      ],
+      "title": "BottleneckCause",
+      "type": "string"
+    },
+    "BottleneckCauses": {
+      "description": "The diagnostic \"why\": one `BottleneckCause` per edge of a diagnosed bottleneck\n(ADR-0029), stated next to the `Edges` value that ranks them.",
+      "properties": {
+        "causes": {
+          "items": {
+            "$ref": "#/$defs/EdgeCause"
+          },
+          "title": "Causes",
+          "type": "array"
+        },
+        "kind": {
+          "const": "causes",
+          "default": "causes",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "causes"
+      ],
+      "title": "BottleneckCauses",
+      "type": "object"
+    },
     "Change": {
       "description": "How a measure changes relative to a reference (usually the baseline): a direction and,\nwhen known, the relative change in percent.",
       "properties": {
@@ -64,6 +99,23 @@
       ],
       "title": "ChangeDirection",
       "type": "string"
+    },
+    "EdgeCause": {
+      "properties": {
+        "cause": {
+          "$ref": "#/$defs/BottleneckCause"
+        },
+        "edge_id": {
+          "title": "Edge Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "edge_id",
+        "cause"
+      ],
+      "title": "EdgeCause",
+      "type": "object"
     },
     "Edges": {
       "description": "A set of edges, or a ranking when `ranked` (most relevant first). Empty is a valid\nanswer (\"no edge does\").",
@@ -268,6 +320,9 @@
           },
           {
             "$ref": "#/$defs/NoValue"
+          },
+          {
+            "$ref": "#/$defs/BottleneckCauses"
           }
         ]
       },

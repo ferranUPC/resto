@@ -17,8 +17,11 @@ from resto.application.use_cases.ask_expert import (
 )
 from resto.domain.value_objects.answer_value import (
     AnswerValue,
+    BottleneckCause,
+    BottleneckCauses,
     Change,
     ChangeDirection,
+    EdgeCause,
     Edges,
     Measure,
     Quantity,
@@ -136,11 +139,29 @@ def test_an_artifact_no_result_call_returned_is_rejected() -> None:
         Edges(edge_ids=("B1B0", "Z9Z9")),
         Quantity(measure=Measure.TRAVEL_TIME, value=23.4, edge_id="Z9Z9"),
         replace(INCREASE_ON_B2C2, edge_id="Z9Z9"),
+        BottleneckCauses(
+            causes=(
+                EdgeCause(edge_id="B1B0", cause=BottleneckCause.SIGNAL),
+                EdgeCause(edge_id="Z9Z9", cause=BottleneckCause.SPILLBACK),
+            )
+        ),
     ],
 )
 def test_an_edge_that_is_not_on_the_network_is_rejected(value: AnswerValue) -> None:
     with pytest.raises(ExpertAnswerRejected, match="Z9Z9"):
         ask_expert(_task(), _run(_answer(values=(value,))), _ledger(), query=QUERY)
+
+
+def test_a_diagnosis_with_a_cause_per_known_edge_is_accepted() -> None:
+    causes = BottleneckCauses(
+        causes=(
+            EdgeCause(edge_id="B2C2", cause=BottleneckCause.INTERVENTION),
+            EdgeCause(edge_id="B1B0", cause=BottleneckCause.SPILLBACK),
+        )
+    )
+    values = (Edges(edge_ids=("B2C2", "B1B0"), ranked=True), causes)
+    round_ = ask_expert(_task(), _run(_answer(values=values)), _ledger(), query=QUERY)
+    assert round_.answer.values == values
 
 
 def test_network_wide_values_need_no_edge_check() -> None:

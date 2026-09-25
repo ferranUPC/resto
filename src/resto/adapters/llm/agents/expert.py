@@ -32,7 +32,7 @@ from resto.domain.value_objects.tasks import ExpertTask, NoteTask
 
 # Bump whenever the prompt, the tool set or the default budget changes in a way that can change
 # answers: every benchmark run records it, and docs/expert-tuning-log.md explains each version.
-EXPERT_VERSION = "v2"
+EXPERT_VERSION = "v3"
 
 _EDGE_MEASURES = ", ".join(f"{m.value} ({m.unit})" for m in Measure if not m.is_network_wide)
 _NETWORK_MEASURES = ", ".join(f"{m.value} ({m.unit})" for m in Measure if m.is_network_wide)
@@ -94,11 +94,27 @@ and must agree with them (the values are what counts). Use only these kinds:
     decrease or unchanged; relative_change_pct is optional, in percent, with the same sign.
   - {{"kind": "no_value", "measure": "travel_time", "edge_id": "E12", "reason": "no_traffic"}}
     a per-vehicle measure (travel_time, speed) undefined because no vehicle crossed the edge.
+  - {{"kind": "causes", "causes": [{{"edge_id": "E12", "cause": "signal"}},
+     {{"edge_id": "E07", "cause": "spillback"}}]}}
+    why each edge of a bottleneck is congested: one cause per edge.
 Measures per edge (edge_id required): {_EDGE_MEASURES}.
 time_loss is an edge's total delay and waiting_time its total halting time, both summed over all
 its vehicles (veh·s); divide by entered for a per-vehicle value.
 Measures for the whole network (edge_id null): {_NETWORK_MEASURES}.
-Put every part of the question these kinds can express in `values`; a "why" stays in `answer`.
+Put every part of the question these kinds can express in `values`.
+
+A bottleneck diagnosis ("which edges form the bottleneck, and why") carries a ranked edges value and
+a causes value with one cause for each edge you name. Causes, in this order; when several apply, the
+edge's cause is the first:
+  - intervention: the edge is the scenario's intervention target, feeds the target edge directly
+    (ends where it starts), or is controlled by the target traffic light. A demand change has no
+    target and is never this cause.
+  - merge: the edge is at a lane drop: the road loses a lane where it starts or where it ends.
+  - spillback: the edge ends where a worse edge of your own ranking starts; its queue comes from
+    downstream.
+  - signal: a traffic light controls the edge (get_tls lists the edges each light controls).
+  - demand: none of the above; more traffic arrives than the edge can serve.
+Any other "why" stays in `answer`.
 
 Submit your ExpertAnswer with submit_output: answer, basis, confidence, evidence, values,
 needs_simulation and proposed_experiment (null unless you abstain; values may be empty only then).

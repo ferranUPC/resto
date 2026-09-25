@@ -5,10 +5,11 @@ revises its own opinion"; DATABASE_MCP_CONTRACT.md: "only code decides that").
 First version, deliberately narrow: only network-wide `Quantity` claims (`mean_delay`,
 `mean_travel_time`, `teleports`, `departed`, `arrived`) can be checked against a single
 `SimulationResult`'s `Kpis` — a direct, single-result comparison with no room for ambiguity.
-Per-edge `Quantity`, `Edges` and `Change` claims have no comparison target this simple a check can
-derive from one result alone (a `Change` claim needs its own baseline result, which nothing here is
-given); a note carrying only those stays `UNVERIFIED` rather than getting a guessed verdict. See
-docs/evaluating-resto.md §4.8 and ADR-0024 for the reasoning and where this could be widened.
+Per-edge `Quantity`, `Edges`, `Change` and `BottleneckCauses` claims have no comparison target this
+simple a check can derive from one result alone (a `Change` claim needs its own baseline result,
+which nothing here is given); a note carrying only those stays `UNVERIFIED` rather than getting a
+guessed verdict. See docs/evaluating-resto.md §4.8 and ADR-0024 for the reasoning and where this
+could be widened.
 """
 
 from __future__ import annotations

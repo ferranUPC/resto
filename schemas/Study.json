@@ -123,6 +123,41 @@
       "title": "Basis",
       "type": "string"
     },
+    "BottleneckCause": {
+      "description": "Why one edge of a diagnosed bottleneck is congested (ADR-0029). Declared in precedence\norder: when several apply, the first one is the edge's cause.",
+      "enum": [
+        "intervention",
+        "merge",
+        "spillback",
+        "signal",
+        "demand"
+      ],
+      "title": "BottleneckCause",
+      "type": "string"
+    },
+    "BottleneckCauses": {
+      "description": "The diagnostic \"why\": one `BottleneckCause` per edge of a diagnosed bottleneck\n(ADR-0029), stated next to the `Edges` value that ranks them.",
+      "properties": {
+        "causes": {
+          "items": {
+            "$ref": "#/$defs/EdgeCause"
+          },
+          "title": "Causes",
+          "type": "array"
+        },
+        "kind": {
+          "const": "causes",
+          "default": "causes",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "causes"
+      ],
+      "title": "BottleneckCauses",
+      "type": "object"
+    },
     "BuildScenarioStep": {
       "description": "`arm`, `role` and `purpose` are the Coordinator's: the Executor copies them into the\n`Experiment` this scenario and its runs become (ADR-0025 \u00a75, ADR-0027 \u00a73).",
       "properties": {
@@ -451,6 +486,23 @@
       "title": "DeriveNetworkStep",
       "type": "object"
     },
+    "EdgeCause": {
+      "properties": {
+        "cause": {
+          "$ref": "#/$defs/BottleneckCause"
+        },
+        "edge_id": {
+          "title": "Edge Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "edge_id",
+        "cause"
+      ],
+      "title": "EdgeCause",
+      "type": "object"
+    },
     "EdgeTarget": {
       "properties": {
         "edge_id": {
@@ -631,6 +683,9 @@
               },
               {
                 "$ref": "#/$defs/NoValue"
+              },
+              {
+                "$ref": "#/$defs/BottleneckCauses"
               }
             ]
           },

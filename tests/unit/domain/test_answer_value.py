@@ -3,10 +3,14 @@ from __future__ import annotations
 import math
 
 import pytest
+from pydantic import TypeAdapter
 
 from resto.domain.value_objects.answer_value import (
+    BottleneckCause,
+    BottleneckCauses,
     Change,
     ChangeDirection,
+    EdgeCause,
     Edges,
     Measure,
     NoValue,
@@ -71,3 +75,33 @@ def test_no_value_only_for_per_vehicle_means_on_a_named_edge() -> None:
         NoValue(measure=Measure.OCCUPANCY, edge_id="E12")
     with pytest.raises(ValueError, match="names the edge"):
         NoValue(measure=Measure.TRAVEL_TIME, edge_id="")
+
+
+def test_bottleneck_causes_pair_each_edge_with_one_cause() -> None:
+    value = BottleneckCauses(
+        causes=(
+            EdgeCause(edge_id="E12", cause=BottleneckCause.INTERVENTION),
+            EdgeCause(edge_id="E07", cause=BottleneckCause.SPILLBACK),
+        )
+    )
+    assert [c.edge_id for c in value.causes] == ["E12", "E07"]
+    with pytest.raises(ValueError, match="at least one"):
+        BottleneckCauses(causes=())
+    with pytest.raises(ValueError, match="repeat"):
+        BottleneckCauses(
+            causes=(
+                EdgeCause(edge_id="E12", cause=BottleneckCause.SIGNAL),
+                EdgeCause(edge_id="E12", cause=BottleneckCause.DEMAND),
+            )
+        )
+    with pytest.raises(ValueError, match="non-empty"):
+        EdgeCause(edge_id="", cause=BottleneckCause.MERGE)
+
+
+def test_a_cause_outside_the_five_is_rejected_at_the_boundary() -> None:
+    adapter: TypeAdapter[BottleneckCauses] = TypeAdapter(BottleneckCauses)
+    payload = {"kind": "causes", "causes": [{"edge_id": "E12", "cause": "signal"}]}
+    assert adapter.validate_python(payload).causes[0].cause is BottleneckCause.SIGNAL
+    payload["causes"] = [{"edge_id": "E12", "cause": "weather"}]
+    with pytest.raises(ValueError):
+        adapter.validate_python(payload)

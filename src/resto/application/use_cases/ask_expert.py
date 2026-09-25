@@ -22,7 +22,7 @@ from __future__ import annotations
 from resto.application.ports.llm import AgentRun, StopReason
 from resto.application.ports.network_query import NetworkQuery
 from resto.application.tools.expert import EvidenceLedger
-from resto.domain.value_objects.answer_value import Edges
+from resto.domain.value_objects.answer_value import BottleneckCauses, Edges
 from resto.domain.value_objects.expert_answer import EvidenceKind, ExpertAnswer
 from resto.domain.value_objects.expert_round import ExpertRound
 from resto.domain.value_objects.question import Mode
@@ -74,7 +74,9 @@ def _check_evidence(answer: ExpertAnswer, ledger: EvidenceLedger) -> None:
 
 def _check_values(answer: ExpertAnswer, query: NetworkQuery) -> None:
     for value in answer.values:
-        edge_ids = value.edge_ids if isinstance(value, Edges) else (value.edge_id,)
+        edge_ids = (
+            value.edge_ids if isinstance(value, Edges | BottleneckCauses) else (value.edge_id,)
+        )
         for edge_id in edge_ids:
             if edge_id is not None and not query.has_edge(edge_id):
                 raise ExpertAnswerRejected(f"edge {edge_id!r} in the answer is not on the network")

@@ -21,8 +21,11 @@ from resto.domain.entities.simulation_result import RunMode, RunStatus, Simulati
 from resto.domain.entities.study import Phase, Study, StudyStatus
 from resto.domain.services.note_ranking import ScoredNote
 from resto.domain.value_objects.answer_value import (
+    BottleneckCause,
+    BottleneckCauses,
     Change,
     ChangeDirection,
+    EdgeCause,
     Edges,
     Measure,
     NoValue,
@@ -370,6 +373,13 @@ SAMPLES: dict[type, Callable[[], object]] = {
     Evidence: lambda: Evidence(kind=EvidenceKind.ARTIFACT, ref="edgedata.xml", excerpt="E12"),
     Edges: lambda: Edges(edge_ids=("E12", "E07"), ranked=True),
     NoValue: lambda: NoValue(measure=Measure.TRAVEL_TIME, edge_id="E12"),
+    EdgeCause: lambda: EdgeCause(edge_id="E12", cause=BottleneckCause.SIGNAL),
+    BottleneckCauses: lambda: BottleneckCauses(
+        causes=(
+            EdgeCause(edge_id="E12", cause=BottleneckCause.INTERVENTION),
+            EdgeCause(edge_id="E07", cause=BottleneckCause.SPILLBACK),
+        )
+    ),
     Quantity: lambda: Quantity(measure=Measure.TRAVEL_TIME, value=23.4, edge_id="E12"),
     Change: lambda: Change(
         measure=Measure.MEAN_DELAY, direction=ChangeDirection.INCREASE, relative_change_pct=7.6

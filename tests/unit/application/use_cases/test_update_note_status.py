@@ -3,11 +3,21 @@
 
 from __future__ import annotations
 
+import pytest
+
 from resto.adapters.persistence.memory import InMemoryNoteRepository
 from resto.application.use_cases.update_note_status import update_note_status
 from resto.domain.entities.expert_note import ExpertNote, NoteStatus, Provenance
 from resto.domain.entities.simulation_result import RunMode, RunStatus, SimulationResult
-from resto.domain.value_objects.answer_value import Edges, Measure, Quantity
+from resto.domain.value_objects.answer_value import (
+    AnswerValue,
+    BottleneckCause,
+    BottleneckCauses,
+    EdgeCause,
+    Edges,
+    Measure,
+    Quantity,
+)
 from resto.domain.value_objects.expert_answer import Basis
 from resto.domain.value_objects.kpis import Kpis
 
@@ -73,10 +83,15 @@ def test_an_already_resolved_note_is_left_alone() -> None:
     assert status is None
 
 
-def test_a_note_with_no_checkable_claim_stays_unverified() -> None:
-    status = update_note_status(
-        _note(values=(Edges(edge_ids=("E12",)),)), _result(), notes=InMemoryNoteRepository()
-    )
+@pytest.mark.parametrize(
+    "value",
+    [
+        Edges(edge_ids=("E12",)),
+        BottleneckCauses(causes=(EdgeCause(edge_id="E12", cause=BottleneckCause.SIGNAL),)),
+    ],
+)
+def test_a_note_with_no_checkable_claim_stays_unverified(value: AnswerValue) -> None:
+    status = update_note_status(_note(values=(value,)), _result(), notes=InMemoryNoteRepository())
     assert status is None
 
 

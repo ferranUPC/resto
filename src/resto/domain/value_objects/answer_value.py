@@ -168,4 +168,34 @@ class BottleneckCause(StrEnum):
     DEMAND = "demand"
 
 
-AnswerValue = Edges | Quantity | Change | NoValue
+@dataclass(frozen=True, slots=True)
+class EdgeCause:
+    edge_id: str
+    cause: BottleneckCause
+
+    def __post_init__(self) -> None:
+        if not self.edge_id:
+            raise ValueError("an edge cause names a non-empty edge id")
+
+
+@dataclass(frozen=True, slots=True)
+class BottleneckCauses:
+    """The diagnostic "why": one `BottleneckCause` per edge of a diagnosed bottleneck
+    (ADR-0029), stated next to the `Edges` value that ranks them."""
+
+    causes: tuple[EdgeCause, ...]
+    kind: Literal["causes"] = "causes"
+
+    def __post_init__(self) -> None:
+        if not self.causes:
+            raise ValueError("a cause value holds at least one edge")
+        edge_ids = [c.edge_id for c in self.causes]
+        if len(set(edge_ids)) != len(edge_ids):
+            raise ValueError("an edge must not repeat in a cause value")
+
+    @property
+    def edge_ids(self) -> tuple[str, ...]:
+        return tuple(c.edge_id for c in self.causes)
+
+
+AnswerValue = Edges | Quantity | Change | NoValue | BottleneckCauses
