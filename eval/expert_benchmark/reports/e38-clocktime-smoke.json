@@ -1,0 +1,158 @@
+{
+  "runs": 15,
+  "expert_versions": [
+    "v2"
+  ],
+  "questions": 15,
+  "repetitions": [
+    1
+  ],
+  "budget_stops": 1,
+  "per_repetition": {
+    "1": {
+      "descriptive_accuracy": 1.0,
+      "desc_occ_accuracy": 1.0,
+      "desc_tt_accuracy": 1.0,
+      "diag_accuracy": 0.75,
+      "diag_mean_jaccard": 0.75,
+      "cf_dir_accuracy": 1.0,
+      "cf_topk_accuracy": 1.0,
+      "cf_topk_mean_jaccard": 1.0,
+      "cf_band_accuracy": 1.0,
+      "brier": 0.024321428571428574,
+      "accepted_share": 0.9333333333333333,
+      "abstention_recall": 0.0,
+      "abstention_false_requests": null
+    }
+  },
+  "aggregate": {
+    "descriptive_accuracy": {
+      "mean": 1.0,
+      "std": null,
+      "repetitions": 1
+    },
+    "desc_occ_accuracy": {
+      "mean": 1.0,
+      "std": null,
+      "repetitions": 1
+    },
+    "desc_tt_accuracy": {
+      "mean": 1.0,
+      "std": null,
+      "repetitions": 1
+    },
+    "diag_accuracy": {
+      "mean": 0.75,
+      "std": null,
+      "repetitions": 1
+    },
+    "diag_mean_jaccard": {
+      "mean": 0.75,
+      "std": null,
+      "repetitions": 1
+    },
+    "cf_dir_accuracy": {
+      "mean": 1.0,
+      "std": null,
+      "repetitions": 1
+    },
+    "cf_topk_accuracy": {
+      "mean": 1.0,
+      "std": null,
+      "repetitions": 1
+    },
+    "cf_topk_mean_jaccard": {
+      "mean": 1.0,
+      "std": null,
+      "repetitions": 1
+    },
+    "cf_band_accuracy": {
+      "mean": 1.0,
+      "std": null,
+      "repetitions": 1
+    },
+    "brier": {
+      "mean": 0.024321428571428574,
+      "std": null,
+      "repetitions": 1
+    },
+    "accepted_share": {
+      "mean": 0.9333333333333333,
+      "std": null,
+      "repetitions": 1
+    },
+    "abstention_recall": {
+      "mean": 0.0,
+      "std": null,
+      "repetitions": 1
+    },
+    "abstention_false_requests": {
+      "mean": null,
+      "std": null,
+      "repetitions": 0
+    }
+  },
+  "accuracy_by_basis": {
+    "observed": {
+      "answers": 14,
+      "accuracy": 1.0
+    }
+  },
+  "cost_by_family": {
+    "cf-band": {
+      "runs": 2.0,
+      "steps": 8.0,
+      "text_only_steps": 0.0,
+      "cut_at_limit_steps": 0.0,
+      "input_tokens": 101094.0,
+      "output_tokens": 4605.0,
+      "cost_usd": 0.0179271
+    },
+    "cf-dir": {
+      "runs": 2.0,
+      "steps": 8.0,
+      "text_only_steps": 0.0,
+      "cut_at_limit_steps": 0.0,
+      "input_tokens": 102606.0,
+      "output_tokens": 4910.0,
+      "cost_usd": 0.0183369
+    },
+    "cf-topk": {
+      "runs": 2.0,
+      "steps": 9.0,
+      "text_only_steps": 0.0,
+      "cut_at_limit_steps": 0.0,
+      "input_tokens": 119675.0,
+      "output_tokens": 5736.0,
+      "cost_usd": 0.021392849999999998
+    },
+    "desc-occ": {
+      "runs": 2.0,
+      "steps": 8.0,
+      "text_only_steps": 0.0,
+      "cut_at_limit_steps": 0.0,
+      "input_tokens": 81152.0,
+      "output_tokens": 4400.0,
+      "cost_usd": 0.0148128
+    },
+    "desc-tt": {
+      "runs": 3.0,
+      "steps": 9.0,
+      "text_only_steps": 0.0,
+      "cut_at_limit_steps": 0.0,
+      "input_tokens": 86255.0,
+      "output_tokens": 3732.0,
+      "cost_usd": 0.01517745
+    },
+    "diag": {
+      "runs": 4.0,
+      "steps": 21.0,
+      "text_only_steps": 1.0,
+      "cut_at_limit_steps": 1.0,
+      "input_tokens": 256434.0,
+      "output_tokens": 18316.0,
+      "cost_usd": 0.04945469999999999
+    }
+  },
+  "total_cost_usd": 0.1371018
+}

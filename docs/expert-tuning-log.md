@@ -46,6 +46,7 @@ agent optimisation; they make the baseline measurable and correct.
 | v0 | 2026-09-17 | Baseline | `v0-forced-1rep` (117 × 1) | 0.68 | 0.10 | 0.79 | 0.89 | 0.08 | 0.59 | 1.54 |
 | v0 re-scored | 2026-09-17 | Same runs, bank with `NoValue` gold (ADR-0021) | `v0-forced-1rep-rescored` | 0.57 | 0.10 | 0.79 | 0.89 | 0.13 | 0.59 | 0 |
 | v1 | 2026-09-17 | Aggregation tools + expert practice in the prompt | `v1-forced-1rep` (117 × 1) | 1.00 | 0.70 | 1.00 | 1.00 | 0.02 | 0.94 | 0.98 |
+| v2 | 2026-09-25 | Batched topology tools; **E3.8 (clock-time) bank** | `v2-e38-forced-1rep` (117 × 1) | 1.00 | 0.80 | 1.00 | 1.00 | 0.03 | 0.97 | 0.99 |
 
 DoD thresholds (DEV-NET): descriptive ≥ 0.90, diagnostic Jaccard ≥ 0.60, CF direction ≥ 0.75, CF band ≥ 0.50,
 Brier ≤ 0.25, accepted = 1.00.
@@ -222,6 +223,55 @@ answers). The Expert's tools now describe `window` as seconds since midnight, wi
 reading of the new question text would query an empty window. This is a measurement fix, not an
 optimisation: `EXPERT_VERSION` stays `"v2"`, and the v0–v2 figures above come from the old bank. The
 first sweep on the rebuilt bank is v2's own sweep (E4.2–E4.4).
+
+**Smoke on the rebuilt bank (2026-09-25).** Development run to check that v2 reads clock time, not a
+sweep: `e38-clocktime-smoke`, 15 questions × 1 repetition, $0.137. The questions were the six S13
+questions (`signal_program`, whose windows moved) plus S16-desc-tt/diag/cf-dir, S00-desc-occ/desc-tt/diag,
+S03-cf-topk, S05-diag and S17-cf-band. 14 of 15 were correct. Every `window` the model passed was in
+seconds since midnight (`[28800, 29100]`, `[28920, 29100]`, `[29460, 29640]`); none used the old
+`[0, 300]` form. Descriptive 1.00, diagnostic Jaccard 0.75, CF direction 1.00, CF band 1.00, Brier 0.02
+(15 questions, not a figure to quote against the DoD). The one failure is S05-diag stopping on budget
+without an answer, the known diagnostic budget-stop pattern (v2 answered it correctly in
+`v2-retry-failed`), not a migration effect.
+
+**Development sweep on the rebuilt bank (2026-09-25, E4.2–E4.4).** At first the full 1-repetition sweep
+was not going to run; the maintainer reversed that in E4.4's triage, because the M2 acceptance and the
+E4.2–E4.4 rows ask for a development sweep on the E3.8 bank with per-family figures. One sweep serves the
+three tasks. `v2-e38-forced-1rep`: 117 × 1, forced, `EXPERT_VERSION = "v2"` unchanged, 6 workers,
+$0.99 (cap $1.30), no crashes. Report: `eval/expert_benchmark/reports/v2-e38-forced-1rep.md`.
+
+| Family | Correct | Budget stops | Notes |
+|---|---|---|---|
+| `-desc-occ` | 20 / 20 | 0 | |
+| `-desc-tt` | 20 / 20 | 0 | |
+| `-diag` | 16 / 20 | 4 | Jaccard 0.80 (v1, old bank: 0.70) |
+| `-cf-dir` | 19 / 19 | 0 | |
+| `-cf-topk` | 17 / 19 | 0 | Jaccard 0.89 |
+| `-cf-band` | 19 / 19 | 0 | |
+| **Total** | **111 / 117** | **4** | |
+
+- **Against the DoD (one repetition, tuning bank, not a reported result).** Descriptive 1.00 ≥ 0.90,
+  diagnostic Jaccard 0.80 ≥ 0.60, CF direction 1.00 ≥ 0.75, CF band 1.00 ≥ 0.50, Brier 0.03 ≤ 0.25.
+  No tuning change is needed for E4.2, E4.3 (Jaccard; the "why" rubric is not scored by the harness) or
+  E4.4, so `EXPERT_VERSION` stays `"v2"`.
+- **Basis.** 113 answers: 112 `observed` (accuracy 0.98), 1 `inferred` (S14-cf-band, correct), none
+  `extrapolated`, as expected with every result available (§4.5 of `evaluating-resto.md`). Every CF
+  answer but that one is `observed`.
+- **The 4 budget stops are all diagnostic** (S00, S05, S10, S11): 6 steps each, and in every one of them
+  one step ends with `finish_reason = length` and no tool call. This is mechanism 1/2 of v2's small-scale
+  check (text or tool arguments cut at 2,048 output tokens). They are the only runs without an answer, so
+  `accepted` is 113/117 = 0.97; no answer was rejected at promotion. E4.3's to handle.
+- **The 2 `-cf-topk` misses are answer-shape errors, not wrong content** (S07-cf-topk, S16-cf-topk). Both
+  name exactly the five gold edges with the gold deltas, in order, in the prose and in the evidence
+  excerpt. But `values` holds five per-edge `change` entries instead of one `edges` value, so the scorer
+  reports "missing edges value". `-cf-topk` has no DoD threshold of its own. A prompt line on "top k →
+  one `edges` value" would be a v3 change; it is not made here.
+- **Migration check.** Accuracy on the rebuilt bank matches or beats v1 on the old bank in every
+  family. The clock-time move (ADR-0028) cost no accuracy, and batching (v2) cut the diagnostic budget
+  stops from 6 to 4.
+
+Spent on Expert runs so far: **$3.87** (v0 $1.54, v1 $0.98, v2 retry $0.10, smokes $0.27,
+`v2-e38-forced-1rep` $0.99).
 
 ## 4. Entry template
 
