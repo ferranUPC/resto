@@ -10,7 +10,9 @@
 - §4.1's `interventions` / `topology_changes` match is on the union of distinct items across all
   effective arms; `metrics_of_interest` is an exact set match on the `Measure` names.
 - Arm structure (gating E5.1 at ≥ 90 % on multi-arm requests): the arms match as a set and the
-  contrasts match as unordered pairs of arms.
+  contrasts match as unordered pairs of arms. `effective_contrasts` already orients every pair of
+  nested arms (ADR-0027 §1), so for those this is an ordered match; only alternatives stay
+  unordered, where the order means nothing.
 
 A prediction that is `None` failed schema validation (after the Parser's retry); it scores False on
 every graded field.

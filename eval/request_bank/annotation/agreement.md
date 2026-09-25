@@ -65,7 +65,7 @@ Annotator:
     intent `compare` · network `DEV-NET` · metrics mean_delay
     - arm `new_edge`: `add_edge(from_junction=C1, to_junction=D2, lanes=1, speed=13.889)`
     - arm `edge_and_closure`: `add_edge(from_junction=C1, to_junction=D2, lanes=1, speed=13.889)` + `edge_closure(C2D2, 08:00–08:30)`
-    - contrasts: `base` vs `new_edge`, `base` vs `edge_and_closure`
+    - contrasts: `new_edge` vs `base`, `edge_and_closure` vs `base`
 
 **R032** (combined) — differs on metrics_of_interest
 
@@ -95,7 +95,7 @@ Annotator:
     intent `counterfactual` · network `DEV-NET`
     - arm `new_edge`: `add_edge(from_junction=B3, to_junction=C2, lanes=2, speed=13.889, edge_id=NEW1)`
     - arm `edge_and_close`: `add_edge(from_junction=B3, to_junction=C2, lanes=2, speed=13.889, edge_id=NEW1)` + `lane_closure(NEW1/0, 08:00–08:30)`
-    - contrasts: `new_edge` vs `edge_and_close`
+    - contrasts: `edge_and_close` vs `new_edge`
     - ambiguities: Would you want to compare also against the base case?
 
 **R027** (multi_arm) — differs on intent

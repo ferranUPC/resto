@@ -1,7 +1,8 @@
 # ADR-0027: Experiment arms and contrasts — only the combinations a question needs
 
-- Status: Proposed — domain types implemented (E5.12); planning and plan validation pending (E5.2,
-  E5.10), Expert and Composer use pending (E5.3, E5.4)
+- Status: Accepted (2026-09-24, E5.13, with the contrast-direction rule added to §1) — domain types
+  implemented (E5.12, E5.13); planning and plan validation pending (E5.2, E5.10), Expert and Composer
+  use pending (E5.3, E5.4)
 - Date: 2026-09-23
 - Architecture reference: [`tfm-architecture-and-dod.md`](../tfm-architecture-and-dod.md) §2.3
   (`Question`, `Experiment`), §2.4, §2.5 (Network vs Scenario boundary), §4.1, §4.2;
@@ -43,6 +44,14 @@ and `contrasts: tuple[Contrast, ...]`.
 - `Contrast(treatment, reference=BASE_ARM)` is one comparison the question asks about, by arm label.
   Labels are unique; a contrast names known arms (or `base`) and two different ones; contrasts do not
   repeat. When `contrasts` is empty, each arm is contrasted with `base`.
+- *Added on acceptance (E5.13).* **Of two nested arms, the one contained in the other is the
+  reference**, however the contrast was written: `base` is contained in every arm, so it is always a
+  reference, and a combination is measured against its part ("derived network + closure" against
+  "derived network"). `effective_contrasts` orients every such pair, and a contrast listed both ways
+  counts once. Two arms that are not nested (alternatives: "closure or retiming") keep the order the
+  question gives. Containment compares what the changes and interventions do, not their free-text
+  `description` / `expected_effect`. The direction matters because §2 plans only the reference side
+  of a `counterfactual` in phase 0, and a backwards contrast would simulate the wrong arm.
 - The flat `interventions` / `topology_changes` stay as the **shorthand for the common case**: one
   treatment against the base. They and `arms` are mutually exclusive; `Question.effective_arms` turns the
   shorthand into one arm labelled `"treatment"`, and `effective_contrasts` supplies the default contrasts,
@@ -88,9 +97,19 @@ experiments of later phases satisfy the original contrasts; a new combination ge
   differ in topology. E5.4: the Composer's experiment table and claims are organised by contrast.
 - ADR-0026: the predicted `scenario_id` of an unsimulated arm is computable only for arms without
   `topology_changes`; the rule of skipping it otherwise stands.
+- E5.13 (acceptance): the direction rule above is enforced in `Question.effective_contrasts`, so the
+  Parser's prompt rule ("a combination compared with one of its parts has that part as reference")
+  is no longer load-bearing. Evidence that it was needed: in the first blind annotation of held-out,
+  the user wrote two of three multi-arm contrasts backwards (R022 `base` vs `new_edge`; R023
+  `new_edge` vs `edge_and_close`), and both still scored as correct arm structure. The Parser scoring
+  is unchanged: once nested pairs are oriented, comparing contrasts as unordered pairs is the same as
+  comparing them ordered, and the bank's only non-nested contrasts are alternatives in `compare`
+  requests (R021, R065), where the order means nothing. Re-scoring the stored runs changed no score.
 - Not yet decided: whether the Expert may answer about contrasts the user did not ask for; whether `role`
   is dropped; cross-phase label consistency is a convention for the Expert, not a domain invariant, until
-  E5.3 shows whether it needs enforcing.
+  E5.3 shows whether it needs enforcing; whether a `counterfactual` between two arms that are not
+  nested ("what would A do instead of B") should keep the user's order or ask, decided in E5.2 if the
+  plan bank (E3.7) has such a request.
 
 ## Alternatives considered
 
@@ -103,5 +122,11 @@ experiments of later phases satisfy the original contrasts; a new combination ge
   metrics (§4.1) would change meaning.
 - **`Experiment.compared_to` instead of contrasts.** Rejected: one experiment can be on either side of
   several contrasts; a single reference field cannot express that.
+- **Contrast direction as a convention of the Parser's prompt** (the rule before E5.13). Rejected: a
+  backwards contrast plans the wrong arm and the scoring did not see it; an invariant the
+  application relies on belongs in the type, not the prompt.
+- **Reject a backwards contrast at validation.** Rejected: the direction of a nested pair is fully
+  determined by its content, so correcting it loses nothing, while rejecting it would spend the
+  Parser's only retry on a question that was already clear.
 - **A late-bound reference to the added edge (`NewEdgeRef(change_index)`).** Rejected: plain XML needs an
   edge id anyway; fixing it in the question is simpler and needs no resolution step.

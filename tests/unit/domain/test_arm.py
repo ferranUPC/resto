@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 import pytest
 
 from resto.domain.value_objects.arm import BASE_ARM, Arm, Contrast
@@ -131,3 +133,59 @@ def test_arms_without_contrasts_are_each_compared_with_the_base() -> None:
         Arm("retime", interventions=(_retime_j4(),)),
     )
     assert _question(arms=arms).effective_contrasts == (Contrast("closure"), Contrast("retime"))
+
+
+# --- contrast direction (ADR-0027 §1: of two nested arms, the contained one is the reference) ----
+
+
+EDGE_ONLY = Arm("new_edge", topology_changes=(NEW_EDGE,))
+EDGE_AND_CLOSURE = Arm(
+    "new_edge_closure", topology_changes=(NEW_EDGE,), interventions=(_close_lane("J7J9"),)
+)
+
+
+def test_a_contrast_written_backwards_is_turned_around() -> None:
+    q = _question(
+        arms=(EDGE_ONLY, EDGE_AND_CLOSURE), contrasts=(Contrast("new_edge", "new_edge_closure"),)
+    )
+    assert q.effective_contrasts == (Contrast("new_edge_closure", "new_edge"),)
+
+
+def test_the_base_is_always_the_reference() -> None:
+    q = _question(arms=(EDGE_ONLY,), contrasts=(Contrast(BASE_ARM, "new_edge"),))
+    assert q.effective_contrasts == (Contrast("new_edge", BASE_ARM),)
+
+
+def test_a_contrast_already_the_right_way_round_is_kept() -> None:
+    contrasts = (Contrast("new_edge", BASE_ARM), Contrast("new_edge_closure", "new_edge"))
+    q = _question(arms=(EDGE_ONLY, EDGE_AND_CLOSURE), contrasts=contrasts)
+    assert q.effective_contrasts == contrasts
+
+
+def test_alternatives_keep_the_order_the_question_gives() -> None:
+    arms = (
+        Arm("closure", interventions=(_close_lane("E12"),)),
+        Arm("retime", interventions=(_retime_j4(),)),
+    )
+    q = _question(arms=arms, contrasts=(Contrast("retime", "closure"),))
+    assert q.effective_contrasts == (Contrast("retime", "closure"),)
+
+
+def test_nesting_ignores_the_free_text_of_an_intervention() -> None:
+    described = replace(_close_lane("J7J9"), description="close the new edge's first lane")
+    with_closure = Arm("new_edge_closure", topology_changes=(NEW_EDGE,), interventions=(described,))
+    q = _question(
+        arms=(EDGE_ONLY, with_closure), contrasts=(Contrast("new_edge", "new_edge_closure"),)
+    )
+    assert q.effective_contrasts == (Contrast("new_edge_closure", "new_edge"),)
+
+
+def test_a_contrast_listed_both_ways_counts_once() -> None:
+    q = _question(
+        arms=(EDGE_ONLY, EDGE_AND_CLOSURE),
+        contrasts=(
+            Contrast("new_edge_closure", "new_edge"),
+            Contrast("new_edge", "new_edge_closure"),
+        ),
+    )
+    assert q.effective_contrasts == (Contrast("new_edge_closure", "new_edge"),)

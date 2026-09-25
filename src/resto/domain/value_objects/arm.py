@@ -59,6 +59,26 @@ class Arm:
                 )
 
 
+def contains(outer: Arm | None, inner: Arm | None) -> bool:
+    """Whether every topology change and intervention of `inner` is also in `outer`. `None` is
+    the base arm, contained in every arm. Interventions are compared on what they do, not on their
+    free-text `description` / `expected_effect`."""
+    if inner is None:
+        return True
+    if outer is None:
+        return False
+    return all(c in outer.topology_changes for c in inner.topology_changes) and all(
+        any(_same_action(i, o) for o in outer.interventions) for i in inner.interventions
+    )
+
+
+def _same_action(a: Intervention, b: Intervention) -> bool:
+    def key(i: Intervention) -> tuple[object, ...]:
+        return (i.type, i.target, i.window, i.condition, dict(i.params))
+
+    return key(a) == key(b)
+
+
 @dataclass(frozen=True, slots=True)
 class Contrast:
     """`treatment` measured against `reference`, both arm labels (`BASE_ARM` included)."""

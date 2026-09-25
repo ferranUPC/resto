@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 
-from resto.domain.value_objects.arm import BASE_ARM, Arm, Contrast
+from resto.domain.value_objects.arm import BASE_ARM, Arm, Contrast, contains
 from resto.domain.value_objects.intervention import Intervention
 from resto.domain.value_objects.time_window import TimeWindow
 from resto.domain.value_objects.topology_modification import TopologyModification
@@ -84,5 +84,20 @@ class Question:
 
     @property
     def effective_contrasts(self) -> tuple[Contrast, ...]:
-        """The listed contrasts, or each arm against the base."""
-        return self.contrasts or tuple(Contrast(a.label) for a in self.effective_arms)
+        """The listed contrasts, or each arm against the base.
+
+        Of two nested arms, the one contained in the other is the reference, however the contrast
+        was written: the base is always a reference, and a combination is measured against its
+        part (ADR-0027 §1). A contrast listed both ways counts once. Two arms that are not nested
+        keep the order the question gives."""
+        if not self.contrasts:
+            return tuple(Contrast(a.label) for a in self.effective_arms)
+        arms = {a.label: a for a in self.arms}
+        oriented: list[Contrast] = []
+        for c in self.contrasts:
+            treatment, reference = arms.get(c.treatment), arms.get(c.reference)
+            if contains(reference, treatment) and not contains(treatment, reference):
+                c = Contrast(c.reference, c.treatment)
+            if c not in oriented:
+                oriented.append(c)
+        return tuple(oriented)

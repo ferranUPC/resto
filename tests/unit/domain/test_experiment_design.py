@@ -56,3 +56,17 @@ def test_the_base_is_needed_only_when_a_contrast_names_it() -> None:
     )
     assert required_arms(q) == ("closure", "retime")
     assert reference_arms(q) == ("retime",)
+
+
+def test_a_backwards_contrast_still_plans_the_contained_arm_as_the_reference() -> None:
+    """ADR-0027 §1: "does the closure hurt on the network with the new edge?" written with the arms
+    swapped still has phase 0 of a counterfactual build the new edge alone, not the combination."""
+    q = _question(
+        Intent.COUNTERFACTUAL,
+        arms=(
+            Arm("new-edge", topology_changes=(NEW_EDGE,)),
+            Arm("new-edge+closure", topology_changes=(NEW_EDGE,), interventions=(CLOSURE,)),
+        ),
+        contrasts=(Contrast("new-edge", "new-edge+closure"),),
+    )
+    assert reference_arms(q) == ("new-edge",)
