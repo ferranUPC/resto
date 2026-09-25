@@ -408,6 +408,35 @@ $0.99 (cap $1.30), no crashes. Report: `eval/expert_benchmark/reports/v2-e38-for
     raise for the Expert's call is a deliberate `Budget` decision (CLAUDE.md), with its cost stated
     first;
   - `tool_choice="required"` (see v2), which is outside E4.3.
+- **Why the stops happen, and what was left for later** (analysis of the v4 traces, 2026-09-25, no
+  new run).
+  - *Hidden reasoning, not hallucination.* Unlike the text-only steps of v0–v2, the 11 cut steps
+    contain no visible text (`text_chars = 0`) and no tool call. DeepSeek v4.1 Flash reasons before
+    it answers, and OpenRouter counts that reasoning as output tokens. The model thinks for the whole
+    2,048 tokens and is cut before it acts. The cut submissions are the same case: the arguments
+    take about 300–900 tokens and reasoning takes the rest. No answer states a fact it did not get
+    from a tool, and every answer names the gold edges. The client does not record the reasoning,
+    so what the model thinks in those steps cannot be read.
+  - *No slack in the step budget.* The lookups the prompt asks for take 5 of the 6 steps:
+    `get_result`, then `get_scenario` + `rank_edges`, then `get_edges` + `get_neighbours`, then
+    `get_edges` + `get_tls`, then `submit_output`. A single cut step is enough to leave a run
+    without an answer.
+  - *Levers identified, in the order they would be tried before any raise of the output limit.*
+    1. Record the reasoning in the trace (`include_reasoning`); this costs nothing.
+    2. Cap the reasoning separately from the output. OpenRouter's `reasoning` and
+       `reasoning_effort` are supported for this model (checked on its models endpoint). It must
+       be per-agent configuration, and its effect on cause accuracy must be measured.
+    3. Shorten the chain with Expert-side tools, as v2's batching did: `get_edges` could report
+       the traffic light that controls each edge, and `get_result` the scenario's interventions.
+       The chain would drop from 5 steps to about 3. Traffic-light control is a topology fact,
+       not the gold answer.
+    4. A specific nudge after a cut step, since the loop currently answers it with the generic
+       "call a tool or submit". Little expected, because in v4 the cuts are rarely consecutive.
+  - *Decision (maintainer, 2026-09-25).* None of these is applied now. v4 meets both E4.3 bars,
+    and further tuning would optimise past the DoD at the maintainer's own cost. The accepted risk
+    is the zero Jaccard margin: if EXP-01 in Validation 2 reads below 0.60, that is reported as a
+    result, not re-tuned. Levers 1–2 are cheap enough (≈ $0.35 including their sweep) to try before
+    Validation 1 if the calendar allows.
 
 ### Diagnostic questions from v0 to v4
 
