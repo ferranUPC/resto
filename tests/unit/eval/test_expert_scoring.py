@@ -8,12 +8,22 @@ from typing import Any
 
 import pytest
 from eval.expert_benchmark.bank import BenchmarkQuestion, Family, load_bank
-from eval.expert_benchmark.scoring import jaccard, score_answer, within_tolerance
+from eval.expert_benchmark.report import (
+    THRESHOLDS,
+    ScoredRun,
+    render_markdown,
+    repetition_metrics,
+    summarize,
+)
+from eval.expert_benchmark.scoring import Score, jaccard, score_answer, within_tolerance
 
 from resto.domain.value_objects.answer_value import (
     AnswerValue,
+    BottleneckCause,
+    BottleneckCauses,
     Change,
     ChangeDirection,
+    EdgeCause,
     Edges,
     Measure,
     NoValue,
@@ -40,7 +50,13 @@ def _answer(*values: AnswerValue) -> ExpertAnswer:
 
 OCC = _question("S03-desc-occ", {"edges_above_threshold": ["B1B0"]})
 TT = _question("S00-desc-tt", {"edge_id": "B2C2", "mean_travel_time_s": 23.403})
-DIAG = _question("S00-diag", {"top_3": ["B2C2", "C2D2", "E3E2"], "reason": "signal"})
+DIAG = _question(
+    "S00-diag",
+    {
+        "top_3": ["B2C2", "C2D2", "E3E2"],
+        "causes": {"B2C2": "intervention", "C2D2": "spillback", "E3E2": "signal"},
+    },
+)
 DIR = _question("S09-cf-dir", {"edge_id": "B2C2", "direction": "increase", "pct_change": 114.4})
 TOPK = _question(
     "S05-cf-topk", {"top_k_by_delay_change": [["B0C0", 594.9], ["C1C0", 92.5], ["C1C2", 7.6]]}
@@ -116,6 +132,97 @@ def test_diag_is_correct_from_jaccard_0_6() -> None:
     four = score_answer(DIAG, _answer(Edges(("B2C2", "C2D2", "E3E2", "A2B2"), ranked=True)))
     assert four.jaccard == pytest.approx(0.75)
     assert four.correct
+
+
+def _causes(**by_edge: BottleneckCause) -> BottleneckCauses:
+    return BottleneckCauses(tuple(EdgeCause(e, c) for e, c in by_edge.items()))
+
+
+def test_diag_counts_causes_over_the_edges_shared_with_the_gold() -> None:
+    edges = Edges(("B2C2", "C2D2", "A2B2"), ranked=True)
+    causes = _causes(
+        B2C2=BottleneckCause.INTERVENTION,
+        C2D2=BottleneckCause.SIGNAL,
+        A2B2=BottleneckCause.DEMAND,
+    )
+    score = score_answer(DIAG, _answer(edges, causes))
+    # A2B2 is not in the gold top-3: the Jaccard penalises it, the cause count ignores it.
+    assert (score.shared_edges, score.correct_causes) == (2, 1)
+    assert "C2D2 signal/spillback" in score.detail
+
+
+def test_diag_cause_accuracy_is_independent_of_the_jaccard_verdict() -> None:
+    edges = Edges(("B2C2", "C2D2", "E3E2"), ranked=True)
+    causes = _causes(
+        B2C2=BottleneckCause.INTERVENTION,
+        C2D2=BottleneckCause.SPILLBACK,
+        E3E2=BottleneckCause.SIGNAL,
+    )
+    score = score_answer(DIAG, _answer(edges, causes))
+    assert score.correct
+    assert (score.shared_edges, score.correct_causes) == (3, 3)
+
+
+def test_diag_without_a_cause_value_scores_every_shared_edge_wrong() -> None:
+    score = score_answer(DIAG, _answer(Edges(("B2C2", "C2D2", "E3E2"), ranked=True)))
+    assert score.correct
+    assert (score.shared_edges, score.correct_causes) == (3, 0)
+
+
+def test_diag_cause_value_missing_an_edge_scores_that_edge_wrong() -> None:
+    edges = Edges(("B2C2", "C2D2"), ranked=True)
+    causes = _causes(B2C2=BottleneckCause.INTERVENTION)
+    score = score_answer(DIAG, _answer(edges, causes))
+    assert (score.shared_edges, score.correct_causes) == (2, 1)
+
+
+def test_diag_without_an_answer_shares_no_edges() -> None:
+    for score in (
+        score_answer(DIAG, None),
+        score_answer(DIAG, _answer(Edges(("B2C2",))), rejection="bad ref"),
+    ):
+        assert (score.shared_edges, score.correct_causes) == (0, 0)
+
+
+def _run(question: BenchmarkQuestion, score: Score, repetition: int = 1) -> ScoredRun:
+    record: dict[str, Any] = {
+        "rejection": None,
+        "model": "fake",
+        "expert_version": "vtest",
+        "steps": [],
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cost_usd": 0.0,
+        "stop_reason": "output",
+    }
+    return ScoredRun(question, repetition, score, _answer(Edges(("B2C2",))), record)
+
+
+def test_diag_cause_accuracy_sums_over_one_repetitions_shared_edges() -> None:
+    other = _question("S01-diag", DIAG.gold)
+    runs = [
+        _run(DIAG, Score(True, "", jaccard=1.0, shared_edges=3, correct_causes=3)),
+        _run(other, Score(False, "", jaccard=0.2, shared_edges=1, correct_causes=0)),
+        _run(_question("S02-diag", DIAG.gold), Score(False, "no answer")),
+    ]
+    # micro-average: 3 correct / 4 shared, not the mean of per-question rates (0.5)
+    assert repetition_metrics(runs)["diag_cause_accuracy"] == pytest.approx(0.75)
+    assert repetition_metrics([runs[2]])["diag_cause_accuracy"] is None
+
+
+def test_diag_cause_accuracy_aggregates_across_repetitions_against_the_dod_bar() -> None:
+    runs = [
+        _run(DIAG, Score(True, "", jaccard=1.0, shared_edges=3, correct_causes=3), 1),
+        _run(DIAG, Score(True, "", jaccard=1.0, shared_edges=3, correct_causes=1), 2),
+    ]
+    summary = summarize(runs)
+    aggregate = summary["aggregate"]["diag_cause_accuracy"]
+    assert aggregate["mean"] == pytest.approx(2 / 3)
+    assert aggregate["std"] == pytest.approx(0.4714, abs=1e-4)
+    assert THRESHOLDS["diag_cause_accuracy"] == (">=", 0.70)
+    assert "| diag_cause_accuracy | 0.67 | 0.47 | >= 0.70 ❌ |" in render_markdown(
+        "t", summary, runs
+    )
 
 
 def test_cf_topk_compares_edge_sets() -> None:

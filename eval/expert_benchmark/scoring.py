@@ -1,7 +1,8 @@
 """Scores one Expert answer against its gold answer — pure, no I/O (docs/evaluating-resto.md §4.4).
 
 A question is incorrect when there is no answer, when promotion rejected it, or when the expected
-typed value is missing; otherwise the family's rule decides.
+typed value is missing; otherwise the family's rule decides. A diagnostic score also counts the
+Bottleneck causes (ADR-0029) over the edges the answer shares with the gold top-3.
 """
 
 from __future__ import annotations
@@ -14,6 +15,7 @@ from eval.question_bank.gold import magnitude_band
 from resto.domain.services.comparison import within_tolerance
 from resto.domain.value_objects.answer_value import (
     AnswerValue,
+    BottleneckCauses,
     Change,
     ChangeDirection,
     Edges,
@@ -37,6 +39,9 @@ class Score:
     correct: bool
     detail: str
     jaccard: float | None = None
+    # diagnostic only: edges shared by answer and gold, and how many carry the gold cause
+    shared_edges: int = 0
+    correct_causes: int = 0
 
 
 def jaccard(a: Collection[str], b: Collection[str]) -> float:
@@ -119,7 +124,26 @@ def _score_edge_ranking(gold_ids: list[str], values: tuple[AnswerValue, ...]) ->
 
 
 def _score_diag(question: BenchmarkQuestion, values: tuple[AnswerValue, ...]) -> Score:
-    return _score_edge_ranking(list(question.gold["top_3"]), values)
+    """Jaccard decides `correct`; the causes are graded on the shared edges only, so a wrong edge
+    costs once (in the Jaccard). A missing cause value scores every shared edge wrong."""
+    gold_ids = list(question.gold["top_3"])
+    ranking = _score_edge_ranking(gold_ids, values)
+    edges = _first_edges(values)
+    if edges is None:
+        return ranking
+    cause_value = next((v for v in values if isinstance(v, BottleneckCauses)), None)
+    predicted = {} if cause_value is None else {c.edge_id: c.cause for c in cause_value.causes}
+    gold_causes = question.gold["causes"]
+    shared = [e for e in edges.edge_ids if e in gold_ids]
+    correct = sum(predicted.get(e) == gold_causes[e] for e in shared)
+    pairs = ", ".join(f"{e} {predicted.get(e, 'missing')}/{gold_causes[e]}" for e in shared)
+    return Score(
+        ranking.correct,
+        f"{ranking.detail}; causes (predicted/gold) {correct}/{len(shared)}: {pairs or 'none'}",
+        jaccard=ranking.jaccard,
+        shared_edges=len(shared),
+        correct_causes=correct,
+    )
 
 
 def _score_cf_topk(question: BenchmarkQuestion, values: tuple[AnswerValue, ...]) -> Score:

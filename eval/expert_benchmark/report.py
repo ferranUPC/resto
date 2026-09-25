@@ -18,6 +18,7 @@ from resto.domain.value_objects.expert_answer import ExpertAnswer
 THRESHOLDS: dict[str, tuple[str, float]] = {
     "descriptive_accuracy": (">=", 0.90),
     "diag_mean_jaccard": (">=", 0.60),
+    "diag_cause_accuracy": (">=", 0.70),
     "cf_dir_accuracy": (">=", 0.75),
     "cf_band_accuracy": (">=", 0.50),
     "brier": ("<=", 0.25),
@@ -31,6 +32,7 @@ METRIC_ORDER = (
     "desc_tt_accuracy",
     "diag_accuracy",
     "diag_mean_jaccard",
+    "diag_cause_accuracy",
     "cf_dir_accuracy",
     "cf_topk_accuracy",
     "cf_topk_mean_jaccard",
@@ -74,6 +76,12 @@ def _accuracy(runs: Sequence[ScoredRun]) -> float | None:
 def _mean_jaccard(runs: Sequence[ScoredRun]) -> float | None:
     values = [r.score.jaccard or 0.0 for r in runs]
     return statistics.mean(values) if values else None
+
+
+def _cause_accuracy(runs: Sequence[ScoredRun]) -> float | None:
+    """Correct Bottleneck causes over shared edges, summed over the runs (ADR-0029)."""
+    shared = sum(r.score.shared_edges for r in runs)
+    return sum(r.score.correct_causes for r in runs) / shared if shared else None
 
 
 def _abstention_metrics(
@@ -122,6 +130,7 @@ def repetition_metrics(
         "desc_tt_accuracy": _accuracy(by_family[Family.DESC_TT]),
         "diag_accuracy": _accuracy(by_family[Family.DIAG]),
         "diag_mean_jaccard": _mean_jaccard(by_family[Family.DIAG]),
+        "diag_cause_accuracy": _cause_accuracy(by_family[Family.DIAG]),
         "cf_dir_accuracy": _accuracy(by_family[Family.CF_DIR]),
         "cf_topk_accuracy": _accuracy(by_family[Family.CF_TOPK]),
         "cf_topk_mean_jaccard": _mean_jaccard(by_family[Family.CF_TOPK]),

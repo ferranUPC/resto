@@ -15,6 +15,7 @@
       "desc_tt_accuracy": 1.0,
       "diag_accuracy": 0.8,
       "diag_mean_jaccard": 0.8,
+      "diag_cause_accuracy": 0.0,
       "cf_dir_accuracy": 1.0,
       "cf_topk_accuracy": 0.8947368421052632,
       "cf_topk_mean_jaccard": 0.8947368421052632,
@@ -48,6 +49,11 @@
     },
     "diag_mean_jaccard": {
       "mean": 0.8,
+      "std": null,
+      "repetitions": 1
+    },
+    "diag_cause_accuracy": {
+      "mean": 0.0,
       "std": null,
       "repetitions": 1
     },

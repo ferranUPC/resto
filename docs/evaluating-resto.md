@@ -89,7 +89,7 @@ all `mode = forced`, every gold answer computed programmatically (`eval/question
 |---|---|---|---|---|
 | Descriptive | `-desc-occ` | 20 | Which edges exceed 3.5 % occupancy in the window? | `query_edgedata`, occupancy > 3.5 |
 | Descriptive | `-desc-tt` | 20 | Mean travel time on a target edge in the window? | `query_edgedata`, `travel_time` |
-| Diagnostic | `-diag` | 20 | Which three edges form the main bottleneck, and why? | top-3 by total `time_loss`; reason by topology group |
+| Diagnostic | `-diag` | 20 | Which three edges form the main bottleneck, and why is each of them congested? | top-3 by total `time_loss`; a Bottleneck cause per edge (ADR-0029) |
 | Counterfactual | `-cf-dir` | 19 | Does the total delay on the target edge increase, decrease, or stay within 5 %? | total `time_loss` on the edge, row vs baseline S00 |
 | Counterfactual | `-cf-topk` | 19 | Which 5 edges change most in total delay? | top-5 by \|Δ total `time_loss`\|, row vs S00 |
 | Counterfactual | `-cf-band` | 19 | By roughly how much does network-wide mean delay change? | `kpis.mean_delay`, row vs S00, banded |
@@ -107,8 +107,11 @@ Generation rules:
   rows (`A2`→`A2B2`, …); `B2C2` for `demand_scale` rows.
 - **Occupancy threshold 3.5 %.** Chosen from the matrix itself: baseline occupancy tops out near 3 % in
   08:00–08:05, a lane closure's upstream queue near 6 %.
-- **Bottleneck reason.** `merge` if the top edge is `B0C0`/`C0D0`, `signal` if it is on the row-2 corridor,
-  `demand` otherwise. Computed but **not graded** (§4.4).
+- **Bottleneck cause** (ADR-0029). One cause per top-3 edge, first match wins: `intervention` (the edge is
+  the target edge, feeds it directly, or is controlled by the target traffic light; never for
+  `demand_scale`), `merge` (a known lane drop: `B0C0`, `C0D0` on DEV-NET), `spillback` (feeds a
+  higher-ranked edge of the same top-3), `signal` (controlled by any traffic light), `demand`. DEV-NET's
+  gold totals 21 `intervention`, 33 `signal`, 6 `spillback`. Graded (§4.4).
 - **Question text** names the scenario by its description only; matrix row labels (`S00`, …) never appear
   (the Expert cannot resolve them).
 
@@ -225,7 +228,7 @@ expected one (e.g. supporting quantities) are ignored.
 | `-desc-occ` | first `Edges` | set equals gold exactly | accuracy | descriptive ≥ 90 % |
 | `-desc-tt` | `Quantity(travel_time)` on the gold edge | \|pred − gold\| ≤ 5 % of \|gold\| (gold = 0: pred = 0) | accuracy | descriptive ≥ 90 % |
 | `-diag` | first `Edges` | Jaccard(predicted set, gold top-3) ≥ **0.6** | mean Jaccard + accuracy | Jaccard ≥ 0.6 |
-| `-diag` "why" | — | not graded (open question, architecture §8) | — | rubric ≥ 70 % (deferred) |
+| `-diag` "why" | `BottleneckCauses` | per shared edge: predicted cause equals the gold cause (ADR-0029) | cause accuracy (`diag_cause_accuracy`) | "why" ≥ 70 % |
 | `-cf-dir` | `Change(time_loss)` on the gold edge | direction equals gold (`unchanged` ↔ within 5 %) | accuracy | direction ≥ 75 % |
 | `-cf-topk` | first `Edges` | Jaccard(predicted set, gold top-5) ≥ **0.6** | mean Jaccard + accuracy | none |
 | `-cf-band` | network-wide `Change(mean_delay)` | has a percentage and `magnitude_band(pct)` equals gold | accuracy | band ≥ 50 % |
@@ -233,6 +236,10 @@ expected one (e.g. supporting quantities) are ignored.
 - Descriptive accuracy is reported over both descriptive families together, as the DoD states one threshold.
 - The predicted edge set is scored as given, never truncated to 3 or 5: extra edges lower the Jaccard.
 - Mean Jaccard counts a missing or rejected answer as 0.
+- Cause accuracy counts only the edges in both the predicted top-3 and the gold's, so a wrong edge costs
+  once (in the Jaccard). An answer without a `BottleneckCauses` value scores every shared edge wrong; a
+  missing or rejected answer shares no edges. Per repetition it is correct causes ÷ shared edges summed
+  over the diagnostic questions (micro-average), then mean ± std across repetitions.
 
 ### 4.5 Cross-cutting metrics
 
@@ -380,10 +387,13 @@ the note's content as observed without citing it is not detected; the typed `val
 | 2026-09-24 | **Development runs vs measurement runs** (the user's call, [wayfinder #3](https://github.com/ferranUPC/resto/issues/3); supersedes the 2026-09-22 row). The line is purpose, not price: development runs go now, measurement runs wait for Validation 1 (mid-December, reduced checkpoints on dev) or Validation 2 (before E8.5, definitive, each suite once). $30 cap for both passes unless funded; under it suites shrink, they are not dropped. A task whose only missing piece is a measurement suite is ⏳ in the tracker, not 🚧. E5.1's second held-out use happens in Validation 2, with the prompt frozen, and is reported next to the first (93.9 %). |
 | 2026-09-24 | **DEV-NET assets in clock time** (E3.8, ADR-0028): the three demands cover 08:00–09:00 (`[28800, 32400)`, every `depart` shifted by exactly 28800 s, same trips and routes); the matrix and the question bank are rebuilt on it, with every id changed. Gold answers are unchanged except on the four `signal_program` rows, whose windows moved to whole minutes (08:02–08:05, …, 08:11–08:14; 18 gold answers). The Expert's `window` argument is described as seconds since midnight. Expert sweeps before this (v0–v2) ran on the old bank and are not compared with later ones as if on the same bank. |
 | 2026-09-24 | **ADR-0027 accepted (E5.13), nested contrasts oriented by code.** Of two nested arms the contained one is the reference, whatever the direction written (`Question.effective_contrasts`); this generalises the 2026-09-23 rule that `base` is always the reference. The arm-structure metric is unchanged (unordered pairs, now equivalent to ordered on nested pairs; alternatives in `compare` stay unordered) and re-scoring every stored Parser run and the annotation changed no score. |
+| 2026-09-25 | **Diagnostic "why" graded as a typed cause per edge** (ADR-0029; resolves the §6 open question and the 2026-09-17 row). The Expert states one `BottleneckCause` (`intervention` > `merge` > `spillback` > `signal` > `demand`) per bottleneck edge in a `BottleneckCauses` value; the gold computes the same cause per top-3 edge from the network's traffic-light control, its known lane drops and the scenario's interventions. `diag_cause_accuracy` (DoD "why" ≥ 70 %) is scored over the edges shared by answer and gold, micro-averaged per repetition; `correct` stays Jaccard ≥ 0.6. No rubric and no judge model. Runs from before Expert v3 carry no cause value and score 0 on it (e.g. `v2-e38-forced-1rep` re-scored: 0.00). |
 
 ## 6. Open questions
 
-- How to grade the diagnostic "why": human rubric, LLM-as-judge, or both with agreement reported.
+- ~~How to grade the diagnostic "why": human rubric, LLM-as-judge, or both with agreement reported.~~
+  Resolved 2026-09-25 by ADR-0029: neither; a typed cause per edge, graded against a computed gold
+  (§4.4, Decisions log).
 - Budget and test choice for the `observed` vs `extrapolated` comparison.
 - Whether to implement the excerpt-vs-ledger number check before the first full sweep.
 
