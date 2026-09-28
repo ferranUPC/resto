@@ -19,20 +19,12 @@ from resto.adapters.persistence.memory import (
     InMemoryScenarioRepository,
     InMemoryStudyRepository,
 )
+from resto.application.executor import StudyAgents, StudyBudget, StudyDeps, StudyPromotions
 from resto.application.ports.agents.coordinator import PlanningContext
 from resto.application.ports.llm import AgentRun, StopReason
 from resto.application.ports.sumo import RunOutput
 from resto.application.tools.expert import EvidenceLedger
-from resto.application.use_cases.run_study import (
-    ParserFailed,
-    StudyAgents,
-    StudyBudget,
-    StudyDeps,
-    StudyPromotions,
-    mode_for,
-    needed_arms,
-    run_study,
-)
+from resto.application.use_cases.run_study import ParserFailed, run_study
 from resto.domain.constants import DEFAULT_SEEDS
 from resto.domain.entities.demand import Demand
 from resto.domain.entities.expert_note import ExpertNote, NoteStatus, Provenance
@@ -951,15 +943,3 @@ def test_the_study_is_persisted_after_every_step(tmp_path: Path) -> None:
     assert step_counts == sorted(step_counts)
     assert set(range(len(study.phases[0].steps) + 1)) <= set(step_counts)
 
-
-def test_mode_for_forces_the_last_round_and_forced_questions() -> None:
-    assert mode_for(DESCRIBE, 1, 3) is Mode.FREE
-    assert mode_for(DESCRIBE, 3, 3) is Mode.FORCED
-    assert mode_for(replace(DESCRIBE, mode=Mode.FORCED), 1, 3) is Mode.FORCED
-
-
-def test_needed_arms_follow_the_intent_in_phase_0_and_run_later() -> None:
-    assert needed_arms(DESCRIBE, 0) == (BASE_ARM,)
-    assert needed_arms(WHAT_IF, 0) == (BASE_ARM,)
-    assert needed_arms(replace(WHAT_IF, intent=Intent.RUN), 0) == (BASE_ARM, "treatment")
-    assert needed_arms(WHAT_IF, 1) == (BASE_ARM, "treatment")

@@ -1,8 +1,15 @@
-from resto.domain.services.experiment_design import reference_arms, required_arms
+from dataclasses import replace
+
+from resto.domain.services.experiment_design import (
+    mode_for,
+    needed_arms,
+    reference_arms,
+    required_arms,
+)
 from resto.domain.value_objects.arm import BASE_ARM, Arm, Contrast
 from resto.domain.value_objects.intervention import Intervention, InterventionType
 from resto.domain.value_objects.intervention_target import LaneTarget, TlsTarget
-from resto.domain.value_objects.question import SHORTHAND_ARM, Intent, Question
+from resto.domain.value_objects.question import SHORTHAND_ARM, Intent, Mode, Question
 from resto.domain.value_objects.time_window import TimeWindow
 from resto.domain.value_objects.topology_modification import AddEdge
 
@@ -70,3 +77,18 @@ def test_a_backwards_contrast_still_plans_the_contained_arm_as_the_reference() -
         contrasts=(Contrast("new-edge", "new-edge+closure"),),
     )
     assert reference_arms(q) == ("new-edge",)
+
+
+def test_mode_for_forces_the_last_round_and_forced_questions() -> None:
+    describe = _question(Intent.DESCRIBE)
+    assert mode_for(describe, 1, 3) is Mode.FREE
+    assert mode_for(describe, 3, 3) is Mode.FORCED
+    assert mode_for(replace(describe, mode=Mode.FORCED), 1, 3) is Mode.FORCED
+
+
+def test_needed_arms_follow_the_intent_in_phase_0_and_run_later() -> None:
+    what_if = _question(Intent.COUNTERFACTUAL, interventions=(CLOSURE,))
+    assert needed_arms(_question(Intent.DESCRIBE), 0) == (BASE_ARM,)
+    assert needed_arms(what_if, 0) == (BASE_ARM,)
+    assert needed_arms(replace(what_if, intent=Intent.RUN), 0) == (BASE_ARM, SHORTHAND_ARM)
+    assert needed_arms(what_if, 1) == (BASE_ARM, SHORTHAND_ARM)

@@ -9,7 +9,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 from resto.domain.value_objects.arm import BASE_ARM
-from resto.domain.value_objects.question import Question
+from resto.domain.value_objects.question import Intent, Mode, Question
 
 
 def required_arms(question: Question) -> tuple[str, ...]:
@@ -27,6 +27,23 @@ def reference_arms(question: Question) -> tuple[str, ...]:
     if not contrasts:
         return (BASE_ARM,)
     return _in_order(question, {c.reference for c in contrasts})
+
+
+def mode_for(question: Question, round_no: int, max_rounds: int) -> Mode:
+    """Forced when the user asked for it, and always on round `max_rounds` (ADR-0025 §4)."""
+    if question.mode is Mode.FORCED or round_no == max_rounds:
+        return Mode.FORCED
+    return Mode.FREE
+
+
+def needed_arms(question: Question, phase: int) -> tuple[str, ...]:
+    """The arms a phase must have realised (ADR-0025 §2 per arm, ADR-0027 §2); phases >= 1 are
+    planned as `run`."""
+    if phase >= 1 or question.intent in (Intent.RUN, Intent.COMPARE):
+        return required_arms(question)
+    if question.intent is Intent.COUNTERFACTUAL:
+        return reference_arms(question)
+    return (BASE_ARM,)
 
 
 def _in_order(question: Question, labels: Iterable[str]) -> tuple[str, ...]:
