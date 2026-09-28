@@ -46,11 +46,10 @@ def select(
     return [r for r in requests if split == "all" or r.split == split]
 
 
-def estimate_usd(model: str, n_runs: int) -> float | None:
+def estimate_usd(model: str, n_runs: int) -> float:
     from resto.adapters.llm.pricing import estimate_cost_usd
 
-    per_run = estimate_cost_usd(model, *_TOKENS_PER_REQUEST)
-    return None if per_run is None else per_run * n_runs
+    return estimate_cost_usd(model, *_TOKENS_PER_REQUEST) * n_runs
 
 
 def write_report(name: str) -> Path:
@@ -92,13 +91,12 @@ def main(argv: list[str] | None = None) -> int:
         print(
             f"{len(requests)} requests × {args.repetitions} repetitions = {runs} runs on "
             f"{args.model}, ~${estimate:.2f} estimated"
-            if estimate is not None else f"{runs} runs on {args.model}, no price known"
         )
         if args.dry_run:
             return 0
-        if estimate is None or estimate > 1.0:
-            print("no estimate, or above $1: log it in docs/evaluating-resto.md §7 instead "
-                  "(CLAUDE.md)", file=sys.stderr)
+        if estimate > 1.0:
+            print("estimate above $1: log it in docs/evaluating-resto.md §7 instead (CLAUDE.md)",
+                  file=sys.stderr)
             return 2
         if args.max_cost_usd is None:
             parser.error("--max-cost-usd is required for a paid run")

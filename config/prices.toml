@@ -1,0 +1,44 @@
+# OpenRouter per-token prices, USD per million tokens. Committed, edited by hand with the rate
+# actually charged (CLAUDE.md "LLM provider & cost policy"; refactor-paid-runs decision 1).
+#
+# `input_per_mtok` / `output_per_mtok`: USD per 1,000,000 tokens. `as_of`: the date this entry was
+# last checked against https://openrouter.ai/models.
+#
+# A model absent from this file is refused wherever `resto.adapters.llm.pricing` is used to gate
+# spending (`pricing.price_of`/`estimate_cost_usd`, `OpenRouterToolAgent.__init__`,
+# `eval/request_bank/llm.py`) — never estimated at $0 or a guessed fallback price.
+
+[models."deepseek/deepseek-v4.1-flash"]
+# The default agent-run model (RESTO_LLM_DEFAULT_MODEL). Two values disagreed before this
+# manifest: adapters/llm/pricing.py carried (0.15, 0.60), eval/request_bank/llm.py carried
+# (0.10, 0.50). The pricing.py figure wins — it is the one every recorded cost in
+# docs/parser-tuning-log.md and docs/evaluating-resto.md was computed with, and its module
+# docstring called it deliberately conservative (an upper bound, never an under-estimate); the
+# request_bank figure was the stale one.
+input_per_mtok = 0.15
+output_per_mtok = 0.60
+as_of = "2026-09-23"
+
+[models."mistralai/ministral-3b-2512"]
+# Parser comparison runs only (CLAUDE.md, evaluation tooling exceptions).
+input_per_mtok = 0.10
+output_per_mtok = 0.10
+as_of = "2026-09-23"
+
+[models."google/gemma-3-12b-it"]
+# Parser comparison runs only (CLAUDE.md, evaluation tooling exceptions).
+input_per_mtok = 0.05
+output_per_mtok = 0.15
+as_of = "2026-09-23"
+
+[models."qwen/qwen3.5-9b"]
+# Request-bank generator (RESTO_BANK_GENERATOR_MODEL default).
+input_per_mtok = 0.10
+output_per_mtok = 0.15
+as_of = "2026-09-23"
+
+[models."meta-llama/llama-3.3-70b-instruct"]
+# Request-bank verifier (RESTO_BANK_VERIFIER_MODEL default).
+input_per_mtok = 0.10
+output_per_mtok = 0.32
+as_of = "2026-09-23"

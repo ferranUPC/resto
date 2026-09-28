@@ -11,17 +11,10 @@ from openai import OpenAI
 
 from eval.request_bank.pipeline import Models, Reply
 from resto.adapters.llm.config import load_llm_config
+from resto.adapters.llm.pricing import estimate_cost_usd
 
 DEFAULT_GENERATOR = "qwen/qwen3.5-9b"
 DEFAULT_VERIFIER = "meta-llama/llama-3.3-70b-instruct"
-
-# USD per million tokens (input, output), OpenRouter catalogue 2026-09-23; used for estimates and
-# as a fallback when a response carries no cost.
-PRICES = {
-    "qwen/qwen3.5-9b": (0.10, 0.15),
-    "meta-llama/llama-3.3-70b-instruct": (0.10, 0.32),
-    "deepseek/deepseek-v4.1-flash": (0.10, 0.50),
-}
 
 
 def bank_models() -> Models:
@@ -32,8 +25,9 @@ def bank_models() -> Models:
 
 
 def price_of(model: str, prompt_tokens: int, completion_tokens: int) -> float:
-    pin, pout = PRICES.get(model, (1.0, 1.0))
-    return (prompt_tokens * pin + completion_tokens * pout) / 1e6
+    """Priced from `config/prices.toml`; raises `UnknownModelError` for a model missing from the
+    manifest rather than falling back to a guessed price."""
+    return estimate_cost_usd(model, prompt_tokens, completion_tokens)
 
 
 class OpenRouterChat:

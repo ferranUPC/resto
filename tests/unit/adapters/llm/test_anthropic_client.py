@@ -11,11 +11,14 @@ from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Any
 
+import pytest
+
 from resto.adapters.llm.anthropic_client import OpenRouterToolAgent
 from resto.adapters.llm.config import LlmConfig
+from resto.adapters.llm.pricing import UnknownModelError
 from resto.application.ports.llm import AgentTask, Budget, StopReason, Tool
 
-CONFIG = LlmConfig(api_key="test-key", default_model="test/model")
+CONFIG = LlmConfig(api_key="test-key", default_model="deepseek/deepseek-v4.1-flash")
 
 
 @dataclass(frozen=True, slots=True)
@@ -263,9 +266,15 @@ def test_traces_tokens_and_estimated_cost_but_never_the_key() -> None:
     assert (study_id, event) == ("run-1", "llm_call")
     assert payload["input_tokens"] == 100
     assert payload["output_tokens"] == 20
-    assert payload["model"] == "test/model"
+    assert payload["model"] == "deepseek/deepseek-v4.1-flash"
     assert "api_key" not in payload
     assert CONFIG.api_key not in json.dumps(payload)
+
+
+def test_construction_refuses_a_model_absent_from_the_price_manifest() -> None:
+    config = LlmConfig(api_key="test-key", default_model="some/unpriced-model")
+    with pytest.raises(UnknownModelError):
+        OpenRouterToolAgent(config, complete=ScriptedCompletions())
 
 
 def test_repr_of_the_config_never_leaks_into_a_trace_payload() -> None:

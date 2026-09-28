@@ -30,7 +30,7 @@ from openai import OpenAI
 from pydantic import ValidationError
 
 from resto.adapters.llm.config import LlmConfig
-from resto.adapters.llm.pricing import estimate_cost_usd
+from resto.adapters.llm.pricing import estimate_cost_usd, price_of
 from resto.application.ports.llm import (
     AgentRun,
     AgentTask,
@@ -55,7 +55,12 @@ CompletionFn = Callable[..., Any]
 class OpenRouterToolAgent:
     """`ToolAgent` over OpenRouter. One instance is pinned to one model — escalating to a
     stronger model means constructing a second instance with `model=config.escalation_model`,
-    deliberately, never a fallback this class picks on its own."""
+    deliberately, never a fallback this class picks on its own.
+
+    Refuses construction for a model absent from `config/prices.toml` (CLAUDE.md "LLM provider &
+    cost policy"; refactor-paid-runs decision 2) — so pointing `RESTO_LLM_DEFAULT_MODEL` at an
+    unpriced model fails fast, before the first call, rather than spending at an unknown rate.
+    """
 
     def __init__(
         self,
@@ -68,6 +73,7 @@ class OpenRouterToolAgent:
     ) -> None:
         self._config = config
         self._model = model or config.default_model
+        price_of(self._model)  # raises UnknownModelError; result unused, this is just the gate
         self._tracer = tracer
         self._trace_id = trace_id
         self._complete: CompletionFn = complete or OpenAI(

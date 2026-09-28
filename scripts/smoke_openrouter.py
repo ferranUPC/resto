@@ -24,7 +24,7 @@ from typing import Any
 
 from resto.adapters.llm.anthropic_client import OpenRouterToolAgent
 from resto.adapters.llm.config import MissingApiKeyError, load_llm_config
-from resto.adapters.llm.pricing import estimate_cost_usd
+from resto.adapters.llm.pricing import UnknownModelError, estimate_cost_usd
 from resto.application.ports.llm import AgentTask, Budget, StopReason, Tool
 
 # Tiny enough that a wrong answer is obvious, and unguessable enough that the model has to call
@@ -127,8 +127,11 @@ def main(argv: list[str] | None = None) -> int:
     print(f"model:  {config.default_model}")
     print(f"budget: {BUDGET}")
     print(f"tools:  {[t.name for t in TOOLS]} + submit_output(Quote)")
-    if estimate_cost_usd(config.default_model, 1, 1) is None:
-        print("note:   model not in adapters/llm/pricing.py — cost will show as unknown")
+    try:
+        estimate_cost_usd(config.default_model, 1, 1)
+    except UnknownModelError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
     if args.dry_run:
         print("dry run: no API call made")
         return 0
