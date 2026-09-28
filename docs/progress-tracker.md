@@ -14,31 +14,37 @@ Status (decided 2026-09-24, wayfinder #3 — exact wording, applied by the `prog
 - 🚧 **blocked**: cannot proceed for a stated reason outside our control (an external person, data or
   service); the Notes say what unblocks it.
 
-Last updated: 2026-09-25
+Last updated: 2026-09-28
 
-**Summary: 29 / 76 tasks done (38.2 %), 3 awaiting measurement, 1 in progress, 0 blocked** (⏳: E4.5,
-E4.7, E5.1 — 36 of 954 pts, counted apart from done; 🔄: E5.3; E7.7 is Stretch, never scheduled —
-excluded from the count, per work plan §5). The denominator grows from 72 to 76: v0.3 re-baselined the
-plan (`b9dead2`) and added four tasks — E3.8 (ADR-0028 clock-time migration), E3.9 (evaluation budget
-doc), E3.10 (Decisions-log trim), E5.13 (accept/change ADR-0027) — none built yet.
+**Summary: 31 / 76 tasks done (40.8 %), 6 awaiting measurement, 1 in progress, 0 blocked** (⏳: E4.2,
+E4.3, E4.4, E4.5, E4.7, E5.1, 92 of 954 pts, counted apart from done; 🔄: E5.3; E7.7 is Stretch, never
+scheduled, excluded from the count per work plan §5).
 
-Since the last review (`92beb2c`, 2026-09-24) four commits landed: `32a5cd5` tunes the Input Parser
-v4→v6 and runs it once on held-out (`v6-heldout`: every per-run threshold met, but `intent` agreement
-across 3 runs is 93.9 % < the 95 % bar, so **E5.1 is not Done**; a second, final held-out use is reserved
-for Validation 2 per the new N4 rule) and adds inter-annotator infrastructure
-(`eval/request_bank/annotation/`) used to settle the gold `intent` rule along the way; `dd816f2` and
-`b9dead2` re-baseline the plan to v0.3 (story points, the ⏳ status, build milestones with target +
-deadline, the new tasks above, a fallback order); `24243ea` teaches the GitHub Pages progress site to
-parse v0.3 (not a tracked task). **E4.5 and E4.7 move from 🚧 to ⏳**: under the new rule a deferred paid
-run is never a reason for 🚧 — both were only ever blocked on the `EXP-01` cost, now explicitly deferred
-to Validation 2, not on anything outside our control.
+Since the last review (`968f8ca`, 2026-09-25), twelve commits closed out wave 1a's opening tasks.
+`5be77ab` migrates the three DEV-NET demands, the scenario matrix and the question bank to clock time
+(08:00-09:00). Every rebuilt asset re-passes its own check (peak 16.5 %, incident teleport-free, every
+row's §4.5 effect, 117 questions), and `verify/` and the runner test start SUMO at 08:00. **E3.8 is
+Done.** `c912797` accepts ADR-0027 (nested contrasts oriented by code, not by how a request happens to
+word them). **E5.13 is Done**, which unblocks E3.7, E5.2, E5.4 and E6.7. `07c1705`'s development sweep
+on the rebuilt bank (`v2-e38-forced-1rep`, 117 questions × 1 repetition, $0.99, `EXPERT_VERSION`
+unchanged at v2) clears every E4.2/E4.4 threshold outright (descriptive 1.00, CF direction 1.00, CF band
+1.00). **E4.2 and E4.4 move to ⏳.** The diagnostic family took three more Expert versions after ADR-0029
+added a typed Bottleneck cause per edge (`22ce79a`/`b137b36`). v3 (`c759a21`) fell to Jaccard 0.10
+hunting for facts it had no cheap tool to fetch (`3be6555`), and v4 (prompt-only fix) recovered to
+Jaccard 0.60 and cause accuracy 0.89 on the 20-question diagnostic subset (`v4-diag-1rep`, $0.28). Both
+E4.3 bars are met, with zero margin on the Jaccard side by the maintainer's own account, logged as an
+accepted risk rather than tuned further (`5ea82a8`). **E4.3 moves to ⏳.** `ea4d9d9` reruns the DEV-NET
+demand verification over 19 seeds instead of 9 (peak 16.1 %, still no teleports, conclusion unchanged).
+Together, E3.8 and E5.13 done plus E4.2-E4.4 (and E4.5, already ⏳) all ✅ or ⏳ clears **M2**'s
+build-milestone bar. **M2 is met**, 11 days ahead of its 9 Oct target.
 
-By plan points, 362 of 954 (37.9 %) are in ✅ tasks, 36 in ⏳, 14 in 🔄. Verified now (system Python 3.11
-venv, no `resto` conda env in this container — `sumo` from the `eclipse-sumo` PyPI wheel put on `PATH`
-instead): `pytest -q` 892 passed, 1 skipped (a fixture that needs a locally-generated, uncommitted run
-directory); `ruff check .` clean; `mypy` clean (259 source files, per `pyproject.toml`'s `[tool.mypy]`
-file list — `eval/dev-net/demand/sim_utils.py` is deliberately excluded there, pre-existing, unrelated to
-this review). See `docs/feasability-analisis/2026-09-25.md`.
+By plan points, 374 of 954 (39.2 %) are in ✅ tasks, 92 in ⏳, 14 in 🔄. Verified now in a system Python
+3.11 venv (no `resto` conda env in this container): `eclipse-sumo`/`sumolib`/`traci` installed from PyPI
+via `pip install -e ".[dev]"`, which puts the `sumo` binary on `PATH`; `SUMO_HOME` left unset, since
+`conftest.py` warns the pinned PyPI SUMO needs it unset. `pytest -q` 923 passed, 1 skipped (the same
+pre-existing fixture that needs a locally-generated, uncommitted run directory); `ruff check .` clean;
+`mypy` clean
+(259 source files, same file list as last review). See `docs/feasability-analisis/2026-09-28.md`.
 
 ---
 
@@ -82,14 +88,14 @@ this review). See `docs/feasability-analisis/2026-09-25.md`.
 
 | ID | Task | Status | Notes |
 |---|---|---|---|
-| E3.1 | Scenario matrix DEV-NET/peak (15–25 rows × 3 seeds) | ✅ | 2026-09-15, commit `3900171` (verified now): `eval/scenario_matrix/` hand-authors 20 rows × 3 seeds = 60 `SimulationResult`s, promoted through the real `build_scenario`/`run_simulation` use cases and stored through an actual MCP `ClientSession`. Each row's DoD §4.5 effect is re-checked before it counts as built. **Rebuilt in clock time by E3.8 (⬜, not started); this task is not reopened** — its own output (seconds-based matrix, checks passed) still meets this task's own Done bar |
-| E3.2 | Question templates + generator + gold answers (≥60 on DEV-NET) | ✅ | 2026-09-17, commit `10c85a6`: 117 questions on DEV-NET/peak (floor: 60) — 40 descriptive, 20 diagnostic, 57 counterfactual — over the E3.1 20-row matrix. Verified now: `question-bank.json` has exactly 117 entries. **Rebuilt in clock time by E3.8 (⬜); not reopened**, same reasoning as E3.1 |
+| E3.1 | Scenario matrix DEV-NET/peak (15–25 rows × 3 seeds) | ✅ | 2026-09-15, commit `3900171` (verified now): `eval/scenario_matrix/` hand-authors 20 rows × 3 seeds = 60 `SimulationResult`s, promoted through the real `build_scenario`/`run_simulation` use cases and stored through an actual MCP `ClientSession`. Each row's DoD §4.5 effect is re-checked before it counts as built. 2026-09-25, commit `5be77ab`: **rebuilt in clock time by E3.8 (now ✅)**. All 20 rows re-pass their §4.5 effect check on the 08:00–09:00 window; this task's own Done bar was already met before the rebuild and stays met after it |
+| E3.2 | Question templates + generator + gold answers (≥60 on DEV-NET) | ✅ | 2026-09-17, commit `10c85a6`: 117 questions on DEV-NET/peak (floor: 60) — 40 descriptive, 20 diagnostic, 57 counterfactual — over the E3.1 20-row matrix. Verified now: `question-bank.json` has exactly 117 entries. 2026-09-25, commit `5be77ab`: **rebuilt in clock time by E3.8 (now ✅)**, same reasoning as E3.1. Question text reads clock times, gold answers unchanged except the `signal_program` rows' windows, still 117 entries |
 | E3.3 | Metrics harness (exact match, Jaccard, direction, band, Brier, abstention P/R) | ✅ | 2026-09-17, commit `2a9d3cd`: `eval/expert_benchmark/` scores exact-set/±5%/Jaccard≥0.6/direction/band/Brier against DoD §4.7 thresholds, mean±std, report generation. 2026-09-22, commit `12276fb`: `abstention_recall`/`abstention_false_requests` landed (thresholds `>= 0.70`/`<= 0.30`), covered by `test_expert_abstention.py`. The harness implements every metric family this task lists — the *measured* threshold on real data is E4.5/E4.7's job (now ⏳, gated on the EXP-01 Validation-2 run), not this task's |
 | E3.4 | Request bank (text → `Question`, Input Parser): concepts expanded by variants, dev/held-out split by concept | ✅ | 2026-09-23, commits `1f21429`/`398129d` (bank built, 65 concepts → 306 requests). Since the last review, `32a5cd5` (2026-09-24) grew it further while settling the `intent` convention with the user (see E5.1): six new `run` concepts (R066–R071) and two new `diagnose` concepts (R072/R073) so every `intent` is represented in both splits. Current size (`eval/request_bank/bank.py`, `parser-tuning-log.md`): **73 concepts, 346 requests, 232 dev / 114 held-out (33 %)**. This is normal bank maintenance on a task already meeting its Done bar (concepts × variants, reviewed, frozen with provenance), not scope creep — the split stays fixed by concept (a test pins the pre-existing concepts' side) |
 | E3.5 | Scenario matrix REAL-NET/peak | ⬜ | Wave 3. Depends on E6.3 (REAL-NET frozen) |
 | E3.6 | Question bank REAL-NET (40+) | ⬜ | Wave 4. Depends on E3.5 |
-| E3.7 | Plan bank (`Question` → `StudyPlan`, Coordinator): gold phase-0 plan per E3.4 request for a fixed DB state, the 4 canonical DB states, ADR-0025/0027 plan rules | ⬜ | Wave 1b. Nothing built yet. Blocked on two prerequisites per the v0.3 build DAG: E3.8 (clock-time migration, ⬜ — the "fixed DB state" this task plans against) and E5.13 (accept/change ADR-0027, ⬜ — arms/contrasts still *Proposed*). E3.4's gold `Question`s (its other input) are ✅ |
-| E3.8 | *(new 2026-09-24)* ADR-0028 migration to clock time: DEV-NET demands `[0,3600)` → `[28800,32400)` (08:00–09:00), scenario matrix and question bank rebuilt in clock time, `verify/` and the expert-benchmark bank loader updated | ⬜ | Wave 1a, first item on the Coordinator-spine critical path and a prerequisite for any Expert sweep (E4.2–E4.4) and for E3.7/E5.2. Checked now: `eval/dev-net/demand/*.trips.xml` still departs in `[0, 3600)` seconds (e.g. `depart="3597.00"`), `eval/question_bank/templates.py`'s `DEFAULT_WINDOW = TimeWindow(0.0, 300.0)` — the migration has not started. Work plan: "A sweep on the pre-ADR-0028 bank is paid again after the rebuild", so nothing downstream (E4.2–E4.4's dev sweeps, EXP-01) can legitimately reuse the old `v1-forced-1rep` sweep from before this review period |
+| E3.7 | Plan bank (`Question` → `StudyPlan`, Coordinator): gold phase-0 plan per E3.4 request for a fixed DB state, the 4 canonical DB states, ADR-0025/0027 plan rules | ⬜ | Wave 1b. Nothing built yet, no `eval/plan_bank/`-shaped directory or commit found this review. Both prerequisites the v0.3 build DAG named are now resolved: E3.8 (✅, 2026-09-25; the "fixed DB state" this task plans against exists in clock time) and E5.13 (✅, 2026-09-25; ADR-0027 Accepted). E3.4's gold `Question`s (its other input) are already ✅, so nothing outside this task's own scope is blocking it; it has not been picked up yet |
+| E3.8 | *(new 2026-09-24)* ADR-0028 migration to clock time: DEV-NET demands `[0,3600)` → `[28800,32400)` (08:00–09:00), scenario matrix and question bank rebuilt in clock time, `verify/` and the expert-benchmark bank loader updated | ✅ | 2026-09-25, commit `5be77ab`: all three DEV-NET demands now depart in `[28800, 32400)` (checked: `depart="28800.00"` … `depart="32400.00"` in the `.trips.xml` files), same `randomTrips` seed shifted by exactly 28800 s so `verification.ipynb` reproduces every figure byte for byte (peak 16.5 %, 0 teleports over 9 seeds; `ea4d9d9` reruns this check over 19 seeds, 16.1 %, still 0 teleports). `eval/question_bank/templates.py`'s `DEFAULT_WINDOW` is now `TimeWindow(28800.0, 29100.0)`; the scenario matrix, question bank (117 questions), `verify/`, the runner test and the expert-benchmark bank loader are all rebuilt/updated on clock time in the same commit. `EXPERT_VERSION` stays v2; this is logged as a measurement fix, not a tuning change |
 | E3.9 | *(new 2026-09-24)* Evaluation budget document for supervisors: one row per measurement suite, cost vs the $30 cap | ⬜ | Wave 1b, due before the ~24 Oct funding request. No `docs/*budget*` file exists yet; `evaluating-resto.md` §7.2 still carries the table this task is meant to take over |
 | E3.10 | *(new 2026-09-24)* Trim `evaluating-resto.md`'s Decisions log (§5) to one line per decision | ⬜ | Wave 1b. Checked now: §5 still has ~35 entries, several multi-paragraph (the `intent` convention history from this week's Parser tuning added more, not fewer) — not trimmed |
 
@@ -98,9 +104,9 @@ this review). See `docs/feasability-analisis/2026-09-25.md`.
 | ID | Task | Status | Notes |
 |---|---|---|---|
 | E4.1 | Refactor v1 Expert onto `ToolAgent` (`ExpertTask` → `ExpertAnswer`); facts via tools; `evidence[]` | ✅ | 2026-09-17, commit `d7683b3` (ADR-0018): `ExpertTask` in, `ExpertAnswer` out, facts only through NetworkMCP + result tools, every tool call recorded in an `EvidenceLedger` so `ask_expert` rejects any unresolved `evidence[]` ref. Verified now: 39 tests pass across `test_expert.py` (agent), `test_ask_expert.py` (use case), `test_expert.py` (tools) |
-| E4.2 | Descriptive questions: tune until a development sweep **on the E3.8 (clock-time) bank** meets ≥90 % (→ ⏳) | ⬜ | Wave 1a. An earlier sweep (`v1-forced-1rep`, pre-E3.8) already showed descriptive 1.00 ≥ 0.90 on the old seconds-based bank, but v0.3's own text is explicit that a sweep on the pre-migration bank does not count once E3.8 exists as a task — E3.8 is ⬜, so this stays ⬜ until a fresh dev sweep runs on the rebuilt bank |
-| E4.3 | Diagnostic questions: tune until a development sweep on the E3.8 bank meets Jaccard ≥0.6, "why" ≥70 % (→ ⏳) | ⬜ | Wave 1a. Same reasoning as E4.2 — the old sweep's diagnostic Jaccard 0.70 ≥ 0.60 was on the pre-migration bank |
-| E4.4 | Counterfactual, forced mode: tune until a development sweep on the E3.8 bank meets direction ≥75 %, band ≥50 % (→ ⏳) | ⬜ | Wave 1a. Same reasoning — the old sweep's cf-dir 1.00/cf-band 1.00 was on the pre-migration bank |
+| E4.2 | Descriptive questions: tune until a development sweep **on the E3.8 (clock-time) bank** meets ≥90 % (→ ⏳) | ⏳ | 2026-09-25, commit `07c1705`: `v2-e38-forced-1rep` (117 questions × 1 repetition, forced, `EXPERT_VERSION = v2`, $0.99) scores descriptive 20/20 + 20/20 = 1.00 ≥ 0.90 on the rebuilt clock-time bank. No tuning change was needed. **Measured in V2 by EXP-01** (117 × 3, held-out repetitions); this 1-repetition dev sweep is the development evidence, already above the bar |
+| E4.3 | Diagnostic questions: tune until a development sweep on the E3.8 bank meets Jaccard ≥0.6, "why" ≥70 % (→ ⏳) | ⏳ | Took three extra Expert versions past `v2-e38-forced-1rep`'s 0.80 Jaccard. ADR-0029 (`22ce79a`) added a typed Bottleneck `cause` per edge, scored as `diag_cause_accuracy` (`537d910`); v3 (`c759a21`) regressed to Jaccard 0.10 on the 20-question diagnostic subset (`v3-diag-1rep`, $0.32) because the Expert guessed traffic-light ids and hunted lane drops instead of answering (`3be6555`); v4 (prompt-only, same commit) recovers to **Jaccard 0.60 ≥ 0.60, cause accuracy 0.89 ≥ 0.70** (`v4-diag-1rep`, $0.28). Both bars are met, but the maintainer's own log (`5ea82a8`) calls the Jaccard margin zero and treats a sub-0.60 EXP-01 result as an accepted risk to report, not re-tune. **Measured in V2 by EXP-01**; dev evidence meets the bar with no safety margin |
+| E4.4 | Counterfactual, forced mode: tune until a development sweep on the E3.8 bank meets direction ≥75 %, band ≥50 % (→ ⏳) | ⏳ | 2026-09-25, commit `07c1705`: same `v2-e38-forced-1rep` sweep scores CF direction 19/19 = 1.00 ≥ 0.75 and CF band 19/19 = 1.00 ≥ 0.50 on the rebuilt clock-time bank. No tuning change was needed. **Measured in V2 by EXP-01**; this 1-repetition dev sweep is the development evidence, already above both bars |
 | E4.5 | Free mode: abstention policy, `proposed_experiment`. **Measured in V2** by EXP-01's free-mode leg | ⏳ | *(was 🚧; reclassified this review per the new rule — a deferred paid run is never a reason for 🚧, see legend)* 2026-09-22, commit `12276fb`: the abstention *policy* (`Mode.FREE`, `needs_simulation`, `proposed_experiment`, `ask_expert`'s mode checks) and the `eval/expert_benchmark` harness support to run/score it (`--mode {forced,free,both}`, pairing in `report.py`) are both built and tested. `e45-smoke` ($0.056, 4 questions × both modes) validated the harness end to end but gave no abstention signal by design (tiny sample). The DoD threshold (`abstention_recall ≥ 70 %`, `false_requests ≤ 30 %`) needs EXP-01 in Validation 2, after E3.8's migration and after E4.2–E4.4's dev sweeps establish forced-mode accuracy on the new bank |
 | E4.6 | `ExpertNote` writing + RAG + status update; hygiene probes (20) | ✅ | 2026-09-22, commit `4b3f78d` (ADR-0024): `run_expert_note` + `write_note` promote against the round's `EvidenceLedger`; `update_note_status` confirms/refutes `Quantity` claims at ±5%. RAG wired into the agent prompt. `eval/hygiene_probes/`: 20 probes run for real (`hygiene-v1`, $0.112) — 0 violations, pass rate 1.00 ≥ 1.00 required |
 | E4.7 | DEV-NET benchmark report from EXP-01 (V2): all §4.7 metrics, 3 runs, mean±std | ⏳ | *(was 🚧; reclassified this review, same rule as E4.5)* Wave F. `docs/expert-tuning-log.md` (report generation) and `parser`/`expert` benchmark tooling are implemented and unit-tested; the report itself needs the EXP-01 run, which needs E3.8's migration first (a report built on the pre-migration `v1-forced-1rep` sweep would need re-running anyway). Still also needs E4.2–E4.4 (accuracy-to-Done work) before it covers the DoD's full scope |
@@ -115,12 +121,13 @@ this review). See `docs/feasability-analisis/2026-09-25.md`.
 single-agent Coordinator into an Input Parser agent (E5.1), a one-shot Coordinator agent (E5.2) and a
 deterministic Executor (`run_study`, E5.10). 2026-09-23: [ADR-0025](adr/0025-executor-plan-shape-intent-rules-and-failures.md)
 and [ADR-0026](adr/0026-expert-notes-per-study-and-prediction-verification.md) complete the Executor
-contract; [ADR-0027](adr/0027-experiment-arms-and-contrasts.md) (still **Proposed**, not Accepted — E5.13
-is v0.3's task to resolve this) adds `Arm`/`Contrast` domain types (E5.12). The Input Parser is now a real
-agent (E5.1), tuned to v6 and run once on held-out (missed the intent-agreement bar, see E5.1's row); the
-Coordinator and Output Composer agents (`adapters/llm/agents/{coordinator,composer}.py`) are still 4-line
-placeholder files, confirmed unchanged this review, and `interface/cli/main.py`'s composition root still
-wires them to a `_Pending` stub.
+contract; [ADR-0027](adr/0027-experiment-arms-and-contrasts.md) adds `Arm`/`Contrast` domain types (E5.12)
+and, since 2026-09-25 (`c912797`, E5.13), is **Accepted**. Planning/plan-validation use (E5.2/E5.10) and
+Expert/Composer use (E5.3/E5.4) are still pending, as its own status line says. The Input Parser is now a
+real agent (E5.1), tuned to v6 and run once on held-out (missed the intent-agreement bar, see E5.1's row);
+the Coordinator and Output Composer agents (`adapters/llm/agents/{coordinator,composer}.py`) are still
+4-line placeholder files, confirmed unchanged this review, and `interface/cli/main.py`'s composition root
+still wires them to a `_Pending` stub.
 
 | ID | Task | Status | Notes |
 |---|---|---|---|
@@ -135,8 +142,8 @@ wires them to a `_Pending` stub.
 | E5.9 | Domain change (ADR-0023/0025): `Phase`, `Study.phases`, typed `PlanStep` union, `StepError`, `ExpertRound.forced_by_limit`; schemas regenerated | ✅ | 2026-09-23, commit `a3a363a`: `domain/entities/study.py` gains `Phase`/`Study.phases`, `domain/value_objects/study_plan.py` gains the discriminated `PlanStep` union. Schemas and `docs/class_diagram.md` regenerated same commit. Verified now: `test_study.py`/`test_study_plan.py` exercise the invariants directly |
 | E5.10 | Executor (`run_study`, deterministic code): resolves `FromStep`, calls specialists, guards in code, runs `ask_expert`/`compose_report` itself; agent ports + composition root; note writer | ✅ | 2026-09-23, commit `6ccb66b` (976 new lines): parse → `Study` → per-phase plan → semantic validation → step execution → forced-last-round Expert loop → note writer → report, `StepError` classified into `user_input`/`budget`/`agent`/`infrastructure`. Verified now: `test_run_study.py` (965 lines, 29 test functions) covers GP-1/GP-2/GP-3-shaped scenarios, forced mode, every `StepError.kind`, budget accounting |
 | E5.11 | Deterministic rendering (ADR-0025) of `failed`/`awaiting_user` studies in `interface/render.py`; CLI error when no `Study` is created | ✅ | 2026-09-23, commit `9f13608`: `render_study` produces the three-block failure render and an `awaiting_user` render. Verified now: `test_render.py` parametrises every `StepErrorKind`; `test_main.py` covers both CLI paths |
-| E5.12 | Domain change (ADR-0027): `Arm`, `Contrast`, `Question.arms`/`contrasts`, `required_arms`/`reference_arms`, `AddEdge.edge_id`, `arm` on plan/experiment types | ✅ | 2026-09-23, commit `cfb9711`: `domain/value_objects/arm.py`, `Question.arms`/`.contrasts` with `effective_arms`/`effective_contrasts`. This task's own scope is domain-only, met: `test_arm.py` + `test_experiment_design.py`. ADR-0027 itself is still **Proposed** — E5.13 (new in v0.3) is the task to resolve that, and it is ⬜ |
-| E5.13 | *(new 2026-09-24)* Accept or change-then-accept ADR-0027 (arms and contrasts) — roots E3.7, E5.2, E5.4, E6.7 | ⬜ | Wave 1a, right after E3.8 per the build DAG. Checked now: `docs/adr/0027-experiment-arms-and-contrasts.md`'s own status line still reads "Proposed — domain types implemented (E5.12); planning and plan validation pending" |
+| E5.12 | Domain change (ADR-0027): `Arm`, `Contrast`, `Question.arms`/`contrasts`, `required_arms`/`reference_arms`, `AddEdge.edge_id`, `arm` on plan/experiment types | ✅ | 2026-09-23, commit `cfb9711`: `domain/value_objects/arm.py`, `Question.arms`/`.contrasts` with `effective_arms`/`effective_contrasts`. This task's own scope is domain-only, met: `test_arm.py` + `test_experiment_design.py`. ADR-0027 itself is now **Accepted** (2026-09-25, E5.13, ✅) |
+| E5.13 | *(new 2026-09-24)* Accept or change-then-accept ADR-0027 (arms and contrasts) — roots E3.7, E5.2, E5.4, E6.7 | ✅ | 2026-09-25, commit `c912797`: `docs/adr/0027-experiment-arms-and-contrasts.md`'s status line now reads "Accepted (2026-09-24, E5.13, with the contrast-direction rule added to §1)". The change resolved during acceptance: of two nested arms, the one contained in the other is always the reference regardless of how a request wrote the contrast (`Question.effective_contrasts` now orients every such pair). The blind annotation for E5.1 had written two of three multi-arm contrasts backwards, and both had scored as correct under the old rule. Planning/plan-validation use (E5.2/E5.10) and Expert/Composer use (E5.3/E5.4) remain pending, as the ADR's own status line says, but this task's own scope (accept, or change-then-accept) is met |
 
 ## E6 — Network Author, Demand Generator, REAL-NET (106 pts, 7 tasks) · DoD §4.3, §4.4
 
@@ -186,8 +193,8 @@ measurement happens in Validation 2.
 |---|---|---|---|---|---|
 | M0 | Fri 18 Sep | Fri 18 Sep | Foundations frozen | ✅ | 2026-09-14, 4 days early: all 8 E0 tasks ✅, CI green on `master`, DEV-NET runs its three demand profiles, architecture v1.0 frozen |
 | M1 | Fri 16 Oct | Fri 16 Oct | Tooling complete | ✅ | 2026-09-15, a month early: E1 fully ✅, E2.1/E2.2 (Runner/Builder Minimal) ✅, E3.1 (20×3 scenario matrix stored via real DatabaseMCP) ✅ |
-| M2 | Fri 9 Oct | Fri 13 Nov | Expert built on DEV-NET | ⬜ | Acceptance needs E3.8 ✅ and E4.2–E4.4 ⏳ (dev sweep on the E3.8 bank) and E4.5 ⏳ with EXP-01 ready to run — all three still ⬜/not-yet-⏳ as of this review; E3.8 itself (the wave-1a opener and this milestone's own critical path, "E3.8 → E4.4" = 34 pts) has not started. Target is 2 weeks out (today: 25 Sep); one working day into wave 1a since the v0.3 re-baseline, no cause yet to call the target at risk, but E3.8 needs to start now to hold it |
-| M3 | Fri 6 Nov | Fri 11 Dec | End-to-end loop built | ⬜ | Needs E3.7, E5.2, E5.3, E5.4 ✅, GP-1…7+9 passing, Builder/Runner built. Of these, only domain/Executor groundwork (E5.9–E5.12) is ✅; the Coordinator and Composer agents are unbuilt placeholders, E7.1's golden-path framework doesn't exist, and E2.5–E2.7 (Runner online, Builder scripts/bank) haven't started. Critical chain per work plan §4.3 is 59 pts (E3.8→E3.7→E5.2→E5.3→E7.1→E7.2); target six weeks out |
+| M2 | Fri 9 Oct | Fri 13 Nov | Expert built on DEV-NET | ✅ | 2026-09-25: E3.8 ✅, E4.2/E4.3/E4.4 ⏳ (dev sweep on the E3.8 bank meets every DoD bar), E4.5 ⏳ (EXP-01 ready to run in V2). Every listed task is ✅ or ⏳, meeting the build-milestone bar 11 days ahead of the 9 Oct target and six weeks ahead of the 13 Nov deadline. The measurement itself (EXP-01, all four §4.7 families at full scale) still runs in Validation 2, per the build/measurement split this milestone type is defined around |
+| M3 | Fri 6 Nov | Fri 11 Dec | End-to-end loop built | ⬜ | Needs E3.7, E5.2, E5.3, E5.4 ✅, GP-1…7+9 passing, Builder/Runner built. Of the critical chain's six steps, E3.8 is now ✅; E3.7, E5.2, E7.1, E7.2 haven't started and E5.3 is 🔄. The Coordinator and Composer agents are still unbuilt placeholders, E7.1's golden-path framework doesn't exist, and E2.5–E2.7 (Runner online, Builder scripts/bank) haven't started. Critical chain per work plan §4.3 is 59 pts (E3.8→E3.7→E5.2→E5.3→E7.1→E7.2), of which 10 (E3.8) are now spent; target six weeks out |
 | M4 | Fri 27 Nov | Fri 15 Jan | Real network ready (built) | ⬜ | Needs E6.1–E6.7 and E3.5; none started (all E6 agent files confirmed still 4-line placeholders this review). No prerequisite blocks E6.3 (REAL-NET freeze) from starting immediately per work plan §4.4 |
 | M5 | Fri 4 Dec | Fri 29 Jan | Thesis result built | ⬜ | Needs E3.6 ✅, E4.8 ⏳, E4.9 ⏳ (setup). Depends on the E6.3→E6.6→E3.5→E3.6→E4.8 chain (60 pts), none of it started |
 | M6 | Fri 11 Dec | ~~Fri 5 Feb~~ Fri 29 Jan | All modules built | ⬜ | Needs E5.5/E5.6/E7.3 ✅ or ⏳, E5.7's checker built, 11 golden paths passing as tests. Longest single chain in the whole plan (71 pts: E3.8→E3.7→E5.2→E5.3→E7.1→E6.7→E7.3) — the work plan's own "what to watch" calls the Coordinator spine "the critical path of the whole plan" and says to start it first |
