@@ -20,8 +20,9 @@ import json
 import sys
 from pathlib import Path
 
+from eval.paid_runs import CostPolicy, add_paid_run_arguments, load_records, require_cap
 from eval.parser_benchmark.report import render_markdown, score_records, summarize_run
-from eval.parser_benchmark.runner import load_records, run_benchmark
+from eval.parser_benchmark.runner import run_benchmark
 from eval.request_bank.bank import BankRequest, bank_requests
 
 HERE = Path(__file__).resolve().parent
@@ -46,12 +47,6 @@ def select(
     return [r for r in requests if split == "all" or r.split == split]
 
 
-def estimate_usd(model: str, n_runs: int) -> float:
-    from resto.adapters.llm.pricing import estimate_cost_usd
-
-    return estimate_cost_usd(model, *_TOKENS_PER_REQUEST) * n_runs
-
-
 def write_report(name: str) -> Path:
     records = load_records(HERE / "runs" / f"{name}.jsonl")
     scored = score_records(records, bank_requests())
@@ -73,8 +68,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--requests", nargs="*", help="exact request ids (any split)")
     parser.add_argument("--concepts", nargs="*", help="concept ids, with all their variants")
     parser.add_argument("--repetitions", type=int, default=1)
-    parser.add_argument("--workers", type=int, default=4)
-    parser.add_argument("--max-cost-usd", type=float)
+    add_paid_run_arguments(parser)
+    parser.set_defaults(workers=4)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--report-only", action="store_true")
     args = parser.parse_args(argv)
@@ -87,23 +82,26 @@ def main(argv: list[str] | None = None) -> int:
         if not args.final and any(r.split == "held_out" for r in requests):
             parser.error("held-out is for measuring Done once: pass --final to run it")
         runs = len(requests) * args.repetitions
-        estimate = estimate_usd(args.model, runs)
-        print(
+        cost_policy = CostPolicy.for_model(
+            args.model,
+            input_tokens_per_job=_TOKENS_PER_REQUEST[0],
+            output_tokens_per_job=_TOKENS_PER_REQUEST[1],
+            max_cost_usd=args.max_cost_usd or 0.0,
+            approved_over_1usd=args.approved_over_1usd,
+        )
+        estimate = (
             f"{len(requests)} requests × {args.repetitions} repetitions = {runs} runs on "
-            f"{args.model}, ~${estimate:.2f} estimated"
+            f"{args.model}, ~${cost_policy.per_job_estimate_usd * runs:.2f} estimated"
         )
         if args.dry_run:
+            print(estimate)
             return 0
-        if estimate > 1.0:
-            print("estimate above $1: log it in docs/evaluating-resto.md §7 instead (CLAUDE.md)",
-                  file=sys.stderr)
-            return 2
-        if args.max_cost_usd is None:
-            parser.error("--max-cost-usd is required for a paid run")
+
+        max_cost_usd = require_cap(parser, args.max_cost_usd)
+        print(f"{estimate}; cap: ${max_cost_usd:.2f}")
 
         from resto.adapters.llm.anthropic_client import OpenRouterToolAgent
         from resto.adapters.llm.config import load_llm_config
-        from resto.adapters.llm.pricing import estimate_cost_usd
         from resto.application.ports.llm import Budget
 
         config = load_llm_config()
@@ -113,10 +111,8 @@ def main(argv: list[str] | None = None) -> int:
             agent=OpenRouterToolAgent(config, model=args.model),
             budget=Budget(config.max_steps, config.max_output_tokens, max_seconds=120.0),
             out_file=HERE / "runs" / f"{args.name}.jsonl",
-            model=args.model,
-            price=lambda i, o: estimate_cost_usd(args.model, i, o),
+            cost_policy=cost_policy,
             workers=args.workers,
-            max_cost_usd=args.max_cost_usd,
         )
         print(outcome)
 

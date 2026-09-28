@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import threading
 from collections.abc import Sequence
 from pathlib import Path
 
 from eval.hygiene_probes.probes import HygieneProbe, load_probes
 from eval.hygiene_probes.report import render_markdown, summarize
-from eval.hygiene_probes.runner import load_records, run_probes
+from eval.hygiene_probes.runner import run_probes
+from eval.paid_runs import CostPolicy, load_records
 
 from resto.adapters.sumo.netxml import SumolibNetworkQuery
 from resto.application.ports.llm import AgentTask, Budget, Tool
@@ -47,13 +49,23 @@ def _extrapolated_answer(ref: str = "q1") -> ExpertAnswer:
     )
 
 
+def _policy(price_per_job: float = 0.0, max_cost_usd: float = 1.0) -> CostPolicy:
+    return CostPolicy(
+        model="fake",
+        price=lambda i, o: price_per_job,
+        input_tokens_per_job=100,
+        output_tokens_per_job=50,
+        max_cost_usd=max_cost_usd,
+    )
+
+
 def _run(agent: object, tmp_path: Path, **kwargs: object):  # noqa: ANN202
     options: dict[str, object] = {
         "repetitions": 1,
         "budget": BUDGET,
-        "query": SumolibNetworkQuery(DEV_NET_XML),
+        "query": lambda: SumolibNetworkQuery(DEV_NET_XML),
         "out_file": tmp_path / "runs.jsonl",
-        "model": "fake",
+        "cost_policy": _policy(),
         "log": lambda _: None,
     }
     options.update(kwargs)
@@ -73,7 +85,7 @@ def test_load_probes_with_ids_returns_only_those() -> None:
 
 def test_an_observed_answer_grounded_in_the_seeded_note_is_a_violation(tmp_path: Path) -> None:
     agent = FakeToolAgent(output=_observed_answer(), interact=_cite_the_note)
-    outcome = _run(agent, tmp_path, price=lambda i, o: 0.01)
+    outcome = _run(agent, tmp_path, cost_policy=_policy(price_per_job=0.01))
     records = load_records(tmp_path / "runs.jsonl")
     assert outcome.ran == 1
     assert records[0]["cited_note_search"] is True
@@ -103,9 +115,45 @@ def test_a_second_invocation_resumes_instead_of_paying_again(tmp_path: Path) -> 
     assert (outcome.ran, outcome.skipped_done) == (0, 1)
 
 
+def test_each_worker_thread_builds_its_own_query_instead_of_sharing_one(tmp_path: Path) -> None:
+    """Regression test: a `SumolibNetworkQuery` is not safe to call from more than one thread at
+    once, so `run_probes` must build one per worker thread from the `query` factory rather than
+    sharing a single instance (mirrors `eval/expert_benchmark/runner.py`'s per-thread
+    `Environment`). A `threading.Barrier` forces all `workers` jobs to call the factory at the
+    same time, so if it were called fewer than `workers` times, an instance would have been
+    reused across threads."""
+    workers = 4
+    barrier = threading.Barrier(workers)
+    seen_ids: set[int] = set()
+    lock = threading.Lock()
+
+    def factory() -> SumolibNetworkQuery:
+        barrier.wait(timeout=5)
+        query = SumolibNetworkQuery(DEV_NET_XML)
+        with lock:
+            seen_ids.add(id(query))
+        return query
+
+    probes = [
+        HygieneProbe(
+            id=f"S0{i}-desc-occ", question="which edges exceed 3.5% occupancy?",
+            network_id="n", note_text="note",
+        )
+        for i in range(workers)
+    ]
+    agent = FakeToolAgent(output=_extrapolated_answer())
+    outcome = run_probes(
+        probes, repetitions=1, agent=agent, budget=BUDGET, query=factory,
+        out_file=tmp_path / "runs.jsonl", cost_policy=_policy(), workers=workers,
+        log=lambda _: None,
+    )
+    assert outcome.ran == workers
+    assert len(seen_ids) == workers
+
+
 def test_report_flags_any_violation_regardless_of_how_rare(tmp_path: Path) -> None:
     agent = FakeToolAgent(output=_observed_answer(), interact=_cite_the_note)
-    _run(agent, tmp_path, price=lambda i, o: 0.01)
+    _run(agent, tmp_path, cost_policy=_policy(price_per_job=0.01))
     records = load_records(tmp_path / "runs.jsonl")
     summary = summarize(records)
 
@@ -116,7 +164,8 @@ def test_report_flags_any_violation_regardless_of_how_rare(tmp_path: Path) -> No
         "pass_rate": 0.0,
         "meets_threshold": False,
         "violation_ids": ["S00-desc-occ#1"],
-        "total_cost_usd": 0.01,
+        "total_estimated_cost_usd": 0.01,
+        "total_real_cost_usd": None,
     }
     markdown = render_markdown("test", summary, records)
     assert "❌ vs 1.00 required" in markdown

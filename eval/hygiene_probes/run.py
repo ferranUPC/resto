@@ -20,12 +20,17 @@ from pathlib import Path
 
 from eval.hygiene_probes.probes import load_probes
 from eval.hygiene_probes.report import render_markdown, summarize
-from eval.hygiene_probes.runner import load_records, run_probes
+from eval.hygiene_probes.runner import run_probes
+from eval.paid_runs import CostPolicy, add_paid_run_arguments, load_records, require_cap
 
 HERE = Path(__file__).resolve().parent
 EVAL = HERE.parent
 DEV_NET = EVAL / "dev-net" / "dev-net.net.xml"
-AVG_COST_PER_RUN_USD = 0.01  # rough per-probe estimate; refine after the first smoke run
+# Measured mean tokens per probe run, `eval/hygiene_probes/runs/hygiene-v1.jsonl` (20 probes ×
+# 1 repetition, 2026-09): 28,237 input / 2,256 output. Replaces the earlier dollar-based
+# `AVG_COST_PER_RUN_USD` guess (decision 5, "tokens per job... from its smoke run").
+INPUT_TOKENS_PER_JOB = 28_200
+OUTPUT_TOKENS_PER_JOB = 2_300
 
 
 def write_report(name: str) -> Path:
@@ -44,25 +49,31 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--name", required=True)
     parser.add_argument("--probes", nargs="*", help="probe (question) ids; default: all 20")
     parser.add_argument("--repetitions", type=int, default=1)
-    parser.add_argument("--max-cost-usd", type=float, required=False)
+    add_paid_run_arguments(parser)
     parser.add_argument("--report-only", action="store_true")
     args = parser.parse_args(argv)
 
     if not args.report_only:
         from resto.adapters.llm.anthropic_client import OpenRouterToolAgent
         from resto.adapters.llm.config import load_llm_config
-        from resto.adapters.llm.pricing import estimate_cost_usd
         from resto.adapters.sumo.netxml import SumolibNetworkQuery
         from resto.application.ports.llm import Budget
 
+        max_cost_usd = require_cap(parser, args.max_cost_usd)
         probes = load_probes(ids=args.probes)
+        config = load_llm_config()
+        cost_policy = CostPolicy.for_model(
+            config.default_model,
+            input_tokens_per_job=INPUT_TOKENS_PER_JOB,
+            output_tokens_per_job=OUTPUT_TOKENS_PER_JOB,
+            max_cost_usd=max_cost_usd,
+            approved_over_1usd=args.approved_over_1usd,
+        )
         runs = len(probes) * args.repetitions
         print(
             f"{len(probes)} probes × {args.repetitions} repetitions = {runs} runs, "
-            f"~${runs * AVG_COST_PER_RUN_USD:.2f} estimated; cap: "
-            f"{'none' if args.max_cost_usd is None else f'${args.max_cost_usd:.2f}'}"
+            f"~${cost_policy.per_job_estimate_usd * runs:.2f} estimated; cap: ${max_cost_usd:.2f}"
         )
-        config = load_llm_config()
         outcome = run_probes(
             probes,
             repetitions=args.repetitions,
@@ -70,11 +81,10 @@ def main(argv: list[str] | None = None) -> int:
             budget=Budget(
                 max_steps=config.max_steps, max_tokens=config.max_output_tokens, max_seconds=300.0
             ),
-            query=SumolibNetworkQuery(DEV_NET),
+            query=lambda: SumolibNetworkQuery(DEV_NET),
             out_file=HERE / "runs" / f"{args.name}.jsonl",
-            model=config.default_model,
-            price=lambda i, o: estimate_cost_usd(config.default_model, i, o),
-            max_cost_usd=args.max_cost_usd,
+            cost_policy=cost_policy,
+            workers=args.workers,
         )
         print(outcome)
 

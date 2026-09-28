@@ -1,7 +1,7 @@
-"""One loop and one cost policy meant to be shared by every eval runner that spends OpenRouter
-credit (CLAUDE.md "LLM provider & cost policy"; refactor-paid-runs decisions 4-9). `eval/
-expert_benchmark` is migrated onto it; `eval/parser_benchmark` and `eval/hygiene_probes` still run
-their own pre-refactor loop and are migrated separately (refactor-paid-runs, ticket 04).
+"""One loop and one cost policy shared by every eval runner that spends OpenRouter credit
+(CLAUDE.md "LLM provider & cost policy"; refactor-paid-runs decisions 4-9). `eval/expert_benchmark`,
+`eval/parser_benchmark` and `eval/hygiene_probes` are all migrated onto it (tickets 03-04);
+`eval/request_bank/generate.py` stays outside it (decision 10, a different job shape).
 
 A benchmark supplies its job list, how to turn one job into a JSON record (`run_one`), and how to
 key a job for resume (`key`/`record_key`); `run_paid_jobs` owns resume-by-key, the JSONL append,
@@ -36,6 +36,7 @@ __all__ = [
     "RunOutcome",
     "UnknownModelError",
     "add_paid_run_arguments",
+    "format_cost_summary",
     "load_records",
     "require_cap",
     "run_paid_jobs",
@@ -132,6 +133,13 @@ def load_records(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
         return []
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line]
+
+
+def format_cost_summary(estimated: float, real: float | None, *, digits: int = 3) -> str:
+    """One line combining a run's declared estimate and its real (provider-reported) total, for
+    a report header; `real` is `None` when any recorded run never reported one."""
+    real_part = "n/a" if real is None else f"${real:.{digits}f}"
+    return f"estimated ${estimated:.{digits}f} · real {real_part}"
 
 
 def add_paid_run_arguments(parser: argparse.ArgumentParser) -> None:

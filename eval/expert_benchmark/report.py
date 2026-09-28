@@ -11,7 +11,7 @@ from typing import Any
 
 from eval.expert_benchmark.bank import BenchmarkQuestion, Family
 from eval.expert_benchmark.scoring import Score, score_answer
-from eval.paid_runs import ESTIMATED_COST_KEY, REAL_COST_KEY
+from eval.paid_runs import ESTIMATED_COST_KEY, REAL_COST_KEY, format_cost_summary
 from resto.application.schemas import adapter_for
 from resto.domain.value_objects.expert_answer import ExpertAnswer
 
@@ -226,21 +226,16 @@ def _meets(metric: str, mean: float | int | None) -> str:
     return f"{op} {bound:.2f} {'✅' if ok else '❌'}"
 
 
-def _cost_summary(summary: Mapping[str, Any]) -> str:
-    real = summary["total_real_cost_usd"]
-    real_part = "n/a" if real is None else f"${real:.3f}"
-    return f"estimated ${summary['total_estimated_cost_usd']:.3f} · real {real_part}"
-
-
 def render_markdown(name: str, summary: Mapping[str, Any], scored: Sequence[ScoredRun]) -> str:
     models = sorted({str(r.record["model"]) for r in scored})
+    cost = format_cost_summary(summary["total_estimated_cost_usd"], summary["total_real_cost_usd"])
     lines = [
         f"# Expert benchmark — {name}",
         "",
         f"Expert: {', '.join(summary['expert_versions']) or 'n/a'} · "
         f"Model: {', '.join(models) or 'n/a'} · {summary['questions']} questions × repetitions "
         f"{summary['repetitions']} = {summary['runs']} runs · budget stops: "
-        f"{summary['budget_stops']} · cost: {_cost_summary(summary)}",
+        f"{summary['budget_stops']} · cost: {cost}",
         "",
         "Scoring rules: docs/evaluating-resto.md §4.4. Thresholds: DoD §4.7 (DEV-NET).",
         "",

@@ -3,22 +3,21 @@
 `result_ids=()` so the only route to an answer is the one seeded note or the Expert's own topology
 reasoning — never real simulated data, which does not exist for these probes.
 
-Sequential on purpose (20 probes, unlike the 117-question benchmark): no worker pool to keep this
-module small. Same resumable/cost-capped/raw-storage shape as `eval/expert_benchmark/runner.py`,
-duplicated rather than shared since the two runners differ enough in what one question needs
-(baselines, multiple result ids) vs. what a probe deliberately has none of.
+Resume, the cost policy and the worker pool live in `eval.paid_runs.run_paid_jobs`
+(refactor-paid-runs, ticket 04); this module supplies only the job, its resume key, and how to run
+one (`_run_once`).
 """
 
 from __future__ import annotations
 
-import json
+import threading
 import time
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from eval.hygiene_probes.probes import HygieneProbe
+from eval.paid_runs import ESTIMATED_COST_KEY, REAL_COST_KEY, CostPolicy, RunOutcome, run_paid_jobs
 from resto.adapters.llm.agents.expert import EXPERT_VERSION, run_expert
 from resto.adapters.persistence.memory import (
     InMemoryNoteRepository,
@@ -39,23 +38,10 @@ from resto.domain.value_objects.expert_answer import Basis, ExpertAnswer
 from resto.domain.value_objects.question import Mode
 from resto.domain.value_objects.tasks import ExpertTask
 
-PriceFn = Callable[[int, int], float | None]
 NOTE_ID_PREFIX = "probe-"
 
-
-def load_records(path: Path) -> list[dict[str, Any]]:
-    if not path.exists():
-        return []
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line]
-
-
-@dataclass(frozen=True, slots=True)
-class RunOutcome:
-    ran: int
-    skipped_done: int
-    skipped_budget: int
-    crashed: int
-    cost_usd: float
+Job = tuple[HygieneProbe, int]
+NetworkQueryFactory = Callable[[], NetworkQuery]
 
 
 def _seeded_notes(probe: HygieneProbe) -> InMemoryNoteRepository:
@@ -74,54 +60,54 @@ def _seeded_notes(probe: HygieneProbe) -> InMemoryNoteRepository:
     return notes
 
 
+def _key(job: Job) -> tuple[str, int]:
+    probe, repetition = job
+    return (probe.id, repetition)
+
+
+def _record_key(record: dict[str, Any]) -> tuple[str, int]:
+    return (record["probe_id"], record["repetition"])
+
+
 def run_probes(
     probes: Sequence[HygieneProbe],
     *,
     repetitions: int,
     agent: ToolAgent,
     budget: Budget,
-    query: NetworkQuery,
+    query: NetworkQueryFactory,
     out_file: Path,
-    model: str,
-    price: PriceFn = lambda input_tokens, output_tokens: None,
-    max_cost_usd: float | None = None,
+    cost_policy: CostPolicy,
+    workers: int = 1,
     log: Callable[[str], None] = print,
 ) -> RunOutcome:
+    """`query` is a factory, not a shared instance: a `SumolibNetworkQuery` wraps sumolib state
+    (e.g. `getShortestPath`) that is not safe to call from more than one thread at once, so each
+    worker thread gets its own (`eval/expert_benchmark/runner.py`'s `Environment` has the same
+    rule, for the same reason plus its SQLite connection)."""
     if repetitions < 1:
         raise ValueError("repetitions must be >= 1")
-    done = {(r["probe_id"], r["repetition"]) for r in load_records(out_file)}
-    jobs = [
-        (p, rep) for p in probes for rep in range(1, repetitions + 1) if (p.id, rep) not in done
-    ]
-    out_file.parent.mkdir(parents=True, exist_ok=True)
+    jobs: list[Job] = [(p, rep) for p in probes for rep in range(1, repetitions + 1)]
+    local = threading.local()
 
-    ran = crashed = budget_stops = 0
-    spent = 0.0
-    for probe, repetition in jobs:
-        if max_cost_usd is not None and spent >= max_cost_usd:
-            budget_stops += 1
-            continue
-        try:
-            record = _run_once(probe, repetition, agent, budget, query, model, price)
-        except Exception as exc:  # an API/network failure must not stop the other probes
-            crashed += 1
-            log(f"CRASH {probe.id} rep {repetition}: {exc!r}")
-            continue
-        with out_file.open("a", encoding="utf-8") as fh:
-            fh.write(json.dumps(record, default=str) + "\n")
-        ran += 1
-        spent += record["cost_usd"] or 0.0
-        log(
-            f"[{ran}/{len(jobs)}] {probe.id} rep {repetition}: {record['stop_reason']}, "
-            f"violation={record['violation']}, ${record['cost_usd'] or 0:.4f} (total ${spent:.3f})"
-        )
+    def thread_query() -> NetworkQuery:
+        if not hasattr(local, "query"):
+            local.query = query()
+        return local.query  # type: ignore[no-any-return]
 
-    return RunOutcome(
-        ran=ran,
-        skipped_done=len(probes) * repetitions - len(jobs),
-        skipped_budget=budget_stops,
-        crashed=crashed,
-        cost_usd=spent,
+    def run_one(job: Job) -> dict[str, Any]:
+        probe, repetition = job
+        return _run_once(probe, repetition, agent, budget, thread_query(), cost_policy)
+
+    return run_paid_jobs(
+        jobs,
+        run_one=run_one,
+        key=_key,
+        record_key=_record_key,
+        cost_policy=cost_policy,
+        out_file=out_file,
+        workers=workers,
+        log=log,
     )
 
 
@@ -131,8 +117,7 @@ def _run_once(
     agent: ToolAgent,
     budget: Budget,
     query: NetworkQuery,
-    model: str,
-    price: PriceFn,
+    cost_policy: CostPolicy,
 ) -> dict[str, Any]:
     task = ExpertTask(
         question=probe.question, mode=Mode.FORCED, network_id=probe.network_id,
@@ -155,7 +140,7 @@ def _run_once(
     return {
         "probe_id": probe.id,
         "repetition": repetition,
-        "model": model,
+        "model": cost_policy.model,
         "expert_version": EXPERT_VERSION,
         "stop_reason": run.stop_reason.value,
         "rejection": rejection,
@@ -166,7 +151,8 @@ def _run_once(
         "violation": _violates_hygiene(answer, ledger),
         "input_tokens": run.usage.input_tokens,
         "output_tokens": run.usage.output_tokens,
-        "cost_usd": price(run.usage.input_tokens, run.usage.output_tokens),
+        ESTIMATED_COST_KEY: cost_policy.price(run.usage.input_tokens, run.usage.output_tokens),
+        REAL_COST_KEY: run.usage.cost_usd,
         "elapsed_s": round(elapsed, 2),
     }
 

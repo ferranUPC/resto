@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, TypeVar
 
 import pytest
+from eval.paid_runs import CostCapExceededError, CostPolicy, load_records
 from eval.parser_benchmark import run as cli
 from eval.parser_benchmark.report import (
     failed_fields,
@@ -14,7 +15,7 @@ from eval.parser_benchmark.report import (
     score_records,
     summarize_run,
 )
-from eval.parser_benchmark.runner import load_records, run_benchmark
+from eval.parser_benchmark.runner import run_benchmark
 from eval.request_bank.bank import BankRequest, bank_requests
 from eval.request_bank.concepts import CONCEPTS
 
@@ -61,29 +62,51 @@ def _requests(*concept_ids: str) -> list[BankRequest]:
     return [r for r in bank_requests() if r.concept_id in concept_ids]
 
 
-def _price(input_tokens: int, output_tokens: int) -> float:
-    return 0.001
+def _policy(
+    price_per_job: float = 0.001, max_cost_usd: float = 10.0, model: str = "m"
+) -> CostPolicy:
+    return CostPolicy(
+        model=model,
+        price=lambda i, o: price_per_job,
+        input_tokens_per_job=100,
+        output_tokens_per_job=50,
+        max_cost_usd=max_cost_usd,
+    )
 
 
-def test_runs_are_stored_resumed_and_capped(tmp_path: Path) -> None:
+def test_runs_are_stored_and_resumed(tmp_path: Path) -> None:
     requests = _requests("R003")
     out = tmp_path / "runs.jsonl"
     agent = GoldAgent(requests)
     first = run_benchmark(
-        requests, repetitions=1, agent=agent, budget=BUDGET, out_file=out, model="m",
-        price=_price, max_cost_usd=0.002, log=lambda _: None,
+        requests, repetitions=1, agent=agent, budget=BUDGET, out_file=out,
+        cost_policy=_policy(), log=lambda _: None,
     )
-    assert first.ran == 2 and first.skipped_budget == len(requests) - 2
+    assert first.ran == len(requests) and first.skipped_done == 0
     records = load_records(out)
     assert records[0]["parser_version"] == PARSER_VERSION and records[0]["model"] == "m"
     assert records[0]["question"]["intent"] == "compare"
 
     second = run_benchmark(
-        requests, repetitions=1, agent=agent, budget=BUDGET, out_file=out, model="m",
-        price=_price, log=lambda _: None,
+        requests, repetitions=1, agent=agent, budget=BUDGET, out_file=out,
+        cost_policy=_policy(), log=lambda _: None,
     )
-    assert second.skipped_done == 2 and second.ran == len(requests) - 2
+    assert second.skipped_done == len(requests) and second.ran == 0
     assert len(load_records(out)) == len(requests)
+
+
+def test_an_estimate_over_the_cap_is_refused_before_any_run(tmp_path: Path) -> None:
+    """`eval.paid_runs.run_paid_jobs` refuses the whole invocation up front rather than running
+    part of it (refactor-paid-runs decision 7); the mid-run reservation and cap-trip themselves
+    are covered by `tests/unit/eval/test_paid_runs.py`, against fake jobs."""
+    requests = _requests("R003")
+    out = tmp_path / "runs.jsonl"
+    with pytest.raises(CostCapExceededError):
+        run_benchmark(
+            requests, repetitions=1, agent=GoldAgent(requests), budget=BUDGET, out_file=out,
+            cost_policy=_policy(price_per_job=0.1, max_cost_usd=0.5), log=lambda _: None,
+        )
+    assert load_records(out) == []
 
 
 def test_a_crash_is_logged_and_retried_next_time(tmp_path: Path) -> None:
@@ -92,7 +115,7 @@ def test_a_crash_is_logged_and_retried_next_time(tmp_path: Path) -> None:
     logs: list[str] = []
     outcome = run_benchmark(
         requests, repetitions=1, agent=GoldAgent(requests, crash=frozenset({requests[0].id})),
-        budget=BUDGET, out_file=out, model="m", log=logs.append,
+        budget=BUDGET, out_file=out, cost_policy=_policy(), log=logs.append,
     )
     assert outcome.crashed == 1 and outcome.ran == 1
     assert any("CRASH" in line for line in logs)
@@ -104,7 +127,7 @@ def test_a_failed_parse_records_why(tmp_path: Path) -> None:
     out = tmp_path / "runs.jsonl"
     run_benchmark(
         requests, repetitions=1, agent=GoldAgent(requests, fail=frozenset({requests[0].id})),
-        budget=BUDGET, out_file=out, model="m", log=lambda _: None,
+        budget=BUDGET, out_file=out, cost_policy=_policy(), log=lambda _: None,
     )
     (record,) = load_records(out)
     assert record["question"] is None and record["stop_reason"] == "budget"
@@ -118,7 +141,7 @@ def test_the_report_scores_every_run_and_lists_failures(tmp_path: Path) -> None:
     for rep in (1, 2):
         run_benchmark(
             requests, repetitions=rep, agent=GoldAgent(requests, fail=frozenset({broken})),
-            budget=BUDGET, out_file=out, model="m", log=lambda _: None,
+            budget=BUDGET, out_file=out, cost_policy=_policy(), log=lambda _: None,
         )
     scored = score_records(load_records(out), bank_requests())
     summary = summarize_run(scored)

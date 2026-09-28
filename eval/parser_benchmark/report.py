@@ -14,6 +14,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
+from eval.paid_runs import ESTIMATED_COST_KEY, REAL_COST_KEY, format_cost_summary
 from eval.request_bank.bank import BankRequest
 from eval.request_bank.concepts import ALSO_ACCEPTED, AmbiguousGold
 from eval.request_bank.generate import describe_question
@@ -142,6 +143,10 @@ def summarize_run(scored: Sequence[Scored]) -> dict[str, Any]:
     requests = {s.request.id: s.request for s in scored}
     agreement = intent_agreement(list(by_rep.values())) if len(by_rep) > 1 else None
     verdict = done(summary)
+    real_costs = [r.get(REAL_COST_KEY) for r in records]
+    real_cost_usd = (
+        None if any(c is None for c in real_costs) else sum(c or 0.0 for c in real_costs)
+    )
     if agreement is not None:
         verdict["intent_agreement"] = (
             agreement.value is not None and agreement.value >= INTENT_AGREEMENT_THRESHOLD
@@ -162,7 +167,8 @@ def summarize_run(scored: Sequence[Scored]) -> dict[str, Any]:
         "repetitions": sorted(by_rep),
         "models": sorted({r["model"] for r in records}),
         "parser_versions": sorted({r["parser_version"] for r in records}),
-        "cost_usd": round(sum(r["cost_usd"] or 0.0 for r in records), 4),
+        "total_estimated_cost_usd": round(sum(r[ESTIMATED_COST_KEY] or 0.0 for r in records), 4),
+        "total_real_cost_usd": None if real_cost_usd is None else round(real_cost_usd, 4),
         "mean_input_tokens": round(sum(r["input_tokens"] for r in records) / len(records))
         if records else 0,
         "mean_output_tokens": round(sum(r["output_tokens"] for r in records) / len(records))
@@ -199,12 +205,15 @@ def _interval(interval: Mapping[str, Any] | None) -> str:
 
 
 def render_markdown(name: str, summary: Mapping[str, Any], scored: Sequence[Scored]) -> str:
+    cost = format_cost_summary(
+        summary["total_estimated_cost_usd"], summary["total_real_cost_usd"], digits=4
+    )
     lines = [
         f"# Input Parser benchmark — {name}",
         "",
         f"{summary['requests']} requests, {summary['records']} runs (repetitions "
         f"{summary['repetitions']}), models {summary['models']}, parser "
-        f"{summary['parser_versions']}; ${summary['cost_usd']:.4f}, mean "
+        f"{summary['parser_versions']}; {cost}, mean "
         f"{summary['mean_input_tokens']} input / {summary['mean_output_tokens']} output tokens; "
         f"stop reasons {summary['stop_reasons']}.",
         "",
