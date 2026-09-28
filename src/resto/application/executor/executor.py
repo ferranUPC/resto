@@ -3,9 +3,9 @@ package docstring)."""
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Mapping
 from dataclasses import replace
-from typing import Any, TypeVar, cast
+from typing import Any, cast
 
 from resto.application.executor.deps import StudyDeps
 from resto.application.executor.failures import (
@@ -16,9 +16,9 @@ from resto.application.executor.failures import (
     fail,
     promote,
 )
+from resto.application.executor.recorder import StudyRecorder, data
+from resto.application.executor.spend import StudySpend
 from resto.application.ports.agents.coordinator import PlanningContext
-from resto.application.ports.llm import AgentRun
-from resto.application.schemas import adapter_for
 from resto.application.tools.expert import EvidenceLedger
 from resto.application.use_cases.ask_expert import ask_expert
 from resto.application.use_cases.build_scenario import build_scenario
@@ -29,16 +29,15 @@ from resto.domain.constants import DEFAULT_SEEDS, NOTE_VERIFY_LIMIT
 from resto.domain.entities.expert_note import NoteStatus
 from resto.domain.entities.scenario import Scenario
 from resto.domain.entities.simulation_result import RunMode, RunStatus, SimulationResult
-from resto.domain.entities.study import Phase, Study, StudyStatus
+from resto.domain.entities.study import Study, StudyStatus
 from resto.domain.services.experiment_design import mode_for, needed_arms
-from resto.domain.services.ids import new_id, result_id_for, scenario_id_for
+from resto.domain.services.ids import result_id_for, scenario_id_for
 from resto.domain.value_objects.arm import BASE_ARM, Arm
 from resto.domain.value_objects.demand_source import HistoricalDbSource
 from resto.domain.value_objects.experiment import Experiment, ExperimentRole
 from resto.domain.value_objects.expert_round import ExpertRound
 from resto.domain.value_objects.intervention import Intervention
 from resto.domain.value_objects.question import Mode, Question
-from resto.domain.value_objects.report import Report
 from resto.domain.value_objects.step_record import (
     StepError,
     StepErrorKind,
@@ -69,8 +68,6 @@ from resto.domain.value_objects.tasks import (
 )
 from resto.domain.value_objects.topology_modification import TopologyModification
 
-T = TypeVar("T")
-
 
 def execute_study(
     question: Question, parse_usage: Usage, deps: StudyDeps, *, max_rounds: int
@@ -78,11 +75,6 @@ def execute_study(
     """Runs a parsed `Question` to a closed `Study` (`completed`, `failed` or `awaiting_user`)
     and returns it. `parse_usage` is what the Input Parser spent: its call is the study's first."""
     return _Executor(deps, question, parse_usage, max_rounds).run()
-
-
-def _data(value: Any) -> Mapping[str, Any]:
-    dumped: Mapping[str, Any] = adapter_for(type(value)).dump_python(value, mode="json")
-    return dumped
 
 
 _ID_FIELDS = ("base_network_id", "network_id", "demand_id", "scenario_id")
@@ -128,59 +120,60 @@ class _Executor:
     def __init__(self, deps: StudyDeps, question: Question, parse_usage: Usage, max_rounds: int):
         self.deps = deps
         self.max_rounds = max_rounds
-        self.tokens = parse_usage.input_tokens + parse_usage.output_tokens
-        self.agent_calls = 1
-        self.simulations = 0
+        self.spend = StudySpend(deps.budget, parse_usage)
         self.network_id: str | None = None
         self.ledger: EvidenceLedger | None = None
-        status = StudyStatus.AWAITING_USER if question.is_ambiguous else StudyStatus.PLANNING
-        self.study = Study(new_id(), status, (Phase(question),), max_rounds=max_rounds)
-        self._store()
-        self._trace("study_created", {"question": _data(question), "parse_usage": parse_usage})
+        self.recorder = StudyRecorder(
+            question,
+            parse_usage,
+            max_rounds=max_rounds,
+            studies=deps.studies,
+            tracer=deps.tracer,
+        )
 
     # -- flow ---------------------------------------------------------------------------------
 
     def run(self) -> Study:
-        if self.study.status is StudyStatus.AWAITING_USER:
-            return self.study
+        if self.recorder.study.status is StudyStatus.AWAITING_USER:
+            return self.recorder.study
         while True:
             plan = self._plan()
             if plan is None or not self._execute(plan):
-                return self.study
+                return self.recorder.study
             round_ = self._ask_expert()
             if round_ is None:
-                return self.study
+                return self.recorder.study
             proposed = round_.answer.proposed_experiment
             if not round_.answer.needs_simulation or proposed is None:
                 break
-            self._set(phases=(*self.study.phases, Phase(proposed)))
+            self.recorder.open_phase(proposed)
         self._write_notes()
         self._compose()
-        return self.study
+        return self.recorder.study
 
     # -- planning -----------------------------------------------------------------------------
 
     def _plan(self) -> StudyPlan | None:
-        k = self._k
-        phase = self._phase
+        k = self.recorder.phase_index
+        phase = self.recorder.phase
         context = PlanningContext(
             phase=k,
             network_id=self.network_id,
-            experiments=tuple(e for p in self.study.phases[:-1] for e in p.experiments),
+            experiments=tuple(e for p in self.recorder.study.phases[:-1] for e in p.experiments),
             has_historical_demand=self.deps.has_historical_demand,
         )
-        task = {"phase": k, "question": _data(phase.question)}
+        task = {"phase": k, "question": data(phase.question)}
         try:
             coordinator = self.deps.agents.coordinator
-            run = self._agent_call(lambda: coordinator.plan(phase.question, context))
+            run = self.spend.agent_call(lambda: coordinator.plan(phase.question, context))
             output = draft_of(run, "coordinator")
         except StepFailed as failed:
-            self._record_failure("plan", task, failed)
+            self.recorder.record_failure("plan", task, failed)
             return None
         if isinstance(output, ClarificationRequest):
             if k == 0:
-                self._trace("clarification", {"reason": output.reason})
-                self._set_phase(
+                self.recorder.trace("clarification", {"reason": output.reason})
+                self.recorder.replace_phase(
                     replace(phase, clarification=output), status=StudyStatus.AWAITING_USER
                 )
                 return None
@@ -192,16 +185,16 @@ class _Executor:
                 ),
                 run.usage,
             )
-            self._record_failure("plan", task, failure)
+            self.recorder.record_failure("plan", task, failure)
             return None
         try:
             self._validate(output, phase.question, run.usage)
         except StepFailed as failed:
-            self._record_failure(
+            self.recorder.record_failure(
                 "plan", task, failed, phase=replace(phase, plan=output), pending=output.steps
             )
             return None
-        self._set_phase(
+        self.recorder.replace_phase(
             replace(
                 phase,
                 plan=output,
@@ -219,7 +212,7 @@ class _Executor:
             problems.append(f"unknown network {plan.network_id!r}")
         if self.network_id is not None and plan.network_id != self.network_id:
             problems.append(
-                f"phase {self._k} plans on network {plan.network_id!r}, "
+                f"phase {self.recorder.phase_index} plans on network {plan.network_id!r}, "
                 f"the study is about {self.network_id!r}"
             )
         lookup: dict[Produces, Callable[[str], object]] = {
@@ -267,7 +260,7 @@ class _Executor:
         if problems:
             fail(
                 StepErrorKind.AGENT,
-                f"the plan of phase {self._k} is invalid",
+                f"the plan of phase {self.recorder.phase_index} is invalid",
                 *problems,
                 usage=usage,
             )
@@ -322,8 +315,9 @@ class _Executor:
     def _coverage_problems(self, plan: StudyPlan, question: Question) -> list[str]:
         """The plan realises exactly the arms the phase needs that no earlier phase realised
         (ADR-0027 §2, decided with the user for E5.10)."""
-        realised = {e.arm for p in self.study.phases[:-1] for e in p.experiments}
-        expected = [a for a in needed_arms(question, self._k) if a not in realised]
+        realised = {e.arm for p in self.recorder.study.phases[:-1] for e in p.experiments}
+        needed = needed_arms(question, self.recorder.phase_index)
+        expected = [a for a in needed if a not in realised]
         actual = set(plan.arms)
         problems = [f"arm {a!r} is needed but not planned" for a in expected if a not in actual]
         for arm in sorted(actual - set(expected)):
@@ -343,22 +337,23 @@ class _Executor:
             for r in plan.reused
         )
         if reused:
-            self._set_phase(replace(self._phase, experiments=reused))
+            self.recorder.replace_phase(replace(self.recorder.phase, experiments=reused))
         produced: dict[int, str] = {}
         built: dict[int, int] = {}  # build step index -> index of its Experiment in the phase
         for i, step in enumerate(plan.steps):
             resolved = _resolve(step, produced)
-            task = _data(resolved)
+            task = data(resolved)
+            pending = plan.steps[i + 1 :]
             try:
                 record, experiment = self._run_step(resolved, task)
             except StepFailed as failed:
-                self._record_failure(resolved.kind, task, failed, pending=plan.steps[i + 1 :])
+                self.recorder.record_failure(resolved.kind, task, failed, pending=pending)
                 return False
             except Exception as e:
-                self._record_failure(resolved.kind, task, crash(e), pending=plan.steps[i + 1 :])
+                self.recorder.record_failure(resolved.kind, task, crash(e), pending=pending)
                 return False
             produced[i] = record.produced_ids[-1] if record.produced_ids else ""
-            experiments = self._phase.experiments
+            experiments = self.recorder.phase.experiments
             if experiment is not None:
                 built[i] = len(experiments)
                 experiments = (*experiments, experiment)
@@ -368,11 +363,11 @@ class _Executor:
                 ids = (*target.result_ids, *record.produced_ids)
                 target = replace(target, result_ids=tuple(dict.fromkeys(ids)))
                 experiments = (*experiments[:j], target, *experiments[j + 1 :])
-            self._record(record, experiments=experiments)
+            self.recorder.record(record, experiments=experiments)
         self.network_id = produced[plan.network_id.step] if isinstance(
             plan.network_id, FromStep
         ) else plan.network_id
-        self._add_networks(self.network_id)
+        self.recorder.add_networks(self.network_id)
         return True
 
     def _run_step(
@@ -410,10 +405,10 @@ class _Executor:
         raise TypeError(f"unknown plan step {step!r}")  # pragma: no cover
 
     def _author_network(self, network_task: NetworkTask, task: Mapping[str, Any]) -> StepRecord:
-        run = self._agent_call(lambda: self.deps.agents.network_author.author(network_task))
+        run = self.spend.agent_call(lambda: self.deps.agents.network_author.author(network_task))
         draft_of(run, "network_author")
         network = promote(lambda: self.deps.promotions.network(network_task, run), run.usage)
-        self._add_networks(network.network_id)
+        self.recorder.add_networks(network.network_id)
         tool = "derive_network" if network_task.base_network_id else "generate_network"
         return StepRecord(tool, StepStatus.OK, task, (network.network_id,), usage=run.usage)
 
@@ -427,7 +422,7 @@ class _Executor:
             tolerance=step.tolerance,
             max_calibration_rounds=step.max_calibration_rounds,
         )
-        run = self._agent_call(lambda: self.deps.agents.demand_generator.generate(demand_task))
+        run = self.spend.agent_call(lambda: self.deps.agents.demand_generator.generate(demand_task))
         draft_of(run, "demand_generator")
         demand = promote(lambda: self.deps.promotions.demand(demand_task, run), run.usage)
         return StepRecord(step.kind, StepStatus.OK, task, (demand.demand_id,), usage=run.usage)
@@ -460,7 +455,8 @@ class _Executor:
         if self.deps.scenarios.get(requested) is not None:
             scenario_id = requested
         else:
-            run = self._agent_call(lambda: self.deps.agents.scenario_builder.build(scenario_task))
+            builder = self.deps.agents.scenario_builder
+            run = self.spend.agent_call(lambda: builder.build(scenario_task))
             draft = draft_of(run, "scenario_builder")
             usage = run.usage
             if draft.rejected:
@@ -500,14 +496,14 @@ class _Executor:
         seeds = step.seeds or DEFAULT_SEEDS
         existing = {s: self._existing_ok(scenario.scenario_id, s) for s in seeds}
         new_seeds = [s for s, result in existing.items() if result is None]
-        self._check_budget(simulations=len(new_seeds))
+        self.spend.reserve_simulations(len(new_seeds))
         result_ids: list[str] = []
         ran = 0
         for seed in seeds:
             result = existing[seed]
             if result is None:
                 ran += 1
-                self.simulations += 1
+                self.spend.count_simulation()
                 result = run_simulation(
                     scenario,
                     seed,
@@ -544,7 +540,7 @@ class _Executor:
         for note, _ in hits:
             status = update_note_status(note, result, notes=self.deps.notes)
             if status is not None:
-                self._trace(
+                self.recorder.trace(
                     "note_status",
                     {"note_id": note.note_id, "result_id": result.result_id, "status": status},
                 )
@@ -552,20 +548,20 @@ class _Executor:
     # -- the Expert ---------------------------------------------------------------------------
 
     def _ask_expert(self) -> ExpertRound | None:
-        round_no = self._k + 1
+        round_no = self.recorder.phase_index + 1
         assert self.network_id is not None
         # TODO(E5.3): one network per ExpertTask. Arms on a derived network have their results in
         # `result_ids` (readable), but the Expert's topology tools and `ask_expert`'s edge check
         # see only the study's network (docs/tfm-work-plan.md, E5.3).
         task = ExpertTask(
-            question=self.study.question.text,
-            mode=mode_for(self.study.question, round_no, self.max_rounds),
+            question=self.recorder.study.question.text,
+            mode=mode_for(self.recorder.study.question, round_no, self.max_rounds),
             network_id=self.network_id,
-            result_ids=self._result_ids(),
+            result_ids=self.recorder.result_ids(),
         )
         ledger = EvidenceLedger()
         try:
-            run = self._agent_call(lambda: self.deps.agents.expert.answer(task, ledger))
+            run = self.spend.agent_call(lambda: self.deps.agents.expert.answer(task, ledger))
             draft_of(run, "expert")
             network = self.deps.networks.get(task.network_id)
             if network is None:
@@ -573,46 +569,46 @@ class _Executor:
             query = self.deps.network_query_factory(network.net_xml.path)
             round_ = promote(lambda: ask_expert(task, run, ledger, query=query), run.usage)
         except StepFailed as failed:
-            self._record_failure("ask_expert", _data(task), failed)
+            self.recorder.record_failure("ask_expert", data(task), failed)
             return None
         except Exception as e:
-            self._record_failure("ask_expert", _data(task), crash(e))
+            self.recorder.record_failure("ask_expert", data(task), crash(e))
             return None
-        forced_by_limit = self.study.question.mode is Mode.FREE and round_no == self.max_rounds
+        question = self.recorder.study.question
+        forced_by_limit = question.mode is Mode.FREE and round_no == self.max_rounds
         round_ = replace(round_, forced_by_limit=forced_by_limit)
         self.ledger = ledger
-        record = StepRecord("ask_expert", StepStatus.OK, _data(task), usage=run.usage)
-        self._record(record, round_=round_)
+        record = StepRecord("ask_expert", StepStatus.OK, data(task), usage=run.usage)
+        self.recorder.record(record, round_=round_)
         return round_
 
     # -- closing ------------------------------------------------------------------------------
 
     def _write_notes(self) -> None:
-        final = self._phase.round
+        final = self.recorder.phase.round
         assert final is not None and self.ledger is not None and self.network_id is not None
         ledger, network_id = self.ledger, self.network_id
         try:
             task = NoteTask(round=final, scenarios=self._allow_list())
-            run = self._agent_call(lambda: self.deps.agents.note_writer.write(task))
+            run = self.spend.agent_call(lambda: self.deps.agents.note_writer.write(task))
             written = write_note(
                 run,
                 ledger,
                 task,
                 network_id=network_id,
-                study_id=self.study.study_id,
+                study_id=self.recorder.study.study_id,
                 notes=self.deps.notes,
             )
         except Exception as e:
-            self._trace("note_writer_failed", {"error": describe(e)})
+            self.recorder.trace("note_writer_failed", {"error": describe(e)})
             return
-        self._set(note_ids=tuple(n.note_id for n in written))
-        self._trace("notes_written", {"note_ids": [n.note_id for n in written]})
+        self.recorder.set_note_ids(tuple(n.note_id for n in written))
 
     def _allow_list(self) -> tuple[NoteScenario, ...]:
         """Every scenario of the study, plus the predicted id of each arm of the original question
         that was not realised and keeps the topology (ADR-0026)."""
         entries: dict[str, NoteScenario] = {}
-        experiments = [e for p in self.study.phases for e in p.experiments]
+        experiments = [e for p in self.recorder.study.phases for e in p.experiments]
         for e in experiments:
             entries.setdefault(
                 e.scenario_id,
@@ -623,7 +619,7 @@ class _Executor:
         if base_scenario is None:
             return tuple(entries.values())
         realised = {e.arm for e in experiments}
-        question = self.study.question
+        question = self.recorder.study.question
         for arm in question.effective_arms:
             if arm.label in realised or arm.topology_changes:
                 continue
@@ -646,142 +642,23 @@ class _Executor:
         return tuple(entries.values())
 
     def _compose(self) -> None:
-        task = {"study_id": self.study.study_id}
+        study = self.recorder.study
+        task = {"study_id": study.study_id}
         try:
-            run = self._agent_call(lambda: self.deps.agents.composer.compose(self.study))
+            run = self.spend.agent_call(lambda: self.deps.agents.composer.compose(study))
             draft_of(run, "composer")
-            report = promote(lambda: self.deps.promotions.report(self.study, run), run.usage)
+            report = promote(lambda: self.deps.promotions.report(study, run), run.usage)
         except StepFailed as failed:
-            self._record_failure("compose_report", task, failed)
+            self.recorder.record_failure("compose_report", task, failed)
             return
         except Exception as e:
-            self._record_failure("compose_report", task, crash(e))
+            self.recorder.record_failure("compose_report", task, crash(e))
             return
         record = StepRecord("compose_report", StepStatus.OK, task, usage=run.usage)
-        self._record(record, status=StudyStatus.COMPLETED, report=report)
+        self.recorder.record(record, status=StudyStatus.COMPLETED, report=report)
 
-    # -- agent calls, budget, promotion -------------------------------------------------------
-
-    def _agent_call(self, call: Callable[[], AgentRun[T]]) -> AgentRun[T]:
-        self._check_budget(agent_calls=1)
-        self.agent_calls += 1
-        try:
-            run = call()
-        except Exception as e:
-            fail(StepErrorKind.INFRASTRUCTURE, f"agent call failed: {describe(e)}")
-        self.tokens += run.usage.input_tokens + run.usage.output_tokens
-        return run
-
-    def _check_budget(self, *, agent_calls: int = 0, simulations: int = 0) -> None:
-        budget = self.deps.budget
-        if agent_calls and self.agent_calls + agent_calls > budget.max_agent_calls:
-            fail(
-                StepErrorKind.BUDGET,
-                "the study's agent-call budget is exhausted",
-                f"{self.agent_calls} of {budget.max_agent_calls} agent calls used",
-            )
-        if agent_calls and self.tokens >= budget.max_tokens:
-            fail(
-                StepErrorKind.BUDGET,
-                "the study's token budget is exhausted",
-                f"{self.tokens} of {budget.max_tokens} tokens used",
-            )
-        if simulations and self.simulations + simulations > budget.max_simulations:
-            fail(
-                StepErrorKind.BUDGET,
-                "the study's simulation budget is exhausted",
-                f"{self.simulations} of {budget.max_simulations} simulations used, "
-                f"{simulations} more needed",
-            )
-
-    # -- study state --------------------------------------------------------------------------
-
-    @property
-    def _k(self) -> int:
-        return len(self.study.phases) - 1
-
-    @property
-    def _phase(self) -> Phase:
-        return self.study.phases[-1]
+    # -- stored results -----------------------------------------------------------------------
 
     def _ok_results(self, scenario_id: str) -> tuple[str, ...]:
         ok = [r for r in self.deps.results.list(scenario_id) if r.status is RunStatus.OK]
         return tuple(r.result_id for r in sorted(ok, key=lambda r: r.seed))
-
-    def _result_ids(self) -> tuple[str, ...]:
-        ids = (r for p in self.study.phases for e in p.experiments for r in e.result_ids)
-        return tuple(dict.fromkeys(ids))
-
-    def _add_networks(self, *network_ids: str) -> None:
-        merged = tuple(dict.fromkeys((*self.study.network_ids, *network_ids)))
-        if merged != self.study.network_ids:
-            self.study = replace(self.study, network_ids=merged)
-
-    def _record(
-        self,
-        record: StepRecord,
-        *,
-        experiments: tuple[Experiment, ...] | None = None,
-        round_: ExpertRound | None = None,
-        status: StudyStatus | None = None,
-        report: Report | None = None,
-    ) -> None:
-        phase = self._phase
-        phase = replace(
-            phase,
-            steps=(*phase.steps, record),
-            experiments=phase.experiments if experiments is None else experiments,
-            round=phase.round if round_ is None else round_,
-        )
-        self._trace_step(record)
-        self._set_phase(phase, status=status, report=report)
-
-    def _record_failure(
-        self,
-        tool: str,
-        task: Mapping[str, Any],
-        failure: StepFailed,
-        *,
-        phase: Phase | None = None,
-        pending: Sequence[PlanStep] = (),
-    ) -> None:
-        """The failed step, the plan steps left unrun and the `failed` status, in one state."""
-        phase = phase or self._phase
-        record = StepRecord(tool, StepStatus.FAILED, task, error=failure.error, usage=failure.usage)
-        skipped = tuple(StepRecord(s.kind, StepStatus.SKIPPED) for s in pending)
-        self._trace_step(record)
-        self._set_phase(
-            replace(phase, steps=(*phase.steps, record, *skipped)), status=StudyStatus.FAILED
-        )
-
-    def _set_phase(
-        self, phase: Phase, *, status: StudyStatus | None = None, report: Report | None = None
-    ) -> None:
-        self._set(
-            phases=(*self.study.phases[:-1], phase),
-            status=status or self.study.status,
-            report=report if report is not None else self.study.report,
-        )
-
-    def _set(self, **changes: Any) -> None:
-        self.study = replace(self.study, **changes)
-        self._store()
-
-    def _store(self) -> None:
-        self.deps.studies.store(self.study)
-
-    def _trace_step(self, record: StepRecord) -> None:
-        self._trace(
-            "step",
-            {
-                "phase": self._k,
-                "tool": record.tool,
-                "status": record.status,
-                "produced_ids": list(record.produced_ids),
-                "usage": record.usage,
-                "error": record.error,
-            },
-        )
-
-    def _trace(self, event: str, payload: Mapping[str, Any]) -> None:
-        self.deps.tracer.emit(self.study.study_id, event, payload)
