@@ -19,7 +19,7 @@ returns a draft to the Executor.
 |---|---|---|---|---|
 | Input Parser | agent, no tools | what the user asked (`Question`); textual ambiguity (`ambiguities[]`) | touch the database | `adapters/llm/agents/input_parser.py` |
 | Coordinator | agent, one run per `Question`, read-only DB tools | reuse vs create, which experiments with `role`/`purpose`, order (`StudyPlan`); DB-level ambiguity (clarification) | execute anything | `adapters/llm/agents/coordinator.py` |
-| Executor (`run_study`) | code | nothing about the domain: order, `FromStep`, dedup, budget, rounds and forced last round, status, persistence, which results the Expert gets, when notes are written and verified | call an LLM for a decision | `application/use_cases/run_study.py` |
+| Executor (`execute_study`) | code | nothing about the domain: order, `FromStep`, dedup, budget, rounds and forced last round, status, persistence, which results the Expert gets, when notes are written and verified | call an LLM for a decision | `application/executor/` (entered through the `run_study` use case, which calls the Parser first; [ADR-0030](adr/0030-executor-package-and-module-split.md)) |
 | Network Author, Demand Generator, Scenario Builder | agents | *how* to satisfy their typed task | pick ids, status, provenance | `adapters/llm/agents/*.py` |
 | Runner, `reroute_demand`, `scale_demand`, `update_note_status` | code | — | — | `application/use_cases/` |
 | Promotion use cases | code | whether a draft is valid; ids; persistence | — | `application/use_cases/` |
@@ -193,7 +193,7 @@ flowchart LR
   classDef code fill:#f1f5f9,stroke:#475569,color:#0f172a
 
   User([User]) <--> CLI[CLI]:::code
-  CLI --> EXE[Executor run_study]:::code
+  CLI --> EXE[run_study + Executor]:::code
   EXE -->|text| P(Input Parser):::agent
   EXE -->|Question + context| C(Coordinator):::agent
   EXE -->|NetworkTask| NA(Network Author):::agent

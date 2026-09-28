@@ -14,7 +14,8 @@ Promotion order (ADR-0001):
                  named in a typed value exists on the network; a proposed experiment targets the
                  task's network.
   3. construct - `ExpertRound(question, answer)`.
-Attaching the round to a `Study` and persisting it is `run_study`'s job (E5), not this module's.
+Attaching the round to a `Study` and persisting it is the Executor's job (E5,
+`application/executor/`), not this module's.
 """
 
 from __future__ import annotations

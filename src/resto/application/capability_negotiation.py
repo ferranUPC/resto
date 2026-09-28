@@ -7,8 +7,8 @@ present iff every tool listed for it in contract §5 is present in the backend's
 implemented group does not count (contract §5's own worked example: a server exposing
 `store_note`/`search_notes` without `update_note_status` does not have `notes`).
 
-`negotiate_capabilities` is what a Coordinator start-up sequence (E5, not yet built - see
-`application/use_cases/run_study.py`) is meant to call once, right after connecting to a
+`negotiate_capabilities` is what a Coordinator start-up sequence (E5, not yet built - see the
+Executor, `application/executor/`) is meant to call once, right after connecting to a
 DatabaseMCP backend: it hard-fails on a missing *required* capability (contract §1's negotiation
 table - "the framework does not start in a degraded mode for required capabilities") and
 otherwise reports whether the optional `historical_demand` capability is available, for the

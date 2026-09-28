@@ -16,7 +16,8 @@ Promotion order (ADR-0001), all drafts checked before any is stored:
                  (`SIMULATION` only when that scenario has ok results in the study, `OPINION`
                  otherwise — a prediction keeps its predicted `scenario_id`), `status = UNVERIFIED`.
   4. persist   - `notes.store(note)` for each.
-Attaching the notes to a `Study` is `run_study`'s job (E5.10), not this module's.
+Attaching the notes to a `Study` is the Executor's job (E5.10,
+`application/executor/`), not this module's.
 """
 
 from __future__ import annotations
