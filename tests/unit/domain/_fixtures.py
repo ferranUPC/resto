@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from resto.domain.value_objects.arm import BASE_ARM
 from resto.domain.value_objects.artifact_ref import ArtifactRef
 from resto.domain.value_objects.condition import Condition, Metric, Operator
 from resto.domain.value_objects.demand_spec import DemandProfile, DemandSpec
@@ -11,6 +12,7 @@ from resto.domain.value_objects.drafts import (
     NetworkDraft,
     ScenarioDraft,
 )
+from resto.domain.value_objects.experiment import ExperimentRole
 from resto.domain.value_objects.expert_answer import Basis, Evidence, EvidenceKind
 from resto.domain.value_objects.fidelity import EdgeFidelity, Fidelity
 from resto.domain.value_objects.intervention import Intervention, InterventionType
@@ -20,10 +22,13 @@ from resto.domain.value_objects.network_recipe import NetworkRecipe
 from resto.domain.value_objects.network_source import NetworkSource
 from resto.domain.value_objects.probe_report import ProbeReport
 from resto.domain.value_objects.sanity_report import SanityReport
+from resto.domain.value_objects.study_plan import BuildScenarioStep, FromStep, RunSimulationStep
 from resto.domain.value_objects.time_window import TimeWindow
 from resto.domain.value_objects.traci_script import DeclaredRule, TraciScript
 
 LANE = LaneTarget(edge_id="E12", lane_index=1)
+NET = "abc123"  # the sample network's id (`_samples.network`)
+DEMAND = "t1"  # the sample demand's id (`_samples.demand`)
 
 
 def artifact(name: str, digest: str = "deadbeef", kind: str = "file") -> ArtifactRef:
@@ -142,3 +147,28 @@ def expert_note_draft(**overrides: object) -> ExpertNoteDraft:
     }
     kwargs.update(overrides)
     return ExpertNoteDraft(**kwargs)  # type: ignore[arg-type]
+
+
+def build_step(
+    arm: str = BASE_ARM,
+    interventions: tuple[Intervention, ...] = (),
+    network: str | FromStep = NET,
+    demand: str | FromStep = DEMAND,
+    depends_on: tuple[int, ...] = (),
+    role: ExperimentRole = ExperimentRole.BASELINE,
+) -> BuildScenarioStep:
+    """A plan step building arm `arm` on the sample network and demand, unless told otherwise."""
+    return BuildScenarioStep(
+        network_id=network,
+        demand_id=demand,
+        arm=arm,
+        role=role,
+        purpose=f"arm {arm}",
+        interventions=interventions,
+        depends_on=depends_on,
+    )
+
+
+def run_step(step: int, seeds: tuple[int, ...] | None = None) -> RunSimulationStep:
+    """A plan step running the scenario that step `step` builds."""
+    return RunSimulationStep(scenario_id=FromStep(step), seeds=seeds, depends_on=(step,))

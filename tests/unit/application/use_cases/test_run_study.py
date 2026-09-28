@@ -35,8 +35,6 @@ from resto.domain.entities.study import Study, StudyStatus
 from resto.domain.services.ids import result_id_for, scenario_id_for
 from resto.domain.value_objects.answer_value import Edges, Measure, Quantity
 from resto.domain.value_objects.arm import BASE_ARM, Arm
-from resto.domain.value_objects.demand_source import HistoricalDbSource
-from resto.domain.value_objects.demand_spec import DemandProfile
 from resto.domain.value_objects.drafts import (
     ExpertNoteDraft,
     ExpertNoteDrafts,
@@ -54,14 +52,11 @@ from resto.domain.value_objects.question import Intent, Mode, Question
 from resto.domain.value_objects.report import Report
 from resto.domain.value_objects.step_record import StepErrorKind, StepStatus, Usage
 from resto.domain.value_objects.study_plan import (
-    BuildScenarioStep,
     ClarificationRequest,
     DeriveNetworkStep,
     FromStep,
-    GenerateDemandStep,
     RerouteDemandStep,
     ReusedExperiment,
-    RunSimulationStep,
     StudyPlan,
 )
 from resto.domain.value_objects.tasks import ExpertTask, NoteTask
@@ -69,19 +64,21 @@ from resto.domain.value_objects.time_window import TimeWindow
 from resto.domain.value_objects.topology_modification import AddEdge
 from tests.unit.application.use_cases._doubles import FakeRunner, StubNetworkQuery
 from tests.unit.domain._fixtures import (
+    DEMAND,
+    NET,
     artifact,
+    build_step,
     demand_draft,
     dynamic_intervention,
     good_sanity,
     network_draft,
+    run_step,
     runnable_script,
     static_intervention,
 )
 from tests.unit.domain._samples import demand as sample_demand
 from tests.unit.domain._samples import network as sample_network
 
-NET = "abc123"
-DEMAND = "t1"
 CLOSURE = static_intervention()  # lane 1 of E12, fixed window
 UNKNOWN_LANE = Intervention(
     type=InterventionType.LANE_CLOSURE,
@@ -401,35 +398,14 @@ class World:
 # -- plans ----------------------------------------------------------------------------------------
 
 
-def build(
-    arm: str = BASE_ARM,
-    interventions: tuple[Intervention, ...] = (),
-    network: str | FromStep = NET,
-    demand: str | FromStep = DEMAND,
-    depends_on: tuple[int, ...] = (),
-    role: ExperimentRole = ExperimentRole.BASELINE,
-) -> BuildScenarioStep:
-    return BuildScenarioStep(
-        network_id=network,
-        demand_id=demand,
-        arm=arm,
-        role=role,
-        purpose=f"arm {arm}",
-        interventions=interventions,
-        depends_on=depends_on,
-    )
-
-
-def runs(step: int, seeds: tuple[int, ...] | None = None) -> RunSimulationStep:
-    return RunSimulationStep(scenario_id=FromStep(step), seeds=seeds, depends_on=(step,))
-
-
 def plan(*steps: Any, reused: tuple[ReusedExperiment, ...] = (), network: Any = NET) -> Any:
     return run_of(StudyPlan(network_id=network, rationale="as needed", steps=steps, reused=reused))
 
 
-BASELINE_PLAN = plan(build(), runs(0))
-TREATMENT_PLAN = plan(build("treatment", (CLOSURE,), role=ExperimentRole.TREATMENT), runs(0))
+BASELINE_PLAN = plan(build_step(), run_step(0))
+TREATMENT_PLAN = plan(
+    build_step("treatment", (CLOSURE,), role=ExperimentRole.TREATMENT), run_step(0)
+)
 
 
 def tools(study: Study, phase: int = 0) -> list[tuple[str, StepStatus]]:
@@ -578,12 +554,12 @@ def test_combined_topology_and_intervention_arms_share_one_derivation(tmp_path: 
     gp11 = plan(
         DeriveNetworkStep(base_network_id=NET, modifications=(NEW_EDGE,)),
         RerouteDemandStep(demand_id=DEMAND, network_id=derived, depends_on=(0,)),
-        build(),
-        runs(2),
-        build("edge", network=derived, demand=rerouted, depends_on=(0, 1)),
-        runs(4),
-        build("edge+closure", (CLOSURE,), network=derived, demand=rerouted, depends_on=(0, 1)),
-        runs(6),
+        build_step(),
+        run_step(2),
+        build_step("edge", network=derived, demand=rerouted, depends_on=(0, 1)),
+        run_step(4),
+        build_step("edge+closure", (CLOSURE,), network=derived, demand=rerouted, depends_on=(0, 1)),
+        run_step(6),
     )
     world = World(tmp_path, question=question, plans=(gp11,), expert=(answers(),))
 
@@ -668,7 +644,10 @@ def assert_failed_at(study: Study, tool: str, kind: StepErrorKind, skipped: int)
 def run_treatment(tmp_path: Path, interventions: tuple[Intervention, ...], **world: Any) -> Study:
     question = Question(text="close it", intent=Intent.RUN, interventions=interventions)
     two_arms = plan(
-        build(), runs(0), build("treatment", interventions, role=ExperimentRole.TREATMENT), runs(2)
+        build_step(),
+        run_step(0),
+        build_step("treatment", interventions, role=ExperimentRole.TREATMENT),
+        run_step(2),
     )
     return World(tmp_path, question=question, plans=(two_arms,), **world).run()
 
@@ -765,71 +744,23 @@ def test_a_failed_report_fails_the_study(tmp_path: Path) -> None:
     assert study.phases[0].round is not None
 
 
-def _historical_plan() -> Any:
-    demand = GenerateDemandStep(
-        network_id=NET, profile=DemandProfile.PEAK, seed=1, sources=(HistoricalDbSource(),)
-    )
-    return plan(demand, build(demand=FromStep(0), depends_on=(0,)), runs(1))
-
-
-@pytest.mark.parametrize(
-    ("question", "bad_plan"),
-    [
-        (DESCRIBE, plan(build(), runs(0), network="nope")),
-        (DESCRIBE, plan(build(demand="nope"), runs(0))),
-        (DESCRIBE, plan()),
-        (WHAT_IF, plan(build(), runs(0), build("treatment", (CLOSURE,)), runs(2))),
-        (DESCRIBE, plan(build())),
-        (DESCRIBE, plan(build(interventions=(CLOSURE,)), runs(0))),
-        (DESCRIBE, _historical_plan()),
-    ],
-    ids=[
-        "unknown-network",
-        "unknown-demand",
-        "missing-arm",
-        "extra-arm",
-        "built-never-run",
-        "wrong-interventions",
-        "historical-without-capability",
-    ],
-)
-def test_an_invalid_plan_is_the_agents(tmp_path: Path, question: Question, bad_plan: Any) -> None:
-    world = World(tmp_path, question=question, plans=(bad_plan,))
+def test_an_invalid_plan_is_the_agents(tmp_path: Path) -> None:
+    """The wiring only: which problems a plan has is `plan_problems`' (test_plan_validation)."""
+    bad_plan = plan(build_step(), run_step(0), network="nope")
+    world = World(tmp_path, plans=(bad_plan,))
 
     study = world.run()
 
-    steps = bad_plan.output.steps
-    assert_failed_at(study, "plan", StepErrorKind.AGENT, skipped=len(steps))
+    assert_failed_at(study, "plan", StepErrorKind.AGENT, skipped=2)
     assert study.phases[0].plan == bad_plan.output
     assert world.builder.calls == []
-
-
-def test_a_run_of_a_stored_scenario_id_is_rejected(tmp_path: Path) -> None:
-    world = World(tmp_path)
-    sid, _ = world.store_scenario()
-    bad = plan(RunSimulationStep(scenario_id=sid))
-    world.coordinator.items.append(bad)
-
-    study = world.run()
-
-    assert_failed_at(study, "plan", StepErrorKind.AGENT, skipped=1)
-
-
-def test_an_arm_realised_in_an_earlier_phase_is_not_planned_again(tmp_path: Path) -> None:
-    again = plan(build(), runs(0), build("treatment", (CLOSURE,)), runs(2))
-    world = World(
-        tmp_path,
-        question=WHAT_IF,
-        plans=(BASELINE_PLAN, again),
-        expert=(abstains(PROPOSED),),
-    )
-
-    study = world.run()
-
-    assert_failed_at(study, "plan", StepErrorKind.AGENT, skipped=4)
-    error = study.phases[1].failed_step.error  # type: ignore[union-attr]
+    error = study.phases[0].failed_step.error  # type: ignore[union-attr]
     assert error is not None
-    assert "arm 'base' was already realised in an earlier phase" in error.details
+    assert error.message == "the plan of phase 0 is invalid"
+    assert error.details == (
+        "unknown network 'nope'",
+        "step 0: its arm keeps the topology, but runs on another network",
+    )
 
 
 # -- dedup and note verification ------------------------------------------------------------------
