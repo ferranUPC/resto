@@ -22,14 +22,21 @@ from pathlib import Path
 
 from eval.expert_benchmark.bank import load_bank
 from eval.expert_benchmark.report import render_markdown, score_records, summarize
-from eval.expert_benchmark.runner import Environment, load_records, run_benchmark
+from eval.expert_benchmark.runner import Environment, run_benchmark
+from eval.paid_runs import CostPolicy, add_paid_run_arguments, load_records, require_cap
 from resto.domain.value_objects.question import Mode
 
 HERE = Path(__file__).resolve().parent
 EVAL = HERE.parent
 MATRIX_DB = EVAL / "scenario_matrix" / "matrix.db"
 DEV_NET = EVAL / "dev-net" / "dev-net.net.xml"
-AVG_COST_PER_RUN_USD = 0.012  # smoke run 2026-09-17, docs/evaluating-resto.md §4.7
+
+# Measured mean tokens per forced-mode run, `eval/expert_benchmark/runs/v1-forced-1rep.jsonl`
+# (117 questions × 1 repetition): 45,119 input / 2,629 output. Free mode is not separately
+# measured yet; the forced figure is used for both (decision 5, "one number feeds the $1 gate,
+# the estimate-vs-cap check and the per-worker reservation").
+INPUT_TOKENS_PER_JOB = 45_100
+OUTPUT_TOKENS_PER_JOB = 2_650
 
 
 def dev_net_environment() -> Environment:
@@ -66,14 +73,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--name", required=True)
     parser.add_argument("--questions", nargs="*", help="question ids; default: the whole bank")
     parser.add_argument("--repetitions", type=int, default=3)
-    parser.add_argument("--workers", type=int, default=4)
-    parser.add_argument("--max-cost-usd", type=float, required=False)
+    add_paid_run_arguments(parser)
+    parser.set_defaults(workers=4)
     parser.add_argument(
         "--mode",
         choices=["forced", "free", "both"],
         default="forced",
-        help="which mode(s) to run against the model; 'both' runs forced then free (docs/"
-        "evaluating-resto.md §4.5). --max-cost-usd applies separately to each mode, not combined.",
+        help="which mode(s) to run against the model; 'both' runs forced and free under one job "
+        "list and one --max-cost-usd cap (docs/evaluating-resto.md §4.5).",
     )
     parser.add_argument("--report-only", action="store_true")
     args = parser.parse_args(argv)
@@ -81,39 +88,41 @@ def main(argv: list[str] | None = None) -> int:
     if not args.report_only:
         from resto.adapters.llm.anthropic_client import OpenRouterToolAgent
         from resto.adapters.llm.config import load_llm_config
-        from resto.adapters.llm.pricing import estimate_cost_usd
         from resto.application.ports.llm import Budget
 
+        max_cost_usd = require_cap(parser, args.max_cost_usd)
         modes = {"forced": [Mode.FORCED], "free": [Mode.FREE], "both": [Mode.FORCED, Mode.FREE]}[
             args.mode
         ]
         questions = load_bank(ids=args.questions)
+        config = load_llm_config()
+        cost_policy = CostPolicy.for_model(
+            config.default_model,
+            input_tokens_per_job=INPUT_TOKENS_PER_JOB,
+            output_tokens_per_job=OUTPUT_TOKENS_PER_JOB,
+            max_cost_usd=max_cost_usd,
+            approved_over_1usd=args.approved_over_1usd,
+        )
         runs = len(questions) * args.repetitions * len(modes)
         print(
             f"{len(questions)} questions × {args.repetitions} repetitions × {len(modes)} mode(s) "
-            f"= {runs} runs, ~${runs * AVG_COST_PER_RUN_USD:.2f} estimated; cap: "
-            f"{'none' if args.max_cost_usd is None else f'${args.max_cost_usd:.2f}'}"
+            f"= {runs} runs, ~${cost_policy.per_job_estimate_usd * runs:.2f} estimated; "
+            f"cap: ${max_cost_usd:.2f}"
         )
-        config = load_llm_config()
-        for mode in modes:
-            outcome = run_benchmark(
-                questions,
-                repetitions=args.repetitions,
-                agent=OpenRouterToolAgent(config),
-                budget=Budget(
-                    max_steps=config.max_steps,
-                    max_tokens=config.max_output_tokens,
-                    max_seconds=300.0,
-                ),
-                environment=dev_net_environment,
-                out_file=HERE / "runs" / f"{args.name}.jsonl",
-                model=config.default_model,
-                mode=mode,
-                price=lambda i, o: estimate_cost_usd(config.default_model, i, o),
-                workers=args.workers,
-                max_cost_usd=args.max_cost_usd,
-            )
-            print(mode.value, outcome)
+        outcome = run_benchmark(
+            questions,
+            repetitions=args.repetitions,
+            agent=OpenRouterToolAgent(config),
+            budget=Budget(
+                max_steps=config.max_steps, max_tokens=config.max_output_tokens, max_seconds=300.0
+            ),
+            environment=dev_net_environment,
+            out_file=HERE / "runs" / f"{args.name}.jsonl",
+            cost_policy=cost_policy,
+            modes=modes,
+            workers=args.workers,
+        )
+        print(outcome)
 
     print(f"report: {write_report(args.name, args.questions)}")
     return 0

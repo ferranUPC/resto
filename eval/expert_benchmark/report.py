@@ -11,6 +11,7 @@ from typing import Any
 
 from eval.expert_benchmark.bank import BenchmarkQuestion, Family
 from eval.expert_benchmark.scoring import Score, score_answer
+from eval.paid_runs import ESTIMATED_COST_KEY, REAL_COST_KEY
 from resto.application.schemas import adapter_for
 from resto.domain.value_objects.expert_answer import ExpertAnswer
 
@@ -188,7 +189,12 @@ def summarize(scored: Sequence[ScoredRun], free_scored: Sequence[ScoredRun] = ()
         family["cut_at_limit_steps"] += sum(s["finish_reason"] == "length" for s in steps)
         family["input_tokens"] += run.record["input_tokens"]
         family["output_tokens"] += run.record["output_tokens"]
-        family["cost_usd"] += run.record["cost_usd"] or 0.0
+        family["estimated_cost_usd"] += run.record[ESTIMATED_COST_KEY] or 0.0
+
+    real_costs: list[float | None] = [r.record.get(REAL_COST_KEY) for r in all_runs]
+    real_cost_usd = (
+        None if any(c is None for c in real_costs) else sum(c or 0.0 for c in real_costs)
+    )
 
     return {
         "runs": len(all_runs),
@@ -203,7 +209,8 @@ def summarize(scored: Sequence[ScoredRun], free_scored: Sequence[ScoredRun] = ()
             for basis, hits in sorted(by_basis.items())
         },
         "cost_by_family": {k: dict(v) for k, v in sorted(cost.items())},
-        "total_cost_usd": sum(r.record["cost_usd"] or 0.0 for r in all_runs),
+        "total_estimated_cost_usd": sum(r.record[ESTIMATED_COST_KEY] or 0.0 for r in all_runs),
+        "total_real_cost_usd": real_cost_usd,
     }
 
 
@@ -219,6 +226,12 @@ def _meets(metric: str, mean: float | int | None) -> str:
     return f"{op} {bound:.2f} {'✅' if ok else '❌'}"
 
 
+def _cost_summary(summary: Mapping[str, Any]) -> str:
+    real = summary["total_real_cost_usd"]
+    real_part = "n/a" if real is None else f"${real:.3f}"
+    return f"estimated ${summary['total_estimated_cost_usd']:.3f} · real {real_part}"
+
+
 def render_markdown(name: str, summary: Mapping[str, Any], scored: Sequence[ScoredRun]) -> str:
     models = sorted({str(r.record["model"]) for r in scored})
     lines = [
@@ -227,7 +240,7 @@ def render_markdown(name: str, summary: Mapping[str, Any], scored: Sequence[Scor
         f"Expert: {', '.join(summary['expert_versions']) or 'n/a'} · "
         f"Model: {', '.join(models) or 'n/a'} · {summary['questions']} questions × repetitions "
         f"{summary['repetitions']} = {summary['runs']} runs · budget stops: "
-        f"{summary['budget_stops']} · estimated cost: ${summary['total_cost_usd']:.3f}",
+        f"{summary['budget_stops']} · cost: {_cost_summary(summary)}",
         "",
         "Scoring rules: docs/evaluating-resto.md §4.4. Thresholds: DoD §4.7 (DEV-NET).",
         "",
@@ -246,14 +259,15 @@ def render_markdown(name: str, summary: Mapping[str, Any], scored: Sequence[Scor
         "## Steps and cost by family",
         "",
         "| Family | Runs | Steps | Text-only steps | Cut at token limit | Input tokens "
-        "| Output tokens | Cost (USD) |",
+        "| Output tokens | Estimated cost (USD) |",
         "|---|---|---|---|---|---|---|---|",
     ]
     for family, row in summary["cost_by_family"].items():
         lines.append(
             f"| {family} | {int(row['runs'])} | {int(row['steps'])} | "
             f"{int(row['text_only_steps'])} | {int(row['cut_at_limit_steps'])} | "
-            f"{int(row['input_tokens'])} | {int(row['output_tokens'])} | {row['cost_usd']:.4f} |"
+            f"{int(row['input_tokens'])} | {int(row['output_tokens'])} | "
+            f"{row['estimated_cost_usd']:.4f} |"
         )
     lines += ["", "## Per question", "", "| Question | Rep | Correct | Detail |"]
     lines.append("|---|---|---|---|")

@@ -8,7 +8,8 @@ from pathlib import Path
 import pytest
 from eval.expert_benchmark.bank import BenchmarkQuestion, Family
 from eval.expert_benchmark.report import render_markdown, score_records, summarize
-from eval.expert_benchmark.runner import Environment, load_records, run_benchmark
+from eval.expert_benchmark.runner import Environment, run_benchmark
+from eval.paid_runs import CostPolicy, load_records
 
 from resto.adapters.llm.agents.expert import EXPERT_VERSION
 from resto.adapters.persistence.memory import InMemoryResultRepository, InMemoryScenarioRepository
@@ -48,6 +49,16 @@ def _cite_one_call(task: AgentTask, tools: Sequence[Tool]) -> None:
     call_tool(tools, "get_edges", edge_ids=["B1B0"])
 
 
+def _policy(price_per_job: float = 0.01, max_cost_usd: float = 1.0) -> CostPolicy:
+    return CostPolicy(
+        model="fake",
+        price=lambda i, o: price_per_job,
+        input_tokens_per_job=100,
+        output_tokens_per_job=50,
+        max_cost_usd=max_cost_usd,
+    )
+
+
 @pytest.fixture(scope="module")
 def query() -> SumolibNetworkQuery:
     return SumolibNetworkQuery(DEV_NET)
@@ -61,7 +72,7 @@ def _run(agent: object, tmp_path: Path, query: SumolibNetworkQuery, **kwargs: ob
             InMemoryResultRepository(), InMemoryScenarioRepository(), query
         ),
         "out_file": tmp_path / "runs.jsonl",
-        "model": "fake",
+        "cost_policy": _policy(),
         "log": lambda _: None,
     }
     options.update(kwargs)
@@ -72,7 +83,7 @@ def test_every_question_and_repetition_is_stored_with_its_ledger(
     tmp_path: Path, query: SumolibNetworkQuery
 ) -> None:
     agent = FakeToolAgent(output=_answer(("B1B0",)), interact=_cite_one_call)
-    outcome = _run(agent, tmp_path, query, repetitions=2, price=lambda i, o: 0.01)
+    outcome = _run(agent, tmp_path, query, repetitions=2, cost_policy=_policy(price_per_job=0.01))
     records = load_records(tmp_path / "runs.jsonl")
     assert outcome.ran == 4
     assert sorted((r["question_id"], r["repetition"]) for r in records) == [
@@ -84,7 +95,10 @@ def test_every_question_and_repetition_is_stored_with_its_ledger(
     assert first["rejection"] is None
     assert first["ledger"][0]["tool"] == "get_edges"
     assert first["answer"]["values"][0]["edge_ids"] == ["B1B0"]
-    assert outcome.cost_usd == pytest.approx(0.04)
+    assert first["estimated_cost_usd"] == pytest.approx(0.01)
+    assert first["real_cost_usd"] is None  # the fake agent never reports a real cost
+    assert outcome.estimated_cost_usd == pytest.approx(0.04)
+    assert outcome.real_cost_usd is None
 
 
 def test_a_second_invocation_resumes_instead_of_paying_again(
@@ -97,10 +111,18 @@ def test_a_second_invocation_resumes_instead_of_paying_again(
     assert len(load_records(tmp_path / "runs.jsonl")) == 2
 
 
-def test_the_cost_cap_stops_new_runs(tmp_path: Path, query: SumolibNetworkQuery) -> None:
+def test_an_estimate_over_the_cap_is_refused_before_any_run(
+    tmp_path: Path, query: SumolibNetworkQuery
+) -> None:
+    """`eval.paid_runs.run_paid_jobs` refuses the whole invocation up front rather than running
+    part of it (refactor-paid-runs decision 7); the mid-run reservation itself is covered by
+    `tests/unit/eval/test_paid_runs.py`, against fake jobs where declared and real cost differ."""
+    from eval.paid_runs import CostCapExceededError
+
     agent = FakeToolAgent(output=_answer(("B1B0",)), interact=_cite_one_call)
-    outcome = _run(agent, tmp_path, query, price=lambda i, o: 1.0, max_cost_usd=1.0)
-    assert (outcome.ran, outcome.skipped_budget) == (1, 1)
+    with pytest.raises(CostCapExceededError):
+        _run(agent, tmp_path, query, cost_policy=_policy(price_per_job=0.3, max_cost_usd=0.5))
+    assert load_records(tmp_path / "runs.jsonl") == []
 
 
 def test_crashes_are_not_stored_so_they_are_retried(
@@ -141,6 +163,7 @@ def test_report_aggregates_repetitions_against_thresholds(
     assert summary["aggregate"]["descriptive_accuracy"]["std"] == pytest.approx(0.7071, abs=1e-4)
     assert summary["aggregate"]["brier"]["mean"] == 0.5
     assert summary["aggregate"]["diag_accuracy"]["mean"] is None
+    assert summary["total_real_cost_usd"] is None  # the fake agent never reports a real cost
 
     markdown = render_markdown("test", summary, scored)
     assert "| descriptive_accuracy | 0.50 | 0.71 | >= 0.90 ❌ |" in markdown
@@ -152,24 +175,22 @@ def test_the_record_stores_the_mode_it_was_run_in(
     tmp_path: Path, query: SumolibNetworkQuery
 ) -> None:
     agent = FakeToolAgent(output=_answer(("B1B0",)), interact=_cite_one_call)
-    _run(agent, tmp_path, query, mode=Mode.FREE)
+    _run(agent, tmp_path, query, modes=[Mode.FREE])
     records = load_records(tmp_path / "runs.jsonl")
     assert {r["mode"] for r in records} == {"free"}
 
 
-def test_forced_and_free_runs_of_the_same_question_coexist_without_colliding(
+def test_forced_and_free_runs_of_the_same_question_coexist_under_one_cap(
     tmp_path: Path, query: SumolibNetworkQuery
 ) -> None:
     agent = FakeToolAgent(output=_answer(("B1B0",)), interact=_cite_one_call)
-    forced = _run(agent, tmp_path, query, mode=Mode.FORCED)
-    free = _run(agent, tmp_path, query, mode=Mode.FREE)
-    assert (forced.ran, forced.skipped_done) == (2, 0)
-    assert (free.ran, free.skipped_done) == (2, 0)
+    both = _run(agent, tmp_path, query, modes=[Mode.FORCED, Mode.FREE])
+    assert (both.ran, both.skipped_done) == (4, 0)
     records = load_records(tmp_path / "runs.jsonl")
     assert sorted((r["question_id"], r["mode"]) for r in records) == [
         ("S00-desc-occ", "forced"), ("S00-desc-occ", "free"),
         ("S01-desc-occ", "forced"), ("S01-desc-occ", "free"),
     ]
-    # re-running the same mode still resumes instead of paying again
-    resumed = _run(agent, tmp_path, query, mode=Mode.FORCED)
-    assert (resumed.ran, resumed.skipped_done) == (0, 2)
+    # re-running the same modes still resumes instead of paying again
+    resumed = _run(agent, tmp_path, query, modes=[Mode.FORCED, Mode.FREE])
+    assert (resumed.ran, resumed.skipped_done) == (0, 4)

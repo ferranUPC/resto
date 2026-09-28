@@ -192,7 +192,8 @@ def _run(question: BenchmarkQuestion, score: Score, repetition: int = 1) -> Scor
         "steps": [],
         "input_tokens": 0,
         "output_tokens": 0,
-        "cost_usd": 0.0,
+        "estimated_cost_usd": 0.0,
+        "real_cost_usd": None,
         "stop_reason": "output",
     }
     return ScoredRun(question, repetition, score, _answer(Edges(("B2C2",))), record)

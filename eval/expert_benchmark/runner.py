@@ -1,30 +1,26 @@
 """Runs the Network Expert over benchmark questions × repetitions and stores every raw run
-(docs/evaluating-resto.md §4.2).
-
-One JSON line per (question, repetition, mode) in `out_file`: the Expert version, the answer, the
-promotion outcome, the tool calls, the per-step trace, the full evidence ledger, tokens and
-estimated cost. Scoring happens later from these lines
+(docs/evaluating-resto.md §4.2). One JSON line per (question, repetition, mode) in `out_file`: the
+Expert version, the answer, the promotion outcome, the tool calls, the per-step trace, the full
+evidence ledger, tokens and estimated/real cost. Scoring happens later from these lines
 (`report.py`), so a scoring rule can change without paying for the runs again.
 
-- **Resumable**: a (question, repetition, mode) already in `out_file` is skipped.
-- **Cost cap**: with `max_cost_usd`, no new run starts once the estimated spend reaches it.
-- **Crashes** (e.g. an API error) are logged and not written, so the next invocation retries them.
-- **Workers** each get their own `Environment` (repositories + network query): a SQLite connection
-  and a sumolib network are not shared across threads.
+Resume, the cost policy and the worker pool live in `eval.paid_runs.run_paid_jobs`
+(refactor-paid-runs, ticket 03); this module supplies only the job, its resume key, and how to run
+one (`_run_once`). **Workers** each get their own `Environment` (repositories + network query): a
+SQLite connection and a sumolib network are not shared across threads.
 """
 
 from __future__ import annotations
 
-import json
 import threading
 import time
 from collections.abc import Callable, Sequence
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
 from eval.expert_benchmark.bank import BenchmarkQuestion
+from eval.paid_runs import ESTIMATED_COST_KEY, REAL_COST_KEY, CostPolicy, RunOutcome, run_paid_jobs
 from resto.adapters.llm.agents.expert import EXPERT_VERSION, run_expert
 from resto.application.ports.llm import Budget, ToolAgent
 from resto.application.ports.network_query import NetworkQuery
@@ -39,8 +35,6 @@ from resto.application.use_cases.ask_expert import (
 from resto.domain.value_objects.expert_answer import ExpertAnswer
 from resto.domain.value_objects.question import Mode
 
-PriceFn = Callable[[int, int], float | None]
-
 
 @dataclass(frozen=True, slots=True)
 class Environment:
@@ -51,21 +45,16 @@ class Environment:
 
 
 EnvironmentFactory = Callable[[], Environment]
+Job = tuple[BenchmarkQuestion, int, Mode]
 
 
-@dataclass(frozen=True, slots=True)
-class RunOutcome:
-    ran: int
-    skipped_done: int
-    skipped_budget: int
-    crashed: int
-    cost_usd: float
+def _key(job: Job) -> tuple[str, int, str]:
+    question, repetition, mode = job
+    return (question.id, repetition, mode.value)
 
 
-def load_records(path: Path) -> list[dict[str, Any]]:
-    if not path.exists():
-        return []
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line]
+def _record_key(record: dict[str, Any]) -> tuple[str, int, str]:
+    return (record["question_id"], record["repetition"], record.get("mode", Mode.FORCED.value))
 
 
 def run_benchmark(
@@ -76,30 +65,23 @@ def run_benchmark(
     budget: Budget,
     environment: EnvironmentFactory,
     out_file: Path,
-    model: str,
-    mode: Mode = Mode.FORCED,
-    price: PriceFn = lambda input_tokens, output_tokens: None,
+    cost_policy: CostPolicy,
+    modes: Sequence[Mode] = (Mode.FORCED,),
     workers: int = 1,
-    max_cost_usd: float | None = None,
     log: Callable[[str], None] = print,
 ) -> RunOutcome:
-    if repetitions < 1 or workers < 1:
-        raise ValueError("repetitions and workers must be >= 1")
-    done = {(r["question_id"], r["repetition"], r.get("mode", Mode.FORCED.value))
-            for r in load_records(out_file)}
-    jobs = [
-        (q, rep)
-        for q in questions
+    if repetitions < 1:
+        raise ValueError("repetitions must be >= 1")
+    jobs: list[Job] = [
+        (question, rep, mode)
+        for mode in modes
+        for question in questions
         for rep in range(1, repetitions + 1)
-        if (q.id, rep, mode.value) not in done
     ]
-    out_file.parent.mkdir(parents=True, exist_ok=True)
 
     lock = threading.Lock()
     local = threading.local()
     environments: list[Environment] = []
-    counters = {"ran": 0, "budget": 0, "crashed": 0}
-    spent = [0.0]
 
     def env() -> Environment:
         if not hasattr(local, "env"):
@@ -108,45 +90,24 @@ def run_benchmark(
                 environments.append(local.env)
         return local.env  # type: ignore[no-any-return]
 
-    def run_one(question: BenchmarkQuestion, repetition: int) -> None:
-        with lock:
-            if max_cost_usd is not None and spent[0] >= max_cost_usd:
-                counters["budget"] += 1
-                return
-        try:
-            record = _run_once(question, repetition, agent, budget, env(), model, mode, price)
-        except Exception as exc:  # an API/network failure must not stop the other runs
-            with lock:
-                counters["crashed"] += 1
-            log(f"CRASH {question.id} rep {repetition}: {exc!r}")
-            return
-        with lock:
-            with out_file.open("a", encoding="utf-8") as fh:
-                fh.write(json.dumps(record, default=str) + "\n")
-            counters["ran"] += 1
-            spent[0] += record["cost_usd"] or 0.0
-            outcome = "accepted" if record["rejection"] is None else "rejected"
-            log(
-                f"[{counters['ran']}/{len(jobs)}] {question.id} rep {repetition}: "
-                f"{record['stop_reason']}, {outcome}, ${record['cost_usd'] or 0:.4f} "
-                f"(total ${spent[0]:.3f})"
-            )
+    def run_one(job: Job) -> dict[str, Any]:
+        question, repetition, mode = job
+        return _run_once(question, repetition, agent, budget, env(), cost_policy, mode)
 
     try:
-        with ThreadPoolExecutor(max_workers=workers) as pool:
-            for future in [pool.submit(run_one, q, rep) for q, rep in jobs]:
-                future.result()
+        return run_paid_jobs(
+            jobs,
+            run_one=run_one,
+            key=_key,
+            record_key=_record_key,
+            cost_policy=cost_policy,
+            out_file=out_file,
+            workers=workers,
+            log=log,
+        )
     finally:
         for environment_ in environments:
             environment_.close()
-
-    return RunOutcome(
-        ran=counters["ran"],
-        skipped_done=len(questions) * repetitions - len(jobs),
-        skipped_budget=counters["budget"],
-        crashed=counters["crashed"],
-        cost_usd=spent[0],
-    )
 
 
 def _run_once(
@@ -155,9 +116,8 @@ def _run_once(
     agent: ToolAgent,
     budget: Budget,
     env: Environment,
-    model: str,
+    cost_policy: CostPolicy,
     mode: Mode,
-    price: PriceFn,
 ) -> dict[str, Any]:
     task = question.to_task(mode=mode)
     ledger = EvidenceLedger()
@@ -182,7 +142,7 @@ def _run_once(
         "question_id": question.id,
         "repetition": repetition,
         "mode": task.mode.value,
-        "model": model,
+        "model": cost_policy.model,
         "expert_version": EXPERT_VERSION,
         "stop_reason": run.stop_reason.value,
         "rejection": rejection,
@@ -200,6 +160,7 @@ def _run_once(
         "steps": [asdict(step) for step in run.steps],
         "input_tokens": run.usage.input_tokens,
         "output_tokens": run.usage.output_tokens,
-        "cost_usd": price(run.usage.input_tokens, run.usage.output_tokens),
+        ESTIMATED_COST_KEY: cost_policy.price(run.usage.input_tokens, run.usage.output_tokens),
+        REAL_COST_KEY: run.usage.cost_usd,
         "elapsed_s": round(elapsed, 2),
     }

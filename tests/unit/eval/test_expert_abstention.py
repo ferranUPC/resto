@@ -64,7 +64,8 @@ def _record(
         "steps": [],
         "input_tokens": 0,
         "output_tokens": 0,
-        "cost_usd": 0.0,
+        "estimated_cost_usd": 0.0,
+        "real_cost_usd": None,
         "stop_reason": "output",
     }
 
