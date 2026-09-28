@@ -1,12 +1,13 @@
 ---
 name: progress-review
-description: Reviews docs/tfm-work-plan.md against the real state of the repo, updates docs/progress-tracker.md, and writes a dated subjective feasibility analysis to docs/feasability-analisis/{yyyy-mm-dd}.md. Designed to run unattended on a schedule — commits and pushes its own output.
+description: Reviews docs/tfm-work-plan.md against the real state of the repo, updates docs/progress-tracker.md, and writes a dated subjective feasibility analysis to docs/feasability-analisis/{yyyy-mm-dd}.md. Designed to run unattended on a schedule — commits its output on a branch and opens a PR against master.
 model: sonnet
+effort: high
 ---
 
 # Progress review
 
-Runs a check of real progress on the RESTO TFM against the plan, and records an honest, evidence-based status update. This is meant to run unattended (via a scheduled cron, possibly in a fresh environment with no one watching) — leave the repo in a clean, committed and pushed state when done, and never fabricate progress that isn't backed by evidence.
+Runs a check of real progress on the RESTO TFM against the plan, and records an honest, evidence-based status update. This is meant to run unattended (via a scheduled cron, possibly in a fresh environment with no one watching) — leave the repo in a clean state with the review committed, pushed on a branch and opened as a PR, and never fabricate progress that isn't backed by evidence.
 
 ## 1. Gather evidence
 
@@ -37,12 +38,15 @@ Runs a check of real progress on the RESTO TFM against the plan, and records an 
   - A direct recommendation: keep going as planned, or start applying the fallback order from work-plan §5 (and which step of that ordered list, if so).
   - Back every claim with what was actually found in step 1 (specific commits, test results, files present/missing) — this must read as a real assessment, not filler.
 - If there has been no progress since the last review, say so plainly and briefly instead of padding the report. Every scheduled run still produces a dated entry, even a short one — the point is a continuous timeline of honest snapshots.
+- Before committing, run the `unslop` skill (`.claude/skills/unslop/SKILL.md`) over the new feasibility analysis and over every tracker Notes cell you wrote or changed this run. Rewrite only prose; leave facts, commit hashes, numbers, task ids and table structure as they are.
 
 ## 4. Persist
 
 - Stage and commit `docs/progress-tracker.md` and the new `docs/feasability-analisis/{yyyy-mm-dd}.md`, with a short commit message naming the review date (e.g. `Progress review 2026-09-17`).
-- Push to `origin` so the review survives beyond this run's environment — this was explicitly requested for this skill (unattended runs must not leave unpersisted local-only changes).
-- If the push fails (e.g. diverged branch), do not force-push — pull/rebase first, and if that's not resolvable automatically, leave the commit local and say so clearly in the run's output rather than doing anything destructive.
+- Before starting step 1, make sure you work on top of the latest `origin/master` (`git fetch origin master`), so the review sees everything pushed so far.
+- Commit on a branch (the session's designated `claude/*` branch in a cloud run, or `progress-review/{yyyy-mm-dd}` otherwise), never directly on `master`. Push that branch to `origin` and **open a pull request against `master`** titled `Progress review {yyyy-mm-dd}`. The PR body holds the run's summary: tasks whose status changed, test/ruff/mypy results, and the feasibility recommendation in one or two sentences. The maintainer merges it.
+- Open the PR with whatever GitHub tool the environment provides (`gh pr create`, or a built-in pull-request tool). If none works, say so clearly in the run's output and give the compare URL that `git push` printed, so the PR can be opened by hand.
+- If the push fails, do not force-push. Leave the commit local and say so clearly in the run's output rather than doing anything destructive.
 
 # Note
 Take into account that in worse case scenario, I still have till end of may to finish correcting some things (not full-time work, but still some time partially end the work).
