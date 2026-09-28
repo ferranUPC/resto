@@ -8,12 +8,20 @@ from dataclasses import replace
 from typing import Any, TypeVar, cast
 
 from resto.application.executor.deps import StudyDeps
+from resto.application.executor.failures import (
+    StepFailed,
+    crash,
+    describe,
+    draft_of,
+    fail,
+    promote,
+)
 from resto.application.ports.agents.coordinator import PlanningContext
-from resto.application.ports.llm import AgentRun, StopReason
+from resto.application.ports.llm import AgentRun
 from resto.application.schemas import adapter_for
 from resto.application.tools.expert import EvidenceLedger
 from resto.application.use_cases.ask_expert import ask_expert
-from resto.application.use_cases.build_scenario import UnknownTargetError, build_scenario
+from resto.application.use_cases.build_scenario import build_scenario
 from resto.application.use_cases.run_simulation import run_simulation
 from resto.application.use_cases.update_note_status import update_note_status
 from resto.application.use_cases.write_note import write_note
@@ -70,19 +78,6 @@ def execute_study(
     """Runs a parsed `Question` to a closed `Study` (`completed`, `failed` or `awaiting_user`)
     and returns it. `parse_usage` is what the Input Parser spent: its call is the study's first."""
     return _Executor(deps, question, parse_usage, max_rounds).run()
-
-
-class _StepFailed(Exception):
-    """Internal: the step being run failed; carries its classification and what it spent."""
-
-    def __init__(self, error: StepError, usage: Usage | None = None) -> None:
-        super().__init__(error.message)
-        self.error = error
-        self.usage = usage or Usage()
-
-
-def _fail(kind: StepErrorKind, message: str, *details: str, usage: Usage | None = None) -> None:
-    raise _StepFailed(StepError(kind, message, tuple(details)), usage)
 
 
 def _data(value: Any) -> Mapping[str, Any]:
@@ -178,8 +173,8 @@ class _Executor:
         try:
             coordinator = self.deps.agents.coordinator
             run = self._agent_call(lambda: coordinator.plan(phase.question, context))
-            output = self._output(run, "coordinator")
-        except _StepFailed as failed:
+            output = draft_of(run, "coordinator")
+        except StepFailed as failed:
             self._record_failure("plan", task, failed)
             return None
         if isinstance(output, ClarificationRequest):
@@ -189,7 +184,7 @@ class _Executor:
                     replace(phase, clarification=output), status=StudyStatus.AWAITING_USER
                 )
                 return None
-            failure = _StepFailed(
+            failure = StepFailed(
                 StepError(
                     StepErrorKind.AGENT,
                     f"the Coordinator could not plan the experiment proposed in round {k}",
@@ -200,9 +195,8 @@ class _Executor:
             self._record_failure("plan", task, failure)
             return None
         try:
-            self._validate(output, phase.question)
-        except _StepFailed as failed:
-            failed.usage = run.usage
+            self._validate(output, phase.question, run.usage)
+        except StepFailed as failed:
             self._record_failure(
                 "plan", task, failed, phase=replace(phase, plan=output), pending=output.steps
             )
@@ -217,7 +211,7 @@ class _Executor:
         )
         return output
 
-    def _validate(self, plan: StudyPlan, question: Question) -> None:
+    def _validate(self, plan: StudyPlan, question: Question, usage: Usage) -> None:
         """Semantics of the plan against stored state and the question (study-flows.md §5); the
         syntax already held when the plan was built. Every problem found goes in the details."""
         problems: list[str] = []
@@ -271,7 +265,12 @@ class _Executor:
             problems += self._reused_problems(plan, reused.scenario_id, arms.get(reused.arm))
         problems += self._coverage_problems(plan, question)
         if problems:
-            _fail(StepErrorKind.AGENT, f"the plan of phase {self._k} is invalid", *problems)
+            fail(
+                StepErrorKind.AGENT,
+                f"the plan of phase {self._k} is invalid",
+                *problems,
+                usage=usage,
+            )
 
     def _derivation(
         self, plan: StudyPlan, network_ref: str | FromStep
@@ -352,11 +351,11 @@ class _Executor:
             task = _data(resolved)
             try:
                 record, experiment = self._run_step(resolved, task)
-            except _StepFailed as failed:
+            except StepFailed as failed:
                 self._record_failure(resolved.kind, task, failed, pending=plan.steps[i + 1 :])
                 return False
             except Exception as e:
-                self._record_failure(resolved.kind, task, _crash(e), pending=plan.steps[i + 1 :])
+                self._record_failure(resolved.kind, task, crash(e), pending=plan.steps[i + 1 :])
                 return False
             produced[i] = record.produced_ids[-1] if record.produced_ids else ""
             experiments = self._phase.experiments
@@ -412,8 +411,8 @@ class _Executor:
 
     def _author_network(self, network_task: NetworkTask, task: Mapping[str, Any]) -> StepRecord:
         run = self._agent_call(lambda: self.deps.agents.network_author.author(network_task))
-        self._output(run, "network_author")
-        network = self._promote(lambda: self.deps.promotions.network(network_task, run), run.usage)
+        draft_of(run, "network_author")
+        network = promote(lambda: self.deps.promotions.network(network_task, run), run.usage)
         self._add_networks(network.network_id)
         tool = "derive_network" if network_task.base_network_id else "generate_network"
         return StepRecord(tool, StepStatus.OK, task, (network.network_id,), usage=run.usage)
@@ -429,17 +428,16 @@ class _Executor:
             max_calibration_rounds=step.max_calibration_rounds,
         )
         run = self._agent_call(lambda: self.deps.agents.demand_generator.generate(demand_task))
-        self._output(run, "demand_generator")
-        demand = self._promote(lambda: self.deps.promotions.demand(demand_task, run), run.usage)
+        draft_of(run, "demand_generator")
+        demand = promote(lambda: self.deps.promotions.demand(demand_task, run), run.usage)
         return StepRecord(step.kind, StepStatus.OK, task, (demand.demand_id,), usage=run.usage)
 
     def _reroute(self, step: RerouteDemandStep, task: Mapping[str, Any]) -> StepRecord:
         demand = self.deps.demands.get(_id(step.demand_id))
         network = self.deps.networks.get(_id(step.network_id))
         if demand is None or network is None:
-            _fail(StepErrorKind.AGENT, "reroute_demand names a demand or network not stored")
-        assert demand is not None and network is not None
-        rerouted = self._promote(lambda: self.deps.promotions.reroute(demand, network), Usage())
+            fail(StepErrorKind.AGENT, "reroute_demand names a demand or network not stored")
+        rerouted = promote(lambda: self.deps.promotions.reroute(demand, network), Usage())
         return StepRecord(step.kind, StepStatus.OK, task, (rerouted.demand_id,))
 
     def _build_scenario(
@@ -463,16 +461,16 @@ class _Executor:
             scenario_id = requested
         else:
             run = self._agent_call(lambda: self.deps.agents.scenario_builder.build(scenario_task))
-            draft = self._output(run, "scenario_builder")
+            draft = draft_of(run, "scenario_builder")
             usage = run.usage
             if draft.rejected:
-                _fail(
+                fail(
                     StepErrorKind.USER_INPUT,
                     f"the Scenario Builder rejected {len(draft.rejected)} intervention(s)",
                     *(f"{r.intervention.type}: {r.reason}" for r in draft.rejected),
                     usage=usage,
                 )
-            scenario = self._promote(
+            scenario = promote(
                 lambda: build_scenario(
                     scenario_task,
                     run,
@@ -492,10 +490,9 @@ class _Executor:
     def _run_simulations(self, step: RunSimulationStep, task: Mapping[str, Any]) -> StepRecord:
         scenario = self.deps.scenarios.get(_id(step.scenario_id))
         if scenario is None:
-            _fail(StepErrorKind.AGENT, f"scenario {step.scenario_id!r} is not stored")
-        assert scenario is not None
+            fail(StepErrorKind.AGENT, f"scenario {step.scenario_id!r} is not stored")
         if scenario.is_online:
-            _fail(
+            fail(
                 StepErrorKind.INFRASTRUCTURE,
                 "online scenarios (traci_api scripts) need the E2.5 runner",
                 scenario.scenario_id,
@@ -519,7 +516,7 @@ class _Executor:
                     out_dir=self.deps.out_dir / "results",
                 )
                 if result.status is RunStatus.FAILED:
-                    _fail(
+                    fail(
                         StepErrorKind.INFRASTRUCTURE,
                         f"SUMO failed on scenario {scenario.scenario_id!r} with seed {seed}",
                         result.error or "",
@@ -569,18 +566,17 @@ class _Executor:
         ledger = EvidenceLedger()
         try:
             run = self._agent_call(lambda: self.deps.agents.expert.answer(task, ledger))
-            self._output(run, "expert")
+            draft_of(run, "expert")
             network = self.deps.networks.get(task.network_id)
             if network is None:
-                _fail(StepErrorKind.INFRASTRUCTURE, f"network {task.network_id!r} disappeared")
-            assert network is not None
+                fail(StepErrorKind.INFRASTRUCTURE, f"network {task.network_id!r} disappeared")
             query = self.deps.network_query_factory(network.net_xml.path)
-            round_ = self._promote(lambda: ask_expert(task, run, ledger, query=query), run.usage)
-        except _StepFailed as failed:
+            round_ = promote(lambda: ask_expert(task, run, ledger, query=query), run.usage)
+        except StepFailed as failed:
             self._record_failure("ask_expert", _data(task), failed)
             return None
         except Exception as e:
-            self._record_failure("ask_expert", _data(task), _crash(e))
+            self._record_failure("ask_expert", _data(task), crash(e))
             return None
         forced_by_limit = self.study.question.mode is Mode.FREE and round_no == self.max_rounds
         round_ = replace(round_, forced_by_limit=forced_by_limit)
@@ -607,7 +603,7 @@ class _Executor:
                 notes=self.deps.notes,
             )
         except Exception as e:
-            self._trace("note_writer_failed", {"error": _describe(e)})
+            self._trace("note_writer_failed", {"error": describe(e)})
             return
         self._set(note_ids=tuple(n.note_id for n in written))
         self._trace("notes_written", {"note_ids": [n.note_id for n in written]})
@@ -653,13 +649,13 @@ class _Executor:
         task = {"study_id": self.study.study_id}
         try:
             run = self._agent_call(lambda: self.deps.agents.composer.compose(self.study))
-            self._output(run, "composer")
-            report = self._promote(lambda: self.deps.promotions.report(self.study, run), run.usage)
-        except _StepFailed as failed:
+            draft_of(run, "composer")
+            report = promote(lambda: self.deps.promotions.report(self.study, run), run.usage)
+        except StepFailed as failed:
             self._record_failure("compose_report", task, failed)
             return
         except Exception as e:
-            self._record_failure("compose_report", task, _crash(e))
+            self._record_failure("compose_report", task, crash(e))
             return
         record = StepRecord("compose_report", StepStatus.OK, task, usage=run.usage)
         self._record(record, status=StudyStatus.COMPLETED, report=report)
@@ -672,65 +668,31 @@ class _Executor:
         try:
             run = call()
         except Exception as e:
-            _fail(StepErrorKind.INFRASTRUCTURE, f"agent call failed: {_describe(e)}")
-            raise  # unreachable: _fail raises
+            fail(StepErrorKind.INFRASTRUCTURE, f"agent call failed: {describe(e)}")
         self.tokens += run.usage.input_tokens + run.usage.output_tokens
         return run
-
-    @staticmethod
-    def _output(run: AgentRun[T], agent: str) -> T:
-        """The draft of a finished run, classified before any promotion sees it: a run cut by
-        its budget is `budget`, any other run without a draft is `agent`."""
-        if run.stop_reason is StopReason.OUTPUT and run.output is not None:
-            return run.output
-        if run.stop_reason is StopReason.BUDGET:
-            _fail(StepErrorKind.BUDGET, f"{agent} ran out of its budget", usage=run.usage)
-        _fail(
-            StepErrorKind.AGENT,
-            f"{agent} stopped on {run.stop_reason} without a draft",
-            usage=run.usage,
-        )
-        raise AssertionError("unreachable")
 
     def _check_budget(self, *, agent_calls: int = 0, simulations: int = 0) -> None:
         budget = self.deps.budget
         if agent_calls and self.agent_calls + agent_calls > budget.max_agent_calls:
-            _fail(
+            fail(
                 StepErrorKind.BUDGET,
                 "the study's agent-call budget is exhausted",
                 f"{self.agent_calls} of {budget.max_agent_calls} agent calls used",
             )
         if agent_calls and self.tokens >= budget.max_tokens:
-            _fail(
+            fail(
                 StepErrorKind.BUDGET,
                 "the study's token budget is exhausted",
                 f"{self.tokens} of {budget.max_tokens} tokens used",
             )
         if simulations and self.simulations + simulations > budget.max_simulations:
-            _fail(
+            fail(
                 StepErrorKind.BUDGET,
                 "the study's simulation budget is exhausted",
                 f"{self.simulations} of {budget.max_simulations} simulations used, "
                 f"{simulations} more needed",
             )
-
-    @staticmethod
-    def _promote(call: Callable[[], T], usage: Usage) -> T:
-        """Runs a promotion: a target the network lacks is the user's (`user_input`), any other
-        rejected draft the agent's (`agent`), anything else `infrastructure`."""
-        try:
-            return call()
-        except _StepFailed:
-            raise
-        except UnknownTargetError as e:
-            _fail(StepErrorKind.USER_INPUT, str(e), usage=usage)
-        except NotImplementedError as e:
-            _fail(StepErrorKind.INFRASTRUCTURE, _describe(e), usage=usage)
-        except ValueError as e:
-            _fail(StepErrorKind.AGENT, str(e), usage=usage)
-        except Exception as e:
-            _fail(StepErrorKind.INFRASTRUCTURE, _describe(e), usage=usage)
-        raise AssertionError("unreachable")
 
     # -- study state --------------------------------------------------------------------------
 
@@ -778,7 +740,7 @@ class _Executor:
         self,
         tool: str,
         task: Mapping[str, Any],
-        failure: _StepFailed,
+        failure: StepFailed,
         *,
         phase: Phase | None = None,
         pending: Sequence[PlanStep] = (),
@@ -823,14 +785,3 @@ class _Executor:
 
     def _trace(self, event: str, payload: Mapping[str, Any]) -> None:
         self.deps.tracer.emit(self.study.study_id, event, payload)
-
-
-def _describe(e: BaseException) -> str:
-    if isinstance(e, _StepFailed):
-        return e.error.message
-    return f"{type(e).__name__}: {e}"
-
-
-def _crash(e: BaseException) -> _StepFailed:
-    """An exception nothing classified: the environment's fault (logs in the trace)."""
-    return _StepFailed(StepError(StepErrorKind.INFRASTRUCTURE, _describe(e)))
