@@ -1883,7 +1883,20 @@
       "type": "object"
     },
     "Usage": {
+      "description": "`cost_usd` is the real cost the provider reported, summed over every step; `None` if any\nstep didn't report one (never a partial sum shown as complete), and always `None` from the\nfake agent.",
       "properties": {
+        "cost_usd": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cost Usd"
+        },
         "input_tokens": {
           "default": 0,
           "title": "Input Tokens",

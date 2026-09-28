@@ -38,9 +38,14 @@ class StepError:
 
 @dataclass(frozen=True, slots=True)
 class Usage:
+    """`cost_usd` is the real cost the provider reported, summed over every step; `None` if any
+    step didn't report one (never a partial sum shown as complete), and always `None` from the
+    fake agent."""
+
     input_tokens: int = 0
     output_tokens: int = 0
     simulations: int = 0
+    cost_usd: float | None = None
 
 
 @dataclass(frozen=True, slots=True)

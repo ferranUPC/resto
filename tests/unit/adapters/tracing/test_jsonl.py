@@ -47,7 +47,12 @@ def test_payload_with_dataclass_enum_and_path_is_json_serialisable(tmp_path: Pat
 
     [record] = read_run(tmp_path, "study-1")
     assert record["status"] == "failed"
-    assert record["usage"] == {"input_tokens": 5, "output_tokens": 7, "simulations": 1}
+    assert record["usage"] == {
+        "input_tokens": 5,
+        "output_tokens": 7,
+        "simulations": 1,
+        "cost_usd": None,
+    }
     assert record["artifact_path"] == str(Path("results") / "kpis.json")
 
 

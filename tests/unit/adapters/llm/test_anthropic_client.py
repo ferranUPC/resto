@@ -42,12 +42,15 @@ def completion(
     tool_calls: tuple[SimpleNamespace, ...] = (),
     prompt_tokens: int = 10,
     completion_tokens: int = 5,
+    cost: float | None = 0.0,
     finish_reason: str | None = None,
 ) -> SimpleNamespace:
     message = SimpleNamespace(content=content, tool_calls=list(tool_calls) or None)
     return SimpleNamespace(
         choices=[SimpleNamespace(message=message, finish_reason=finish_reason)],
-        usage=SimpleNamespace(prompt_tokens=prompt_tokens, completion_tokens=completion_tokens),
+        usage=SimpleNamespace(
+            prompt_tokens=prompt_tokens, completion_tokens=completion_tokens, cost=cost
+        ),
     )
 
 
@@ -248,13 +251,14 @@ def test_exceeding_max_seconds_stops_on_budget_without_calling_the_api() -> None
     assert complete.calls == []
 
 
-def test_traces_tokens_and_estimated_cost_but_never_the_key() -> None:
+def test_traces_tokens_estimated_and_real_cost_but_never_the_key() -> None:
     tracer = RecordingTracer()
     complete = ScriptedCompletions(
         completion(
             tool_calls=(tool_call("c1", "submit_output", {"text": "ok"}),),
             prompt_tokens=100,
             completion_tokens=20,
+            cost=0.005,
         )
     )
     agent = OpenRouterToolAgent(CONFIG, complete=complete, tracer=tracer, trace_id="run-1")
@@ -267,8 +271,60 @@ def test_traces_tokens_and_estimated_cost_but_never_the_key() -> None:
     assert payload["input_tokens"] == 100
     assert payload["output_tokens"] == 20
     assert payload["model"] == "deepseek/deepseek-v4.1-flash"
+    assert payload["cost_usd"] == pytest.approx(0.005)
+    assert "estimated_cost_usd" in payload
     assert "api_key" not in payload
     assert CONFIG.api_key not in json.dumps(payload)
+
+
+def test_asks_openrouter_to_include_real_usage_cost() -> None:
+    complete = ScriptedCompletions(
+        completion(tool_calls=(tool_call("c1", "submit_output", {"text": "ok"}),))
+    )
+    agent = OpenRouterToolAgent(CONFIG, complete=complete)
+
+    agent.run(DUMMY_TASK, tools=(), output=Answer, budget=DUMMY_BUDGET)
+
+    assert complete.calls[0]["extra_body"] == {"usage": {"include": True}}
+
+
+def test_sums_the_real_cost_reported_across_steps() -> None:
+    echo = Tool(name="echo", description="echoes", fn=lambda text: {"echoed": text})
+    complete = ScriptedCompletions(
+        completion(tool_calls=(tool_call("c1", "echo", {"text": "hi"}),), cost=0.001),
+        completion(tool_calls=(tool_call("c2", "submit_output", {"text": "hi"}),), cost=0.002),
+    )
+    agent = OpenRouterToolAgent(CONFIG, complete=complete)
+
+    run = agent.run(DUMMY_TASK, tools=(echo,), output=Answer, budget=DUMMY_BUDGET)
+
+    assert run.usage.cost_usd == pytest.approx(0.003)
+
+
+def test_a_step_without_a_reported_cost_makes_the_run_total_none() -> None:
+    echo = Tool(name="echo", description="echoes", fn=lambda text: {"echoed": text})
+    complete = ScriptedCompletions(
+        completion(tool_calls=(tool_call("c1", "echo", {"text": "hi"}),), cost=0.001),
+        completion(tool_calls=(tool_call("c2", "submit_output", {"text": "hi"}),), cost=None),
+    )
+    agent = OpenRouterToolAgent(CONFIG, complete=complete)
+
+    run = agent.run(DUMMY_TASK, tools=(echo,), output=Answer, budget=DUMMY_BUDGET)
+
+    assert run.usage.cost_usd is None
+
+
+def test_a_budget_stop_still_reports_the_real_cost_seen_so_far() -> None:
+    complete = ScriptedCompletions(
+        *(completion(content="thinking", cost=0.001) for _ in range(2))
+    )
+    agent = OpenRouterToolAgent(CONFIG, complete=complete)
+
+    budget = Budget(max_steps=2, max_tokens=64, max_seconds=30)
+    run = agent.run(DUMMY_TASK, tools=(), output=Answer, budget=budget)
+
+    assert run.stop_reason is StopReason.BUDGET
+    assert run.usage.cost_usd == pytest.approx(0.002)
 
 
 def test_construction_refuses_a_model_absent_from_the_price_manifest() -> None:

@@ -16,7 +16,11 @@ ends the run with `StopReason.BUDGET`, never a partially-guessed output.
 
 Never logs, prints, or traces `LlmConfig.api_key` — the OpenAI SDK client holds it in memory only,
 and everything this module sends to `Tracer.emit` is limited to token counts, model name, tool
-names and an estimated cost.
+names, and the estimated and real cost.
+
+Every call asks OpenRouter for `usage.cost` (`extra_body={"usage": {"include": True}}`) and sums
+it into the returned `Usage.cost_usd`; a step whose response doesn't carry it makes the whole run's
+total `None` rather than an understated partial sum.
 """
 
 from __future__ import annotations
@@ -93,6 +97,7 @@ class OpenRouterToolAgent:
         steps: list[StepTrace] = []
         input_tokens = 0
         output_tokens = 0
+        cost_usd: float | None = 0.0
         started = time.monotonic()
 
         for step in range(budget.max_steps):
@@ -105,13 +110,16 @@ class OpenRouterToolAgent:
                 tools=tools_schema,
                 tool_choice="auto",
                 max_tokens=budget.max_tokens,
+                extra_body={"usage": {"include": True}},
             )
             usage = getattr(response, "usage", None)
             step_input = getattr(usage, "prompt_tokens", 0) or 0
             step_output = getattr(usage, "completion_tokens", 0) or 0
+            step_cost = getattr(usage, "cost", None)
             input_tokens += step_input
             output_tokens += step_output
-            self._trace(step, step_input, step_output)
+            cost_usd = None if cost_usd is None or step_cost is None else cost_usd + step_cost
+            self._trace(step, step_input, step_output, step_cost)
 
             choice = response.choices[0]
             message = choice.message
@@ -160,7 +168,11 @@ class OpenRouterToolAgent:
                     return AgentRun(
                         output=validated,
                         tool_calls=tuple(tool_calls),
-                        usage=Usage(input_tokens=input_tokens, output_tokens=output_tokens),
+                        usage=Usage(
+                            input_tokens=input_tokens,
+                            output_tokens=output_tokens,
+                            cost_usd=cost_usd,
+                        ),
                         stop_reason=StopReason.OUTPUT,
                         steps=tuple(steps),
                     )
@@ -176,12 +188,14 @@ class OpenRouterToolAgent:
         return AgentRun(
             output=None,
             tool_calls=tuple(tool_calls),
-            usage=Usage(input_tokens=input_tokens, output_tokens=output_tokens),
+            usage=Usage(input_tokens=input_tokens, output_tokens=output_tokens, cost_usd=cost_usd),
             stop_reason=StopReason.BUDGET,
             steps=tuple(steps),
         )
 
-    def _trace(self, step: int, input_tokens: int, output_tokens: int) -> None:
+    def _trace(
+        self, step: int, input_tokens: int, output_tokens: int, cost_usd: float | None
+    ) -> None:
         if self._tracer is None or self._trace_id is None:
             return
         self._tracer.emit(
@@ -193,6 +207,7 @@ class OpenRouterToolAgent:
                 "input_tokens": input_tokens,
                 "output_tokens": output_tokens,
                 "estimated_cost_usd": estimate_cost_usd(self._model, input_tokens, output_tokens),
+                "cost_usd": cost_usd,
             },
         )
 
