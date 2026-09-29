@@ -14,37 +14,40 @@ Status (decided 2026-09-24, wayfinder #3 — exact wording, applied by the `prog
 - 🚧 **blocked**: cannot proceed for a stated reason outside our control (an external person, data or
   service); the Notes say what unblocks it.
 
-Last updated: 2026-09-28
+Last updated: 2026-09-29
 
 **Summary: 31 / 76 tasks done (40.8 %), 6 awaiting measurement, 1 in progress, 0 blocked** (⏳: E4.2,
 E4.3, E4.4, E4.5, E4.7, E5.1, 92 of 954 pts, counted apart from done; 🔄: E5.3; E7.7 is Stretch, never
 scheduled, excluded from the count per work plan §5).
 
-Since the last review (`968f8ca`, 2026-09-25), twelve commits closed out wave 1a's opening tasks.
-`5be77ab` migrates the three DEV-NET demands, the scenario matrix and the question bank to clock time
-(08:00-09:00). Every rebuilt asset re-passes its own check (peak 16.5 %, incident teleport-free, every
-row's §4.5 effect, 117 questions), and `verify/` and the runner test start SUMO at 08:00. **E3.8 is
-Done.** `c912797` accepts ADR-0027 (nested contrasts oriented by code, not by how a request happens to
-word them). **E5.13 is Done**, which unblocks E3.7, E5.2, E5.4 and E6.7. `07c1705`'s development sweep
-on the rebuilt bank (`v2-e38-forced-1rep`, 117 questions × 1 repetition, $0.99, `EXPERT_VERSION`
-unchanged at v2) clears every E4.2/E4.4 threshold outright (descriptive 1.00, CF direction 1.00, CF band
-1.00). **E4.2 and E4.4 move to ⏳.** The diagnostic family took three more Expert versions after ADR-0029
-added a typed Bottleneck cause per edge (`22ce79a`/`b137b36`). v3 (`c759a21`) fell to Jaccard 0.10
-hunting for facts it had no cheap tool to fetch (`3be6555`), and v4 (prompt-only fix) recovered to
-Jaccard 0.60 and cause accuracy 0.89 on the 20-question diagnostic subset (`v4-diag-1rep`, $0.28). Both
-E4.3 bars are met, with zero margin on the Jaccard side by the maintainer's own account, logged as an
-accepted risk rather than tuned further (`5ea82a8`). **E4.3 moves to ⏳.** `ea4d9d9` reruns the DEV-NET
-demand verification over 19 seeds instead of 9 (peak 16.1 %, still no teleports, conclusion unchanged).
-Together, E3.8 and E5.13 done plus E4.2-E4.4 (and E4.5, already ⏳) all ✅ or ⏳ clears **M2**'s
-build-milestone bar. **M2 is met**, 11 days ahead of its 9 Oct target.
+Since the last review (`c7a54d2`, 2026-09-28), nine commits landed, none of them changing a task's
+status. Six (`f2d73bc`…`974b933`) split the `run_study` Executor, already ✅ under E5.10, out of a
+single 955-line use case into `application/executor/` (`steps`, `expert_round`, `closing`,
+`plan_validation`, `failures`, `recorder`, `spend`, `planning`, `deps`), recorded as ADR-0030; every
+commit message states "no behaviour change" and the same GP-shaped tests in
+`test_run_study.py`/`test_plan_validation.py`/`test_failures.py` still pass. The other three
+(`258b4b8`, `e064862`, `644717f`, plus `0224bdb`) add `config/prices.toml` as the single priced-model
+source (`UnknownModelError` on anything absent from it) and `eval/paid_runs.py`, a shared cost-capped
+job runner (resume-by-key, the $1 gate, per-worker in-flight reservation) that `expert_benchmark`,
+`parser_benchmark` and `hygiene_probes` now all run through instead of three separate ad hoc loops;
+`Usage.cost_usd` also starts carrying OpenRouter's real reported cost next to the estimate. This is
+infrastructure hardening for the paid measurement runs V1/V2 still need (E4.7, E5.1's second held-out
+use, E5.8), cheaper to trust when those runs happen, but none of them ran this week, so no ⏳ task
+crosses its bar and no build milestone moves. E5.10 and E7.4's rows note the refactor and the new
+per-call real-cost field below; no other row changed.
 
-By plan points, 374 of 954 (39.2 %) are in ✅ tasks, 92 in ⏳, 14 in 🔄. Verified now in a system Python
-3.11 venv (no `resto` conda env in this container): `eclipse-sumo`/`sumolib`/`traci` installed from PyPI
-via `pip install -e ".[dev]"`, which puts the `sumo` binary on `PATH`; `SUMO_HOME` left unset, since
-`conftest.py` warns the pinned PyPI SUMO needs it unset. `pytest -q` 923 passed, 1 skipped (the same
-pre-existing fixture that needs a locally-generated, uncommitted run directory); `ruff check .` clean;
-`mypy` clean
-(259 source files, same file list as last review). See `docs/feasability-analisis/2026-09-28.md`.
+By plan points, 374 of 954 (39.2 %) are in ✅ tasks, 92 in ⏳, 14 in 🔄, unchanged from last review.
+Verified now in a system Python 3.11 venv (no `resto` conda env in this container): `eclipse-sumo`
+1.27.1, `sumolib`, `traci` installed from PyPI via `pip install -e ".[dev]"`, which puts the `sumo`
+binary on `PATH`; `SUMO_HOME` left unset, since `conftest.py` warns the pinned PyPI SUMO needs it
+unset. `pytest -q` 964 passed, 1 skipped (same pre-existing fixture needing a locally-generated,
+uncommitted run directory), up from 923 passed, consistent with the new executor-package and
+`paid_runs` tests. `ruff check .` clean. `mypy` (run with no path argument, so it honours
+`pyproject.toml`'s `files` list rather than walking the whole tree; running it as `mypy .` instead
+surfaces 7 pre-existing errors in the deliberately-excluded `eval/dev-net/demand/sim_utils.py`, a false
+alarm, not a regression) is clean over 275 source files, up from 259 at the last review by roughly the
+11 new executor-package modules plus `eval/paid_runs.py` and their tests. See
+`docs/feasability-analisis/2026-09-29.md`.
 
 ---
 
@@ -140,7 +143,7 @@ still wires them to a `_Pending` stub.
 | E5.7 | Output Composer Done: automatic traceability checker; faithfulness rubric on 20 V2 reports | ⬜ | Wave 5 (checker) / F (rubric) |
 | E5.8 | Stability: 3 repeated runs of Input Parser + Coordinator benchmarks, read from V2 | ⬜ | Wave F. Parser half reads N4 (E5.1's second held-out use); Coordinator half reads E5.5's 3-rep run |
 | E5.9 | Domain change (ADR-0023/0025): `Phase`, `Study.phases`, typed `PlanStep` union, `StepError`, `ExpertRound.forced_by_limit`; schemas regenerated | ✅ | 2026-09-23, commit `a3a363a`: `domain/entities/study.py` gains `Phase`/`Study.phases`, `domain/value_objects/study_plan.py` gains the discriminated `PlanStep` union. Schemas and `docs/class_diagram.md` regenerated same commit. Verified now: `test_study.py`/`test_study_plan.py` exercise the invariants directly |
-| E5.10 | Executor (`run_study`, deterministic code): resolves `FromStep`, calls specialists, guards in code, runs `ask_expert`/`compose_report` itself; agent ports + composition root; note writer | ✅ | 2026-09-23, commit `6ccb66b` (976 new lines): parse → `Study` → per-phase plan → semantic validation → step execution → forced-last-round Expert loop → note writer → report, `StepError` classified into `user_input`/`budget`/`agent`/`infrastructure`. Verified now: `test_run_study.py` (965 lines, 29 test functions) covers GP-1/GP-2/GP-3-shaped scenarios, forced mode, every `StepError.kind`, budget accounting |
+| E5.10 | Executor (`run_study`, deterministic code): resolves `FromStep`, calls specialists, guards in code, runs `ask_expert`/`compose_report` itself; agent ports + composition root; note writer | ✅ | 2026-09-23, commit `6ccb66b` (976 new lines): parse → `Study` → per-phase plan → semantic validation → step execution → forced-last-round Expert loop → note writer → report, `StepError` classified into `user_input`/`budget`/`agent`/`infrastructure`. Verified now: `test_run_study.py` (965 lines, 29 test functions) covers GP-1/GP-2/GP-3-shaped scenarios, forced mode, every `StepError.kind`, budget accounting. 2026-09-29 (`f2d73bc`…`974b933`, ADR-0030): moved verbatim out of `run_study.py` into `application/executor/` as nine modules by responsibility (steps, Expert round, closing, plan validation, failure table, recorder, spend, planning); `TODO(E5.3)`'s multi-network `ExpertTask` gap is still open. Still no behaviour change, this task's own Done bar was already met and stays met |
 | E5.11 | Deterministic rendering (ADR-0025) of `failed`/`awaiting_user` studies in `interface/render.py`; CLI error when no `Study` is created | ✅ | 2026-09-23, commit `9f13608`: `render_study` produces the three-block failure render and an `awaiting_user` render. Verified now: `test_render.py` parametrises every `StepErrorKind`; `test_main.py` covers both CLI paths |
 | E5.12 | Domain change (ADR-0027): `Arm`, `Contrast`, `Question.arms`/`contrasts`, `required_arms`/`reference_arms`, `AddEdge.edge_id`, `arm` on plan/experiment types | ✅ | 2026-09-23, commit `cfb9711`: `domain/value_objects/arm.py`, `Question.arms`/`.contrasts` with `effective_arms`/`effective_contrasts`. This task's own scope is domain-only, met: `test_arm.py` + `test_experiment_design.py`. ADR-0027 itself is now **Accepted** (2026-09-25, E5.13, ✅) |
 | E5.13 | *(new 2026-09-24)* Accept or change-then-accept ADR-0027 (arms and contrasts) — roots E3.7, E5.2, E5.4, E6.7 | ✅ | 2026-09-25, commit `c912797`: `docs/adr/0027-experiment-arms-and-contrasts.md`'s status line now reads "Accepted (2026-09-24, E5.13, with the contrast-direction rule added to §1)". The change resolved during acceptance: of two nested arms, the one contained in the other is always the reference regardless of how a request wrote the contrast (`Question.effective_contrasts` now orients every such pair). The blind annotation for E5.1 had written two of three multi-arm contrasts backwards, and both had scored as correct under the old rule. Planning/plan-validation use (E5.2/E5.10) and Expert/Composer use (E5.3/E5.4) remain pending, as the ADR's own status line says, but this task's own scope (accept, or change-then-accept) is met |
@@ -164,7 +167,7 @@ still wires them to a `_Pending` stub.
 | E7.1 | Golden-path test framework; GP-1…GP-5 and GP-9 (moved here in v0.3) | ⬜ | Wave 1b. No `golden/` directory or golden-path test framework found in the repo this review |
 | E7.2 | GP-6 (dynamic path) and GP-7 (compare) | ⬜ | Wave 2 |
 | E7.3 | Failure-injection suite across golden paths (incl. script lint/dry-run, agent budget) | ⬜ | Wave 5 |
-| E7.4 | Cost/latency per golden path recorded | ⬜ | Wave F |
+| E7.4 | Cost/latency per golden path recorded | ⬜ | Wave F, reads V2 traces per E7.5. 2026-09-29 (`e064862`): `Usage.cost_usd` now carries OpenRouter's real per-study cost next to the estimate, so a trace can show it once golden paths exist. The measurement itself still waits on E7.1/E7.5 |
 | E7.5 | Full run: 11/11 golden paths × 3 → **M6** measurement | ⬜ | Wave F |
 | E7.6 | Code freeze: tag, README, reproducibility package (packaging only after feature freeze, v0.3 scope change) | ⬜ | Wave F, deadline Wed 10 Feb |
 | E7.7 | *(Stretch)* usability session with 2–3 DLR engineers | ⬜ | Not counted — only attempted if M6 lands on time |
