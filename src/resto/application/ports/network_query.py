@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
+from pathlib import Path
 from typing import Any, Protocol
 
 
@@ -17,3 +18,7 @@ class NetworkQuery(Protocol):
     def edges_in_bbox(self, bbox: tuple[float, float, float, float]) -> Sequence[str]: ...
     def capacity_estimate(self, edge_id: str) -> float: ...
     def get_tls(self, tls_id: str) -> Mapping[str, Any]: ...
+
+
+NetworkQueryFactory = Callable[[Path], NetworkQuery]
+"""Opens a `NetworkQuery` over the `.net.xml` at a path."""

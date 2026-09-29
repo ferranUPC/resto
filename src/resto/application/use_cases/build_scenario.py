@@ -32,41 +32,25 @@ Promotion order (ADR-0001):
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from pathlib import Path
 
-from resto.application.ports.llm import AgentRun, StopReason
-from resto.application.ports.network_query import NetworkQuery
+from resto.application.ports.llm import AgentRun
+from resto.application.ports.network_query import NetworkQuery, NetworkQueryFactory
 from resto.application.ports.repositories import (
     DemandRepository,
     NetworkRepository,
     ScenarioRepository,
 )
 from resto.application.ports.sumo import SumoRunner
+from resto.application.promotion import Blame, DraftRejected, require_draft
 from resto.domain.entities.scenario import Scenario
 from resto.domain.services.content_hash import compute_content_hash
 from resto.domain.services.ids import scenario_id_for
+from resto.domain.services.ownership import ensure_demand_on_network
 from resto.domain.value_objects.drafts import ScenarioDraft
 from resto.domain.value_objects.intervention_target import EdgeTarget, LaneTarget, TlsTarget
 from resto.domain.value_objects.mechanism import RegenerateDemandMechanism
 from resto.domain.value_objects.tasks import ScenarioTask
-
-NetworkQueryFactory = Callable[[Path], NetworkQuery]
-
-
-class BuilderRunFailed(RuntimeError):
-    """The Builder agent stopped (budget/error) without a usable `ScenarioDraft`."""
-
-
-class ScenarioSemanticError(ValueError):
-    """The draft references state that does not hold: an unknown id, a demand from the wrong
-    network, or a cfg SUMO refuses to load."""
-
-
-class UnknownTargetError(ScenarioSemanticError):
-    """An implemented intervention targets an edge, lane or tls the network does not have: the
-    user's question named it (`StepError(user_input)`), unlike the other semantic errors, which
-    point at a wrong plan or draft."""
 
 
 def build_scenario(
@@ -80,31 +64,15 @@ def build_scenario(
     runner: SumoRunner,
     out_dir: Path,
 ) -> Scenario:
-    if run.stop_reason is not StopReason.OUTPUT or run.output is None:
-        raise BuilderRunFailed(f"scenario_builder stopped on {run.stop_reason} without a draft")
-    draft = run.output
+    draft = require_draft(run, "scenario_builder")
 
     network = networks.get(task.network_id)
     if network is None:
-        raise ScenarioSemanticError(f"unknown network_id {task.network_id!r}")
-    demand = demands.get(task.demand_id)
-    if demand is None:
-        raise ScenarioSemanticError(f"unknown demand_id {task.demand_id!r}")
-    if demand.network_id != task.network_id:
-        raise ScenarioSemanticError(
-            f"demand {task.demand_id!r} belongs to network {demand.network_id!r}, "
-            f"not {task.network_id!r}"
-        )
+        raise DraftRejected(f"unknown network_id {task.network_id!r}")
+    _check_demand_on_network(demands, task.demand_id, task.network_id, "demand")
     effective_demand_id = _effective_demand_id(draft, task.demand_id)
     if effective_demand_id != task.demand_id:
-        derived_demand = demands.get(effective_demand_id)
-        if derived_demand is None:
-            raise ScenarioSemanticError(f"unknown derived demand_id {effective_demand_id!r}")
-        if derived_demand.network_id != task.network_id:
-            raise ScenarioSemanticError(
-                f"derived demand {effective_demand_id!r} belongs to network "
-                f"{derived_demand.network_id!r}, not {task.network_id!r}"
-            )
+        _check_demand_on_network(demands, effective_demand_id, task.network_id, "derived demand")
 
     query = network_query_factory(network.net_xml.path)
     _check_targets_exist(draft, query)
@@ -118,7 +86,7 @@ def build_scenario(
 
     output = runner.run_batch(draft.sumocfg, seed=0, out_dir=out_dir / scenario_id / "load_check")
     if not output.ok:
-        raise ScenarioSemanticError(f"SUMO rejected the scenario cfg: {output.error}")
+        raise DraftRejected(f"SUMO rejected the scenario cfg: {output.error}")
 
     scenario = Scenario(
         scenario_id=scenario_id,
@@ -136,6 +104,18 @@ def build_scenario(
     return scenario
 
 
+def _check_demand_on_network(
+    demands: DemandRepository, demand_id: str, network_id: str, label: str
+) -> None:
+    demand = demands.get(demand_id)
+    if demand is None:
+        raise DraftRejected(f"unknown {label}_id {demand_id!r}")
+    try:
+        ensure_demand_on_network(demand, network_id, label=label)
+    except ValueError as e:
+        raise DraftRejected(str(e)) from e
+
+
 def _effective_demand_id(draft: ScenarioDraft, task_demand_id: str) -> str:
     """The demand actually referenced by `draft.sumocfg`'s routes: `task_demand_id` unless a
     `demand_scale` intervention was accepted, in which case it is that mechanism's derived
@@ -145,6 +125,12 @@ def _effective_demand_id(draft: ScenarioDraft, task_demand_id: str) -> str:
     return regenerated[-1].demand_id if regenerated else task_demand_id
 
 
+def _unknown_target(what: str) -> DraftRejected:
+    """The user's question named it (`StepError(user_input)`), unlike the other rejections, which
+    point at a wrong plan or draft."""
+    return DraftRejected(what, blame=Blame.USER)
+
+
 def _check_targets_exist(draft: ScenarioDraft, query: NetworkQuery) -> None:
     """Re-checks every implemented intervention's target against the network directly, rather
     than trusting the agent's own `edge_exists`/`lane_exists` calls (ADR-0001 step 2: semantic
@@ -152,13 +138,13 @@ def _check_targets_exist(draft: ScenarioDraft, query: NetworkQuery) -> None:
     for intervention in draft.interventions:
         target = intervention.target
         if isinstance(target, EdgeTarget) and not query.has_edge(target.edge_id):
-            raise UnknownTargetError(f"unknown edge {target.edge_id!r}")
+            raise _unknown_target(f"unknown edge {target.edge_id!r}")
         if isinstance(target, LaneTarget) and not query.has_lane(
             target.edge_id, target.lane_index
         ):
-            raise UnknownTargetError(f"unknown lane {target.lane_id!r}")
+            raise _unknown_target(f"unknown lane {target.lane_id!r}")
         if isinstance(target, TlsTarget) and not query.has_tls(target.tls_id):
-            raise UnknownTargetError(f"unknown tls {target.tls_id!r}")
+            raise _unknown_target(f"unknown tls {target.tls_id!r}")
 
 
 def _content_hash(draft: ScenarioDraft) -> str:

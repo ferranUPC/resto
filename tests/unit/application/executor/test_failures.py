@@ -7,7 +7,7 @@ import pytest
 
 from resto.application.executor.failures import StepFailed, draft_of, fail, promote
 from resto.application.ports.llm import AgentRun, StopReason
-from resto.application.use_cases.build_scenario import UnknownTargetError
+from resto.application.promotion import Blame, DraftRejected
 from resto.domain.value_objects.step_record import StepError, StepErrorKind, Usage
 
 USAGE = Usage(input_tokens=10, output_tokens=5)
@@ -40,10 +40,18 @@ def test_promote_lets_an_already_classified_failure_pass_unchanged() -> None:
     assert _promotion_failure(classified) is classified
 
 
-def test_promote_classifies_an_unknown_target_as_user_input_before_value_error() -> None:
-    failure = _promotion_failure(UnknownTargetError("edge 'e9' is not in the network"))
+def test_promote_classifies_a_draft_rejected_for_the_user_as_user_input() -> None:
+    failure = _promotion_failure(
+        DraftRejected("unknown edge 'e9'", blame=Blame.USER)
+    )
 
-    assert failure.error == StepError(StepErrorKind.USER_INPUT, "edge 'e9' is not in the network")
+    assert failure.error == StepError(StepErrorKind.USER_INPUT, "unknown edge 'e9'")
+
+
+def test_promote_classifies_a_draft_rejected_for_the_agent_as_agent() -> None:
+    failure = _promotion_failure(DraftRejected("evidence ref 'q9' matches no tool call"))
+
+    assert failure.error == StepError(StepErrorKind.AGENT, "evidence ref 'q9' matches no tool call")
 
 
 def test_promote_classifies_not_implemented_as_infrastructure() -> None:

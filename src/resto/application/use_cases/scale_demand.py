@@ -20,6 +20,7 @@ from resto.application.ports.repositories import DemandRepository
 from resto.application.ports.sumo import DemandScaler, DemandTools
 from resto.domain.entities.demand import Demand
 from resto.domain.entities.network import Network
+from resto.domain.services.ownership import ensure_demand_on_network
 
 
 def scale_demand(
@@ -37,11 +38,7 @@ def scale_demand(
     Raises:
         ValueError: `factor` is not positive, or `demand.network_id != network.network_id`.
     """
-    if demand.network_id != network.network_id:
-        raise ValueError(
-            f"demand {demand.demand_id!r} belongs to network {demand.network_id!r}, "
-            f"not {network.network_id!r}"
-        )
+    ensure_demand_on_network(demand, network.network_id)
 
     new_trips = scaler.scale(demand.trips, factor, out_dir)
     demand_id = new_trips.content_hash

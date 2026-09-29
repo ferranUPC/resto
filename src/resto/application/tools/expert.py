@@ -24,7 +24,7 @@ Two things are added on top of plain delegation, both bound in `build_expert_too
 from __future__ import annotations
 
 import statistics
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from typing import Any
@@ -36,11 +36,13 @@ from resto.application.ports.repositories import (
     ResultRepository,
     ScenarioRepository,
 )
+from resto.application.promotion import DraftRejected
 from resto.application.schemas import adapter_for
 from resto.application.tools.network import build_network_tools
 from resto.domain.entities.expert_note import ExpertNote
 from resto.domain.entities.scenario import Scenario
 from resto.domain.entities.simulation_result import SimulationResult
+from resto.domain.value_objects.expert_answer import Evidence, EvidenceKind
 from resto.domain.value_objects.tasks import ExpertTask
 
 EXPERT_NETWORK_TOOLS = (
@@ -121,6 +123,20 @@ class EvidenceLedger:
                 for result in entry.result:
                     ids |= _artifact_ids(result)
         return frozenset(ids)
+
+    def ensure_cited(self, evidence: Iterable[Evidence]) -> None:
+        """Rejects a citation the run cannot back: a query ref that is no recorded tool call, or
+        an artifact no result tool call returned."""
+        artifact_ids = self.artifact_ids()
+        for item in evidence:
+            if item.kind is EvidenceKind.QUERY and self.get(item.ref) is None:
+                raise DraftRejected(
+                    f"evidence ref {item.ref!r} does not match any tool call of this run"
+                )
+            if item.kind is EvidenceKind.ARTIFACT and item.ref not in artifact_ids:
+                raise DraftRejected(
+                    f"artifact {item.ref!r} was not returned by any result tool call of this run"
+                )
 
 
 def _artifact_ids(result: Mapping[str, Any]) -> set[str]:

@@ -9,12 +9,9 @@ from dataclasses import replace
 import pytest
 
 from resto.application.ports.llm import AgentRun, StopReason
+from resto.application.promotion import DraftRejected, RunWithoutDraft
 from resto.application.tools.expert import EvidenceLedger
-from resto.application.use_cases.ask_expert import (
-    ExpertAnswerRejected,
-    ExpertRunFailed,
-    ask_expert,
-)
+from resto.application.use_cases.ask_expert import ask_expert
 from resto.domain.value_objects.answer_value import (
     AnswerValue,
     BottleneckCause,
@@ -111,25 +108,25 @@ def test_artifact_evidence_resolves_by_path_or_content_hash(ref: str) -> None:
 
 @pytest.mark.parametrize("stop", [StopReason.BUDGET, StopReason.ERROR])
 def test_a_run_without_an_answer_fails(stop: StopReason) -> None:
-    with pytest.raises(ExpertRunFailed):
+    with pytest.raises(RunWithoutDraft):
         ask_expert(_task(), _run(None, stop), _ledger(), query=QUERY)
 
 
 def test_a_query_ref_not_in_the_ledger_is_rejected() -> None:
     answer = _answer(Evidence(kind=EvidenceKind.QUERY, ref="q9"))
-    with pytest.raises(ExpertAnswerRejected, match="q9"):
+    with pytest.raises(DraftRejected, match="q9"):
         ask_expert(_task(), _run(answer), _ledger(), query=QUERY)
 
 
 def test_a_ref_invented_in_another_format_is_rejected() -> None:
     answer = _answer(Evidence(kind=EvidenceKind.QUERY, ref="query_edgedata:r1"))
-    with pytest.raises(ExpertAnswerRejected):
+    with pytest.raises(DraftRejected):
         ask_expert(_task(), _run(answer), _ledger(), query=QUERY)
 
 
 def test_an_artifact_no_result_call_returned_is_rejected() -> None:
     answer = _answer(Evidence(kind=EvidenceKind.ARTIFACT, ref="/runs/other/edgedata.xml"))
-    with pytest.raises(ExpertAnswerRejected, match="artifact"):
+    with pytest.raises(DraftRejected, match="artifact"):
         ask_expert(_task(), _run(answer), _ledger(), query=QUERY)
 
 
@@ -148,7 +145,7 @@ def test_an_artifact_no_result_call_returned_is_rejected() -> None:
     ],
 )
 def test_an_edge_that_is_not_on_the_network_is_rejected(value: AnswerValue) -> None:
-    with pytest.raises(ExpertAnswerRejected, match="Z9Z9"):
+    with pytest.raises(DraftRejected, match="Z9Z9"):
         ask_expert(_task(), _run(_answer(values=(value,))), _ledger(), query=QUERY)
 
 
@@ -171,7 +168,7 @@ def test_network_wide_values_need_no_edge_check() -> None:
 
 
 def test_forced_mode_never_abstains() -> None:
-    with pytest.raises(ExpertAnswerRejected, match="forced"):
+    with pytest.raises(DraftRejected, match="forced"):
         ask_expert(_task(Mode.FORCED), _run(_abstention()), _ledger(), query=QUERY)
 
 
@@ -187,7 +184,7 @@ def test_proposed_experiment_without_a_network_ref_is_accepted() -> None:
 
 
 def test_proposed_experiment_on_another_network_is_rejected() -> None:
-    with pytest.raises(ExpertAnswerRejected, match="network"):
+    with pytest.raises(DraftRejected, match="network"):
         ask_expert(
             _task(Mode.FREE), _run(_abstention(network_ref="other")), EvidenceLedger(), query=QUERY
         )

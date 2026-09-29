@@ -25,13 +25,10 @@ from resto.adapters.llm.agents.expert import EXPERT_VERSION, run_expert
 from resto.application.ports.llm import Budget, ToolAgent
 from resto.application.ports.network_query import NetworkQuery
 from resto.application.ports.repositories import ResultRepository, ScenarioRepository
+from resto.application.promotion import DraftRejected, RunWithoutDraft
 from resto.application.schemas import adapter_for
 from resto.application.tools.expert import EvidenceLedger
-from resto.application.use_cases.ask_expert import (
-    ExpertAnswerRejected,
-    ExpertRunFailed,
-    ask_expert,
-)
+from resto.application.use_cases.ask_expert import ask_expert
 from resto.domain.value_objects.expert_answer import ExpertAnswer
 from resto.domain.value_objects.question import Mode
 
@@ -136,7 +133,7 @@ def _run_once(
     rejection: str | None = None
     try:
         ask_expert(task, run, ledger, query=env.query)
-    except (ExpertRunFailed, ExpertAnswerRejected) as exc:
+    except (RunWithoutDraft, DraftRejected) as exc:
         rejection = str(exc)
     return {
         "question_id": question.id,

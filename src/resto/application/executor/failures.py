@@ -4,9 +4,9 @@ A step fails by raising `StepFailed`, which carries the `StepError` and what the
 table it implements:
 
 - a run cut by its own budget -> `budget`; any other run without a draft -> `agent` (`draft_of`);
-- a promotion that raises (`promote`): `UnknownTargetError` -> `user_input` (a target the network
-  lacks was named by the user), `NotImplementedError` -> `infrastructure`, any other `ValueError`
-  (a rejected draft) -> `agent`, anything else -> `infrastructure`;
+- a promotion that raises (`promote`): a `DraftRejected` blaming the user -> `user_input` (a target
+  the network lacks was named by the user), `NotImplementedError` -> `infrastructure`, any other
+  `ValueError` (a rejected draft) -> `agent`, anything else -> `infrastructure`;
 - an exception nothing classified -> `infrastructure` (`crash`).
 """
 
@@ -16,7 +16,7 @@ from collections.abc import Callable
 from typing import NoReturn, TypeVar
 
 from resto.application.ports.llm import AgentRun, StopReason
-from resto.application.use_cases.build_scenario import UnknownTargetError
+from resto.application.promotion import Blame, DraftRejected, RunWithoutDraft, require_draft
 from resto.domain.value_objects.step_record import StepError, StepErrorKind, Usage
 
 T = TypeVar("T")
@@ -38,26 +38,24 @@ def fail(kind: StepErrorKind, message: str, *details: str, usage: Usage | None =
 def draft_of(run: AgentRun[T], agent: str) -> T:
     """The draft of a finished run, classified before any promotion sees it: a run cut by its
     budget is `budget`, any other run without a draft is `agent`."""
-    if run.stop_reason is StopReason.OUTPUT and run.output is not None:
-        return run.output
-    if run.stop_reason is StopReason.BUDGET:
-        fail(StepErrorKind.BUDGET, f"{agent} ran out of its budget", usage=run.usage)
-    fail(
-        StepErrorKind.AGENT,
-        f"{agent} stopped on {run.stop_reason} without a draft",
-        usage=run.usage,
-    )
+    try:
+        return require_draft(run, agent)
+    except RunWithoutDraft as e:
+        if e.stop_reason is StopReason.BUDGET:
+            fail(StepErrorKind.BUDGET, f"{agent} ran out of its budget", usage=run.usage)
+        fail(StepErrorKind.AGENT, str(e), usage=run.usage)
 
 
 def promote(call: Callable[[], T], usage: Usage) -> T:
-    """Runs a promotion: a target the network lacks is the user's (`user_input`), any other
-    rejected draft the agent's (`agent`), anything else `infrastructure`."""
+    """Runs a promotion: a draft rejected on the user's account (a target the network lacks) is
+    `user_input`, any other rejected draft the agent's (`agent`), anything else `infrastructure`."""
     try:
         return call()
     except StepFailed:
         raise
-    except UnknownTargetError as e:  # a ScenarioSemanticError, so a ValueError: checked first
-        fail(StepErrorKind.USER_INPUT, str(e), usage=usage)
+    except DraftRejected as e:
+        kind = StepErrorKind.USER_INPUT if e.blame is Blame.USER else StepErrorKind.AGENT
+        fail(kind, str(e), usage=usage)
     except NotImplementedError as e:
         fail(StepErrorKind.INFRASTRUCTURE, describe(e), usage=usage)
     except ValueError as e:
