@@ -35,6 +35,7 @@ from resto.adapters.tracing.jsonl import JsonlTracer
 from resto.application.executor import StudyAgents, StudyDeps, StudyPromotions, StudySettings
 from resto.application.ports.llm import Budget, ToolAgent
 from resto.application.ports.tracing import Tracer
+from resto.application.tools.scenario_builder import BuilderCollaborators
 from resto.application.use_cases.run_study import ParserFailed, run_study
 from resto.domain.entities.study import StudyStatus
 from resto.domain.value_objects.question import Mode
@@ -72,16 +73,18 @@ def build_deps(
             scenario_builder=ScenarioBuilderPort(
                 agent=agent,
                 budget=budget,
-                networks=db.networks,
-                demands=db.demands,
-                network_query_factory=SumolibNetworkQuery,
-                rerouter_writer=RerouterWriter(),
-                vss_writer=VssWriter(),
-                tls_program_writer=TlsProgramWriter(),
-                sumocfg_writer=SumocfgFileWriter(),
-                demand_scaler=SumoDemandScaler(),
-                duarouter=SumoDemandTools(),
-                out_dir=out_dir / "builder",
+                collaborators=BuilderCollaborators(
+                    networks=db.networks,
+                    demands=db.demands,
+                    network_query_factory=SumolibNetworkQuery,
+                    rerouter_writer=RerouterWriter(),
+                    vss_writer=VssWriter(),
+                    tls_program_writer=TlsProgramWriter(),
+                    sumocfg_writer=SumocfgFileWriter(),
+                    demand_scaler=SumoDemandScaler(),
+                    duarouter=SumoDemandTools(),
+                    out_dir=out_dir / "builder",
+                ),
             ),
             expert=ExpertPort(
                 agent=agent,

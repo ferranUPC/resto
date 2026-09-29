@@ -8,10 +8,13 @@ from pathlib import Path
 
 import pytest
 
+from resto.adapters.persistence.memory import InMemoryNetworkRepository
 from resto.adapters.sumo.netxml import SumolibNetworkQuery
 from resto.application.ports.network_query import NetworkQuery
 from resto.application.ports.writers import SimulationSettings
 from resto.application.tools.scenario_builder import (
+    BuilderCollaborators,
+    BuilderRequest,
     build_scenario_builder_tools,
     edge_exists,
     lane_exists,
@@ -203,24 +206,30 @@ def _builder_tools(  # noqa: ANN201
     demands=None,  # noqa: ANN001
     interventions=None,  # noqa: ANN001
 ):
-    return build_scenario_builder_tools(
-        query=query or SumolibNetworkQuery(DEV_NET),
-        interventions=interventions if interventions is not None else (lane_closure(),),
-        net_file=Path("net.xml"),
-        route_files=(Path("routes.rou.xml"),),
-        begin=0.0,
-        end=3600.0,
+    collaborators = BuilderCollaborators(
+        networks=InMemoryNetworkRepository(),
+        demands=demands or RecordingDemandRepository(),
+        network_query_factory=SumolibNetworkQuery,
         rerouter_writer=rerouter_writer or RecordingAdditionalFileWriter(),
         vss_writer=vss_writer or RecordingAdditionalFileWriter(),
         tls_program_writer=tls_program_writer or RecordingAdditionalFileWriter(),
         sumocfg_writer=sumocfg_writer or RecordingWriter(),
-        demand=sample_demand(),
-        network=sample_network(),
         demand_scaler=demand_scaler or RecordingDemandScaler(),
         duarouter=duarouter or RecordingDuarouter(),
-        demands=demands or RecordingDemandRepository(),
         out_dir=tmp_path,
     )
+    request = BuilderRequest(
+        interventions=interventions if interventions is not None else (lane_closure(),),
+        query=query or SumolibNetworkQuery(DEV_NET),
+        network=sample_network(),
+        demand=sample_demand(),
+        net_file=Path("net.xml"),
+        route_files=(Path("routes.rou.xml"),),
+        begin=0.0,
+        end=3600.0,
+        out_dir=tmp_path,
+    )
+    return build_scenario_builder_tools(collaborators, request)
 
 
 def test_builds_exactly_the_e2_3_tool_set(tmp_path: Path) -> None:

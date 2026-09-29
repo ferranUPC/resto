@@ -12,19 +12,14 @@ the agent.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
 from dataclasses import asdict, dataclass
-from pathlib import Path
 
 from resto.application.ports.llm import AgentRun, AgentTask, Budget, ToolAgent
-from resto.application.ports.network_query import NetworkQuery
-from resto.application.ports.repositories import DemandRepository, NetworkRepository
-from resto.application.ports.sumo import DemandScaler, DemandTools
-from resto.application.ports.writers import AdditionalFileWriter, SumocfgWriter
-from resto.application.tools.scenario_builder import build_scenario_builder_tools
-from resto.domain.entities.demand import Demand
-from resto.domain.entities.network import Network
-from resto.domain.services.ids import scenario_id_for
+from resto.application.tools.scenario_builder import (
+    BuilderCollaborators,
+    build_scenario_builder_tools,
+    builder_request,
+)
 from resto.domain.value_objects.drafts import ScenarioDraft
 from resto.domain.value_objects.tasks import ScenarioTask
 
@@ -86,91 +81,24 @@ def run_scenario_builder(
     task: ScenarioTask,
     agent: ToolAgent,
     budget: Budget,
-    *,
-    query: NetworkQuery,
-    net_file: Path,
-    route_files: Sequence[Path],
-    begin: float,
-    end: float | None,
-    rerouter_writer: AdditionalFileWriter,
-    vss_writer: AdditionalFileWriter,
-    tls_program_writer: AdditionalFileWriter,
-    sumocfg_writer: SumocfgWriter,
-    demand: Demand,
-    network: Network,
-    demand_scaler: DemandScaler,
-    duarouter: DemandTools,
-    demands: DemandRepository,
-    out_dir: Path,
+    collaborators: BuilderCollaborators,
 ) -> AgentRun[ScenarioDraft]:
     """Runs the Builder on `task` and returns its `AgentRun[ScenarioDraft]` — still a draft;
     promotion (id checks, SUMO load check, `scenario_id` construction, persistence) is
     `application/use_cases/build_scenario.py`'s job, not this module's."""
-    tools = build_scenario_builder_tools(
-        query=query,
-        interventions=task.interventions,
-        net_file=net_file,
-        route_files=route_files,
-        begin=begin,
-        end=end,
-        rerouter_writer=rerouter_writer,
-        vss_writer=vss_writer,
-        tls_program_writer=tls_program_writer,
-        sumocfg_writer=sumocfg_writer,
-        demand=demand,
-        network=network,
-        demand_scaler=demand_scaler,
-        duarouter=duarouter,
-        demands=demands,
-        out_dir=out_dir,
-    )
+    request = builder_request(collaborators, task)
+    tools = build_scenario_builder_tools(collaborators, request)
     return agent.run(build_task(task), tools, ScenarioDraft, budget)
 
 
 @dataclass(frozen=True, slots=True)
 class ScenarioBuilderPort:
-    """`ScenarioBuilderAgent` port (ADR-0025 §6) over `run_scenario_builder`, with the writers and
-    SUMO tools bound. The simulated interval is the demand's window; each request writes into its
-    own directory, named after the scenario id it asks for."""
+    """`ScenarioBuilderAgent` port (ADR-0025 §6) over `run_scenario_builder`, with the
+    collaborators bound."""
 
     agent: ToolAgent
     budget: Budget
-    networks: NetworkRepository
-    demands: DemandRepository
-    network_query_factory: Callable[[Path], NetworkQuery]
-    rerouter_writer: AdditionalFileWriter
-    vss_writer: AdditionalFileWriter
-    tls_program_writer: AdditionalFileWriter
-    sumocfg_writer: SumocfgWriter
-    demand_scaler: DemandScaler
-    duarouter: DemandTools
-    out_dir: Path
+    collaborators: BuilderCollaborators
 
     def build(self, task: ScenarioTask) -> AgentRun[ScenarioDraft]:
-        network = self.networks.get(task.network_id)
-        demand = self.demands.get(task.demand_id)
-        if network is None or demand is None:
-            raise LookupError(f"network {task.network_id!r} or demand {task.demand_id!r} missing")
-        requested = scenario_id_for(
-            task.network_id, task.demand_id, task.interventions, task.context_tags
-        )
-        return run_scenario_builder(
-            task,
-            self.agent,
-            self.budget,
-            query=self.network_query_factory(network.net_xml.path),
-            net_file=network.net_xml.path,
-            route_files=(demand.routes.path,),
-            begin=demand.spec.window.start,
-            end=demand.spec.window.end,
-            rerouter_writer=self.rerouter_writer,
-            vss_writer=self.vss_writer,
-            tls_program_writer=self.tls_program_writer,
-            sumocfg_writer=self.sumocfg_writer,
-            demand=demand,
-            network=network,
-            demand_scaler=self.demand_scaler,
-            duarouter=self.duarouter,
-            demands=self.demands,
-            out_dir=self.out_dir / requested,
-        )
+        return run_scenario_builder(task, self.agent, self.budget, self.collaborators)

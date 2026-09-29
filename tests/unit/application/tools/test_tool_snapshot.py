@@ -12,6 +12,7 @@ import json
 from pathlib import Path
 
 from resto.adapters.persistence.memory import (
+    InMemoryNetworkRepository,
     InMemoryNoteRepository,
     InMemoryResultRepository,
     InMemoryScenarioRepository,
@@ -20,7 +21,11 @@ from resto.adapters.sumo.netxml import SumolibNetworkQuery
 from resto.application.ports.llm import Tool
 from resto.application.tools.expert import EvidenceLedger, build_expert_tools
 from resto.application.tools.network import build_network_tools
-from resto.application.tools.scenario_builder import build_scenario_builder_tools
+from resto.application.tools.scenario_builder import (
+    BuilderCollaborators,
+    BuilderRequest,
+    build_scenario_builder_tools,
+)
 from resto.domain.value_objects.intervention import Intervention, InterventionType
 from resto.domain.value_objects.intervention_target import LaneTarget
 from resto.domain.value_objects.question import Mode
@@ -74,24 +79,30 @@ def _builder(query: SumolibNetworkQuery) -> tuple[Tool, ...]:
         target=LaneTarget(edge_id="A0A1", lane_index=0),
         window=TimeWindow(0, 3600),
     )
-    return build_scenario_builder_tools(
-        query=query,
-        interventions=(closure,),
-        net_file=Path("net.xml"),
-        route_files=(Path("routes.rou.xml"),),
-        begin=0.0,
-        end=3600.0,
+    collaborators = BuilderCollaborators(
+        networks=InMemoryNetworkRepository(),
+        demands=RecordingDemandRepository(),
+        network_query_factory=SumolibNetworkQuery,
         rerouter_writer=RecordingAdditionalFileWriter(),
         vss_writer=RecordingAdditionalFileWriter(),
         tls_program_writer=RecordingAdditionalFileWriter(),
         sumocfg_writer=RecordingWriter(),
-        demand=sample_demand(),
-        network=sample_network(),
         demand_scaler=RecordingDemandScaler(),
         duarouter=RecordingDuarouter(),
-        demands=RecordingDemandRepository(),
         out_dir=Path("out"),
     )
+    request = BuilderRequest(
+        interventions=(closure,),
+        query=query,
+        network=sample_network(),
+        demand=sample_demand(),
+        net_file=Path("net.xml"),
+        route_files=(Path("routes.rou.xml"),),
+        begin=0.0,
+        end=3600.0,
+        out_dir=Path("out"),
+    )
+    return build_scenario_builder_tools(collaborators, request)
 
 
 def collect() -> dict[str, list[dict[str, object]]]:

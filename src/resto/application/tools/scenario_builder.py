@@ -13,20 +13,23 @@ MCP server (ADR-0009).
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from resto.application.ports.llm import Tool
 from resto.application.ports.network_query import NetworkQuery
-from resto.application.ports.repositories import DemandRepository
+from resto.application.ports.repositories import DemandRepository, NetworkRepository
 from resto.application.ports.sumo import DemandScaler, DemandTools
 from resto.application.ports.writers import AdditionalFileWriter, SimulationSettings, SumocfgWriter
 from resto.application.use_cases.scale_demand import scale_demand as scale_demand_use_case
 from resto.domain.entities.demand import Demand
 from resto.domain.entities.network import Network
+from resto.domain.services.ids import scenario_id_for
 from resto.domain.value_objects.artifact_ref import ArtifactRef
 from resto.domain.value_objects.intervention import Intervention
+from resto.domain.value_objects.tasks import ScenarioTask
 
 
 def edge_exists(query: NetworkQuery, edge_id: str) -> bool:
@@ -217,26 +220,71 @@ _SCALE_DEMAND_SCHEMA = {
 }
 
 
+@dataclass(frozen=True, slots=True)
+class BuilderCollaborators:
+    """Everything the Builder's tools need that does not depend on the task: repositories, the
+    query factory, the writers, the SUMO tools and the root output directory. Built once in the
+    composition root; a new mechanism's collaborator is one more field here."""
+
+    networks: NetworkRepository
+    demands: DemandRepository
+    network_query_factory: Callable[[Path], NetworkQuery]
+    rerouter_writer: AdditionalFileWriter
+    vss_writer: AdditionalFileWriter
+    tls_program_writer: AdditionalFileWriter
+    sumocfg_writer: SumocfgWriter
+    demand_scaler: DemandScaler
+    duarouter: DemandTools
+    out_dir: Path
+
+
+@dataclass(frozen=True, slots=True)
+class BuilderRequest:
+    """What one Builder run is bound to: the task's interventions and the network, demand, files,
+    simulated window and output directory derived from it (`builder_request`)."""
+
+    interventions: Sequence[Intervention]
+    query: NetworkQuery
+    network: Network
+    demand: Demand
+    net_file: Path
+    route_files: Sequence[Path]
+    begin: float
+    end: float | None
+    out_dir: Path
+
+
+def builder_request(collaborators: BuilderCollaborators, task: ScenarioTask) -> BuilderRequest:
+    """Derives the per-request values from the task. The simulated interval is the demand's
+    window; each request writes into its own directory, named after the scenario id it asks for.
+
+    Raises:
+        LookupError: the task's network or demand is not in the repositories.
+    """
+    network = collaborators.networks.get(task.network_id)
+    demand = collaborators.demands.get(task.demand_id)
+    if network is None or demand is None:
+        raise LookupError(f"network {task.network_id!r} or demand {task.demand_id!r} missing")
+    requested = scenario_id_for(
+        task.network_id, task.demand_id, task.interventions, task.context_tags
+    )
+    return BuilderRequest(
+        interventions=task.interventions,
+        query=collaborators.network_query_factory(network.net_xml.path),
+        network=network,
+        demand=demand,
+        net_file=network.net_xml.path,
+        route_files=(demand.routes.path,),
+        begin=demand.spec.window.start,
+        end=demand.spec.window.end,
+        out_dir=collaborators.out_dir / requested,
+    )
+
+
 def build_scenario_builder_tools(
-    *,
-    query: NetworkQuery,
-    interventions: Sequence[Intervention],
-    net_file: Path,
-    route_files: Sequence[Path],
-    begin: float,
-    end: float | None,
-    rerouter_writer: AdditionalFileWriter,
-    vss_writer: AdditionalFileWriter,
-    tls_program_writer: AdditionalFileWriter,
-    sumocfg_writer: SumocfgWriter,
-    demand: Demand,
-    network: Network,
-    demand_scaler: DemandScaler,
-    duarouter: DemandTools,
-    demands: DemandRepository,
-    out_dir: Path,
+    collaborators: BuilderCollaborators, request: BuilderRequest
 ) -> tuple[Tool, ...]:
-    """The Builder's E2.3 tool set, bound to one network/demand/task/output directory.
+    """The Builder's E2.3 tool set, bound to one request's network/demand/task/output directory.
 
     `write_sumocfg` takes no arguments: `net_file`/`begin`/`end` come from the network and demand
     the Coordinator already picked (not something the Builder decides), and the additional files
@@ -245,6 +293,22 @@ def build_scenario_builder_tools(
     `scale_demand` call earlier in the run replaces it with the derived demand's routes (a
     `demand_scale` intervention is network-wide, so at most one such call matters per run).
     """
+    query = request.query
+    interventions = request.interventions
+    out_dir = request.out_dir
+    net_file = request.net_file
+    route_files = request.route_files
+    begin = request.begin
+    end = request.end
+    demand = request.demand
+    network = request.network
+    rerouter_writer = collaborators.rerouter_writer
+    vss_writer = collaborators.vss_writer
+    tls_program_writer = collaborators.tls_program_writer
+    sumocfg_writer = collaborators.sumocfg_writer
+    demand_scaler = collaborators.demand_scaler
+    duarouter = collaborators.duarouter
+    demands = collaborators.demands
     written_additional_files: list[Path] = []
     scaled_routes: list[Path] = []
     scaled_demand_ids: list[str] = []
