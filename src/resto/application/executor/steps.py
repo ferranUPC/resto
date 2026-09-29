@@ -326,7 +326,4 @@ def _verify_notes(
     for note, _ in hits:
         status = update_note_status(note, result, notes=deps.notes)
         if status is not None:
-            recorder.trace(
-                "note_status",
-                {"note_id": note.note_id, "result_id": result.result_id, "status": status},
-            )
+            recorder.note_status_changed(note.note_id, result.result_id, status)

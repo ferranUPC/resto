@@ -44,7 +44,7 @@ def plan_phase(
         return None
     if isinstance(output, ClarificationRequest):
         if k == 0:
-            recorder.trace("clarification", {"reason": output.reason})
+            recorder.clarification_asked(output.reason)
             recorder.replace_phase(
                 replace(phase, clarification=output), status=StudyStatus.AWAITING_USER
             )

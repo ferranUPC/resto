@@ -11,6 +11,7 @@ from resto.application.executor import (
     StudyBudget,
 )
 from resto.application.ports.llm import StopReason
+from resto.application.ports.tracing import NoteStatusChanged, NoteWriterFailed
 from resto.application.use_cases.run_study import ParserFailed
 from resto.domain.constants import DEFAULT_SEEDS
 from resto.domain.entities.expert_note import ExpertNote, NoteStatus, Provenance
@@ -455,7 +456,7 @@ def test_a_new_result_settles_the_unverified_notes_of_its_scenario(tmp_path: Pat
 
     ((hit, _),) = world.notes.search("", NET, {"scenario_id": BASE_SID})
     assert hit.status is NoteStatus.CONFIRMED
-    assert any(event == "note_status" for event, _ in world.tracer.events)
+    assert any(isinstance(e, NoteStatusChanged) for e in world.tracer.events)
 
 
 def test_only_missing_seeds_are_run(tmp_path: Path) -> None:
@@ -507,7 +508,7 @@ def test_a_failing_note_writer_is_traced_and_the_study_completes(tmp_path: Path)
 
     assert study.status is StudyStatus.COMPLETED
     assert study.note_ids == ()
-    assert any(event == "note_writer_failed" for event, _ in world.tracer.events)
+    assert any(isinstance(e, NoteWriterFailed) for e in world.tracer.events)
     assert "note_writer" not in [s.tool for s in study.phases[0].steps]
 
 

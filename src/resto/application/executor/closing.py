@@ -41,7 +41,7 @@ def write_notes(
             notes=deps.notes,
         )
     except Exception as e:
-        recorder.trace("note_writer_failed", {"error": describe(e)})
+        recorder.note_writer_failed(describe(e))
         return
     recorder.set_note_ids(tuple(n.note_id for n in written))
 

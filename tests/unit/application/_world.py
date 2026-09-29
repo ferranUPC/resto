@@ -3,7 +3,7 @@ ports, fake promotions, in-memory repositories, a fake SUMO runner and sample pl
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +26,7 @@ from resto.application.executor import (
 from resto.application.ports.agents.coordinator import PlanningContext
 from resto.application.ports.llm import AgentRun, StopReason
 from resto.application.ports.sumo import RunOutput
+from resto.application.ports.tracing import TraceEvent
 from resto.application.tools.expert import EvidenceLedger
 from resto.application.use_cases.run_study import run_study
 from resto.domain.constants import DEFAULT_SEEDS
@@ -174,11 +175,13 @@ class RecordingStudies(InMemoryStudyRepository):
 
 
 class RecordingTracer:
-    def __init__(self) -> None:
-        self.events: list[tuple[str, Mapping[str, Any]]] = []
+    """The in-memory tracer: keeps the typed events, no JSON in between."""
 
-    def emit(self, study_id: str, event: str, payload: Mapping[str, Any]) -> None:
-        self.events.append((event, payload))
+    def __init__(self) -> None:
+        self.events: list[TraceEvent] = []
+
+    def emit(self, study_id: str, event: TraceEvent) -> None:
+        self.events.append(event)
 
 
 def echo_draft(task: Any) -> AgentRun[ScenarioDraft]:

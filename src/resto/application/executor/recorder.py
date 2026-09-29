@@ -12,8 +12,19 @@ from typing import Any
 
 from resto.application.executor.failures import StepFailed
 from resto.application.ports.repositories import StudyRepository
-from resto.application.ports.tracing import Tracer
+from resto.application.ports.tracing import (
+    ClarificationAsked,
+    NetworksAdded,
+    NoteStatusChanged,
+    NotesWritten,
+    NoteWriterFailed,
+    StepTraced,
+    StudyCreated,
+    TraceEvent,
+    Tracer,
+)
 from resto.application.schemas import adapter_for
+from resto.domain.entities.expert_note import NoteStatus
 from resto.domain.entities.study import Phase, Study, StudyStatus
 from resto.domain.services.ids import new_id
 from resto.domain.value_objects.experiment import Experiment
@@ -25,7 +36,7 @@ from resto.domain.value_objects.study_plan import PlanStep
 
 
 def data(value: Any) -> Mapping[str, Any]:
-    """`value` as the JSON-ready mapping stored in a `StepRecord` or a trace payload."""
+    """`value` as the JSON-ready mapping stored in a `StepRecord`."""
     dumped: Mapping[str, Any] = adapter_for(type(value)).dump_python(value, mode="json")
     return dumped
 
@@ -41,13 +52,13 @@ class StudyRecorder:
         tracer: Tracer,
     ) -> None:
         """Opens the `Study` on phase 0 (`awaiting_user` if the question is ambiguous), stores it
-        and traces it as `study_created`."""
+        and traces it as `StudyCreated`."""
         status = StudyStatus.AWAITING_USER if question.is_ambiguous else StudyStatus.PLANNING
         self._study = Study(new_id(), status, (Phase(question),), max_rounds=max_rounds)
         self._studies = studies
         self._tracer = tracer
         self._studies.store(self._study)
-        self.trace("study_created", {"question": data(question), "parse_usage": parse_usage})
+        self._emit(StudyCreated(question, parse_usage))
 
     # -- reading ------------------------------------------------------------------------------
 
@@ -122,14 +133,20 @@ class StudyRecorder:
             return
         added = merged[len(self._study.network_ids) :]
         self._set(network_ids=merged)
-        self.trace("networks_added", {"network_ids": list(added)})
+        self._emit(NetworksAdded(added))
 
     def set_note_ids(self, note_ids: tuple[str, ...]) -> None:
         self._set(note_ids=note_ids)
-        self.trace("notes_written", {"note_ids": list(note_ids)})
+        self._emit(NotesWritten(note_ids))
 
-    def trace(self, event: str, payload: Mapping[str, Any]) -> None:
-        self._tracer.emit(self._study.study_id, event, payload)
+    def clarification_asked(self, reason: str) -> None:
+        self._emit(ClarificationAsked(reason))
+
+    def note_status_changed(self, note_id: str, result_id: str, status: NoteStatus) -> None:
+        self._emit(NoteStatusChanged(note_id, result_id, status))
+
+    def note_writer_failed(self, error: str) -> None:
+        self._emit(NoteWriterFailed(error))
 
     # -- internals ----------------------------------------------------------------------------
 
@@ -146,15 +163,17 @@ class StudyRecorder:
         self._study = replace(self._study, **changes)
         self._studies.store(self._study)
 
+    def _emit(self, event: TraceEvent) -> None:
+        self._tracer.emit(self._study.study_id, event)
+
     def _trace_step(self, record: StepRecord) -> None:
-        self.trace(
-            "step",
-            {
-                "phase": self.phase_index,
-                "tool": record.tool,
-                "status": record.status,
-                "produced_ids": list(record.produced_ids),
-                "usage": record.usage,
-                "error": record.error,
-            },
+        self._emit(
+            StepTraced(
+                phase=self.phase_index,
+                tool=record.tool,
+                status=record.status,
+                produced_ids=record.produced_ids,
+                usage=record.usage,
+                error=record.error,
+            )
         )

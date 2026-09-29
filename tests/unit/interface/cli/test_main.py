@@ -9,12 +9,13 @@ import pytest
 
 from resto.adapters.persistence.sqlite.repositories import SqliteDatabase
 from resto.application.ports.llm import Budget
+from resto.application.ports.tracing import TraceEvent
 from resto.interface.cli.main import build_deps, main
 from tests.unit.adapters.llm._fakes import FakeToolAgent
 
 
 class NullTracer:
-    def emit(self, study_id: str, event: str, payload: object) -> None:
+    def emit(self, study_id: str, event: TraceEvent) -> None:
         raise AssertionError("no study, no trace")
 
 

@@ -142,7 +142,7 @@ def main(
         db = SqliteDatabase(args.db)
         budget = Budget(config.max_steps, config.max_output_tokens, AGENT_SECONDS)
         tracer = JsonlTracer(args.out / "traces")
-        agent = OpenRouterToolAgent(config, tracer=tracer)
+        agent = OpenRouterToolAgent(config)
         deps = build_deps(db=db, agent=agent, budget=budget, tracer=tracer, out_dir=args.out)
     settings = settings or StudySettings(out_dir=args.out)
     try:
