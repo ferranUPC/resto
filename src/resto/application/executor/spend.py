@@ -20,21 +20,25 @@ T = TypeVar("T")
 
 
 class StudySpend:
-    def __init__(self, budget: StudyBudget, parse_usage: Usage) -> None:
+    def __init__(
+        self, budget: StudyBudget, parse_usage: Usage, on_call: Callable[[Usage], None]
+    ) -> None:
+        self._on_call = on_call
         self._budget = budget
         self._tokens = parse_usage.input_tokens + parse_usage.output_tokens
         self._agent_calls = 1
         self._simulations = 0
 
     def agent_call(self, call: Callable[[], AgentRun[T]]) -> AgentRun[T]:
-        """Checks the budget for one more call, counts it, runs it and adds its tokens. A call
-        that raises is the environment's fault (`infrastructure`)."""
+        """Checks the budget for one more call, counts it, runs it, adds its tokens and reports
+        its usage. A call that raises is the environment's fault (`infrastructure`)."""
         self._check(agent_calls=1)
         self._agent_calls += 1
         try:
             run = call()
         except Exception as e:
             fail(StepErrorKind.INFRASTRUCTURE, f"agent call failed: {describe(e)}")
+        self._on_call(run.usage)
         self._tokens += run.usage.input_tokens + run.usage.output_tokens
         return run
 

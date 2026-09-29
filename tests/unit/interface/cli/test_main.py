@@ -8,10 +8,13 @@ from pathlib import Path
 import pytest
 
 from resto.adapters.persistence.sqlite.repositories import SqliteDatabase
+from resto.adapters.tracing.jsonl import JsonlTracer, read_run
 from resto.application.ports.llm import Budget
-from resto.application.ports.tracing import TraceEvent
+from resto.application.ports.tracing import ModelCall, TraceEvent
+from resto.domain.value_objects.step_record import Usage
 from resto.interface.cli.main import build_deps, main
 from tests.unit.adapters.llm._fakes import FakeToolAgent
+from tests.unit.application._world import DESCRIBE
 
 
 class NullTracer:
@@ -50,3 +53,24 @@ def test_a_failed_study_is_rendered(tmp_path: Path, capsys: pytest.CaptureFixtur
     out = capsys.readouterr().out
     assert code == 1
     assert "Step `ask_expert` of phase 0 (the question as asked) failed (infrastructure)" in out
+
+
+def test_the_parsers_model_call_reaches_the_jsonl_trace(tmp_path: Path) -> None:
+    db = SqliteDatabase(tmp_path / "resto.sqlite")
+    usage = Usage(input_tokens=12, output_tokens=3, cost_usd=0.001)
+    agent = FakeToolAgent(output=DESCRIBE, usage=usage)
+    traces = tmp_path / "traces"
+    deps = build_deps(
+        db=db,
+        agent=agent,
+        budget=Budget(max_steps=1, max_tokens=1, max_seconds=1.0),
+        tracer=JsonlTracer(traces),
+        out_dir=tmp_path,
+    )
+
+    main(["how congested is the peak?"], deps=deps)
+
+    db.close()
+    (trace,) = traces.glob("*.jsonl")
+    events = read_run(traces, trace.stem)
+    assert ModelCall(usage) in events

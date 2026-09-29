@@ -26,10 +26,10 @@ def execute_study(
 ) -> Study:
     """Runs a parsed `Question` to a closed `Study` (`completed`, `failed` or `awaiting_user`)
     and returns it. `parse_usage` is what the Input Parser spent: its call is the study's first."""
-    spend = StudySpend(settings.budget, parse_usage)
     recorder = StudyRecorder(
         question, parse_usage, max_rounds=max_rounds, studies=deps.studies, tracer=deps.tracer
     )
+    spend = StudySpend(settings.budget, parse_usage, recorder.model_call)
     if recorder.study.status is StudyStatus.AWAITING_USER:
         return recorder.study
     network_id: str | None = None

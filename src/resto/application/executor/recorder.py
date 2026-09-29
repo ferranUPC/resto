@@ -14,6 +14,7 @@ from resto.application.executor.failures import StepFailed
 from resto.application.ports.repositories import StudyRepository
 from resto.application.ports.tracing import (
     ClarificationAsked,
+    ModelCall,
     NetworksAdded,
     NoteStatusChanged,
     NotesWritten,
@@ -59,6 +60,7 @@ class StudyRecorder:
         self._tracer = tracer
         self._studies.store(self._study)
         self._emit(StudyCreated(question, parse_usage))
+        self.model_call(parse_usage)
 
     # -- reading ------------------------------------------------------------------------------
 
@@ -138,6 +140,10 @@ class StudyRecorder:
     def set_note_ids(self, note_ids: tuple[str, ...]) -> None:
         self._set(note_ids=note_ids)
         self._emit(NotesWritten(note_ids))
+
+    def model_call(self, usage: Usage) -> None:
+        """One agent call ended (ok or not): its tokens and cost."""
+        self._emit(ModelCall(usage))
 
     def clarification_asked(self, reason: str) -> None:
         self._emit(ClarificationAsked(reason))

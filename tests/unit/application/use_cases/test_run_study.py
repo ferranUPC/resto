@@ -11,7 +11,7 @@ from resto.application.executor import (
     StudyBudget,
 )
 from resto.application.ports.llm import StopReason
-from resto.application.ports.tracing import NoteStatusChanged, NoteWriterFailed
+from resto.application.ports.tracing import ModelCall, NoteStatusChanged, NoteWriterFailed
 from resto.application.use_cases.run_study import ParserFailed
 from resto.domain.constants import DEFAULT_SEEDS
 from resto.domain.entities.expert_note import ExpertNote, NoteStatus, Provenance
@@ -510,6 +510,37 @@ def test_a_failing_note_writer_is_traced_and_the_study_completes(tmp_path: Path)
     assert study.note_ids == ()
     assert any(isinstance(e, NoteWriterFailed) for e in world.tracer.events)
     assert "note_writer" not in [s.tool for s in study.phases[0].steps]
+
+
+def test_the_model_calls_of_a_study_sum_to_its_steps_and_the_parsers_tokens(
+    tmp_path: Path,
+) -> None:
+    world = World(tmp_path, plans=(BASELINE_PLAN,), expert=(answers(),))
+
+    study = world.run()
+
+    calls = [e for e in world.tracer.events if isinstance(e, ModelCall)]
+    steps = [s for p in study.phases for s in p.steps]
+    assert study.status is StudyStatus.COMPLETED
+    assert sum(c.usage.input_tokens for c in calls) == 50 + sum(
+        s.usage.input_tokens for s in steps
+    )
+    agent_steps = [s for s in steps if s.tool != "run_simulation"]
+    assert len(calls) == 1 + len(agent_steps) + 1  # the Parser, the steps, the note writer
+
+
+def test_a_failed_agent_call_still_emits_its_model_call(tmp_path: Path) -> None:
+    world = World(
+        tmp_path,
+        plans=(BASELINE_PLAN,),
+        expert=(run_of(None, StopReason.BUDGET, tokens=7),),
+    )
+
+    study = world.run()
+
+    calls = [e for e in world.tracer.events if isinstance(e, ModelCall)]
+    assert study.status is StudyStatus.FAILED
+    assert calls[-1].usage.input_tokens == 7
 
 
 # -- persistence and helpers ----------------------------------------------------------------------

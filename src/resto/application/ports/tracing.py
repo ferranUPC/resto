@@ -57,8 +57,16 @@ class NoteWriterFailed:
     error: str
 
 
+@dataclass(frozen=True, slots=True)
+class ModelCall:
+    """One agent call, its usage summed over the provider requests it made."""
+
+    usage: Usage
+
+
 TraceEvent = (
     StudyCreated
+    | ModelCall
     | StepTraced
     | NetworksAdded
     | NotesWritten
