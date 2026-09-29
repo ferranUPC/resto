@@ -39,8 +39,8 @@ from resto.domain.entities.scenario import Scenario
 from resto.domain.entities.simulation_result import SimulationResult
 from resto.domain.services.ids import scenario_id_for
 from resto.domain.services.note_ranking import rank_notes
+from resto.domain.services.scenario_similarity import rank_similar_scenarios
 from resto.domain.value_objects.intervention import Intervention
-from resto.domain.value_objects.intervention_target import InterventionTarget
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS networks (
@@ -215,30 +215,6 @@ class SqliteDemandRepository:
         return [self._adapter.validate_json(r[0]) for r in rows]
 
 
-_TARGET_ID_ATTR = {"edge": "edge_id", "lane": "lane_id", "tls": "tls_id", "taz": "taz_id"}
-
-
-def _target_signature(target: InterventionTarget | None) -> tuple[str, str]:
-    if target is None:
-        return ("none", "")
-    return (target.kind, getattr(target, _TARGET_ID_ATTR[target.kind]))
-
-
-def _intervention_signature(iv: Intervention) -> tuple[str, str, str, str]:
-    target_kind, target_id = _target_signature(iv.target)
-    return (iv.type.value, target_kind, target_id, iv.strategy.value)
-
-
-def _signature_set(interventions: Iterable[Intervention]) -> frozenset[tuple[str, str, str, str]]:
-    return frozenset(_intervention_signature(iv) for iv in interventions)
-
-
-def _jaccard(a: frozenset[Any], b: frozenset[Any]) -> float:
-    if not a and not b:
-        return 1.0
-    return len(a & b) / len(a | b)
-
-
 class SqliteScenarioRepository:
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
@@ -278,24 +254,11 @@ class SqliteScenarioRepository:
             return [(exact, 1.0)]
 
         # Step 2: rank by intervention-shape / context_tags similarity, demand_id irrelevant here.
-        query_signature = _signature_set(interventions)
-        query_tags = frozenset(context_tags)
-
         rows = self._conn.execute(
-            "SELECT data FROM scenarios WHERE network_id = ? ORDER BY scenario_id ASC",
-            (network_id,),
+            "SELECT data FROM scenarios WHERE network_id = ?", (network_id,)
         ).fetchall()
-        scored: list[tuple[Scenario, float]] = []
-        for (data_json,) in rows:
-            candidate = self._adapter.validate_json(data_json)
-            score = 0.7 * _jaccard(
-                query_signature, _signature_set(candidate.interventions)
-            ) + 0.3 * _jaccard(query_tags, candidate.context_tags)
-            if score > 0:
-                scored.append((candidate, score))
-
-        scored.sort(key=lambda pair: (-pair[1], pair[0].scenario_id))
-        return scored[:limit]
+        candidates = (self._adapter.validate_json(data_json) for (data_json,) in rows)
+        return rank_similar_scenarios(candidates, interventions, context_tags, limit)
 
 
 class SqliteResultRepository:

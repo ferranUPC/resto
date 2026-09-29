@@ -1,7 +1,6 @@
-"""In-memory repositories for tests: the same port contracts as the SQLite reference
-implementation, held in dicts. `NetworkRepository`/`DemandRepository`/`ScenarioRepository` keep
-`find`/`find_similar` intentionally simple (exact match plus an unranked/unfiltered fallback) —
-good enough for a test double, not a second implementation of the SQLite adapter's ranking."""
+"""In-memory repositories: the same port contracts as the SQLite reference implementation, held in
+dicts. Filtering, ordering, errors and the `find_similar` ranking follow the SQLite adapter, and
+`tests/unit/adapters/persistence/test_repository_contract.py` runs one suite against both."""
 
 from __future__ import annotations
 
@@ -21,6 +20,7 @@ from resto.domain.entities.simulation_result import SimulationResult
 from resto.domain.entities.study import Study
 from resto.domain.services.ids import scenario_id_for
 from resto.domain.services.note_ranking import rank_notes
+from resto.domain.services.scenario_similarity import rank_similar_scenarios
 from resto.domain.value_objects.intervention import Intervention
 
 _T = TypeVar("_T")
@@ -55,7 +55,7 @@ class InMemoryNetworkRepository:
         return self._networks.get(network_id)
 
     def list(self) -> Sequence[Network]:
-        return list(self._networks.values())
+        return sorted(self._networks.values(), key=lambda n: n.network_id)
 
     def find(
         self,
@@ -63,12 +63,14 @@ class InMemoryNetworkRepository:
         derived_from: str | None = None,
         label: str | None = None,
     ) -> Sequence[Network]:
-        return [
+        matching = (
             n
             for n in self._networks.values()
-            if (derived_from is None or n.derived_from == derived_from)
+            if (source is None or (n.recipe.source is not None and n.recipe.source.value == source))
+            and (derived_from is None or n.derived_from == derived_from)
             and (label is None or n.label == label)
-        ]
+        )
+        return sorted(matching, key=lambda n: n.network_id)
 
 
 class InMemoryDemandRepository:
@@ -82,7 +84,8 @@ class InMemoryDemandRepository:
         return self._demands.get(demand_id)
 
     def list(self, network_id: str) -> Sequence[Demand]:
-        return [d for d in self._demands.values() if d.network_id == network_id]
+        matching = (d for d in self._demands.values() if d.network_id == network_id)
+        return sorted(matching, key=lambda d: d.demand_id)
 
 
 class InMemoryScenarioRepository:
@@ -103,12 +106,14 @@ class InMemoryScenarioRepository:
         context_tags: Iterable[str],
         limit: int = 10,
     ) -> Sequence[tuple[Scenario, float]]:
+        interventions = tuple(interventions)
+        context_tags = tuple(context_tags)
         exact_id = scenario_id_for(network_id, demand_id, interventions, context_tags)
         exact = self._scenarios.get(exact_id)
         if exact is not None:
             return [(exact, 1.0)]
-        candidates = [s for s in self._scenarios.values() if s.network_id == network_id]
-        return [(s, 0.0) for s in candidates[:limit]]
+        candidates = (s for s in self._scenarios.values() if s.network_id == network_id)
+        return rank_similar_scenarios(candidates, interventions, context_tags, limit)
 
 
 class InMemoryResultRepository:
@@ -122,12 +127,15 @@ class InMemoryResultRepository:
         return self._results.get(result_id)
 
     def list(self, scenario_id: str) -> Sequence[SimulationResult]:
-        return [r for r in self._results.values() if r.scenario_id == scenario_id]
+        matching = (r for r in self._results.values() if r.scenario_id == scenario_id)
+        return sorted(matching, key=lambda r: r.result_id)
 
     def query_edgedata(
         self, result_id: str, edge_ids: Iterable[str], window: tuple[float, float] | None
     ) -> Mapping[str, Any]:
-        result = self._results[result_id]
+        result = self._results.get(result_id)
+        if result is None:
+            raise NotFoundError(f"result {result_id} not found")
         edgedata = next((a for a in result.artifacts if a.kind == "edgedata"), None)
         if edgedata is None:
             return {}
