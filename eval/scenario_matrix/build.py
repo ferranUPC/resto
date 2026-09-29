@@ -174,7 +174,8 @@ def build_matrix() -> list[dict[str, object]]:
             results: dict[int, SimulationResult] = {}
             for seed in SEEDS:
                 results[seed] = run_simulation(
-                    scenario, seed, runner=runner, results=db.results, out_dir=row_dir / "runs"
+                    scenario, seed, runner=runner, results=db.results, out_dir=row_dir / "runs",
+                    attempt=row.id,
                 )
                 if results[seed].status is not RunStatus.OK:
                     raise MatrixBuildError(

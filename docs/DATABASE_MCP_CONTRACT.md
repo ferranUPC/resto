@@ -216,6 +216,11 @@ defined as `1.0` here, so baselines match baselines.
 | `list_results` | `scenario_id: str` | `SimulationResult[]` |
 | `query_edgedata` | `result_id: str`, `edge_ids: str[]`, `window: [float, float] \| null` | `{ "<edge_id>": { …measures } }` |
 
+**`store_result` receives only `ok` results** (ADR-0031). `result_id` names the request (scenario,
+seed, mode, sumo_version), not one attempt, so it cannot carry a `failed` attempt's content without
+breaking §3's determinism assumption the next time the same request succeeds. This is a caller
+obligation, checked in `run_simulation`; a server implementing this contract does not check it.
+
 `query_edgedata` is how the Network Expert reaches evidence, so its semantics are pinned tightly:
 
 - **`edge_ids` empty means every edge** present in the result's edgedata.

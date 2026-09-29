@@ -14,7 +14,7 @@ from resto.application.executor.plan_validation import ok_results
 from resto.application.executor.recorder import StudyRecorder, data
 from resto.application.executor.spend import StudySpend
 from resto.application.use_cases.build_scenario import build_scenario
-from resto.application.use_cases.run_simulation import run_simulation
+from resto.application.use_cases.run_simulation import attempt_dir, run_simulation
 from resto.application.use_cases.update_note_status import update_note_status
 from resto.domain.constants import DEFAULT_SEEDS, NOTE_VERIFY_LIMIT
 from resto.domain.entities.expert_note import NoteStatus
@@ -265,6 +265,8 @@ def _run_simulations(
     existing = {s: _existing_ok(deps, scenario.scenario_id, s) for s in seeds}
     new_seeds = [s for s, result in existing.items() if result is None]
     spend.reserve_simulations(len(new_seeds))
+    results_dir = deps.out_dir / "results"
+    attempt = recorder.study.study_id
     result_ids: list[str] = []
     ran = 0
     for seed in seeds:
@@ -277,14 +279,15 @@ def _run_simulations(
                 seed,
                 runner=deps.runner,
                 results=deps.results,
-                out_dir=deps.out_dir / "results",
+                out_dir=results_dir,
+                attempt=attempt,
             )
             if result.status is RunStatus.FAILED:
                 fail(
                     StepErrorKind.INFRASTRUCTURE,
                     f"SUMO failed on scenario {scenario.scenario_id!r} with seed {seed}",
                     result.error or "",
-                    f"logs: {deps.out_dir / 'results' / result.result_id}",
+                    f"logs: {attempt_dir(results_dir, result.result_id, attempt)}",
                     usage=Usage(simulations=ran),
                 )
             _verify_notes(scenario, result, recorder, deps)

@@ -1,4 +1,5 @@
-"""Simulation Runner (code): Scenario + seed -> SimulationResult (DoD §2.4, §4.6; ADR-0017).
+"""Simulation Runner (code): Scenario + seed -> SimulationResult (DoD §2.4, §4.6; ADR-0017;
+ADR-0031).
 
 `run_simulation` is the stored path: it is what the Coordinator calls. `run_ephemeral` is the
 tool-shaped path behind `probe_run` / `calibration_run`: same Runner, no `Scenario`, and no
@@ -9,11 +10,23 @@ An existing *ok* result for that id is returned without running anything ("zero 
 simulations", §1); a failed one is re-run. `content_hash` is the hash of the deterministic
 artifacts only (cfg, additionals, edgedata, tripinfo), which is what the reproducibility criterion
 compares; `statistics` and `summary` carry wall-clock timings and are kept but not hashed.
+
+Only an *ok* result is ever stored (ADR-0031): `result_id` names the request, not one attempt, so
+a repository must never see two different contents under it (DATABASE_MCP_CONTRACT.md §3). A
+failed run is returned to the caller — who reports it through the trace and its own logs — and
+never reaches `results.store`. SUMO writes into a per-attempt staging directory,
+`<out_dir>/<result_id>.<attempt>/`, named after the caller's own `attempt` label (a `study_id`, or
+another caller's own identifier) so two callers retrying the same failed request never step on
+each other's logs. Only on success does that directory become the canonical
+`<out_dir>/<result_id>/`, replacing any leftover directory a crash between an earlier rename and
+its `store` left behind.
 """
 
 from __future__ import annotations
 
+import shutil
 from collections.abc import Iterable
+from dataclasses import replace
 from pathlib import Path
 
 from resto.application.ports.repositories import ResultRepository
@@ -28,6 +41,12 @@ from resto.domain.value_objects.artifact_ref import ArtifactRef
 REPRODUCIBLE_KINDS = frozenset({"sumocfg", "additional", "edgedata", "tripinfo"})
 
 
+def attempt_dir(out_dir: Path, result_id: str, attempt: str) -> Path:
+    """The staging directory one attempt at `result_id` runs in, before it either becomes
+    `<out_dir>/<result_id>/` (on success) or is left in place (on failure, as its own logs)."""
+    return out_dir / f"{result_id}.{attempt}"
+
+
 def run_simulation(
     scenario: Scenario,
     seed: int,
@@ -35,10 +54,11 @@ def run_simulation(
     runner: SumoRunner,
     results: ResultRepository,
     out_dir: Path,
+    attempt: str,
 ) -> SimulationResult:
-    """Runs `scenario` with `seed`, stores and returns the `SimulationResult`.
+    """Runs `scenario` with `seed`, returns the `SimulationResult`, and stores it iff it is `ok`.
 
-    Outputs go to `<out_dir>/<result_id>/`. Batch only until E2.5.
+    Batch only until E2.5.
     """
     if scenario.is_online:
         raise NotImplementedError("online scenarios need the E2.5 runner")
@@ -48,21 +68,49 @@ def run_simulation(
     if existing is not None and existing.status is RunStatus.OK:
         return existing
 
-    output = runner.run_batch(scenario.sumocfg, seed, out_dir / result_id)
+    staging_dir = attempt_dir(out_dir, result_id, attempt)
+    staging_dir.mkdir(parents=True, exist_ok=True)
+    output = runner.run_batch(scenario.sumocfg, seed, staging_dir)
+
+    if not output.ok:
+        return SimulationResult(
+            result_id=result_id,
+            scenario_id=scenario.scenario_id,
+            seed=seed,
+            mode=mode,
+            status=RunStatus.FAILED,
+            content_hash=reproducibility_hash(output.artifacts),
+            artifacts=output.artifacts,
+            error=output.error,
+            wall_clock_s=output.wall_clock_s,
+        )
+
+    canonical_dir = out_dir / result_id
+    if canonical_dir.exists():
+        shutil.rmtree(canonical_dir)
+    staging_dir.rename(canonical_dir)
+    artifacts = tuple(_relocated(a, staging_dir, canonical_dir) for a in output.artifacts)
     result = SimulationResult(
         result_id=result_id,
         scenario_id=scenario.scenario_id,
         seed=seed,
         mode=mode,
-        status=RunStatus.OK if output.ok else RunStatus.FAILED,
-        content_hash=reproducibility_hash(output.artifacts),
-        artifacts=output.artifacts,
+        status=RunStatus.OK,
+        content_hash=reproducibility_hash(artifacts),
+        artifacts=artifacts,
         kpis=output.kpis,
         error=output.error,
         wall_clock_s=output.wall_clock_s,
     )
     results.store(result)
     return result
+
+
+def _relocated(ref: ArtifactRef, old_dir: Path, new_dir: Path) -> ArtifactRef:
+    try:
+        return replace(ref, path=new_dir / ref.path.relative_to(old_dir))
+    except ValueError:
+        return ref
 
 
 def run_ephemeral(

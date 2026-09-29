@@ -1,5 +1,6 @@
-"""`run_simulation` / `run_ephemeral` (E2.1, ADR-0017) with a fake runner: identity, dedupe on
-ok results only, failed runs stored with SUMO's message, ephemeral runs unable to store."""
+"""`run_simulation` / `run_ephemeral` (E2.1, ADR-0017; ADR-0031) with a fake runner: identity,
+dedupe on ok results only, a failed run returned but never stored, ephemeral runs unable to
+store."""
 
 from __future__ import annotations
 
@@ -11,6 +12,7 @@ import pytest
 from resto.adapters.persistence.memory import InMemoryResultRepository
 from resto.application.ports.sumo import RunOutput
 from resto.application.use_cases.run_simulation import (
+    attempt_dir,
     reproducibility_hash,
     run_ephemeral,
     run_simulation,
@@ -69,43 +71,64 @@ def test_result_id_is_the_request_hash_and_the_run_goes_to_its_own_directory(
     runner = FakeRunner([ok_output()])
     results = InMemoryResultRepository()
 
-    result = run_simulation(batch_scenario(), 7, runner=runner, results=results, out_dir=tmp_path)
+    result = run_simulation(
+        batch_scenario(), 7, runner=runner, results=results, out_dir=tmp_path, attempt="study-1"
+    )
 
     expected_id = result_id_for("s-batch", 7, RunMode.BATCH.value, SUMO_VERSION)
     assert result.result_id == expected_id
-    assert runner.calls == [(batch_scenario().sumocfg, 7, tmp_path / expected_id)]
+    assert runner.calls == [
+        (batch_scenario().sumocfg, 7, attempt_dir(tmp_path, expected_id, "study-1"))
+    ]
     assert result.status is RunStatus.OK
     assert result.kpis == KPIS
     assert result.wall_clock_s == 1.5
     assert result.sumo_version == SUMO_VERSION
     assert results.get(expected_id) == result
+    assert (tmp_path / expected_id).is_dir()  # promoted from the staging directory
 
 
 def test_an_existing_ok_result_is_returned_without_running_sumo(tmp_path: Path) -> None:
     runner = FakeRunner([ok_output()])
     results = InMemoryResultRepository()
-    first = run_simulation(batch_scenario(), 7, runner=runner, results=results, out_dir=tmp_path)
+    first = run_simulation(
+        batch_scenario(), 7, runner=runner, results=results, out_dir=tmp_path, attempt="study-1"
+    )
 
-    second = run_simulation(batch_scenario(), 7, runner=runner, results=results, out_dir=tmp_path)
+    second = run_simulation(
+        batch_scenario(), 7, runner=runner, results=results, out_dir=tmp_path, attempt="study-2"
+    )
 
     assert second == first
     assert len(runner.calls) == 1
 
 
-def test_a_failed_run_is_stored_with_sumos_message_and_rerun_next_time(tmp_path: Path) -> None:
+def test_a_failed_run_is_returned_but_not_stored_and_the_retry_stores_the_ok_one(
+    tmp_path: Path,
+) -> None:
     runner = FakeRunner([failed_output(), ok_output()])
     results = InMemoryResultRepository()
 
-    failed = run_simulation(batch_scenario(), 7, runner=runner, results=results, out_dir=tmp_path)
-    retried = run_simulation(batch_scenario(), 7, runner=runner, results=results, out_dir=tmp_path)
-
+    failed = run_simulation(
+        batch_scenario(), 7, runner=runner, results=results, out_dir=tmp_path, attempt="study-1"
+    )
     assert failed.status is RunStatus.FAILED
     assert failed.error is not None and "NOPE" in failed.error
     assert failed.kpis is None
+    assert results.get(failed.result_id) is None  # a failed run is never stored (ADR-0031)
+
+    retried = run_simulation(
+        batch_scenario(), 7, runner=runner, results=results, out_dir=tmp_path, attempt="study-2"
+    )
+
     assert retried.status is RunStatus.OK
     assert retried.result_id == failed.result_id
     assert results.get(failed.result_id) == retried
     assert len(runner.calls) == 2
+
+    failed_dir = attempt_dir(tmp_path, failed.result_id, "study-1")
+    assert failed_dir.is_dir()  # the failed attempt's own directory survives the retry
+    assert (tmp_path / failed.result_id).is_dir()  # the retry's ok result got the canonical one
 
 
 def test_content_hash_covers_only_the_deterministic_artifacts() -> None:
@@ -130,6 +153,7 @@ def test_online_scenarios_are_refused_until_e2_5(tmp_path: Path) -> None:
             runner=FakeRunner([]),
             results=InMemoryResultRepository(),
             out_dir=tmp_path,
+            attempt="study-1",
         )
 
 

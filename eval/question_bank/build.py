@@ -129,7 +129,8 @@ def _rebuild_row(
     results: dict[int, SimulationResult] = {}
     for seed in SEEDS:
         result = run_simulation(
-            scenario, seed, runner=runner, results=db.results, out_dir=REBUILD_DIR / row.id / "runs"
+            scenario, seed, runner=runner, results=db.results,
+            out_dir=REBUILD_DIR / row.id / "runs", attempt=row.id,
         )
         if result.status is not RunStatus.OK:
             raise QuestionBankBuildError(f"{row.id} seed {seed} is not OK in matrix.db")

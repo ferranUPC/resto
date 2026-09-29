@@ -6,12 +6,13 @@ good enough for a test double, not a second implementation of the SQLite adapter
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
-from typing import Any
+from dataclasses import replace
+from typing import Any, TypeVar
 
 from resto.adapters.embedding.hashing import HashingEmbedder
 from resto.adapters.persistence.sqlite.edgedata import query_edgedata as _aggregate_edgedata
 from resto.application.ports.embedding import Embedder
-from resto.application.ports.errors import InvalidArgumentError, NotFoundError
+from resto.application.ports.errors import ConflictError, InvalidArgumentError, NotFoundError
 from resto.domain.entities.demand import Demand
 from resto.domain.entities.expert_note import ExpertNote, NoteStatus
 from resto.domain.entities.network import Network
@@ -22,12 +23,32 @@ from resto.domain.services.ids import scenario_id_for
 from resto.domain.services.note_ranking import rank_notes
 from resto.domain.value_objects.intervention import Intervention
 
+_T = TypeVar("_T")
+
+
+def _idempotent_store(table: dict[str, _T], kind: str, id_value: str, value: _T) -> None:
+    """Same rule as `SqliteRepository`'s `_idempotent_store` (§3): a repeat `store` with
+    byte-identical content is a no-op, different content under an existing id is `CONFLICT`."""
+    existing = table.get(id_value)
+    if existing is not None and existing != value:
+        raise ConflictError(f"{kind}: {id_value} already exists with different content")
+    table[id_value] = value
+
 
 class InMemoryNetworkRepository:
     def __init__(self) -> None:
         self._networks: dict[str, Network] = {}
 
     def store(self, network: Network) -> None:
+        existing = self._networks.get(network.network_id)
+        if (
+            existing is not None
+            and existing != network
+            and existing != replace(network, label=existing.label)
+        ):
+            raise ConflictError(
+                f"network {network.network_id} already exists with different content"
+            )
         self._networks[network.network_id] = network
 
     def get(self, network_id: str) -> Network | None:
@@ -55,7 +76,7 @@ class InMemoryDemandRepository:
         self._demands: dict[str, Demand] = {}
 
     def store(self, demand: Demand) -> None:
-        self._demands[demand.demand_id] = demand
+        _idempotent_store(self._demands, "demands", demand.demand_id, demand)
 
     def get(self, demand_id: str) -> Demand | None:
         return self._demands.get(demand_id)
@@ -69,7 +90,7 @@ class InMemoryScenarioRepository:
         self._scenarios: dict[str, Scenario] = {}
 
     def store(self, scenario: Scenario) -> None:
-        self._scenarios[scenario.scenario_id] = scenario
+        _idempotent_store(self._scenarios, "scenarios", scenario.scenario_id, scenario)
 
     def get(self, scenario_id: str) -> Scenario | None:
         return self._scenarios.get(scenario_id)
@@ -95,7 +116,7 @@ class InMemoryResultRepository:
         self._results: dict[str, SimulationResult] = {}
 
     def store(self, result: SimulationResult) -> None:
-        self._results[result.result_id] = result
+        _idempotent_store(self._results, "results", result.result_id, result)
 
     def get(self, result_id: str) -> SimulationResult | None:
         return self._results.get(result_id)
@@ -125,7 +146,7 @@ class InMemoryNoteRepository:
         self._embedder = embedder or HashingEmbedder()
 
     def store(self, note: ExpertNote) -> None:
-        self._notes[note.note_id] = note
+        _idempotent_store(self._notes, "notes", note.note_id, note)
         self._vectors[note.note_id] = self._embedder.embed(note.text)
 
     def search(
