@@ -34,7 +34,7 @@ _EdgeId = Annotated[str, Field(description="Edge id, e.g. 'A0A1'.")]
 def get_edge(ctx: NetworkQuery, edge_id: _EdgeId) -> Mapping[str, Any]:
     """Attributes of one edge: endpoints, length, speed, lane count, priority, shape.
 
-    Example: get_edge(query, "A0A1") ->
+    Example: get_edge(ctx, "A0A1") ->
         {"id": "A0A1", "from_node": "A0", "to_node": "A1", "length": 189.6, "speed": 13.89,
          "lane_count": 1, "priority": -1, "type": "", "allows": [...], "shape": [...]}
 
@@ -53,7 +53,7 @@ def get_edge(ctx: NetworkQuery, edge_id: _EdgeId) -> Mapping[str, Any]:
 def get_lanes(ctx: NetworkQuery, edge_id: _EdgeId) -> Sequence[Mapping[str, Any]]:
     """Per-lane attributes of one edge: index, length, speed, width, allowed vehicle classes.
 
-    Example: get_lanes(query, "A0A1") ->
+    Example: get_lanes(ctx, "A0A1") ->
         [{"id": "A0A1_0", "index": 0, "length": 189.6, "speed": 13.89, "width": 3.2,
           "allows": [...]}]
 
@@ -72,7 +72,7 @@ def get_lanes(ctx: NetworkQuery, edge_id: _EdgeId) -> Sequence[Mapping[str, Any]
 def get_neighbours(ctx: NetworkQuery, edge_id: _EdgeId) -> Sequence[str]:
     """Ids of the edges reachable in one hop downstream of `edge_id` (outgoing connections).
 
-    Example: get_neighbours(query, "A0A1") -> ["A1A2", "A1B1"]
+    Example: get_neighbours(ctx, "A0A1") -> ["A1A2", "A1B1"]
 
     Raises:
         KeyError: `edge_id` does not exist on this network.
@@ -94,7 +94,7 @@ def shortest_path(
 ) -> Sequence[str]:
     """Ids of the edges on the shortest route from `from_edge` to `to_edge`, empty if unreachable.
 
-    Example: shortest_path(query, "A0A1", "B0B1") ->
+    Example: shortest_path(ctx, "A0A1", "B0B1") ->
         ["A0A1", "A1B1", "B1C1", "C1C0", "C0B0", "B0B1"]
 
     Raises:
@@ -114,7 +114,7 @@ def edges_in_bbox(
 ) -> Sequence[str]:
     """Ids of the edges whose bounding box overlaps `(xmin, ymin, xmax, ymax)` (net coordinates).
 
-    Example: edges_in_bbox(query, 0, 0, 50, 50) -> ["A0A1", "A0B0", "A1A0", "B0A0"]
+    Example: edges_in_bbox(ctx, 0, 0, 50, 50) -> ["A0A1", "A0B0", "A1A0", "B0A0"]
     """
     return ctx.edges_in_bbox((xmin, ymin, xmax, ymax))
 
@@ -129,7 +129,7 @@ def capacity_estimate(ctx: NetworkQuery, edge_id: _EdgeId) -> float:
     """Rough capacity of `edge_id` in veh/h (Greenshields estimate — see ADR-0015; order-of-
     magnitude only, not a substitute for a simulated result).
 
-    Example: capacity_estimate(query, "A0A1") -> 1666.8
+    Example: capacity_estimate(ctx, "A0A1") -> 1666.8
 
     Raises:
         KeyError: `edge_id` does not exist on this network.
@@ -148,7 +148,7 @@ def get_tls(
 ) -> Mapping[str, Any]:
     """Controlled edges and signal programs (phase state/duration pairs) of one traffic light.
 
-    Example: get_tls(query, "A2") ->
+    Example: get_tls(ctx, "A2") ->
         {"id": "A2", "controlled_edges": ["A1A2", "A3A2", "B2A2"],
          "programs": {"0": [("GgrrGG", 42), ("yyrrGy", 3), ("rrGGGr", 42), ("rryyGr", 3)]}}
 

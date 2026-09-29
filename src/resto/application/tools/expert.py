@@ -667,10 +667,17 @@ def build_expert_tools(
         (
             "compare_edges",
             compare_edges,
-            lambda baseline_result_ids, treatment_result_ids, measure, window=None, edge_ids=(),
-            top_k=10: compare_edges(
-                results, available, baseline_result_ids, treatment_result_ids, measure, window,
-                edge_ids, top_k,
+            lambda baseline_result_ids, treatment_result_ids, measure, window=None, edge_ids=(), top_k=10: (
+                compare_edges(
+                    results,
+                    available,
+                    baseline_result_ids,
+                    treatment_result_ids,
+                    measure,
+                    window,
+                    edge_ids,
+                    top_k,
+                )
             ),
         ),
         (

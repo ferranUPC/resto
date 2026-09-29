@@ -37,8 +37,10 @@ class Declared(Generic[C, P, R]):
         name: str,
         description: str,
         input_schema: Mapping[str, Any],
+        hints: Mapping[str, Any],
     ) -> None:
         self.fn = fn
+        self.hints = hints
         self.name = name
         self.description = description
         self.input_schema = input_schema
@@ -56,8 +58,7 @@ class Declared(Generic[C, P, R]):
         bound = partial(self.fn, ctx)
         bound.__name__ = self.name  # type: ignore[attr-defined, union-attr]
         bound.__doc__ = self.fn.__doc__
-        hints = _hints(self.fn)
-        bound.__annotations__ = hints  # type: ignore[attr-defined]
+        bound.__annotations__ = dict(self.hints)  # type: ignore[attr-defined]
         return Tool(
             name=self.name,
             description=self.description,
@@ -72,7 +73,8 @@ def tool(
     """Declare `fn` as a tool named `name`; `description` is what the model reads."""
 
     def declare(fn: Callable[Concatenate[C, P], R]) -> Declared[C, P, R]:
-        return Declared(fn, name, description, derive_schema(fn))
+        hints = _hints(fn)
+        return Declared(fn, name, description, derive_schema(fn, hints), hints)
 
     return declare
 
@@ -85,8 +87,10 @@ def _hints(fn: Callable[..., Any]) -> dict[str, Any]:
     return hints
 
 
-def derive_schema(fn: Callable[..., Any]) -> dict[str, Any]:
+def derive_schema(fn: Callable[..., Any], hints: Mapping[str, Any]) -> dict[str, Any]:
     """JSON schema of every parameter of `fn` after the first, in the shape the models get today.
+
+    `hints` are the resolved annotations of `fn` without the first parameter (see `_hints`).
 
     Raises:
         TypeError: a parameter is not annotated, or `fn` has no `ctx` parameter.
@@ -95,7 +99,6 @@ def derive_schema(fn: Callable[..., Any]) -> dict[str, Any]:
     parameters = list(inspect.signature(fn).parameters.values())
     if not parameters:
         raise TypeError(f"{fn.__qualname__} needs a first `ctx` parameter")
-    hints = _hints(fn)
     fields: dict[str, Any] = {}
     for parameter in parameters[1:]:
         if parameter.name not in hints:
