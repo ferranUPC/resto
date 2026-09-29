@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from resto.adapters.persistence.sqlite.edgedata import query_edgedata
+from resto.adapters.persistence.edgedata import query_edgedata
 
 _FIXTURE = """<?xml version="1.0"?>
 <edgedata>
@@ -117,7 +117,7 @@ def test_window_outside_every_interval_zero_fills_a_known_edge(edgedata_file: Pa
 
 def test_parses_a_real_sumo_generated_edgedata_file() -> None:
     real_file = (
-        Path(__file__).resolve().parents[5]
+        Path(__file__).resolve().parents[4]
         / "eval"
         / "dev-net"
         / "demand"

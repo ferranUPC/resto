@@ -4,7 +4,7 @@ used for their `content_hash`.
 
 `parse_edgedata`/`EdgeInterval` is the one place that reads a SUMO `--edgedata-output` file: both
 E2.4's effect-verification harness (`verify/effects.py`, exact per-interval rows) and DatabaseMCP's
-`query_edgedata` (`adapters/persistence/sqlite/edgedata.py`, windowed weighted aggregation) build
+`query_edgedata` (`adapters/persistence/edgedata.py`, windowed weighted aggregation) build
 on it rather than each parsing the XML themselves - originally two independent parsers of the same
 file format, merged into one after the fact.
 

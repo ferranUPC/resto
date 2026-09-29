@@ -28,7 +28,7 @@ from pathlib import Path
 from typing import Any
 
 from resto.adapters.embedding.hashing import HashingEmbedder
-from resto.adapters.persistence.sqlite.edgedata import query_edgedata as _aggregate_edgedata
+from resto.adapters.persistence.edgedata import query_edgedata as _aggregate_edgedata
 from resto.application.ports.embedding import Embedder
 from resto.application.ports.errors import ConflictError, InvalidArgumentError, NotFoundError
 from resto.application.schemas import ADAPTERS

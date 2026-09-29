@@ -1,6 +1,6 @@
 """Readers of SUMO output (E2.1, ADR-0017): KPI mapping from `statistic-output`, the header
 stripping behind `content_hash`, and `parse_edgedata`/`EdgeInterval` (E2.4/E1.3-E1.4's shared
-edgedata reader - `verify/effects.py` and `adapters/persistence/sqlite/edgedata.py` both build on
+edgedata reader - `verify/effects.py` and `adapters/persistence/edgedata.py` both build on
 it rather than each parsing the XML themselves)."""
 
 from __future__ import annotations

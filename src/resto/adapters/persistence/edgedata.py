@@ -1,4 +1,9 @@
-"""Aggregates `adapters/sumo/outputs.py::parse_edgedata`'s rows over a window
+"""Implementation helper for backends that keep edgedata as a file. It is not part of the
+contract: the contract is `ResultRepository.query_edgedata`, and a backend that stores intervals
+in tables may aggregate natively and never call this module, as long as it passes the result
+contract suite (`tests/unit/adapters/persistence/test_repository_contract.py`).
+
+Aggregates `adapters/sumo/outputs.py::parse_edgedata`'s rows over a window
 (DATABASE_MCP_CONTRACT.md §5.4) — the one non-trivial piece of `query_edgedata`. The XML parse
 itself lives there, not here: it also backs E2.4's effect-verification harness, so this module
 only owns the aggregation math (interval clipping, weighted averaging, proration of counters and
