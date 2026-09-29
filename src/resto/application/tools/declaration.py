@@ -112,8 +112,8 @@ def derive_schema(fn: Callable[..., Any], hints: Mapping[str, Any]) -> dict[str,
 def _normalize(schema: dict[str, Any]) -> dict[str, Any]:
     """Pydantic's output without its extras, so it matches what the hand-written tables said.
 
-    Drops `title` and `default` keys, and renders an optional parameter as its plain type instead
-    of `anyOf` with `null`.
+    Drops `title`, `default` and `additionalProperties: true` (the schema default), and renders an
+    optional parameter as its plain type instead of `anyOf` with `null`.
     """
     cleaned = _clean(schema)
     assert isinstance(cleaned, dict)
@@ -134,7 +134,7 @@ def _clean(node: Any) -> Any:
     return {
         key: _clean_value(key, value)
         for key, value in node.items()
-        if key not in ("title", "default")
+        if key not in ("title", "default") and (key, value) != ("additionalProperties", True)
     }
 
 

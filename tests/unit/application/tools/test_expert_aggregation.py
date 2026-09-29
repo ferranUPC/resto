@@ -5,12 +5,14 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 from dataclasses import replace
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
-from resto.adapters.persistence.memory import InMemoryResultRepository
+from resto.adapters.persistence.memory import InMemoryResultRepository, InMemoryScenarioRepository
+from resto.application.ports.network_query import NetworkQuery
 from resto.application.tools.expert import (
+    ExpertContext,
     NotAvailableError,
     compare_edges,
     compare_kpis,
@@ -50,6 +52,19 @@ class CannedResults(InMemoryResultRepository):
         return {e: v for e, v in data.items() if not wanted or e in wanted}
 
 
+def _ctx(results: InMemoryResultRepository, available: frozenset[str]) -> ExpertContext:
+    return ExpertContext(
+        query=cast(NetworkQuery, None),  # the aggregation tools never touch the network
+        results=results,
+        scenarios=InMemoryScenarioRepository(),
+        notes=None,
+        network_id="abc123",
+        available=available,
+        available_scenarios=frozenset(),
+        notes_allowed=False,
+    )
+
+
 @pytest.fixture
 def results() -> CannedResults:
     repo = CannedResults()
@@ -60,7 +75,7 @@ def results() -> CannedResults:
 
 
 def test_edge_stats_averages_across_runs_with_spread(results: CannedResults) -> None:
-    stats = edge_stats(results, AVAILABLE, ["b1", "b2"], ["A"])["A"]
+    stats = edge_stats(_ctx(results, AVAILABLE), ["b1", "b2"], ["A"])["A"]
     assert stats["occupancy"] == {"mean": 3.0, "std": 1.414, "runs": 2}
     assert stats["travel_time"]["mean"] == 21.0
     assert stats["time_loss_per_vehicle"]["mean"] == 10.0  # 100/10 and 120/12
@@ -69,7 +84,7 @@ def test_edge_stats_averages_across_runs_with_spread(results: CannedResults) -> 
 def test_per_vehicle_means_are_null_without_traffic_but_totals_are_zero(
     results: CannedResults,
 ) -> None:
-    stats = edge_stats(results, AVAILABLE, ["t1", "t2"], ["C"])["C"]
+    stats = edge_stats(_ctx(results, AVAILABLE), ["t1", "t2"], ["C"])["C"]
     assert stats["travel_time"] is None
     assert stats["speed"] is None
     assert stats["time_loss_per_vehicle"] is None
@@ -78,16 +93,16 @@ def test_per_vehicle_means_are_null_without_traffic_but_totals_are_zero(
 
 
 def test_rank_edges_by_mean_with_threshold_and_top_k(results: CannedResults) -> None:
-    ranked = rank_edges(results, AVAILABLE, ["b1", "b2"], "time_loss", top_k=2)
+    ranked = rank_edges(_ctx(results, AVAILABLE), ["b1", "b2"], "time_loss", top_k=2)
     assert [r["edge_id"] for r in ranked] == ["B", "A"]
-    above = rank_edges(results, AVAILABLE, ["b1", "b2"], "occupancy", min_value=2.5)
+    above = rank_edges(_ctx(results, AVAILABLE), ["b1", "b2"], "occupancy", min_value=2.5)
     assert [r["edge_id"] for r in above] == ["B", "A"]  # 4.0 and 3.0; C is 1.0
-    closed = rank_edges(results, AVAILABLE, ["t1", "t2"], "travel_time")
+    closed = rank_edges(_ctx(results, AVAILABLE), ["t1", "t2"], "travel_time")
     assert "C" not in [r["edge_id"] for r in closed]
 
 
 def test_compare_edges_ranks_by_absolute_difference(results: CannedResults) -> None:
-    rows = compare_edges(results, AVAILABLE, ["b1", "b2"], ["t1", "t2"], "time_loss", top_k=2)
+    rows = compare_edges(_ctx(results, AVAILABLE), ["b1", "b2"], ["t1", "t2"], "time_loss", top_k=2)
     # A: 110 -> 420 (+310); C: 15 -> 0 (-15, closed); B: 320 -> 320 (0)
     assert [r["edge_id"] for r in rows] == ["A", "C"]
     assert rows[0]["delta"] == 310.0
@@ -98,7 +113,7 @@ def test_compare_edges_on_named_edges_keeps_undefined_per_vehicle_means(
     results: CannedResults,
 ) -> None:
     (row,) = compare_edges(
-        results, AVAILABLE, ["b1", "b2"], ["t1", "t2"], "travel_time", edge_ids=["C"]
+        _ctx(results, AVAILABLE), ["b1", "b2"], ["t1", "t2"], "travel_time", edge_ids=["C"]
     )
     assert row["baseline"]["mean"] == 15.0
     assert row["treatment"] is None
@@ -106,7 +121,7 @@ def test_compare_edges_on_named_edges_keeps_undefined_per_vehicle_means(
 
 
 def test_compare_kpis_reports_network_change(results: CannedResults) -> None:
-    kpis = compare_kpis(results, AVAILABLE, ["b1", "b2"], ["t1", "t2"])
+    kpis = compare_kpis(_ctx(results, AVAILABLE), ["b1", "b2"], ["t1", "t2"])
     assert kpis["mean_delay"]["delta"] == 4.0  # 29 -> 33
     assert kpis["mean_delay"]["relative_change_pct"] == pytest.approx(13.8)
 
@@ -114,15 +129,15 @@ def test_compare_kpis_reports_network_change(results: CannedResults) -> None:
 def test_aggregation_tools_respect_the_allow_list(results: CannedResults) -> None:
     only_baseline = frozenset({"b1", "b2"})
     with pytest.raises(NotAvailableError):
-        edge_stats(results, only_baseline, ["t1"], ["A"])
+        edge_stats(_ctx(results, only_baseline), ["t1"], ["A"])
     with pytest.raises(NotAvailableError):
-        compare_kpis(results, only_baseline, ["b1"], ["t1"])
+        compare_kpis(_ctx(results, only_baseline), ["b1"], ["t1"])
 
 
 def test_unknown_measure_and_empty_inputs_are_errors(results: CannedResults) -> None:
     with pytest.raises(ValueError, match="unknown measure"):
-        rank_edges(results, AVAILABLE, ["b1"], "delay")
+        rank_edges(_ctx(results, AVAILABLE), ["b1"], "delay")
     with pytest.raises(ValueError, match="at least one"):
-        rank_edges(results, AVAILABLE, [], "time_loss")
+        rank_edges(_ctx(results, AVAILABLE), [], "time_loss")
     with pytest.raises(ValueError, match="name the edges"):
-        edge_stats(results, AVAILABLE, ["b1"], [])
+        edge_stats(_ctx(results, AVAILABLE), ["b1"], [])

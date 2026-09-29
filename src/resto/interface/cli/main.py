@@ -35,6 +35,7 @@ from resto.adapters.tracing.jsonl import JsonlTracer
 from resto.application.executor import StudyAgents, StudyDeps, StudyPromotions, StudySettings
 from resto.application.ports.llm import Budget, ToolAgent
 from resto.application.ports.tracing import Tracer
+from resto.application.tools.expert import ExpertCollaborators
 from resto.application.tools.scenario_builder import BuilderCollaborators
 from resto.application.use_cases.run_study import ParserFailed, run_study
 from resto.domain.entities.study import StudyStatus
@@ -89,11 +90,13 @@ def build_deps(
             expert=ExpertPort(
                 agent=agent,
                 budget=budget,
-                networks=db.networks,
-                results=db.results,
-                scenarios=db.scenarios,
-                notes=db.notes,
-                network_query_factory=SumolibNetworkQuery,
+                collaborators=ExpertCollaborators(
+                    networks=db.networks,
+                    results=db.results,
+                    scenarios=db.scenarios,
+                    notes=db.notes,
+                    network_query_factory=SumolibNetworkQuery,
+                ),
             ),
             note_writer=NoteWriterPort(agent=agent, budget=budget),
             composer=_Pending("Output Composer", "E5.4"),

@@ -16,9 +16,6 @@ from resto.adapters.persistence.memory import InMemoryResultRepository, InMemory
 from resto.adapters.sumo.netxml import SumolibNetworkQuery
 from resto.application.ports.llm import Tool
 from resto.application.tools.expert import (
-    EXPERT_NETWORK_TOOLS,
-    EXPERT_TOPOLOGY_TOOLS,
-    RESULT_TOOLS,
     EvidenceLedger,
     NotAvailableError,
     build_expert_tools,
@@ -28,6 +25,7 @@ from resto.domain.value_objects.question import Mode
 from resto.domain.value_objects.tasks import ExpertTask
 from tests.unit._paths import DEV_NET
 from tests.unit.adapters.llm._fakes import call_tool
+from tests.unit.application.tools._expert_names import EXPERT_TOOL_NAMES
 from tests.unit.domain._samples import expert_note as sample_note
 from tests.unit.domain._samples import scenario as sample_scenario
 from tests.unit.domain._samples import simulation_result as sample_result
@@ -105,7 +103,7 @@ def _tools(
 
 def test_tool_set_is_the_dod_list_plus_get_scenario(query: SumolibNetworkQuery) -> None:
     tools, _, _ = _tools(query)
-    assert [t.name for t in tools] == [*EXPERT_NETWORK_TOOLS, *EXPERT_TOPOLOGY_TOOLS, *RESULT_TOOLS]
+    assert [t.name for t in tools] == EXPERT_TOOL_NAMES
     assert all(t.description and t.input_schema for t in tools)
 
 

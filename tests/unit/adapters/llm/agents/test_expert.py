@@ -26,10 +26,8 @@ from resto.adapters.sumo.netxml import SumolibNetworkQuery
 from resto.application.ports.llm import AgentTask, Budget, Tool
 from resto.application.schemas import adapter_for
 from resto.application.tools.expert import (
-    EXPERT_NETWORK_TOOLS,
-    EXPERT_TOPOLOGY_TOOLS,
-    RESULT_TOOLS,
     EvidenceLedger,
+    ExpertCollaborators,
 )
 from resto.domain.value_objects.drafts import ExpertNoteDraft, ExpertNoteDrafts
 from resto.domain.value_objects.experiment import ExperimentRole
@@ -39,6 +37,7 @@ from resto.domain.value_objects.question import Mode
 from resto.domain.value_objects.tasks import ExpertTask, NoteScenario, NoteTask
 from tests.unit._paths import DEV_NET
 from tests.unit.adapters.llm._fakes import FakeToolAgent, call_tool
+from tests.unit.application.tools._expert_names import EXPERT_TOOL_NAMES
 from tests.unit.domain._samples import expert_answer
 from tests.unit.domain._samples import network as sample_network
 from tests.unit.domain._samples import simulation_result as sample_result
@@ -99,7 +98,7 @@ def test_run_expert_offers_the_expert_tools_and_returns_the_agent_run() -> None:
 
     assert run.output == expert_answer()
     assert seen["input"] == build_task(TASK).input
-    assert seen["tools"] == [*EXPERT_NETWORK_TOOLS, *EXPERT_TOPOLOGY_TOOLS, *RESULT_TOOLS]
+    assert seen["tools"] == EXPERT_TOOL_NAMES
     assert [e.tool for e in ledger.entries] == ["get_result"]
 
 
@@ -170,11 +169,13 @@ def expert_port(networks: InMemoryNetworkRepository, opened: list[Path]) -> Expe
     return ExpertPort(
         agent=FakeToolAgent(output=expert_answer()),
         budget=BUDGET,
-        networks=networks,
-        results=InMemoryResultRepository(),
-        scenarios=InMemoryScenarioRepository(),
-        notes=None,
-        network_query_factory=query_for,
+        collaborators=ExpertCollaborators(
+            networks=networks,
+            results=InMemoryResultRepository(),
+            scenarios=InMemoryScenarioRepository(),
+            notes=None,
+            network_query_factory=query_for,
+        ),
     )
 
 
