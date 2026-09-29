@@ -203,9 +203,6 @@ class InMemoryDatabase:
         self.results = InMemoryResultRepository()
         self.notes = InMemoryNoteRepository(embedder)
 
-    def close(self) -> None:
-        """Nothing to release; here so it can be swapped for `SqliteDatabase`."""
-
 
 class InMemoryStudyRepository:
     def __init__(self) -> None:

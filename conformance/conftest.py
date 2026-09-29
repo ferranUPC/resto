@@ -15,7 +15,6 @@ what the contract actually promises.
 from __future__ import annotations
 
 from collections.abc import Callable, Iterator
-from typing import Any
 
 import pytest
 from mcp.client._memory import InMemoryTransport
@@ -27,17 +26,16 @@ from resto.adapters.persistence.sqlite.repositories import SqliteDatabase
 from resto.interface.mcp.database_server import build_server
 
 
-def _sqlite() -> tuple[Any, MCPServer]:
+def _sqlite() -> tuple[MCPServer, Callable[[], None]]:
     backend = SqliteDatabase(":memory:")
-    return backend, build_server(backend)
+    return build_server(backend), backend.close
 
 
-def _memory() -> tuple[Any, MCPServer]:
-    backend = InMemoryDatabase()
-    return backend, build_server(backend)
+def _memory() -> tuple[MCPServer, Callable[[], None]]:
+    return build_server(InMemoryDatabase()), lambda: None
 
 
-_BACKENDS: dict[str, Callable[[], tuple[Any, MCPServer]]] = {
+_BACKENDS: dict[str, Callable[[], tuple[MCPServer, Callable[[], None]]]] = {
     "memory": _memory,
     "sqlite": _sqlite,
 }
@@ -45,10 +43,10 @@ _BACKENDS: dict[str, Callable[[], tuple[Any, MCPServer]]] = {
 
 @pytest.fixture(params=sorted(_BACKENDS), ids=sorted(_BACKENDS))
 def db(request: pytest.FixtureRequest) -> Iterator[McpClientDatabase]:
-    backend, server = _BACKENDS[request.param]()
+    server, release = _BACKENDS[request.param]()
     client = McpClientDatabase(lambda: InMemoryTransport(server))
     try:
         yield client
     finally:
         client.close()
-        backend.close()
+        release()
