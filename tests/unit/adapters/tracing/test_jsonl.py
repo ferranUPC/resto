@@ -10,10 +10,14 @@ import pytest
 from resto.adapters.tracing.jsonl import SCHEMA_VERSION, JsonlTracer, read_run
 from resto.application.ports.tracing import (
     ClarificationAsked,
+    ExpertRoundHeld,
     NetworksAdded,
     NoteStatusChanged,
     NotesWritten,
     NoteWriterFailed,
+    PhaseStarted,
+    PlanMade,
+    ReportComposed,
     StepTraced,
     StudyCreated,
     TraceEvent,
@@ -26,6 +30,7 @@ from resto.domain.value_objects.step_record import (
     StepStatus,
     Usage,
 )
+from resto.domain.value_objects.study_plan import StudyPlan
 
 
 def _events() -> list[TraceEvent]:
@@ -47,6 +52,10 @@ def _events() -> list[TraceEvent]:
         NotesWritten(("note-1",)),
         NoteStatusChanged("note-1", "res-1", NoteStatus.CONFIRMED),
         NoteWriterFailed("ValueError: bad"),
+        PhaseStarted(1),
+        PlanMade(1, StudyPlan(network_id="net-1", rationale="baseline only")),
+        ExpertRoundHeld(1, 2),
+        ReportComposed(),
     ]
 
 

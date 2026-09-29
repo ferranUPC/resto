@@ -12,6 +12,7 @@ from typing import Protocol
 from resto.domain.entities.expert_note import NoteStatus
 from resto.domain.value_objects.question import Question
 from resto.domain.value_objects.step_record import StepError, StepStatus, Usage
+from resto.domain.value_objects.study_plan import StudyPlan
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,8 +65,36 @@ class ModelCall:
     usage: Usage
 
 
+@dataclass(frozen=True, slots=True)
+class PhaseStarted:
+    phase: int
+
+
+@dataclass(frozen=True, slots=True)
+class PlanMade:
+    """The valid plan of a phase. A clarification or a failed plan is not emitted."""
+
+    phase: int
+    plan: StudyPlan
+
+
+@dataclass(frozen=True, slots=True)
+class ExpertRoundHeld:
+    phase: int
+    round: int
+
+
+@dataclass(frozen=True, slots=True)
+class ReportComposed:
+    pass
+
+
 TraceEvent = (
     StudyCreated
+    | PhaseStarted
+    | PlanMade
+    | ExpertRoundHeld
+    | ReportComposed
     | ModelCall
     | StepTraced
     | NetworksAdded

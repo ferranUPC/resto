@@ -14,11 +14,15 @@ from resto.application.executor.failures import StepFailed
 from resto.application.ports.repositories import StudyRepository
 from resto.application.ports.tracing import (
     ClarificationAsked,
+    ExpertRoundHeld,
     ModelCall,
     NetworksAdded,
     NoteStatusChanged,
     NotesWritten,
     NoteWriterFailed,
+    PhaseStarted,
+    PlanMade,
+    ReportComposed,
     StepTraced,
     StudyCreated,
     TraceEvent,
@@ -33,7 +37,7 @@ from resto.domain.value_objects.expert_round import ExpertRound
 from resto.domain.value_objects.question import Question
 from resto.domain.value_objects.report import Report
 from resto.domain.value_objects.step_record import StepRecord, StepStatus, Usage
-from resto.domain.value_objects.study_plan import PlanStep
+from resto.domain.value_objects.study_plan import PlanStep, StudyPlan
 
 
 def data(value: Any) -> Mapping[str, Any]:
@@ -53,13 +57,14 @@ class StudyRecorder:
         tracer: Tracer,
     ) -> None:
         """Opens the `Study` on phase 0 (`awaiting_user` if the question is ambiguous), stores it
-        and traces it as `StudyCreated`."""
+        and traces it as `StudyCreated`, then `PhaseStarted` for phase 0."""
         status = StudyStatus.AWAITING_USER if question.is_ambiguous else StudyStatus.PLANNING
         self._study = Study(new_id(), status, (Phase(question),), max_rounds=max_rounds)
         self._studies = studies
         self._tracer = tracer
         self._studies.store(self._study)
         self._emit(StudyCreated(question, parse_usage))
+        self._emit(PhaseStarted(0))
         self.model_call(parse_usage)
 
     # -- reading ------------------------------------------------------------------------------
@@ -102,6 +107,10 @@ class StudyRecorder:
         )
         self._trace_step(record)
         self._set_phase(phase, status=status, report=report)
+        if round_ is not None:
+            self._emit(ExpertRoundHeld(self.phase_index, self.phase_index + 1))
+        if report is not None:
+            self._emit(ReportComposed())
 
     def record_failure(
         self,
@@ -127,6 +136,13 @@ class StudyRecorder:
     def open_phase(self, question: Question) -> None:
         """Starts the next phase, on the experiment the Expert proposed."""
         self._set(phases=(*self._study.phases, Phase(question)))
+        self._emit(PhaseStarted(self.phase_index))
+
+    def plan_made(self, plan: StudyPlan, record: StepRecord) -> None:
+        """Stores the valid plan and its `plan` step in the current phase and starts running."""
+        phase = replace(self.phase, plan=plan, steps=(record,))
+        self._set_phase(phase, status=StudyStatus.RUNNING)
+        self._emit(PlanMade(self.phase_index, plan))
 
     def add_networks(self, *network_ids: str) -> None:
         """Adds the networks the study has not used yet; stores and traces only if one is new."""

@@ -80,12 +80,5 @@ def plan_phase(
             "plan", task, failure, phase=replace(phase, plan=output), pending=output.steps
         )
         return None
-    recorder.replace_phase(
-        replace(
-            phase,
-            plan=output,
-            steps=(StepRecord("plan", StepStatus.OK, task, usage=run.usage),),
-        ),
-        status=StudyStatus.RUNNING,
-    )
+    recorder.plan_made(output, StepRecord("plan", StepStatus.OK, task, usage=run.usage))
     return output

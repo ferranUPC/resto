@@ -11,7 +11,17 @@ from resto.application.executor import (
     StudyBudget,
 )
 from resto.application.ports.llm import StopReason
-from resto.application.ports.tracing import ModelCall, NoteStatusChanged, NoteWriterFailed
+from resto.application.ports.tracing import (
+    ExpertRoundHeld,
+    ModelCall,
+    NoteStatusChanged,
+    NoteWriterFailed,
+    PhaseStarted,
+    PlanMade,
+    ReportComposed,
+    StepTraced,
+    StudyCreated,
+)
 from resto.application.use_cases.run_study import ParserFailed
 from resto.domain.constants import DEFAULT_SEEDS
 from resto.domain.entities.expert_note import ExpertNote, NoteStatus, Provenance
@@ -522,9 +532,7 @@ def test_the_model_calls_of_a_study_sum_to_its_steps_and_the_parsers_tokens(
     calls = [e for e in world.tracer.events if isinstance(e, ModelCall)]
     steps = [s for p in study.phases for s in p.steps]
     assert study.status is StudyStatus.COMPLETED
-    assert sum(c.usage.input_tokens for c in calls) == 50 + sum(
-        s.usage.input_tokens for s in steps
-    )
+    assert sum(c.usage.input_tokens for c in calls) == 50 + sum(s.usage.input_tokens for s in steps)
     agent_steps = [s for s in steps if s.tool != "run_simulation"]
     assert len(calls) == 1 + len(agent_steps) + 1  # the Parser, the steps, the note writer
 
@@ -541,6 +549,78 @@ def test_a_failed_agent_call_still_emits_its_model_call(tmp_path: Path) -> None:
     calls = [e for e in world.tracer.events if isinstance(e, ModelCall)]
     assert study.status is StudyStatus.FAILED
     assert calls[-1].usage.input_tokens == 7
+
+
+def _flow(world: World) -> list[object]:
+    """The phase, plan, step, round and report events of a trace, as comparable tuples."""
+    flow: list[object] = []
+    for e in world.tracer.events:
+        if isinstance(e, PhaseStarted):
+            flow.append(("phase", e.phase))
+        elif isinstance(e, PlanMade):
+            flow.append(("plan", e.phase))
+        elif isinstance(e, StepTraced):
+            flow.append(("step", e.phase, e.tool))
+        elif isinstance(e, ExpertRoundHeld):
+            flow.append(("round", e.phase, e.round))
+        elif isinstance(e, ReportComposed):
+            flow.append("report")
+    return flow
+
+
+def test_a_multi_phase_study_traces_phases_plans_steps_rounds_and_the_report(
+    tmp_path: Path,
+) -> None:
+    world = World(
+        tmp_path,
+        question=WHAT_IF,
+        plans=(BASELINE_PLAN, TREATMENT_PLAN),
+        expert=(abstains(PROPOSED), answers()),
+    )
+
+    study = world.run()
+
+    flow = _flow(world)
+    assert study.status is StudyStatus.COMPLETED
+    assert flow[:3] == [("phase", 0), ("plan", 0), ("step", 0, "build_scenario")]
+    assert flow.index(("round", 0, 1)) < flow.index(("phase", 1)) < flow.index(("plan", 1))
+    assert flow[-3:] == [("round", 1, 2), ("step", 1, "compose_report"), "report"]
+    assert flow[-1] == "report"
+    assert flow.count("report") == 1
+    plan_event = next(e for e in world.tracer.events if isinstance(e, PlanMade))
+    assert plan_event.plan == study.phases[0].plan
+    assert isinstance(world.tracer.events[0], StudyCreated)
+
+
+def test_a_clarification_in_phase_0_traces_no_plan(tmp_path: Path) -> None:
+    world = World(tmp_path, plans=(run_of(ClarificationRequest("which network?")),))
+
+    world.run()
+
+    assert _flow(world) == [("phase", 0)]
+
+
+def test_a_failed_plan_traces_no_plan(tmp_path: Path) -> None:
+    world = World(tmp_path, plans=(plan(build_step(), run_step(0), network="nope"),))
+
+    world.run()
+
+    assert not any(isinstance(e, PlanMade) for e in world.tracer.events)
+
+
+def test_a_failed_report_traces_no_report(tmp_path: Path) -> None:
+    world = World(
+        tmp_path,
+        plans=(BASELINE_PLAN,),
+        expert=(answers(),),
+        composer=(run_of(None, StopReason.BUDGET),),
+    )
+
+    world.run()
+
+    flow = _flow(world)
+    assert ("round", 0, 1) in flow
+    assert "report" not in flow
 
 
 # -- persistence and helpers ----------------------------------------------------------------------
