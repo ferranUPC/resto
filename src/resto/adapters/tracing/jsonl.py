@@ -16,7 +16,7 @@ from typing import Any, get_args
 from resto.application.ports.tracing import TraceEvent
 from resto.application.schemas import adapter_for
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 _EVENT_TYPES: dict[str, type] = {t.__name__: t for t in get_args(TraceEvent)}
 
