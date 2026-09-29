@@ -70,16 +70,8 @@ def run_simulation(
     output = runner.run_batch(scenario.sumocfg, seed, staging_dir)
 
     if not output.ok:
-        return SimulationResult(
-            result_id=result_id,
-            scenario_id=scenario.scenario_id,
-            seed=seed,
-            mode=mode,
-            status=RunStatus.FAILED,
-            content_hash=reproducibility_hash(output.artifacts),
-            artifacts=output.artifacts,
-            error=output.error,
-            wall_clock_s=output.wall_clock_s,
+        return _build_result(
+            result_id, scenario, seed, mode, RunStatus.FAILED, output, output.artifacts
         )
 
     canonical_dir = out_dir / result_id
@@ -87,20 +79,34 @@ def run_simulation(
         shutil.rmtree(canonical_dir)
     staging_dir.rename(canonical_dir)
     artifacts = tuple(_relocated(a, staging_dir, canonical_dir) for a in output.artifacts)
-    result = SimulationResult(
+    result = _build_result(result_id, scenario, seed, mode, RunStatus.OK, output, artifacts)
+    results.store(result)
+    return result
+
+
+def _build_result(
+    result_id: str,
+    scenario: Scenario,
+    seed: int,
+    mode: RunMode,
+    status: RunStatus,
+    output: RunOutput,
+    artifacts: tuple[ArtifactRef, ...],
+) -> SimulationResult:
+    """The one place a `SimulationResult` is built from a run. KPIs are recorded only for an ok run;
+    `SimulationResult` itself enforces which status needs which fields."""
+    return SimulationResult(
         result_id=result_id,
         scenario_id=scenario.scenario_id,
         seed=seed,
         mode=mode,
-        status=RunStatus.OK,
+        status=status,
         content_hash=reproducibility_hash(artifacts),
         artifacts=artifacts,
-        kpis=output.kpis,
+        kpis=output.kpis if status is RunStatus.OK else None,
         error=output.error,
         wall_clock_s=output.wall_clock_s,
     )
-    results.store(result)
-    return result
 
 
 def _relocated(ref: ArtifactRef, old_dir: Path, new_dir: Path) -> ArtifactRef:
