@@ -25,6 +25,7 @@ from resto.adapters.persistence.sqlite.repositories import SqliteDatabase
 from resto.adapters.sumo.demand import SumoDemandTools
 from resto.adapters.sumo.demand_scaling import SumoDemandScaler
 from resto.adapters.sumo.netxml import SumolibNetworkQuery
+from resto.adapters.sumo.run_directories import FilesystemRunDirectories
 from resto.adapters.sumo.runner import SubprocessSumoRunner
 from resto.adapters.sumo.writers.rerouter import RerouterWriter
 from resto.adapters.sumo.writers.sumocfg import SumocfgFileWriter
@@ -106,6 +107,7 @@ def build_deps(
         notes=db.notes,
         studies=InMemoryStudyRepository(),
         runner=SubprocessSumoRunner(),
+        run_dirs=FilesystemRunDirectories(),
         network_query_factory=SumolibNetworkQuery,
         tracer=tracer,
         out_dir=out_dir,

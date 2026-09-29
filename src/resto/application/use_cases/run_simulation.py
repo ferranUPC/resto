@@ -24,11 +24,10 @@ its `store` left behind.
 
 from __future__ import annotations
 
-import shutil
-from dataclasses import replace
 from pathlib import Path
 
 from resto.application.ports.repositories import ResultRepository
+from resto.application.ports.run_directories import RunDirectories
 from resto.application.ports.sumo import RunOutput, SumoRunner
 from resto.domain.constants import SUMO_VERSION
 from resto.domain.entities.scenario import Scenario
@@ -50,6 +49,7 @@ def run_simulation(
     *,
     runner: SumoRunner,
     results: ResultRepository,
+    run_dirs: RunDirectories,
     out_dir: Path,
     attempt: str,
 ) -> SimulationResult:
@@ -66,7 +66,7 @@ def run_simulation(
         return existing
 
     staging_dir = attempt_dir(out_dir, result_id, attempt)
-    staging_dir.mkdir(parents=True, exist_ok=True)
+    run_dirs.prepare(staging_dir)
     output = runner.run_batch(scenario.sumocfg, seed, staging_dir)
 
     if not output.ok:
@@ -74,11 +74,7 @@ def run_simulation(
             result_id, scenario, seed, mode, RunStatus.FAILED, output, output.artifacts
         )
 
-    canonical_dir = out_dir / result_id
-    if canonical_dir.exists():
-        shutil.rmtree(canonical_dir)
-    staging_dir.rename(canonical_dir)
-    artifacts = tuple(_relocated(a, staging_dir, canonical_dir) for a in output.artifacts)
+    artifacts = run_dirs.promote(staging_dir, out_dir / result_id, output.artifacts)
     result = _build_result(result_id, scenario, seed, mode, RunStatus.OK, output, artifacts)
     results.store(result)
     return result
@@ -107,13 +103,6 @@ def _build_result(
         error=output.error,
         wall_clock_s=output.wall_clock_s,
     )
-
-
-def _relocated(ref: ArtifactRef, old_dir: Path, new_dir: Path) -> ArtifactRef:
-    try:
-        return replace(ref, path=new_dir / ref.path.relative_to(old_dir))
-    except ValueError:
-        return ref
 
 
 def run_ephemeral(

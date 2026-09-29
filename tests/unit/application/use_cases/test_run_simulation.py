@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from resto.adapters.persistence.memory import InMemoryResultRepository
+from resto.adapters.sumo.run_directories import FilesystemRunDirectories
 from resto.application.ports.sumo import RunOutput
 from resto.application.use_cases.run_simulation import (
     attempt_dir,
@@ -25,6 +26,7 @@ from tests.unit.application.use_cases._doubles import FakeRunner
 from tests.unit.domain._fixtures import artifact, static_intervention
 from tests.unit.domain._samples import scenario as online_scenario
 
+RUN_DIRS = FilesystemRunDirectories()
 KPIS = Kpis(mean_delay=24.4, mean_travel_time=85.4, teleports=0, departed=50, arrived=43)
 
 
@@ -70,7 +72,13 @@ def test_result_id_is_the_request_hash_and_the_run_goes_to_its_own_directory(
     results = InMemoryResultRepository()
 
     result = run_simulation(
-        batch_scenario(), 7, runner=runner, results=results, out_dir=tmp_path, attempt="study-1"
+        batch_scenario(),
+        7,
+        runner=runner,
+        results=results,
+        run_dirs=RUN_DIRS,
+        out_dir=tmp_path,
+        attempt="study-1",
     )
 
     expected_id = result_id_for("s-batch", 7, RunMode.BATCH.value, SUMO_VERSION)
@@ -90,11 +98,23 @@ def test_an_existing_ok_result_is_returned_without_running_sumo(tmp_path: Path) 
     runner = FakeRunner([ok_output()])
     results = InMemoryResultRepository()
     first = run_simulation(
-        batch_scenario(), 7, runner=runner, results=results, out_dir=tmp_path, attempt="study-1"
+        batch_scenario(),
+        7,
+        runner=runner,
+        results=results,
+        run_dirs=RUN_DIRS,
+        out_dir=tmp_path,
+        attempt="study-1",
     )
 
     second = run_simulation(
-        batch_scenario(), 7, runner=runner, results=results, out_dir=tmp_path, attempt="study-2"
+        batch_scenario(),
+        7,
+        runner=runner,
+        results=results,
+        run_dirs=RUN_DIRS,
+        out_dir=tmp_path,
+        attempt="study-2",
     )
 
     assert second == first
@@ -108,7 +128,13 @@ def test_a_failed_run_is_returned_but_not_stored_and_the_retry_stores_the_ok_one
     results = InMemoryResultRepository()
 
     failed = run_simulation(
-        batch_scenario(), 7, runner=runner, results=results, out_dir=tmp_path, attempt="study-1"
+        batch_scenario(),
+        7,
+        runner=runner,
+        results=results,
+        run_dirs=RUN_DIRS,
+        out_dir=tmp_path,
+        attempt="study-1",
     )
     assert failed.status is RunStatus.FAILED
     assert failed.error is not None and "NOPE" in failed.error
@@ -116,7 +142,13 @@ def test_a_failed_run_is_returned_but_not_stored_and_the_retry_stores_the_ok_one
     assert results.get(failed.result_id) is None  # a failed run is never stored (ADR-0031)
 
     retried = run_simulation(
-        batch_scenario(), 7, runner=runner, results=results, out_dir=tmp_path, attempt="study-2"
+        batch_scenario(),
+        7,
+        runner=runner,
+        results=results,
+        run_dirs=RUN_DIRS,
+        out_dir=tmp_path,
+        attempt="study-2",
     )
 
     assert retried.status is RunStatus.OK
@@ -136,6 +168,7 @@ def test_online_scenarios_are_refused_until_e2_5(tmp_path: Path) -> None:
             1,
             runner=FakeRunner([]),
             results=InMemoryResultRepository(),
+            run_dirs=RUN_DIRS,
             out_dir=tmp_path,
             attempt="study-1",
         )

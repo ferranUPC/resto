@@ -47,6 +47,7 @@ from eval.scenario_matrix.rows import ROWS, MatrixRow, build_draft
 from resto.adapters.persistence.mcp_client import McpClientDatabase
 from resto.adapters.persistence.sqlite.repositories import SqliteDatabase
 from resto.adapters.sumo.netxml import SumolibNetworkQuery
+from resto.adapters.sumo.run_directories import FilesystemRunDirectories
 from resto.adapters.sumo.runner import SubprocessSumoRunner
 from resto.application.ports.llm import AgentRun, StopReason
 from resto.application.schemas import adapter_for
@@ -130,6 +131,7 @@ def _rebuild_row(
     for seed in SEEDS:
         result = run_simulation(
             scenario, seed, runner=runner, results=db.results,
+            run_dirs=FilesystemRunDirectories(),
             out_dir=REBUILD_DIR / row.id / "runs", attempt=row.id,
         )
         if result.status is not RunStatus.OK:

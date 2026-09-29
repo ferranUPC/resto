@@ -48,6 +48,7 @@ from resto.adapters.persistence.mcp_client import McpClientDatabase
 from resto.adapters.persistence.sqlite.repositories import SqliteDatabase
 from resto.adapters.sumo.netxml import SumolibNetworkQuery
 from resto.adapters.sumo.outputs import parse_edgedata
+from resto.adapters.sumo.run_directories import FilesystemRunDirectories
 from resto.adapters.sumo.runner import SubprocessSumoRunner
 from resto.application.ports.llm import AgentRun, StopReason
 from resto.application.use_cases.build_scenario import build_scenario
@@ -174,7 +175,8 @@ def build_matrix() -> list[dict[str, object]]:
             results: dict[int, SimulationResult] = {}
             for seed in SEEDS:
                 results[seed] = run_simulation(
-                    scenario, seed, runner=runner, results=db.results, out_dir=row_dir / "runs",
+                    scenario, seed, runner=runner, results=db.results,
+                    run_dirs=FilesystemRunDirectories(), out_dir=row_dir / "runs",
                     attempt=row.id,
                 )
                 if results[seed].status is not RunStatus.OK:

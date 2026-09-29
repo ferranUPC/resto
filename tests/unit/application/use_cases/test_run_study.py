@@ -19,6 +19,7 @@ from resto.adapters.persistence.memory import (
     InMemoryScenarioRepository,
     InMemoryStudyRepository,
 )
+from resto.adapters.sumo.run_directories import FilesystemRunDirectories
 from resto.application.executor import StudyAgents, StudyBudget, StudyDeps, StudyPromotions
 from resto.application.ports.agents.coordinator import PlanningContext
 from resto.application.ports.llm import AgentRun, StopReason
@@ -330,6 +331,7 @@ class World:
             notes=self.notes,
             studies=self.studies,
             runner=self.runner,
+            run_dirs=FilesystemRunDirectories(),
             network_query_factory=lambda path: QUERY,
             tracer=self.tracer,
             out_dir=tmp_path,

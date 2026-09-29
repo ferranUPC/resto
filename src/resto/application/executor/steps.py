@@ -279,6 +279,7 @@ def _run_simulations(
                 seed,
                 runner=deps.runner,
                 results=deps.results,
+                run_dirs=deps.run_dirs,
                 out_dir=results_dir,
                 attempt=attempt,
             )
