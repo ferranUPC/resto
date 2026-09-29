@@ -192,6 +192,21 @@ class InMemoryNoteRepository:
         self._notes[note_id] = note.with_status(status)
 
 
+class InMemoryDatabase:
+    """The five DatabaseMCP repositories held in memory, for tests and demos. It offers no
+    `historical_demand`, so the Coordinator can be checked against a backend without it."""
+
+    def __init__(self, embedder: Embedder | None = None) -> None:
+        self.networks = InMemoryNetworkRepository()
+        self.demands = InMemoryDemandRepository()
+        self.scenarios = InMemoryScenarioRepository()
+        self.results = InMemoryResultRepository()
+        self.notes = InMemoryNoteRepository(embedder)
+
+    def close(self) -> None:
+        """Nothing to release; here so it can be swapped for `SqliteDatabase`."""
+
+
 class InMemoryStudyRepository:
     def __init__(self) -> None:
         self._studies: dict[str, Study] = {}

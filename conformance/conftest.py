@@ -22,17 +22,24 @@ from mcp.client._memory import InMemoryTransport
 from mcp.server.mcpserver import MCPServer
 
 from resto.adapters.persistence.mcp_client import McpClientDatabase
+from resto.adapters.persistence.memory import InMemoryDatabase
 from resto.adapters.persistence.sqlite.repositories import SqliteDatabase
 from resto.interface.mcp.database_server import build_server
 
 
-def _sqlite_reference() -> tuple[Any, MCPServer]:
+def _sqlite() -> tuple[Any, MCPServer]:
     backend = SqliteDatabase(":memory:")
     return backend, build_server(backend)
 
 
+def _memory() -> tuple[Any, MCPServer]:
+    backend = InMemoryDatabase()
+    return backend, build_server(backend)
+
+
 _BACKENDS: dict[str, Callable[[], tuple[Any, MCPServer]]] = {
-    "sqlite-reference": _sqlite_reference,
+    "memory": _memory,
+    "sqlite": _sqlite,
 }
 
 
