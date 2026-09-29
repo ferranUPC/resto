@@ -110,7 +110,10 @@ def _check_demand_on_network(
     demand = demands.get(demand_id)
     if demand is None:
         raise DraftRejected(f"unknown {label}_id {demand_id!r}")
-    ensure_demand_on_network(demand, network_id, label=label)
+    try:
+        ensure_demand_on_network(demand, network_id, label=label)
+    except ValueError as e:
+        raise DraftRejected(str(e)) from e
 
 
 def _effective_demand_id(draft: ScenarioDraft, task_demand_id: str) -> str:

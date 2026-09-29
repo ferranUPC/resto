@@ -141,7 +141,7 @@ def test_a_demand_from_a_different_network_is_rejected() -> None:
     from dataclasses import replace
 
     mismatched = _demands_with(replace(sample_demand(), network_id="other-network"))
-    with pytest.raises(ValueError, match="belongs to network 'other-network'"):
+    with pytest.raises(DraftRejected, match="belongs to network 'other-network'"):
         build_scenario(TASK, agent_run(output=draft()), **env(demands=mismatched))
 
 
@@ -229,5 +229,5 @@ def test_a_derived_demand_from_a_different_network_is_rejected(tmp_path: Path) -
     kwargs["out_dir"] = tmp_path
     kwargs["demands"].store(replace(derived_demand(), network_id="other-network"))
 
-    with pytest.raises(ValueError, match="derived demand .* belongs to network 'other-network'"):
+    with pytest.raises(DraftRejected, match="derived demand .* belongs to network 'other-network'"):
         build_scenario(TASK, agent_run(output=demand_scale_draft()), **kwargs)

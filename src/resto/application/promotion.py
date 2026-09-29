@@ -28,8 +28,11 @@ class RunWithoutDraft(RuntimeError):
     """The agent stopped (budget/error) without returning its draft."""
 
 
-class DraftRejected(ValueError):
-    """The agent returned a well-formed draft that breaks a semantic rule."""
+class DraftRejected(Exception):
+    """The agent returned a well-formed draft that breaks a semantic rule.
+
+    Not a `ValueError` on purpose: the Executor also maps a bare `ValueError` to `agent`, and a
+    subclass would make `blame` depend on which `except` comes first."""
 
     def __init__(self, message: str, *, blame: Blame = Blame.AGENT) -> None:
         super().__init__(message)

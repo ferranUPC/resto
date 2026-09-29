@@ -34,8 +34,9 @@ def test_a_rejected_draft_can_blame_the_user() -> None:
     assert DraftRejected("unknown edge 'e9'", blame=Blame.USER).blame is Blame.USER
 
 
-def test_a_rejected_draft_is_a_value_error_carrying_its_message() -> None:
-    error = DraftRejected("bad draft")
+def test_a_rejected_draft_carries_its_message() -> None:
+    assert str(DraftRejected("bad draft")) == "bad draft"
 
-    assert isinstance(error, ValueError)
-    assert str(error) == "bad draft"
+
+def test_a_rejected_draft_is_not_a_value_error_so_catch_order_cannot_change_its_blame() -> None:
+    assert not isinstance(DraftRejected("bad draft"), ValueError)
