@@ -58,4 +58,5 @@ def ask_expert_round(
     round_ = replace(round_, forced_by_limit=forced_by_limit)
     record = StepRecord("ask_expert", StepStatus.OK, data(task), usage=run.usage)
     recorder.record(record, round_=round_)
+    recorder.expert_round_held(round_no)
     return round_, ledger

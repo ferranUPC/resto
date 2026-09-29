@@ -101,3 +101,4 @@ def compose(recorder: StudyRecorder, spend: StudySpend, deps: StudyDeps) -> None
         return
     record = StepRecord("compose_report", StepStatus.OK, task, usage=run.usage)
     recorder.record(record, status=StudyStatus.COMPLETED, report=report)
+    recorder.report_composed()

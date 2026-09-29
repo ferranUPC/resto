@@ -107,10 +107,6 @@ class StudyRecorder:
         )
         self._trace_step(record)
         self._set_phase(phase, status=status, report=report)
-        if round_ is not None:
-            self._emit(ExpertRoundHeld(self.phase_index, self.phase_index + 1))
-        if report is not None:
-            self._emit(ReportComposed())
 
     def record_failure(
         self,
@@ -160,6 +156,13 @@ class StudyRecorder:
     def model_call(self, usage: Usage) -> None:
         """One agent call ended (ok or not): its tokens and cost."""
         self._emit(ModelCall(usage))
+
+    def expert_round_held(self, round_no: int) -> None:
+        """The Expert round of the current phase was recorded; `round_no` counts from 1."""
+        self._emit(ExpertRoundHeld(self.phase_index, round_no))
+
+    def report_composed(self) -> None:
+        self._emit(ReportComposed())
 
     def clarification_asked(self, reason: str) -> None:
         self._emit(ClarificationAsked(reason))

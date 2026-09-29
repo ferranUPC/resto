@@ -584,6 +584,10 @@ def test_a_multi_phase_study_traces_phases_plans_steps_rounds_and_the_report(
     assert study.status is StudyStatus.COMPLETED
     assert flow[:3] == [("phase", 0), ("plan", 0), ("step", 0, "build_scenario")]
     assert flow.index(("round", 0, 1)) < flow.index(("phase", 1)) < flow.index(("plan", 1))
+    assert [f for f in flow if isinstance(f, tuple) and f[0] == "round"] == [
+        ("round", 0, 1),
+        ("round", 1, 2),
+    ]
     assert flow[-3:] == [("round", 1, 2), ("step", 1, "compose_report"), "report"]
     assert flow[-1] == "report"
     assert flow.count("report") == 1
