@@ -28,6 +28,7 @@ from resto.application.schemas import adapter_for
 from resto.application.tools.expert import (
     EvidenceLedger,
     ExpertCollaborators,
+    expert_context,
 )
 from resto.domain.value_objects.drafts import ExpertNoteDraft, ExpertNoteDrafts
 from resto.domain.value_objects.experiment import ExperimentRole
@@ -89,11 +90,14 @@ def test_run_expert_offers_the_expert_tools_and_returns_the_agent_run() -> None:
         TASK,
         agent,
         BUDGET,
-        query=SumolibNetworkQuery(DEV_NET),
-        results=results,
-        scenarios=InMemoryScenarioRepository(),
-        notes=None,
-        ledger=ledger,
+        expert_context(
+            TASK,
+            query=SumolibNetworkQuery(DEV_NET),
+            results=results,
+            scenarios=InMemoryScenarioRepository(),
+            notes=None,
+        ),
+        ledger,
     )
 
     assert run.output == expert_answer()

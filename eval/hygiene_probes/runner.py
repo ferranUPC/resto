@@ -27,7 +27,7 @@ from resto.adapters.persistence.memory import (
 from resto.application.ports.llm import Budget, ToolAgent
 from resto.application.ports.network_query import NetworkQuery
 from resto.application.schemas import adapter_for
-from resto.application.tools.expert import EvidenceLedger
+from resto.application.tools.expert import EvidenceLedger, expert_context
 from resto.application.use_cases.ask_expert import (
     ExpertAnswerRejected,
     ExpertRunFailed,
@@ -125,10 +125,11 @@ def _run_once(
     )
     ledger = EvidenceLedger()
     started = time.monotonic()
-    run = run_expert(
-        task, agent, budget, query=query, results=InMemoryResultRepository(),
-        scenarios=InMemoryScenarioRepository(), notes=_seeded_notes(probe), ledger=ledger,
+    context = expert_context(
+        task, query=query, results=InMemoryResultRepository(),
+        scenarios=InMemoryScenarioRepository(), notes=_seeded_notes(probe),
     )
+    run = run_expert(task, agent, budget, context, ledger)
     elapsed = time.monotonic() - started
     rejection: str | None = None
     answer: ExpertAnswer | None = None

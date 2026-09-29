@@ -19,7 +19,7 @@ from resto.adapters.persistence.memory import (
 )
 from resto.adapters.sumo.netxml import SumolibNetworkQuery
 from resto.application.ports.llm import Tool
-from resto.application.tools.expert import EvidenceLedger, build_expert_tools
+from resto.application.tools.expert import EvidenceLedger, build_expert_tools, expert_context
 from resto.application.tools.network import build_network_tools
 from resto.application.tools.scenario_builder import (
     BuilderCollaborators,
@@ -63,14 +63,14 @@ def _expert(query: SumolibNetworkQuery, *, notes_allowed: bool) -> tuple[Tool, .
         result_ids=("res1",),
         notes_allowed=notes_allowed,
     )
-    return build_expert_tools(
-        task=task,
+    context = expert_context(
+        task,
         query=query,
         results=results,
         scenarios=InMemoryScenarioRepository(),
         notes=InMemoryNoteRepository(),
-        ledger=EvidenceLedger(),
     )
+    return build_expert_tools(context, EvidenceLedger())
 
 
 def _builder(query: SumolibNetworkQuery) -> tuple[Tool, ...]:

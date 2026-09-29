@@ -181,6 +181,12 @@ class ExpertCollaborators:
     notes: NoteRepository | None
     network_query_factory: Callable[[Path], NetworkQuery]
 
+    def context(self, task: ExpertTask, query: NetworkQuery) -> ExpertContext:
+        """The tools' context for `task`, with the repositories bound here."""
+        return expert_context(
+            task, query=query, results=self.results, scenarios=self.scenarios, notes=self.notes
+        )
+
 
 _EdgeIds = Annotated[
     Sequence[str], Field(min_length=1, description="Edge ids, e.g. ['A0A1', 'A1A2'].")
@@ -608,7 +614,6 @@ _EXPERT_TOOLS = (
     query_edgedata,
     get_scenario,
 )
-EXPERT_TOOL_NAMES = tuple(d.name for d in (*_NETWORK_TOOLS, *_EXPERT_TOOLS))
 
 
 def _recorded(ledger: EvidenceLedger, bound: Tool) -> Tool:
@@ -624,25 +629,13 @@ def _recorded(ledger: EvidenceLedger, bound: Tool) -> Tool:
     )
 
 
-def build_expert_tools(
-    *,
-    task: ExpertTask,
-    query: NetworkQuery,
-    results: ResultRepository,
-    scenarios: ScenarioRepository,
-    notes: NoteRepository | None,
-    ledger: EvidenceLedger,
-) -> tuple[Tool, ...]:
+def build_expert_tools(context: ExpertContext, ledger: EvidenceLedger) -> tuple[Tool, ...]:
     """The Expert's tool set for one task, every call recorded in `ledger`.
 
-    `search_notes` is offered only when `task.notes_allowed`.
-
-    Raises:
-        ValueError: `task.notes_allowed` but no `notes` repository was given.
+    `search_notes` is offered only when the context allows notes.
     """
-    ctx = expert_context(task, query=query, results=results, scenarios=scenarios, notes=notes)
-    tools = [d.bind(ctx.query) for d in _NETWORK_TOOLS]
-    tools.extend(d.bind(ctx) for d in _EXPERT_TOOLS)
-    if ctx.notes_allowed:
-        tools.append(search_notes.bind(ctx))
+    tools = [d.bind(context.query) for d in _NETWORK_TOOLS]
+    tools.extend(d.bind(context) for d in _EXPERT_TOOLS)
+    if context.notes_allowed:
+        tools.append(search_notes.bind(context))
     return tuple(_recorded(ledger, t) for t in tools)

@@ -19,6 +19,7 @@ from resto.application.tools.expert import (
     EvidenceLedger,
     NotAvailableError,
     build_expert_tools,
+    expert_context,
 )
 from resto.domain.entities.expert_note import ExpertNote
 from resto.domain.value_objects.question import Mode
@@ -95,9 +96,8 @@ def _tools(
         result_ids=result_ids,
         notes_allowed=notes_allowed,
     )
-    tools = build_expert_tools(
-        task=task, query=query, results=results, scenarios=scenarios, notes=notes, ledger=ledger
-    )
+    context = expert_context(task, query=query, results=results, scenarios=scenarios, notes=notes)
+    tools = build_expert_tools(context, ledger)
     return tools, ledger, results
 
 

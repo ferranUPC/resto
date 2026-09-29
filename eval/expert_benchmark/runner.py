@@ -26,7 +26,7 @@ from resto.application.ports.llm import Budget, ToolAgent
 from resto.application.ports.network_query import NetworkQuery
 from resto.application.ports.repositories import ResultRepository, ScenarioRepository
 from resto.application.schemas import adapter_for
-from resto.application.tools.expert import EvidenceLedger
+from resto.application.tools.expert import EvidenceLedger, expert_context
 from resto.application.use_cases.ask_expert import (
     ExpertAnswerRejected,
     ExpertRunFailed,
@@ -122,16 +122,10 @@ def _run_once(
     task = question.to_task(mode=mode)
     ledger = EvidenceLedger()
     started = time.monotonic()
-    run = run_expert(
-        task,
-        agent,
-        budget,
-        query=env.query,
-        results=env.results,
-        scenarios=env.scenarios,
-        notes=None,
-        ledger=ledger,
+    context = expert_context(
+        task, query=env.query, results=env.results, scenarios=env.scenarios, notes=None
     )
+    run = run_expert(task, agent, budget, context, ledger)
     elapsed = time.monotonic() - started
     rejection: str | None = None
     try:
