@@ -20,11 +20,11 @@ the ADR-0025 §3 failure table could not be read in one place.
 ## Decision
 
 1. **Location.** The Executor is the package `application/executor/`, next to `use_cases/`, `tools/`
-   and `ports/`. `run_study` stays the public use case with the same signature: it calls the Input
+   and `ports/`. `run_study` stays the public use case (since refactor r5 it also takes a `StudySettings`): it calls the Input
    Parser, raises `ParserFailed` when there is no `Question` (so no `Study` exists), applies the user's
    `mode` and calls the Executor.
-2. **Entry point.** The Executor is a function, `execute_study(question, parse_usage, deps, *,
-   max_rounds) -> Study`, not a class. It holds the phase loop and nothing else. It creates the two
+2. **Entry point.** The Executor is a function, `execute_study(question, parse_usage, deps, settings,
+   *, max_rounds) -> Study`, not a class. It holds the phase loop and nothing else. It creates the two
    stateful objects (`StudyRecorder`, `StudySpend`) and owns two locals: the study's network id and the
    last evidence ledger. It passes them explicitly to each phase function, so the coupling between the
    Expert round and the note writer is visible in `write_notes`' signature.
@@ -33,7 +33,7 @@ the ADR-0025 §3 failure table could not be read in one place.
    | Module | Job |
    |---|---|
    | `__init__` | re-exports `execute_study` and the dependency types |
-   | `deps` | `StudyAgents`, `StudyPromotions`, `StudyDeps`, `StudyBudget` (the composition root's contract) |
+   | `deps` | `StudyAgents`, `StudyPromotions`, `StudyDeps`, `StudyBudget`, `StudySettings` (the composition root's contract) |
    | `executor` | the phase loop |
    | `failures` | the ADR-0025 §3 classification: `StepFailed`, `fail() -> NoReturn`, `draft_of`, `promote`, `crash` |
    | `recorder` | `StudyRecorder`, the only writer of the `Study`: builds each state with `replace`, stores it, traces it |
