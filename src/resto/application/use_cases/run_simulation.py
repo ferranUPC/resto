@@ -25,7 +25,6 @@ its `store` left behind.
 from __future__ import annotations
 
 import shutil
-from collections.abc import Iterable
 from dataclasses import replace
 from pathlib import Path
 
@@ -34,11 +33,9 @@ from resto.application.ports.sumo import RunOutput, SumoRunner
 from resto.domain.constants import SUMO_VERSION
 from resto.domain.entities.scenario import Scenario
 from resto.domain.entities.simulation_result import RunMode, RunStatus, SimulationResult
-from resto.domain.services.content_hash import compute_content_hash
 from resto.domain.services.ids import result_id_for
+from resto.domain.services.reproducibility import reproducibility_hash
 from resto.domain.value_objects.artifact_ref import ArtifactRef
-
-REPRODUCIBLE_KINDS = frozenset({"sumocfg", "additional", "edgedata", "tripinfo"})
 
 
 def attempt_dir(out_dir: Path, result_id: str, attempt: str) -> Path:
@@ -119,10 +116,3 @@ def run_ephemeral(
     """One batch run of a cfg that is not (yet) a `Scenario`: probe and calibration runs. Never
     stored - there is no repository to store into."""
     return runner.run_batch(sumocfg, seed, out_dir)
-
-
-def reproducibility_hash(artifacts: Iterable[ArtifactRef]) -> str:
-    deterministic = sorted(
-        (a.kind, a.content_hash) for a in artifacts if a.kind in REPRODUCIBLE_KINDS
-    )
-    return compute_content_hash("run", deterministic)

@@ -4,7 +4,6 @@ store."""
 
 from __future__ import annotations
 
-import dataclasses
 from pathlib import Path
 
 import pytest
@@ -13,7 +12,6 @@ from resto.adapters.persistence.memory import InMemoryResultRepository
 from resto.application.ports.sumo import RunOutput
 from resto.application.use_cases.run_simulation import (
     attempt_dir,
-    reproducibility_hash,
     run_ephemeral,
     run_simulation,
 )
@@ -129,20 +127,6 @@ def test_a_failed_run_is_returned_but_not_stored_and_the_retry_stores_the_ok_one
     failed_dir = attempt_dir(tmp_path, failed.result_id, "study-1")
     assert failed_dir.is_dir()  # the failed attempt's own directory survives the retry
     assert (tmp_path / failed.result_id).is_dir()  # the retry's ok result got the canonical one
-
-
-def test_content_hash_covers_only_the_deterministic_artifacts() -> None:
-    with_clock_a = ok_output().artifacts + (artifact("summary.xml", "sum-1", "summary"),)
-    with_clock_b = tuple(
-        dataclasses.replace(a, content_hash="other-clock")
-        if a.kind in ("statistics", "summary")
-        else a
-        for a in with_clock_a
-    )
-    other_edgedata = ok_output("ed2").artifacts
-
-    assert reproducibility_hash(with_clock_a) == reproducibility_hash(with_clock_b)
-    assert reproducibility_hash(with_clock_a) != reproducibility_hash(other_edgedata)
 
 
 def test_online_scenarios_are_refused_until_e2_5(tmp_path: Path) -> None:
