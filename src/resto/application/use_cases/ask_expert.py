@@ -20,22 +20,15 @@ Attaching the round to a `Study` and persisting it is the Executor's job (E5,
 
 from __future__ import annotations
 
-from resto.application.ports.llm import AgentRun, StopReason
+from resto.application.ports.llm import AgentRun
 from resto.application.ports.network_query import NetworkQuery
+from resto.application.promotion import DraftRejected, require_draft
 from resto.application.tools.expert import EvidenceLedger
 from resto.domain.value_objects.answer_value import BottleneckCauses, Edges
 from resto.domain.value_objects.expert_answer import EvidenceKind, ExpertAnswer
 from resto.domain.value_objects.expert_round import ExpertRound
 from resto.domain.value_objects.question import Mode
 from resto.domain.value_objects.tasks import ExpertTask
-
-
-class ExpertRunFailed(RuntimeError):
-    """The Expert stopped (budget/error) without an `ExpertAnswer`."""
-
-
-class ExpertAnswerRejected(ValueError):
-    """The Expert returned a well-formed answer that breaks a semantic rule."""
 
 
 def ask_expert(
@@ -45,9 +38,7 @@ def ask_expert(
     *,
     query: NetworkQuery,
 ) -> ExpertRound:
-    if run.stop_reason is not StopReason.OUTPUT or run.output is None:
-        raise ExpertRunFailed(f"expert stopped on {run.stop_reason} without an answer")
-    answer = run.output
+    answer = require_draft(run, "expert")
     _check_mode(task, answer)
     _check_evidence(answer, ledger)
     _check_values(answer, query)
@@ -57,18 +48,18 @@ def ask_expert(
 
 def _check_mode(task: ExpertTask, answer: ExpertAnswer) -> None:
     if task.mode is Mode.FORCED and answer.needs_simulation:
-        raise ExpertAnswerRejected("forced mode must answer; needs_simulation is not allowed")
+        raise DraftRejected("forced mode must answer; needs_simulation is not allowed")
 
 
 def _check_evidence(answer: ExpertAnswer, ledger: EvidenceLedger) -> None:
     artifact_ids = ledger.artifact_ids()
     for evidence in answer.evidence:
         if evidence.kind is EvidenceKind.QUERY and ledger.get(evidence.ref) is None:
-            raise ExpertAnswerRejected(
+            raise DraftRejected(
                 f"evidence ref {evidence.ref!r} does not match any tool call of this run"
             )
         if evidence.kind is EvidenceKind.ARTIFACT and evidence.ref not in artifact_ids:
-            raise ExpertAnswerRejected(
+            raise DraftRejected(
                 f"artifact {evidence.ref!r} was not returned by any result tool call of this run"
             )
 
@@ -80,13 +71,13 @@ def _check_values(answer: ExpertAnswer, query: NetworkQuery) -> None:
         )
         for edge_id in edge_ids:
             if edge_id is not None and not query.has_edge(edge_id):
-                raise ExpertAnswerRejected(f"edge {edge_id!r} in the answer is not on the network")
+                raise DraftRejected(f"edge {edge_id!r} in the answer is not on the network")
 
 
 def _check_proposed_experiment(task: ExpertTask, answer: ExpertAnswer) -> None:
     proposed = answer.proposed_experiment
     if proposed is not None and proposed.network_ref not in (None, task.network_id):
-        raise ExpertAnswerRejected(
+        raise DraftRejected(
             f"proposed experiment targets network {proposed.network_ref!r}, "
             f"not {task.network_id!r}"
         )

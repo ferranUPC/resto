@@ -8,12 +8,9 @@ import pytest
 
 from resto.adapters.persistence.memory import InMemoryNoteRepository
 from resto.application.ports.llm import AgentRun, StopReason
+from resto.application.promotion import DraftRejected, RunWithoutDraft
 from resto.application.tools.expert import EvidenceLedger
-from resto.application.use_cases.write_note import (
-    ExpertNoteRejected,
-    NoteWriterRunFailed,
-    write_note,
-)
+from resto.application.use_cases.write_note import write_note
 from resto.domain.entities.expert_note import NoteStatus, Provenance
 from resto.domain.value_objects.answer_value import Measure, Quantity
 from resto.domain.value_objects.drafts import ExpertNoteDraft, ExpertNoteDrafts
@@ -120,29 +117,29 @@ def test_at_most_three_notes_per_study() -> None:
 
 
 def test_a_scenario_ref_outside_the_allow_list_is_rejected() -> None:
-    with pytest.raises(ExpertNoteRejected, match="s-invented"):
+    with pytest.raises(DraftRejected, match="s-invented"):
         _write(_run(_draft(scenario_ref="s-invented")))
 
 
 def test_a_note_about_an_unsimulated_scenario_cannot_be_observed() -> None:
-    with pytest.raises(ExpertNoteRejected, match="not simulated"):
+    with pytest.raises(DraftRejected, match="not simulated"):
         _write(_run(_draft(scenario_ref="s-pred")))
 
 
 def test_one_bad_draft_rejects_the_run_and_stores_nothing() -> None:
     notes = InMemoryNoteRepository()
-    with pytest.raises(ExpertNoteRejected):
+    with pytest.raises(DraftRejected):
         _write(_run(_draft(), _draft(ref="q9")), notes)
     assert notes.search("saturates", NETWORK, {}) == []
 
 
 def test_a_run_that_stopped_without_drafts_fails() -> None:
-    with pytest.raises(NoteWriterRunFailed):
+    with pytest.raises(RunWithoutDraft):
         _write(_run(stop=StopReason.BUDGET))
 
 
 def test_a_query_ref_not_in_the_ledger_is_rejected() -> None:
-    with pytest.raises(ExpertNoteRejected, match="q9"):
+    with pytest.raises(DraftRejected, match="q9"):
         _write(_run(_draft(ref="q9")))
 
 
@@ -153,5 +150,5 @@ def test_an_artifact_ref_not_returned_by_a_result_call_is_rejected() -> None:
         evidence=(Evidence(kind=EvidenceKind.ARTIFACT, ref="missing.xml"),),
         scenario_ref="s-base",
     )
-    with pytest.raises(ExpertNoteRejected, match="missing.xml"):
+    with pytest.raises(DraftRejected, match="missing.xml"):
         _write(_run(draft))

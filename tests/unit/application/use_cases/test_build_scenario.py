@@ -14,11 +14,8 @@ from resto.adapters.persistence.memory import (
 )
 from resto.application.ports.llm import AgentRun, StopReason
 from resto.application.ports.sumo import RunOutput
-from resto.application.use_cases.build_scenario import (
-    BuilderRunFailed,
-    ScenarioSemanticError,
-    build_scenario,
-)
+from resto.application.promotion import Blame, DraftRejected, RunWithoutDraft
+from resto.application.use_cases.build_scenario import build_scenario
 from resto.domain.services.ids import scenario_id_for
 from resto.domain.value_objects.intervention import Intervention, InterventionType
 from resto.domain.value_objects.mechanism import RegenerateDemandMechanism, StaticFileMechanism
@@ -121,22 +118,22 @@ def test_an_existing_scenario_is_returned_without_touching_sumo_again(tmp_path: 
 
 
 def test_a_budget_stop_reason_is_never_promoted() -> None:
-    with pytest.raises(BuilderRunFailed):
+    with pytest.raises(RunWithoutDraft):
         build_scenario(TASK, agent_run(output=None, stop_reason=StopReason.BUDGET), **env())
 
 
 def test_a_missing_output_on_a_reported_output_stop_reason_is_never_promoted() -> None:
-    with pytest.raises(BuilderRunFailed):
+    with pytest.raises(RunWithoutDraft):
         build_scenario(TASK, agent_run(output=None, stop_reason=StopReason.OUTPUT), **env())
 
 
 def test_unknown_network_is_rejected() -> None:
-    with pytest.raises(ScenarioSemanticError):
+    with pytest.raises(DraftRejected):
         build_scenario(TASK, agent_run(output=draft()), **env(networks=InMemoryNetworkRepository()))
 
 
 def test_unknown_demand_is_rejected() -> None:
-    with pytest.raises(ScenarioSemanticError):
+    with pytest.raises(DraftRejected):
         build_scenario(TASK, agent_run(output=draft()), **env(demands=InMemoryDemandRepository()))
 
 
@@ -144,20 +141,22 @@ def test_a_demand_from_a_different_network_is_rejected() -> None:
     from dataclasses import replace
 
     mismatched = _demands_with(replace(sample_demand(), network_id="other-network"))
-    with pytest.raises(ScenarioSemanticError):
+    with pytest.raises(ValueError, match="belongs to network 'other-network'"):
         build_scenario(TASK, agent_run(output=draft()), **env(demands=mismatched))
 
 
-def test_an_intervention_target_unknown_to_the_network_is_rejected() -> None:
-    with pytest.raises(ScenarioSemanticError):
+def test_an_intervention_target_unknown_to_the_network_is_rejected_on_the_users_account() -> None:
+    with pytest.raises(DraftRejected) as rejected:
         build_scenario(TASK, agent_run(output=draft()), **env(query=StubNetworkQuery()))
+
+    assert rejected.value.blame is Blame.USER
 
 
 def test_sumo_rejecting_the_cfg_is_a_semantic_error_and_nothing_is_stored(tmp_path: Path) -> None:
     kwargs = env(runner_outputs=[failed_output()])
     kwargs["out_dir"] = tmp_path
 
-    with pytest.raises(ScenarioSemanticError):
+    with pytest.raises(DraftRejected):
         build_scenario(TASK, agent_run(output=draft()), **kwargs)
 
     expected_id = scenario_id_for("abc123", "t1", (static_intervention(),), frozenset({"peak"}))
@@ -219,7 +218,7 @@ def test_an_unknown_derived_demand_is_rejected(tmp_path: Path) -> None:
     kwargs = env()
     kwargs["out_dir"] = tmp_path
 
-    with pytest.raises(ScenarioSemanticError):
+    with pytest.raises(DraftRejected):
         build_scenario(TASK, agent_run(output=demand_scale_draft()), **kwargs)
 
 
@@ -230,5 +229,5 @@ def test_a_derived_demand_from_a_different_network_is_rejected(tmp_path: Path) -
     kwargs["out_dir"] = tmp_path
     kwargs["demands"].store(replace(derived_demand(), network_id="other-network"))
 
-    with pytest.raises(ScenarioSemanticError):
+    with pytest.raises(ValueError, match="derived demand .* belongs to network 'other-network'"):
         build_scenario(TASK, agent_run(output=demand_scale_draft()), **kwargs)

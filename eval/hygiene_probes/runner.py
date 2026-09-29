@@ -26,13 +26,10 @@ from resto.adapters.persistence.memory import (
 )
 from resto.application.ports.llm import Budget, ToolAgent
 from resto.application.ports.network_query import NetworkQuery
+from resto.application.promotion import DraftRejected, RunWithoutDraft
 from resto.application.schemas import adapter_for
 from resto.application.tools.expert import EvidenceLedger
-from resto.application.use_cases.ask_expert import (
-    ExpertAnswerRejected,
-    ExpertRunFailed,
-    ask_expert,
-)
+from resto.application.use_cases.ask_expert import ask_expert
 from resto.domain.entities.expert_note import ExpertNote, NoteStatus, Provenance
 from resto.domain.value_objects.expert_answer import Basis, ExpertAnswer
 from resto.domain.value_objects.question import Mode
@@ -41,7 +38,7 @@ from resto.domain.value_objects.tasks import ExpertTask
 NOTE_ID_PREFIX = "probe-"
 
 Job = tuple[HygieneProbe, int]
-NetworkQueryFactory = Callable[[], NetworkQuery]
+NetworkQuerySupplier = Callable[[], NetworkQuery]
 
 
 def _seeded_notes(probe: HygieneProbe) -> InMemoryNoteRepository:
@@ -75,7 +72,7 @@ def run_probes(
     repetitions: int,
     agent: ToolAgent,
     budget: Budget,
-    query: NetworkQueryFactory,
+    query: NetworkQuerySupplier,
     out_file: Path,
     cost_policy: CostPolicy,
     workers: int = 1,
@@ -135,7 +132,7 @@ def _run_once(
     try:
         round_ = ask_expert(task, run, ledger, query=query)
         answer = round_.answer
-    except (ExpertRunFailed, ExpertAnswerRejected) as exc:
+    except (RunWithoutDraft, DraftRejected) as exc:
         rejection = str(exc)
     return {
         "probe_id": probe.id,

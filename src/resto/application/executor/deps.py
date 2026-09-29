@@ -16,6 +16,7 @@ from resto.application.ports.agents.network_author import NetworkAuthorAgent
 from resto.application.ports.agents.note_writer import NoteWriterAgent
 from resto.application.ports.agents.scenario_builder import ScenarioBuilderAgent
 from resto.application.ports.llm import AgentRun
+from resto.application.ports.network_query import NetworkQueryFactory
 from resto.application.ports.repositories import (
     DemandRepository,
     NetworkRepository,
@@ -27,7 +28,6 @@ from resto.application.ports.repositories import (
 from resto.application.ports.run_directories import RunDirectories
 from resto.application.ports.sumo import SumoRunner
 from resto.application.ports.tracing import Tracer
-from resto.application.use_cases.build_scenario import NetworkQueryFactory
 from resto.domain.constants import (
     DEFAULT_STUDY_MAX_AGENT_CALLS,
     DEFAULT_STUDY_MAX_SIMULATIONS,

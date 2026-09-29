@@ -22,22 +22,15 @@ Attaching the notes to a `Study` is the Executor's job (E5.10,
 
 from __future__ import annotations
 
-from resto.application.ports.llm import AgentRun, StopReason
+from resto.application.ports.llm import AgentRun
 from resto.application.ports.repositories import NoteRepository
+from resto.application.promotion import DraftRejected, require_draft
 from resto.application.tools.expert import EvidenceLedger
 from resto.domain.entities.expert_note import ExpertNote, Provenance
 from resto.domain.services.ids import new_id
 from resto.domain.value_objects.drafts import ExpertNoteDraft, ExpertNoteDrafts
 from resto.domain.value_objects.expert_answer import Basis, EvidenceKind
 from resto.domain.value_objects.tasks import NoteTask
-
-
-class NoteWriterRunFailed(RuntimeError):
-    """The note writer stopped (budget/error) without `ExpertNoteDrafts`."""
-
-
-class ExpertNoteRejected(ValueError):
-    """The note writer returned well-formed drafts, one of which breaks a semantic rule."""
 
 
 def write_note(
@@ -49,9 +42,7 @@ def write_note(
     study_id: str,
     notes: NoteRepository,
 ) -> tuple[ExpertNote, ...]:
-    if run.stop_reason is not StopReason.OUTPUT or run.output is None:
-        raise NoteWriterRunFailed(f"note writer stopped on {run.stop_reason} without drafts")
-    drafts = run.output.notes
+    drafts = require_draft(run, "note_writer").notes
     for draft in drafts:
         _check_evidence(draft, ledger)
         _check_scenario(draft, task)
@@ -84,11 +75,11 @@ def _check_scenario(draft: ExpertNoteDraft, task: NoteTask) -> None:
         return
     scenario = task.scenario(draft.scenario_ref)
     if scenario is None:
-        raise ExpertNoteRejected(
+        raise DraftRejected(
             f"scenario_ref {draft.scenario_ref!r} is not in the allow-list of this study"
         )
     if not scenario.simulated and draft.basis is Basis.OBSERVED:
-        raise ExpertNoteRejected(
+        raise DraftRejected(
             f"scenario {draft.scenario_ref!r} was not simulated: a note about it cannot be observed"
         )
 
@@ -97,10 +88,10 @@ def _check_evidence(draft: ExpertNoteDraft, ledger: EvidenceLedger) -> None:
     artifact_ids = ledger.artifact_ids()
     for evidence in draft.evidence:
         if evidence.kind is EvidenceKind.QUERY and ledger.get(evidence.ref) is None:
-            raise ExpertNoteRejected(
+            raise DraftRejected(
                 f"evidence ref {evidence.ref!r} does not match any tool call of this run"
             )
         if evidence.kind is EvidenceKind.ARTIFACT and evidence.ref not in artifact_ids:
-            raise ExpertNoteRejected(
+            raise DraftRejected(
                 f"artifact {evidence.ref!r} was not returned by any result tool call of this run"
             )
