@@ -22,7 +22,7 @@ from resto.domain.entities.simulation_result import RunMode, RunStatus
 from resto.domain.services.ids import result_id_for
 from resto.domain.value_objects.kpis import Kpis
 from resto.domain.value_objects.mechanism import StaticFileMechanism
-from tests.unit.application.use_cases._doubles import FakeRunner
+from tests.unit.application._doubles import FakeRunner
 from tests.unit.domain._fixtures import artifact, static_intervention
 from tests.unit.domain._samples import scenario as online_scenario
 

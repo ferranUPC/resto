@@ -37,8 +37,8 @@ from resto.domain.value_objects.expert_answer import Basis, ExpertAnswer
 from resto.domain.value_objects.expert_round import ExpertRound
 from resto.domain.value_objects.question import Mode
 from resto.domain.value_objects.tasks import ExpertTask, NoteScenario, NoteTask
+from tests.unit._paths import DEV_NET
 from tests.unit.adapters.llm._fakes import FakeToolAgent, call_tool
-from tests.unit.application.tools.test_expert import DEV_NET
 from tests.unit.domain._samples import expert_answer
 from tests.unit.domain._samples import network as sample_network
 from tests.unit.domain._samples import simulation_result as sample_result

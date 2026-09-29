@@ -57,7 +57,7 @@ from resto.domain.value_objects.study_plan import (
 from resto.domain.value_objects.tasks import ExpertTask, NoteTask
 from resto.domain.value_objects.time_window import TimeWindow
 from resto.domain.value_objects.topology_modification import AddEdge
-from tests.unit.application.use_cases._doubles import FakeRunner, StubNetworkQuery
+from tests.unit.application._doubles import FakeRunner, StubNetworkQuery
 from tests.unit.domain._fixtures import (
     DEMAND,
     NET,

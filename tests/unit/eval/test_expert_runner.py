@@ -18,8 +18,8 @@ from resto.application.ports.llm import AgentTask, Budget, Tool
 from resto.domain.value_objects.answer_value import Edges
 from resto.domain.value_objects.expert_answer import Basis, Evidence, EvidenceKind, ExpertAnswer
 from resto.domain.value_objects.question import Mode
+from tests.unit._paths import DEV_NET
 from tests.unit.adapters.llm._fakes import FakeToolAgent, call_tool
-from tests.unit.application.tools.test_expert import DEV_NET
 
 BUDGET = Budget(max_steps=6, max_tokens=2048, max_seconds=60.0)
 QUESTIONS = [

@@ -37,6 +37,7 @@ from resto.domain.value_objects.study_plan import (
     RerouteDemandStep,
     ReusedExperiment,
 )
+from tests.unit.application._doubles import FakeRunner
 from tests.unit.application._world import (
     BASE_SID,
     BASELINE_PLAN,
@@ -60,7 +61,6 @@ from tests.unit.application._world import (
     run_of,
     tools,
 )
-from tests.unit.application.use_cases._doubles import FakeRunner
 from tests.unit.domain._fixtures import (
     DEMAND,
     NET,

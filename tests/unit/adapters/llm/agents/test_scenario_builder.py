@@ -22,9 +22,9 @@ from resto.domain.value_objects.intervention_target import LaneTarget
 from resto.domain.value_objects.mechanism import StaticFileMechanism
 from resto.domain.value_objects.tasks import ScenarioTask
 from resto.domain.value_objects.time_window import TimeWindow
+from tests.unit._paths import DEV_NET
 from tests.unit.adapters.llm._fakes import FakeToolAgent, call_tool
-from tests.unit.application.tools.test_scenario_builder import (
-    DEV_NET,
+from tests.unit.application.tools._recorders import (
     RecordingAdditionalFileWriter,
     RecordingDemandRepository,
     RecordingDemandScaler,

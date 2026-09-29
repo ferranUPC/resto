@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import replace
-from pathlib import Path
 from typing import Any
 
 import pytest
@@ -27,12 +26,11 @@ from resto.application.tools.expert import (
 from resto.domain.entities.expert_note import ExpertNote
 from resto.domain.value_objects.question import Mode
 from resto.domain.value_objects.tasks import ExpertTask
+from tests.unit._paths import DEV_NET
 from tests.unit.adapters.llm._fakes import call_tool
 from tests.unit.domain._samples import expert_note as sample_note
 from tests.unit.domain._samples import scenario as sample_scenario
 from tests.unit.domain._samples import simulation_result as sample_result
-
-DEV_NET = Path(__file__).resolve().parents[4] / "eval" / "dev-net" / "dev-net.net.xml"
 
 
 @pytest.fixture(scope="module")
