@@ -29,7 +29,15 @@ from resto.application.executor.deps import (
     StudyBudget,
     StudyDeps,
     StudyPromotions,
+    StudySettings,
 )
 from resto.application.executor.executor import execute_study
 
-__all__ = ["StudyAgents", "StudyBudget", "StudyDeps", "StudyPromotions", "execute_study"]
+__all__ = [
+    "StudyAgents",
+    "StudyBudget",
+    "StudyDeps",
+    "StudyPromotions",
+    "StudySettings",
+    "execute_study",
+]

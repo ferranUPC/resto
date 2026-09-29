@@ -1,5 +1,5 @@
 """What the composition root builds to run a `Study`: the agents, the promotions not
-implemented yet, the repositories and adapters, and the study's budget."""
+implemented yet, and the repositories and adapters. The study's settings are `StudySettings`."""
 
 from __future__ import annotations
 
@@ -52,6 +52,15 @@ class StudyBudget:
 
 
 @dataclass(frozen=True, slots=True)
+class StudySettings:
+    """What varies per study run and is not a collaborator (ADR-0030 follow-up)."""
+
+    out_dir: Path
+    budget: StudyBudget = field(default_factory=StudyBudget)
+    has_historical_demand: bool = False
+
+
+@dataclass(frozen=True, slots=True)
 class StudyAgents:
     parser: InputParserAgent
     coordinator: CoordinatorAgent
@@ -93,6 +102,3 @@ class StudyDeps:
     run_dirs: RunDirectories
     network_query_factory: NetworkQueryFactory
     tracer: Tracer
-    out_dir: Path
-    has_historical_demand: bool = False
-    budget: StudyBudget = field(default_factory=StudyBudget)

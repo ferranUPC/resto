@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from resto.application.executor.deps import StudyDeps
+from resto.application.executor.deps import StudyDeps, StudySettings
 from resto.application.executor.failures import StepFailed, draft_of
 from resto.application.executor.plan_validation import plan_problems
 from resto.application.executor.recorder import StudyRecorder, data
@@ -17,7 +17,11 @@ from resto.domain.value_objects.study_plan import ClarificationRequest, StudyPla
 
 
 def plan_phase(
-    recorder: StudyRecorder, spend: StudySpend, deps: StudyDeps, network_id: str | None
+    recorder: StudyRecorder,
+    spend: StudySpend,
+    deps: StudyDeps,
+    settings: StudySettings,
+    network_id: str | None,
 ) -> StudyPlan | None:
     """The valid plan of the current phase, recorded as its `plan` step; or nothing, once the
     study awaits the user (a clarification in phase 0) or has failed."""
@@ -28,7 +32,7 @@ def plan_phase(
         phase=k,
         network_id=network_id,
         experiments=earlier,
-        has_historical_demand=deps.has_historical_demand,
+        has_historical_demand=settings.has_historical_demand,
     )
     task = {"phase": k, "question": data(phase.question)}
     try:
@@ -61,7 +65,7 @@ def plan_phase(
         phase=k,
         realised={e.arm for e in earlier},
         network_id=network_id,
-        has_historical_demand=deps.has_historical_demand,
+        has_historical_demand=settings.has_historical_demand,
         networks=deps.networks,
         demands=deps.demands,
         scenarios=deps.scenarios,

@@ -40,11 +40,11 @@ def test_without_a_question_no_study_is_created(
 
 
 def test_a_failed_study_is_rendered(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    from tests.unit.application.use_cases.test_run_study import BASELINE_PLAN, World
+    from tests.unit.application._world import BASELINE_PLAN, World
 
     world = World(tmp_path, plans=(BASELINE_PLAN,), expert=(ConnectionError("503"),))
 
-    code = main(["how congested is the peak?"], deps=world.deps)
+    code = main(["how congested is the peak?"], deps=world.deps, settings=world.settings)
 
     out = capsys.readouterr().out
     assert code == 1

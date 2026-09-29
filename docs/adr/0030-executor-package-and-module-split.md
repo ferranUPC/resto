@@ -63,6 +63,6 @@ the ADR-0025 §3 failure table could not be read in one place.
   own test file.
 - The experiment bookkeeping stays keyed by build-step index. Two build steps in one plan can produce
   the same `scenario_id`, so a key by scenario id would merge them.
-- Follow-ups: a `StudySettings` value to separate `budget`, `has_historical_demand` and `out_dir` from
-  the collaborators in `StudyDeps`; and E5.3 (one network per `ExpertTask`), which touches only
-  `expert_round`.
+- Follow-ups: E5.3 (one network per `ExpertTask`), which touches only `expert_round`. The
+  `StudySettings` follow-up (refactor r5) is done: `budget`, `has_historical_demand` and `out_dir` live
+  in `StudySettings`, passed beside `StudyDeps` to `run_study` and `execute_study`.

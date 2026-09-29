@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from resto.application.executor import StudyDeps, execute_study
+from resto.application.executor import StudyDeps, StudySettings, execute_study
 from resto.application.ports.llm import StopReason
 from resto.domain.constants import DEFAULT_MAX_ROUNDS
 from resto.domain.entities.study import Study
@@ -20,6 +20,7 @@ class ParserFailed(RuntimeError):
 def run_study(
     text: str,
     deps: StudyDeps,
+    settings: StudySettings,
     *,
     mode: Mode | None = None,
     max_rounds: int = DEFAULT_MAX_ROUNDS,
@@ -38,4 +39,4 @@ def run_study(
     if run.stop_reason is not StopReason.OUTPUT or run.output is None:
         raise ParserFailed(f"the Input Parser stopped on {run.stop_reason} without a Question")
     question = run.output if mode is None else replace(run.output, mode=mode)
-    return execute_study(question, run.usage, deps, max_rounds=max_rounds)
+    return execute_study(question, run.usage, deps, settings, max_rounds=max_rounds)
