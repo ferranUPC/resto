@@ -16,6 +16,7 @@ import pytest
 from resto.adapters.persistence.memory import InMemoryResultRepository, InMemoryScenarioRepository
 from resto.adapters.sumo.netxml import SumolibNetworkQuery
 from resto.application.ports.llm import Tool
+from resto.application.promotion import DraftRejected
 from resto.application.tools.expert import (
     EXPERT_NETWORK_TOOLS,
     EXPERT_TOPOLOGY_TOOLS,
@@ -25,6 +26,7 @@ from resto.application.tools.expert import (
     build_expert_tools,
 )
 from resto.domain.entities.expert_note import ExpertNote
+from resto.domain.value_objects.expert_answer import Evidence, EvidenceKind
 from resto.domain.value_objects.question import Mode
 from resto.domain.value_objects.tasks import ExpertTask
 from tests.unit.adapters.llm._fakes import call_tool
@@ -244,3 +246,29 @@ def test_search_notes_is_scoped_to_the_task_network(query: SumolibNetworkQuery) 
     assert notes.searches == [("E12 at peak", "abc123", {}, 10)]
     assert response["result"][0]["score"] == 0.75
     assert response["result"][0]["note"]["note_id"] == "n-1"
+
+
+def _ledger_with_a_result() -> EvidenceLedger:
+    ledger = EvidenceLedger()
+    ledger.record(
+        "get_result",
+        {"result_id": "r1"},
+        {"artifacts": [{"path": "out/edgedata.xml", "content_hash": "h1"}]},
+    )
+    return ledger
+
+
+def test_ensure_cited_accepts_evidence_the_run_produced() -> None:
+    _ledger_with_a_result().ensure_cited(
+        [Evidence(EvidenceKind.QUERY, "q1"), Evidence(EvidenceKind.ARTIFACT, "h1")]
+    )
+
+
+def test_ensure_cited_rejects_a_query_ref_that_matches_no_tool_call() -> None:
+    with pytest.raises(DraftRejected, match="q9"):
+        _ledger_with_a_result().ensure_cited([Evidence(EvidenceKind.QUERY, "q9")])
+
+
+def test_ensure_cited_rejects_an_artifact_no_result_tool_call_returned() -> None:
+    with pytest.raises(DraftRejected, match="artifact 'nope.xml'"):
+        _ledger_with_a_result().ensure_cited([Evidence(EvidenceKind.ARTIFACT, "nope.xml")])

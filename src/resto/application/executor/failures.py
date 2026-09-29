@@ -16,7 +16,7 @@ from collections.abc import Callable
 from typing import NoReturn, TypeVar
 
 from resto.application.ports.llm import AgentRun, StopReason
-from resto.application.promotion import Blame, DraftRejected
+from resto.application.promotion import Blame, DraftRejected, RunWithoutDraft, require_draft
 from resto.domain.value_objects.step_record import StepError, StepErrorKind, Usage
 
 T = TypeVar("T")
@@ -38,15 +38,12 @@ def fail(kind: StepErrorKind, message: str, *details: str, usage: Usage | None =
 def draft_of(run: AgentRun[T], agent: str) -> T:
     """The draft of a finished run, classified before any promotion sees it: a run cut by its
     budget is `budget`, any other run without a draft is `agent`."""
-    if run.stop_reason is StopReason.OUTPUT and run.output is not None:
-        return run.output
-    if run.stop_reason is StopReason.BUDGET:
-        fail(StepErrorKind.BUDGET, f"{agent} ran out of its budget", usage=run.usage)
-    fail(
-        StepErrorKind.AGENT,
-        f"{agent} stopped on {run.stop_reason} without a draft",
-        usage=run.usage,
-    )
+    try:
+        return require_draft(run, agent)
+    except RunWithoutDraft as e:
+        if e.stop_reason is StopReason.BUDGET:
+            fail(StepErrorKind.BUDGET, f"{agent} ran out of its budget", usage=run.usage)
+        fail(StepErrorKind.AGENT, str(e), usage=run.usage)
 
 
 def promote(call: Callable[[], T], usage: Usage) -> T:

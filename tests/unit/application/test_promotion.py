@@ -40,3 +40,10 @@ def test_a_rejected_draft_carries_its_message() -> None:
 
 def test_a_rejected_draft_is_not_a_value_error_so_catch_order_cannot_change_its_blame() -> None:
     assert not isinstance(DraftRejected("bad draft"), ValueError)
+
+
+def test_a_run_without_a_draft_keeps_the_stop_reason_it_ended_on() -> None:
+    with pytest.raises(RunWithoutDraft) as refused:
+        require_draft(_run(StopReason.BUDGET), "expert")
+
+    assert refused.value.stop_reason is StopReason.BUDGET

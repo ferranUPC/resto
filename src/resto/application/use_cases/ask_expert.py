@@ -25,7 +25,7 @@ from resto.application.ports.network_query import NetworkQuery
 from resto.application.promotion import DraftRejected, require_draft
 from resto.application.tools.expert import EvidenceLedger
 from resto.domain.value_objects.answer_value import BottleneckCauses, Edges
-from resto.domain.value_objects.expert_answer import EvidenceKind, ExpertAnswer
+from resto.domain.value_objects.expert_answer import ExpertAnswer
 from resto.domain.value_objects.expert_round import ExpertRound
 from resto.domain.value_objects.question import Mode
 from resto.domain.value_objects.tasks import ExpertTask
@@ -40,7 +40,7 @@ def ask_expert(
 ) -> ExpertRound:
     answer = require_draft(run, "expert")
     _check_mode(task, answer)
-    _check_evidence(answer, ledger)
+    ledger.ensure_cited(answer.evidence)
     _check_values(answer, query)
     _check_proposed_experiment(task, answer)
     return ExpertRound(question=task.question, answer=answer)
@@ -49,19 +49,6 @@ def ask_expert(
 def _check_mode(task: ExpertTask, answer: ExpertAnswer) -> None:
     if task.mode is Mode.FORCED and answer.needs_simulation:
         raise DraftRejected("forced mode must answer; needs_simulation is not allowed")
-
-
-def _check_evidence(answer: ExpertAnswer, ledger: EvidenceLedger) -> None:
-    artifact_ids = ledger.artifact_ids()
-    for evidence in answer.evidence:
-        if evidence.kind is EvidenceKind.QUERY and ledger.get(evidence.ref) is None:
-            raise DraftRejected(
-                f"evidence ref {evidence.ref!r} does not match any tool call of this run"
-            )
-        if evidence.kind is EvidenceKind.ARTIFACT and evidence.ref not in artifact_ids:
-            raise DraftRejected(
-                f"artifact {evidence.ref!r} was not returned by any result tool call of this run"
-            )
 
 
 def _check_values(answer: ExpertAnswer, query: NetworkQuery) -> None:

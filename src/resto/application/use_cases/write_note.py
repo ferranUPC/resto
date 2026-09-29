@@ -29,7 +29,7 @@ from resto.application.tools.expert import EvidenceLedger
 from resto.domain.entities.expert_note import ExpertNote, Provenance
 from resto.domain.services.ids import new_id
 from resto.domain.value_objects.drafts import ExpertNoteDraft, ExpertNoteDrafts
-from resto.domain.value_objects.expert_answer import Basis, EvidenceKind
+from resto.domain.value_objects.expert_answer import Basis
 from resto.domain.value_objects.tasks import NoteTask
 
 
@@ -44,7 +44,7 @@ def write_note(
 ) -> tuple[ExpertNote, ...]:
     drafts = require_draft(run, "note_writer").notes
     for draft in drafts:
-        _check_evidence(draft, ledger)
+        ledger.ensure_cited(draft.evidence)
         _check_scenario(draft, task)
     written = tuple(_construct(d, task, network_id=network_id, study_id=study_id) for d in drafts)
     for note in written:
@@ -82,16 +82,3 @@ def _check_scenario(draft: ExpertNoteDraft, task: NoteTask) -> None:
         raise DraftRejected(
             f"scenario {draft.scenario_ref!r} was not simulated: a note about it cannot be observed"
         )
-
-
-def _check_evidence(draft: ExpertNoteDraft, ledger: EvidenceLedger) -> None:
-    artifact_ids = ledger.artifact_ids()
-    for evidence in draft.evidence:
-        if evidence.kind is EvidenceKind.QUERY and ledger.get(evidence.ref) is None:
-            raise DraftRejected(
-                f"evidence ref {evidence.ref!r} does not match any tool call of this run"
-            )
-        if evidence.kind is EvidenceKind.ARTIFACT and evidence.ref not in artifact_ids:
-            raise DraftRejected(
-                f"artifact {evidence.ref!r} was not returned by any result tool call of this run"
-            )
