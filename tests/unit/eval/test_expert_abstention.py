@@ -34,7 +34,7 @@ def _answer(edge_ids: tuple[str, ...]) -> ExpertAnswer:
         basis=Basis.OBSERVED,
         confidence=0.8,
         evidence=(Evidence(kind=EvidenceKind.QUERY, ref="q1"),),
-        values=(Edges(edge_ids=edge_ids),),
+        values=(Edges(edge_ids=edge_ids, network_id="n"),),
     )
 
 

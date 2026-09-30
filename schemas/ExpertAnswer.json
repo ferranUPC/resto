@@ -160,6 +160,18 @@
         "measure": {
           "$ref": "#/$defs/Measure"
         },
+        "network_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Network Id"
+        },
         "relative_change_pct": {
           "anyOf": [
             {
@@ -243,10 +255,15 @@
         "edge_id": {
           "title": "Edge Id",
           "type": "string"
+        },
+        "network_id": {
+          "title": "Network Id",
+          "type": "string"
         }
       },
       "required": [
         "edge_id",
+        "network_id",
         "cause"
       ],
       "title": "EdgeCause",
@@ -287,6 +304,10 @@
           "title": "Kind",
           "type": "string"
         },
+        "network_id": {
+          "title": "Network Id",
+          "type": "string"
+        },
         "ranked": {
           "default": false,
           "title": "Ranked",
@@ -294,7 +315,8 @@
         }
       },
       "required": [
-        "edge_ids"
+        "edge_ids",
+        "network_id"
       ],
       "title": "Edges",
       "type": "object"
@@ -514,6 +536,10 @@
         "measure": {
           "$ref": "#/$defs/Measure"
         },
+        "network_id": {
+          "title": "Network Id",
+          "type": "string"
+        },
         "reason": {
           "$ref": "#/$defs/NoValueReason",
           "default": "no_traffic"
@@ -521,7 +547,8 @@
       },
       "required": [
         "measure",
-        "edge_id"
+        "edge_id",
+        "network_id"
       ],
       "title": "NoValue",
       "type": "object"
@@ -566,6 +593,18 @@
         },
         "measure": {
           "$ref": "#/$defs/Measure"
+        },
+        "network_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Network Id"
         },
         "value": {
           "title": "Value",

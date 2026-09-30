@@ -157,6 +157,7 @@ def expert_answer() -> ExpertAnswer:
                 direction=ChangeDirection.INCREASE,
                 relative_change_pct=12.0,
                 edge_id="E12",
+                network_id="abc123",
             ),
         ),
     )
@@ -371,16 +372,18 @@ SAMPLES: dict[type, Callable[[], object]] = {
     ExpertRound: lambda: ExpertRound(question="why?", answer=expert_answer(), forced_by_limit=True),
     ExpertAnswer: expert_answer,
     Evidence: lambda: Evidence(kind=EvidenceKind.ARTIFACT, ref="edgedata.xml", excerpt="E12"),
-    Edges: lambda: Edges(edge_ids=("E12", "E07"), ranked=True),
-    NoValue: lambda: NoValue(measure=Measure.TRAVEL_TIME, edge_id="E12"),
-    EdgeCause: lambda: EdgeCause(edge_id="E12", cause=BottleneckCause.SIGNAL),
+    Edges: lambda: Edges(edge_ids=("E12", "E07"), network_id="abc123", ranked=True),
+    NoValue: lambda: NoValue(measure=Measure.TRAVEL_TIME, edge_id="E12", network_id="abc123"),
+    EdgeCause: lambda: EdgeCause(edge_id="E12", network_id="abc123", cause=BottleneckCause.SIGNAL),
     BottleneckCauses: lambda: BottleneckCauses(
         causes=(
-            EdgeCause(edge_id="E12", cause=BottleneckCause.INTERVENTION),
-            EdgeCause(edge_id="E07", cause=BottleneckCause.SPILLBACK),
+            EdgeCause(edge_id="E12", network_id="abc123", cause=BottleneckCause.INTERVENTION),
+            EdgeCause(edge_id="E07", network_id="abc123", cause=BottleneckCause.SPILLBACK),
         )
     ),
-    Quantity: lambda: Quantity(measure=Measure.TRAVEL_TIME, value=23.4, edge_id="E12"),
+    Quantity: lambda: Quantity(
+        measure=Measure.TRAVEL_TIME, value=23.4, edge_id="E12", network_id="abc123"
+    ),
     Change: lambda: Change(
         measure=Measure.MEAN_DELAY, direction=ChangeDirection.INCREASE, relative_change_pct=7.6
     ),

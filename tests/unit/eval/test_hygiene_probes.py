@@ -35,7 +35,7 @@ def _observed_answer(ref: str = "q1") -> ExpertAnswer:
         basis=Basis.OBSERVED,
         confidence=0.9,
         evidence=(Evidence(kind=EvidenceKind.QUERY, ref=ref),),
-        values=(Edges(edge_ids=("B1B0",)),),
+        values=(Edges(edge_ids=("B1B0",), network_id="n"),),
     )
 
 
@@ -45,7 +45,7 @@ def _extrapolated_answer(ref: str = "q1") -> ExpertAnswer:
         basis=Basis.EXTRAPOLATED,
         confidence=0.3,
         evidence=(Evidence(kind=EvidenceKind.QUERY, ref=ref),),
-        values=(Edges(edge_ids=("B1B0",)),),
+        values=(Edges(edge_ids=("B1B0",), network_id="n"),),
     )
 
 

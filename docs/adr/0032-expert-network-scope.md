@@ -33,8 +33,13 @@ never verified.
 ## Consequences
 
 - Five value variants carry an edge (`Edges`, `Quantity`, `Change`, `NoValue`, `EdgeCause`), and so do the
-  gold answers of the question bank. The shape (a `network_id` field on each or one shared edge-reference
-  type) and the gold migration are settled when E5.3 starts.
+  gold answers of the question bank. Each gets its own `network_id` field, not a shared edge-reference
+  type (decided 2026-09-30, ticket r4/02). `Edges` holds one list of edges on one network, so a single
+  field covers the whole list (an empty list still names the network it was asked about). `Quantity` and
+  `Change` carry `network_id` exactly when they carry an `edge_id` (a network-wide measure names no
+  network). `NoValue` and `EdgeCause` always carry it. A shared type would add a nesting level to every
+  value the model writes and to every gold answer, for no invariant that a field pair does not already
+  give. The gold migration is ticket 03.
 - A pure opinion about a derived network, written without a scenario, is stored under the base network.
   Judged rare; revisit if `hygiene_probes` show otherwise.
 

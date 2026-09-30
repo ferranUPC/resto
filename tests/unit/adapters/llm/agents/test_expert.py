@@ -70,6 +70,14 @@ def test_build_task_carries_the_expert_task_as_plain_data() -> None:
         assert kind in task.system_prompt
 
 
+def test_every_prompt_example_of_an_edge_value_names_its_network() -> None:
+    prompt = build_task(TASK).system_prompt
+    for kind in ("edges", "quantity", "change", "no_value", "causes"):
+        example = prompt.split(f'"kind": "{kind}"')[1].split("\n  - ")[0]
+        assert '"network_id"' in example, kind
+    assert "network_id" in build_note_task(NOTE_TASK).system_prompt
+
+
 def test_prompt_examples_never_use_dev_net_edge_ids() -> None:
     # DEV-NET edges are named <col><row><col><row> (e.g. B2C2); gold answers are built from them
     assert re.findall(r"\b[A-E][0-4][A-E][0-4]\b", build_task(TASK).system_prompt) == []

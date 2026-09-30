@@ -16,6 +16,7 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any
 
+from eval.fixed_network_query_loader import FixedNetworkQueryLoader
 from eval.hygiene_probes.probes import HygieneProbe
 from eval.paid_runs import ESTIMATED_COST_KEY, REAL_COST_KEY, CostPolicy, RunOutcome, run_paid_jobs
 from resto.adapters.llm.agents.expert import EXPERT_VERSION, run_expert
@@ -134,7 +135,7 @@ def _run_once(
     rejection: str | None = None
     answer: ExpertAnswer | None = None
     try:
-        round_ = ask_expert(task, run, ledger, query=query)
+        round_ = ask_expert(task, run, ledger, loader=FixedNetworkQueryLoader(query))
         answer = round_.answer
     except (ExpertRunFailed, ExpertAnswerRejected) as exc:
         rejection = str(exc)

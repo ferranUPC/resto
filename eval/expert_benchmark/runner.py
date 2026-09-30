@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any
 
 from eval.expert_benchmark.bank import BenchmarkQuestion
+from eval.fixed_network_query_loader import FixedNetworkQueryLoader
 from eval.paid_runs import ESTIMATED_COST_KEY, REAL_COST_KEY, CostPolicy, RunOutcome, run_paid_jobs
 from resto.adapters.llm.agents.expert import EXPERT_VERSION, run_expert
 from resto.application.ports.llm import Budget, ToolAgent
@@ -129,7 +130,7 @@ def _run_once(
     elapsed = time.monotonic() - started
     rejection: str | None = None
     try:
-        ask_expert(task, run, ledger, query=env.query)
+        ask_expert(task, run, ledger, loader=FixedNetworkQueryLoader(env.query))
     except (ExpertRunFailed, ExpertAnswerRejected) as exc:
         rejection = str(exc)
     return {

@@ -421,7 +421,11 @@ def test_an_expert_round_loads_the_study_network_once(tmp_path: Path) -> None:
 
 
 def test_a_rejected_expert_answer_is_the_agents(tmp_path: Path) -> None:
-    world = World(tmp_path, plans=(BASELINE_PLAN,), expert=(answers(Edges(edge_ids=("E99",))),))
+    world = World(
+        tmp_path,
+        plans=(BASELINE_PLAN,),
+        expert=(answers(Edges(edge_ids=("E99",), network_id=NET)),),
+    )
 
     study = world.run()
 

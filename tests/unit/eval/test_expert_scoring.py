@@ -38,6 +38,13 @@ def _question(qid: str, gold: Mapping[str, Any]) -> BenchmarkQuestion:
     )
 
 
+NET = "abc123"
+
+
+def _ranked(edge_ids: tuple[str, ...]) -> Edges:
+    return Edges(edge_ids, network_id=NET, ranked=True)
+
+
 def _answer(*values: AnswerValue) -> ExpertAnswer:
     return ExpertAnswer(
         answer="prose",
@@ -104,42 +111,43 @@ def test_jaccard_and_tolerance_helpers() -> None:
 
 def test_no_answer_or_a_rejected_answer_is_incorrect() -> None:
     assert not score_answer(OCC, None).correct
-    rejected = score_answer(OCC, _answer(Edges(edge_ids=("B1B0",))), rejection="bad ref")
+    answer = _answer(Edges(edge_ids=("B1B0",), network_id=NET))
+    rejected = score_answer(OCC, answer, rejection="bad ref")
     assert not rejected.correct
     assert "rejected" in rejected.detail
 
 
 def test_desc_occ_needs_the_exact_set() -> None:
-    assert score_answer(OCC, _answer(Edges(edge_ids=("B1B0",)))).correct
-    assert not score_answer(OCC, _answer(Edges(edge_ids=("B1B0", "B2C2")))).correct
+    assert score_answer(OCC, _answer(Edges(edge_ids=("B1B0",), network_id=NET))).correct
+    assert not score_answer(OCC, _answer(Edges(edge_ids=("B1B0", "B2C2"), network_id=NET))).correct
     assert not score_answer(OCC, _answer(Quantity(Measure.MEAN_DELAY, 3.0))).correct
     empty = _question("S00-desc-occ", {"edges_above_threshold": []})
-    assert score_answer(empty, _answer(Edges(edge_ids=()))).correct
+    assert score_answer(empty, _answer(Edges(edge_ids=(), network_id=NET))).correct
 
 
 def test_desc_tt_uses_the_travel_time_on_the_gold_edge_within_5_percent() -> None:
-    assert score_answer(TT, _answer(Quantity(Measure.TRAVEL_TIME, 23.4, "B2C2"))).correct
-    assert not score_answer(TT, _answer(Quantity(Measure.TRAVEL_TIME, 21.95, "B2C2"))).correct
-    wrong_edge = score_answer(TT, _answer(Quantity(Measure.TRAVEL_TIME, 23.4, "C2D2")))
+    assert score_answer(TT, _answer(Quantity(Measure.TRAVEL_TIME, 23.4, "B2C2", NET))).correct
+    assert not score_answer(TT, _answer(Quantity(Measure.TRAVEL_TIME, 21.95, "B2C2", NET))).correct
+    wrong_edge = score_answer(TT, _answer(Quantity(Measure.TRAVEL_TIME, 23.4, "C2D2", NET)))
     assert not wrong_edge.correct
     assert "missing" in wrong_edge.detail
 
 
 def test_diag_is_correct_from_jaccard_0_6() -> None:
-    smoke_answer = score_answer(DIAG, _answer(Edges(("A2B2", "B2C2", "C2D2"), ranked=True)))
+    smoke_answer = score_answer(DIAG, _answer(_ranked(("A2B2", "B2C2", "C2D2"))))
     assert smoke_answer.jaccard == pytest.approx(0.5)
     assert not smoke_answer.correct
-    four = score_answer(DIAG, _answer(Edges(("B2C2", "C2D2", "E3E2", "A2B2"), ranked=True)))
+    four = score_answer(DIAG, _answer(_ranked(("B2C2", "C2D2", "E3E2", "A2B2"))))
     assert four.jaccard == pytest.approx(0.75)
     assert four.correct
 
 
 def _causes(**by_edge: BottleneckCause) -> BottleneckCauses:
-    return BottleneckCauses(tuple(EdgeCause(e, c) for e, c in by_edge.items()))
+    return BottleneckCauses(tuple(EdgeCause(e, NET, c) for e, c in by_edge.items()))
 
 
 def test_diag_counts_causes_over_the_edges_shared_with_the_gold() -> None:
-    edges = Edges(("B2C2", "C2D2", "A2B2"), ranked=True)
+    edges = Edges(("B2C2", "C2D2", "A2B2"), network_id=NET, ranked=True)
     causes = _causes(
         B2C2=BottleneckCause.INTERVENTION,
         C2D2=BottleneckCause.SIGNAL,
@@ -152,7 +160,7 @@ def test_diag_counts_causes_over_the_edges_shared_with_the_gold() -> None:
 
 
 def test_diag_cause_accuracy_is_independent_of_the_jaccard_verdict() -> None:
-    edges = Edges(("B2C2", "C2D2", "E3E2"), ranked=True)
+    edges = Edges(("B2C2", "C2D2", "E3E2"), network_id=NET, ranked=True)
     causes = _causes(
         B2C2=BottleneckCause.INTERVENTION,
         C2D2=BottleneckCause.SPILLBACK,
@@ -164,13 +172,13 @@ def test_diag_cause_accuracy_is_independent_of_the_jaccard_verdict() -> None:
 
 
 def test_diag_without_a_cause_value_scores_every_shared_edge_wrong() -> None:
-    score = score_answer(DIAG, _answer(Edges(("B2C2", "C2D2", "E3E2"), ranked=True)))
+    score = score_answer(DIAG, _answer(_ranked(("B2C2", "C2D2", "E3E2"))))
     assert score.correct
     assert (score.shared_edges, score.correct_causes) == (3, 0)
 
 
 def test_diag_cause_value_missing_an_edge_scores_that_edge_wrong() -> None:
-    edges = Edges(("B2C2", "C2D2"), ranked=True)
+    edges = Edges(("B2C2", "C2D2"), network_id=NET, ranked=True)
     causes = _causes(B2C2=BottleneckCause.INTERVENTION)
     score = score_answer(DIAG, _answer(edges, causes))
     assert (score.shared_edges, score.correct_causes) == (2, 1)
@@ -179,7 +187,7 @@ def test_diag_cause_value_missing_an_edge_scores_that_edge_wrong() -> None:
 def test_diag_without_an_answer_shares_no_edges() -> None:
     for score in (
         score_answer(DIAG, None),
-        score_answer(DIAG, _answer(Edges(("B2C2",))), rejection="bad ref"),
+        score_answer(DIAG, _answer(Edges(("B2C2",), network_id=NET)), rejection="bad ref"),
     ):
         assert (score.shared_edges, score.correct_causes) == (0, 0)
 
@@ -196,7 +204,7 @@ def _run(question: BenchmarkQuestion, score: Score, repetition: int = 1) -> Scor
         "real_cost_usd": None,
         "stop_reason": "output",
     }
-    return ScoredRun(question, repetition, score, _answer(Edges(("B2C2",))), record)
+    return ScoredRun(question, repetition, score, _answer(Edges(("B2C2",), network_id=NET)), record)
 
 
 def test_diag_cause_accuracy_sums_over_one_repetitions_shared_edges() -> None:
@@ -227,7 +235,7 @@ def test_diag_cause_accuracy_aggregates_across_repetitions_against_the_dod_bar()
 
 
 def test_cf_topk_compares_edge_sets() -> None:
-    score = score_answer(TOPK, _answer(Edges(("B0C0", "C1C0", "C1C2"), ranked=True)))
+    score = score_answer(TOPK, _answer(_ranked(("B0C0", "C1C0", "C1C2"))))
     assert score.correct
     assert score.jaccard == 1.0
 
@@ -242,13 +250,17 @@ def test_cf_topk_compares_edge_sets() -> None:
 )
 def test_cf_dir_compares_directions(direction: ChangeDirection, gold: str, correct: bool) -> None:
     question = _question("S09-cf-dir", {"edge_id": "B2C2", "direction": gold})
-    answer = _answer(Change(Measure.TIME_LOSS, direction, edge_id="B2C2"))
+    answer = _answer(Change(Measure.TIME_LOSS, direction, edge_id="B2C2", network_id=NET))
     assert score_answer(question, answer).correct is correct
 
 
 def test_cf_dir_ignores_a_change_on_another_measure_or_edge() -> None:
-    other_edge = _answer(Change(Measure.TIME_LOSS, ChangeDirection.INCREASE, edge_id="C2D2"))
-    other_measure = _answer(Change(Measure.SPEED, ChangeDirection.INCREASE, edge_id="B2C2"))
+    other_edge = _answer(
+        Change(Measure.TIME_LOSS, ChangeDirection.INCREASE, edge_id="C2D2", network_id=NET)
+    )
+    other_measure = _answer(
+        Change(Measure.SPEED, ChangeDirection.INCREASE, edge_id="B2C2", network_id=NET)
+    )
     assert not score_answer(DIR, other_edge).correct
     assert not score_answer(DIR, other_measure).correct
 
@@ -264,6 +276,7 @@ def test_cf_band_derives_the_band_from_the_percentage() -> None:
 
 def test_desc_tt_on_an_edge_without_traffic_expects_no_value() -> None:
     closed = _question("S01-desc-tt", {"edge_id": "B2C2", "no_value": "no_traffic"})
-    assert score_answer(closed, _answer(NoValue(Measure.TRAVEL_TIME, "B2C2"))).correct
-    assert not score_answer(closed, _answer(Quantity(Measure.TRAVEL_TIME, 0.0, "B2C2"))).correct
-    assert not score_answer(TT, _answer(NoValue(Measure.TRAVEL_TIME, "B2C2"))).correct
+    assert score_answer(closed, _answer(NoValue(Measure.TRAVEL_TIME, "B2C2", NET))).correct
+    zero = _answer(Quantity(Measure.TRAVEL_TIME, 0.0, "B2C2", NET))
+    assert not score_answer(closed, zero).correct
+    assert not score_answer(TT, _answer(NoValue(Measure.TRAVEL_TIME, "B2C2", NET))).correct

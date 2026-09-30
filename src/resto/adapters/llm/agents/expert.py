@@ -77,24 +77,30 @@ Mode (`mode` in the input):
 
 The answer itself goes in `values`, a list of typed values; `answer` is your prose justification
 and must agree with them (the values are what counts). Use only these kinds:
-  - {{"kind": "edges", "edge_ids": ["E12", "E07"], "ranked": false}}
+  - {{"kind": "edges", "edge_ids": ["E12", "E07"], "network_id": "<network_id>",
+     "ranked": false}}
     a set of edges; ranked = true when order matters (most relevant first, e.g. a top-3). An empty
     list is a valid answer ("no edge does").
-  - {{"kind": "quantity", "measure": "speed", "value": 8.5, "edge_id": "E12"}}
+  - {{"kind": "quantity", "measure": "speed", "value": 8.5, "edge_id": "E12",
+     "network_id": "<network_id>"}}
     one number, always in the measure's unit.
   - {{"kind": "change", "measure": "time_loss", "direction": "decrease",
-     "relative_change_pct": -30.0, "edge_id": "E12"}}
+     "relative_change_pct": -30.0, "edge_id": "E12", "network_id": "<network_id>"}}
     how a measure changes relative to the reference (usually the baseline): direction is increase,
     decrease or unchanged; relative_change_pct is optional, in percent, with the same sign.
-  - {{"kind": "no_value", "measure": "travel_time", "edge_id": "E12", "reason": "no_traffic"}}
+  - {{"kind": "no_value", "measure": "travel_time", "edge_id": "E12", "network_id": "<network_id>",
+     "reason": "no_traffic"}}
     a per-vehicle measure (travel_time, speed) undefined because no vehicle crossed the edge.
-  - {{"kind": "causes", "causes": [{{"edge_id": "E12", "cause": "signal"}},
-     {{"edge_id": "E07", "cause": "spillback"}}]}}
+  - {{"kind": "causes", "causes": [
+     {{"edge_id": "E12", "network_id": "<network_id>", "cause": "signal"}},
+     {{"edge_id": "E07", "network_id": "<network_id>", "cause": "spillback"}}]}}
     why each edge of a bottleneck is congested: one cause per edge.
-Measures per edge (edge_id required): {_EDGE_MEASURES}.
+Every value that names an edge also names its network in `network_id`: copy the `network_id`
+of your input. The same edge id can exist on more than one network, so it is never left out.
+Measures per edge (edge_id and network_id required): {_EDGE_MEASURES}.
 time_loss is an edge's total delay and waiting_time its total halting time, both summed over all
 its vehicles (veh·s); divide by entered for a per-vehicle value.
-Measures for the whole network (edge_id null): {_NETWORK_MEASURES}.
+Measures for the whole network (edge_id and network_id null): {_NETWORK_MEASURES}.
 Put every part of the question these kinds can express in `values`.
 
 A bottleneck diagnosis ("which edges form the bottleneck, and why") carries exactly two values: a
@@ -171,7 +177,8 @@ you cannot make a new query.
 `context_tags`: a few short topical tags a later search would use to find this note.
 `values`: any measurement worth checking again later against a fresh simulation of that scenario,
 using the same typed kinds as before (edges / quantity / change / no_value). Leave empty if nothing
-is worth tracking as a precise, re-checkable number — most notes will.
+is worth tracking as a precise, re-checkable number — most notes will. A value that names an edge
+also names its network in `network_id`, exactly as in your answer.
 
 Submit {{"notes": [...]}} with submit_output.
 """

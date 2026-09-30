@@ -19,11 +19,32 @@ from resto.domain.value_objects.answer_value import (
 
 
 def test_edges_may_be_empty_but_never_repeat() -> None:
-    assert Edges(edge_ids=()).edge_ids == ()
+    assert Edges(edge_ids=(), network_id="n1").edge_ids == ()
     with pytest.raises(ValueError, match="repeat"):
-        Edges(edge_ids=("B2C2", "B2C2"))
+        Edges(edge_ids=("B2C2", "B2C2"), network_id="n1")
     with pytest.raises(ValueError, match="non-empty"):
-        Edges(edge_ids=("",))
+        Edges(edge_ids=("",), network_id="n1")
+
+
+def test_every_value_that_names_an_edge_names_its_network() -> None:
+    with pytest.raises(ValueError, match="network_id"):
+        Edges(edge_ids=("B2C2",), network_id="")
+    with pytest.raises(ValueError, match="network_id"):
+        Quantity(measure=Measure.SPEED, value=1.0, edge_id="B2C2")
+    with pytest.raises(ValueError, match="network_id"):
+        Change(measure=Measure.SPEED, direction=ChangeDirection.UNCHANGED, edge_id="B2C2")
+    with pytest.raises(ValueError, match="network_id"):
+        NoValue(measure=Measure.SPEED, edge_id="B2C2", network_id="")
+    with pytest.raises(ValueError, match="network_id"):
+        EdgeCause(edge_id="B2C2", network_id="", cause=BottleneckCause.SIGNAL)
+
+
+def test_a_network_wide_value_names_no_network() -> None:
+    Quantity(measure=Measure.MEAN_DELAY, value=1.0)
+    with pytest.raises(ValueError, match="no network_id"):
+        Quantity(measure=Measure.MEAN_DELAY, value=1.0, network_id="n1")
+    with pytest.raises(ValueError, match="no network_id"):
+        Change(measure=Measure.MEAN_DELAY, direction=ChangeDirection.UNCHANGED, network_id="n1")
 
 
 def test_every_measure_has_a_unit() -> None:
@@ -34,7 +55,7 @@ def test_every_measure_has_a_unit() -> None:
 
 @pytest.mark.parametrize("measure", [Measure.TRAVEL_TIME, Measure.OCCUPANCY, Measure.TIME_LOSS])
 def test_edge_measures_require_an_edge(measure: Measure) -> None:
-    Quantity(measure=measure, value=1.0, edge_id="B2C2")
+    Quantity(measure=measure, value=1.0, edge_id="B2C2", network_id="n1")
     with pytest.raises(ValueError, match="per edge"):
         Quantity(measure=measure, value=1.0)
 
@@ -43,7 +64,12 @@ def test_edge_measures_require_an_edge(measure: Measure) -> None:
 def test_network_measures_forbid_an_edge(measure: Measure) -> None:
     Change(measure=measure, direction=ChangeDirection.UNCHANGED)
     with pytest.raises(ValueError, match="network-wide"):
-        Change(measure=measure, direction=ChangeDirection.UNCHANGED, edge_id="B2C2")
+        Change(
+            measure=measure,
+            direction=ChangeDirection.UNCHANGED,
+            edge_id="B2C2",
+            network_id="n1",
+        )
 
 
 def test_quantity_must_be_finite() -> None:
@@ -63,25 +89,31 @@ def test_change_percentage_cannot_contradict_its_direction(
 
 
 def test_change_percentage_is_optional_and_unchanged_accepts_either_sign() -> None:
-    Change(measure=Measure.TIME_LOSS, direction=ChangeDirection.INCREASE, edge_id="B2C2")
+    Change(
+        measure=Measure.TIME_LOSS,
+        direction=ChangeDirection.INCREASE,
+        edge_id="B2C2",
+        network_id="n1",
+    )
     Change(measure=Measure.MEAN_DELAY, direction=ChangeDirection.UNCHANGED, relative_change_pct=-2)
     Change(measure=Measure.MEAN_DELAY, direction=ChangeDirection.UNCHANGED, relative_change_pct=3)
 
 
 def test_no_value_only_for_per_vehicle_means_on_a_named_edge() -> None:
-    assert NoValue(measure=Measure.TRAVEL_TIME, edge_id="E12").reason.value == "no_traffic"
-    NoValue(measure=Measure.SPEED, edge_id="E12")
+    no_value = NoValue(measure=Measure.TRAVEL_TIME, edge_id="E12", network_id="n1")
+    assert no_value.reason.value == "no_traffic"
+    NoValue(measure=Measure.SPEED, edge_id="E12", network_id="n1")
     with pytest.raises(ValueError, match="always has a value"):
-        NoValue(measure=Measure.OCCUPANCY, edge_id="E12")
+        NoValue(measure=Measure.OCCUPANCY, edge_id="E12", network_id="n1")
     with pytest.raises(ValueError, match="names the edge"):
-        NoValue(measure=Measure.TRAVEL_TIME, edge_id="")
+        NoValue(measure=Measure.TRAVEL_TIME, edge_id="", network_id="n1")
 
 
 def test_bottleneck_causes_pair_each_edge_with_one_cause() -> None:
     value = BottleneckCauses(
         causes=(
-            EdgeCause(edge_id="E12", cause=BottleneckCause.INTERVENTION),
-            EdgeCause(edge_id="E07", cause=BottleneckCause.SPILLBACK),
+            EdgeCause(edge_id="E12", network_id="n1", cause=BottleneckCause.INTERVENTION),
+            EdgeCause(edge_id="E07", network_id="n1", cause=BottleneckCause.SPILLBACK),
         )
     )
     assert [c.edge_id for c in value.causes] == ["E12", "E07"]
@@ -90,18 +122,19 @@ def test_bottleneck_causes_pair_each_edge_with_one_cause() -> None:
     with pytest.raises(ValueError, match="repeat"):
         BottleneckCauses(
             causes=(
-                EdgeCause(edge_id="E12", cause=BottleneckCause.SIGNAL),
-                EdgeCause(edge_id="E12", cause=BottleneckCause.DEMAND),
+                EdgeCause(edge_id="E12", network_id="n1", cause=BottleneckCause.SIGNAL),
+                EdgeCause(edge_id="E12", network_id="n1", cause=BottleneckCause.DEMAND),
             )
         )
     with pytest.raises(ValueError, match="non-empty"):
-        EdgeCause(edge_id="", cause=BottleneckCause.MERGE)
+        EdgeCause(edge_id="", network_id="n1", cause=BottleneckCause.MERGE)
 
 
 def test_a_cause_outside_the_five_is_rejected_at_the_boundary() -> None:
     adapter: TypeAdapter[BottleneckCauses] = TypeAdapter(BottleneckCauses)
-    payload = {"kind": "causes", "causes": [{"edge_id": "E12", "cause": "signal"}]}
+    cause = {"edge_id": "E12", "network_id": "n1", "cause": "signal"}
+    payload = {"kind": "causes", "causes": [cause]}
     assert adapter.validate_python(payload).causes[0].cause is BottleneckCause.SIGNAL
-    payload["causes"] = [{"edge_id": "E12", "cause": "weather"}]
+    payload["causes"] = [{"edge_id": "E12", "network_id": "n1", "cause": "weather"}]
     with pytest.raises(ValueError):
         adapter.validate_python(payload)

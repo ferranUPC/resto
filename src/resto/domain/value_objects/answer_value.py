@@ -62,11 +62,21 @@ _UNITS = {
 }
 
 
-def _check_scope(measure: Measure, edge_id: str | None) -> None:
+def _check_scope(measure: Measure, edge_id: str | None, network_id: str | None) -> None:
     if measure.is_network_wide and edge_id is not None:
         raise ValueError(f"{measure} is network-wide: edge_id must be None")
     if not measure.is_network_wide and not edge_id:
         raise ValueError(f"{measure} is measured per edge: edge_id is required")
+    _check_network(edge_id, network_id)
+
+
+def _check_network(edge_id: str | None, network_id: str | None) -> None:
+    """An edge id repeats across a network and its derivations (ADR-0032), so a value that names
+    an edge always names its network, and a value that names none names no network."""
+    if edge_id is not None and not network_id:
+        raise ValueError("a value that names an edge must also name its network_id")
+    if edge_id is None and network_id is not None:
+        raise ValueError("a network-wide value names no network_id")
 
 
 class ChangeDirection(StrEnum):
@@ -81,10 +91,13 @@ class Edges:
     answer ("no edge does")."""
 
     edge_ids: tuple[str, ...]
+    network_id: str
     ranked: bool = False
     kind: Literal["edges"] = "edges"
 
     def __post_init__(self) -> None:
+        if not self.network_id:
+            raise ValueError("edges must name the network_id they are on")
         if len(set(self.edge_ids)) != len(self.edge_ids):
             raise ValueError("edge_ids must not repeat")
         if any(not e for e in self.edge_ids):
@@ -98,10 +111,11 @@ class Quantity:
     measure: Measure
     value: float
     edge_id: str | None = None
+    network_id: str | None = None
     kind: Literal["quantity"] = "quantity"
 
     def __post_init__(self) -> None:
-        _check_scope(self.measure, self.edge_id)
+        _check_scope(self.measure, self.edge_id, self.network_id)
         if not math.isfinite(self.value):
             raise ValueError("a quantity must be finite")
 
@@ -115,10 +129,11 @@ class Change:
     direction: ChangeDirection
     relative_change_pct: float | None = None
     edge_id: str | None = None
+    network_id: str | None = None
     kind: Literal["change"] = "change"
 
     def __post_init__(self) -> None:
-        _check_scope(self.measure, self.edge_id)
+        _check_scope(self.measure, self.edge_id, self.network_id)
         pct = self.relative_change_pct
         if pct is None:
             return
@@ -145,6 +160,7 @@ class NoValue:
 
     measure: Measure
     edge_id: str
+    network_id: str
     reason: NoValueReason = NoValueReason.NO_TRAFFIC
     kind: Literal["no_value"] = "no_value"
 
@@ -155,6 +171,7 @@ class NoValue:
             )
         if not self.edge_id:
             raise ValueError("a NoValue names the edge it refers to")
+        _check_network(self.edge_id, self.network_id)
 
 
 class BottleneckCause(StrEnum):
@@ -171,11 +188,13 @@ class BottleneckCause(StrEnum):
 @dataclass(frozen=True, slots=True)
 class EdgeCause:
     edge_id: str
+    network_id: str
     cause: BottleneckCause
 
     def __post_init__(self) -> None:
         if not self.edge_id:
             raise ValueError("an edge cause names a non-empty edge id")
+        _check_network(self.edge_id, self.network_id)
 
 
 @dataclass(frozen=True, slots=True)
@@ -189,8 +208,8 @@ class BottleneckCauses:
     def __post_init__(self) -> None:
         if not self.causes:
             raise ValueError("a cause value holds at least one edge")
-        edge_ids = [c.edge_id for c in self.causes]
-        if len(set(edge_ids)) != len(edge_ids):
+        edges = [(c.network_id, c.edge_id) for c in self.causes]
+        if len(set(edges)) != len(edges):
             raise ValueError("an edge must not repeat in a cause value")
 
     @property
