@@ -130,4 +130,3 @@ class SubprocessSumoRunner:
         self, sumocfg: ArtifactRef, script: ArtifactRef, seed: int, out_dir: Path
     ) -> RunOutput:
         raise NotImplementedError("online mode is work-plan E2.5")
-

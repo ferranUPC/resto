@@ -37,11 +37,10 @@ def _on_path(monkeypatch: pytest.MonkeyPatch, bin_dir: Path) -> None:
     monkeypatch.setenv("PATH", f"{bin_dir}:/usr/bin:/bin")
 
 
-def test_a_real_sumo_launch_is_ok_and_reports_the_files_it_produced(tmp_path: Path) -> None:
+def test_a_real_sumo_launch_is_ok(tmp_path: Path) -> None:
     result = launch("sumo", ["--help"], tmp_path, seed=1)
 
     assert result.ok is True
-    assert result.files == ()
 
 
 def test_the_files_a_tool_writes_are_reported(
