@@ -19,11 +19,13 @@ TRACKER = """| ID | Task | Status | Notes |
 | E1.2 | Open task | ⬜ | not yet |
 | E1.3 | Second finished | ✅ | done |
 | E3.1 | Other epic | ✅ | done |
+| E2.4 | Ticketed task | 🔄 | half built |
 """
 
 PLAN = """| ID | Task | Proof | Pts | Wave | Due |
 |---|---|---|---|---|---|
 | E1.1 | Finished task, planned | tests | 3 | 1a | 5 Oct |
+| E2.4 | Ticketed task, planned | tests | 12 | 2 | 11 Dec |
 """
 
 
@@ -202,3 +204,15 @@ def test_an_unknown_task_or_ticket_is_a_404(base_url):
     assert _get(base_url, "/api/task/E9.9")[0] == 404
     assert _get(base_url, "/api/task/E2.4/ticket/09")[0] == 404
     assert _get(base_url, "/api/task/E2.1/ticket/01")[0] == 404
+
+
+def test_a_task_with_a_spec_also_shows_its_plan_row_and_tracker_notes(base_url):
+    _, detail = _get(base_url, "/api/task/E2.4")
+    assert detail is not None
+    assert "Ticketed task, planned" in detail["plan_excerpt"]
+    assert (detail["tracker_status"], detail["tracker_notes"]) == ("🔄", "half built")
+
+
+def test_a_task_without_a_spec_shows_no_guessed_blockers(base_url):
+    _, detail = _get(base_url, "/api/task/E1.3")
+    assert detail is not None and detail["blocked_by"] == []

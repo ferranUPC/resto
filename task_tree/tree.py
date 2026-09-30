@@ -259,7 +259,8 @@ def task_detail(scratch: Path, tracker: Path, plan: Path, task_id: str) -> dict[
         "name": task.name,
         "stage": task.stage,
         "blocked": any(d in tasks and d not in done for d in task.blocked_by),
-        "blocked_by": task.blocked_by,
+        # A task without a spec only has guessed edges, which the panel must not show as fact.
+        "blocked_by": task.blocked_by if task.directory is not None else [],
         "points": points.group(1) if points else None,
         "latest_due": due.group(1).strip() if due else None,
         "measured_in": _header_line(spec_text, "Measured in"),
@@ -284,7 +285,9 @@ def ticket_detail(
     ticket = next((t for t in task.tickets if t["id"] == ticket_id), None)
     if ticket is None:
         return None
-    path = next((task.directory / "issues").glob(f"{ticket_id}-*.md"))
+    path = next((task.directory / "issues").glob(f"{ticket_id}-*.md"), None)
+    if path is None:
+        return None
     text = _read(path, [])
     question = re.search(r"^\*\*What to build:\*\*\s*(.*(?:\n(?!\n).*)*)", text, re.MULTILINE)
     return {

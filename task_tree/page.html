@@ -30,13 +30,13 @@
     display: none; flex-direction: column; padding: 14px 16px; background: #1c1f26;
     border-left: 1px solid #333844; }
   body.open #panel { display: flex; }
-  #detail { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+  #detail { flex: 1; min-height: 0; overflow-y: auto; }
   #panel h2 { margin: 0 0 6px; font-size: 15px; }
   #panel dl { margin: 8px 0; display: grid; grid-template-columns: max-content 1fr; gap: 2px 10px; }
   #panel dt { color: #9ca3af; }
   #panel dd { margin: 0; }
   #panel h3 { margin: 12px 0 4px; font-size: 12px; color: #9ca3af; text-transform: uppercase; }
-  #panel .notes { flex: 1; min-height: 0; overflow-y: auto; white-space: pre-wrap; }
+  #panel .notes { max-height: 45vh; overflow-y: auto; white-space: pre-wrap; }
   #panel a { color: #93c5fd; cursor: pointer; text-decoration: underline; }
   #panel ul { margin: 0; padding-left: 18px; }
   #close { position: absolute; top: 10px; right: 12px; background: none; border: 0; color: #9ca3af;
@@ -128,7 +128,7 @@ canvas.addEventListener("mousedown", ev => {
 window.addEventListener("mouseup", () => { drag = null; canvas.classList.remove("dragging"); });
 window.addEventListener("mousemove", ev => { if (drag) {
   const nx = ev.clientX - drag[0], ny = ev.clientY - drag[1];
-  if (nx !== tx || ny !== ty) moved = true;
+  if (Math.abs(nx - tx) + Math.abs(ny - ty) > 3) moved = true;
   tx = nx; ty = ny; apply();
 } });
 
