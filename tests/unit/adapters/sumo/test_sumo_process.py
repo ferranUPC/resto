@@ -125,3 +125,19 @@ def test_sumo_keeps_the_seed_in_its_config_and_other_tools_get_it_on_the_command
 
     assert sumo_calls.read_text().splitlines()[-1] == "-c run.sumocfg"
     assert du_calls.read_text().splitlines()[-1] == "-n x --seed 7"
+
+
+def test_checked_version_reads_the_real_binary_once_and_returns_the_pinned_version() -> None:
+    assert sumo_process.checked_version("sumo") == "1.27.1"
+
+
+def test_checked_version_raises_on_another_version_and_on_a_missing_binary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _fake_tool(tmp_path / "bin", "sumo", "1.20.0")
+    _on_path(monkeypatch, tmp_path / "bin")
+
+    with pytest.raises(SumoVersionError, match=r"1\.20\.0.*1\.27\.1"):
+        sumo_process.checked_version("sumo")
+    with pytest.raises(SumoVersionError):
+        sumo_process.checked_version("sumo-does-not-exist")

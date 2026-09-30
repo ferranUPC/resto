@@ -53,10 +53,7 @@ def launch(tool: str, args: Sequence[str], cwd: Path, seed: int) -> LaunchResult
         if proc.returncode != 0:
             return LaunchResult(ok=False, message=_failure_message(tool, proc))
         _version_cache[tool] = _read_version(tool, proc.stdout + proc.stderr)
-    if _version_cache[tool] != SUMO_VERSION:
-        raise SumoVersionError(
-            f"{tool} is version {_version_cache[tool]}, this project requires {SUMO_VERSION}"
-        )
+    _require_pinned(tool)
 
     command = [tool, *args]
     if tool not in _SEED_IN_CONFIG:
@@ -71,6 +68,32 @@ def launch(tool: str, args: Sequence[str], cwd: Path, seed: int) -> LaunchResult
     after = _snapshot(cwd)
     changed = tuple(sorted(p for p, stamp in after.items() if before.get(p) != stamp))
     return LaunchResult(ok=True, message="", files=changed)
+
+
+def checked_version(tool: str) -> str:
+    """The version of `tool`, read once per process and known to be `SUMO_VERSION`.
+
+    Raises:
+        SumoVersionError: `tool` cannot be run, or its version is not `SUMO_VERSION`.
+    """
+    if tool not in _version_cache:
+        try:
+            proc = subprocess.run([tool, "--version"], capture_output=True, text=True)
+        except OSError as exc:
+            raise SumoVersionError(f"cannot run {tool}: {exc}") from exc
+        if proc.returncode != 0:
+            message = _failure_message(tool, proc)
+            raise SumoVersionError(f"cannot read the version of {tool}: {message}")
+        _version_cache[tool] = _read_version(tool, proc.stdout + proc.stderr)
+    _require_pinned(tool)
+    return _version_cache[tool]
+
+
+def _require_pinned(tool: str) -> None:
+    if _version_cache[tool] != SUMO_VERSION:
+        raise SumoVersionError(
+            f"{tool} is version {_version_cache[tool]}, this project requires {SUMO_VERSION}"
+        )
 
 
 def _read_version(tool: str, output: str) -> str:

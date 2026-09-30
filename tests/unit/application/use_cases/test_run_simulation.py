@@ -189,3 +189,29 @@ def test_run_output_invariants_mirror_simulation_result() -> None:
         RunOutput(ok=True, error=None, artifacts=(), wall_clock_s=0.0)
     with pytest.raises(ValueError):
         RunOutput(ok=False, error="", artifacts=(), wall_clock_s=0.0)
+
+
+def test_the_result_id_with_the_pinned_version_is_the_one_computed_before(tmp_path: Path) -> None:
+    runner = FakeRunner([ok_output()], version=SUMO_VERSION)
+    results = InMemoryResultRepository()
+
+    result = run_simulation(
+        batch_scenario(), 7, runner=runner, results=results, run_dirs=RUN_DIRS,
+        out_dir=tmp_path, attempt="a",
+    )
+
+    assert result.result_id == result_id_for("s-batch", 7, "batch", SUMO_VERSION)  # as before
+    assert result.sumo_version == SUMO_VERSION
+
+
+def test_a_runner_on_another_sumo_version_never_produces_a_stored_result(tmp_path: Path) -> None:
+    runner = FakeRunner([ok_output()], version="1.20.0")
+    results = InMemoryResultRepository()
+
+    with pytest.raises(ValueError, match="results must come from SUMO"):
+        run_simulation(
+            batch_scenario(), 7, runner=runner, results=results, run_dirs=RUN_DIRS,
+            out_dir=tmp_path, attempt="a",
+        )
+
+    assert results.get(result_id_for("s-batch", 7, "batch", "1.20.0")) is None

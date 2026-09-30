@@ -245,3 +245,7 @@ def test_a_different_seed_changes_the_edgedata(scenario_cfg: ArtifactRef, tmp_pa
     assert (
         _kinds(a.artifacts)["edgedata"].content_hash != _kinds(b.artifacts)["edgedata"].content_hash
     )
+
+
+def test_the_runner_reports_the_checked_sumo_version() -> None:
+    assert SubprocessSumoRunner().sumo_version() == "1.27.1"

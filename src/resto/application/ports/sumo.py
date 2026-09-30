@@ -80,6 +80,10 @@ class RunOutput:
 
 
 class SumoRunner(Protocol):
+    def sumo_version(self) -> str:
+        """The SUMO version this runner runs, known before a run because the result id hashes it."""
+        ...
+
     def run_batch(self, sumocfg: ArtifactRef, seed: int, out_dir: Path) -> RunOutput: ...
     def run_online(
         self, sumocfg: ArtifactRef, script: ArtifactRef, seed: int, out_dir: Path

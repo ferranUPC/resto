@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from resto.application.ports.sumo import RunOutput
+from resto.domain.constants import SUMO_VERSION
 from resto.domain.value_objects.artifact_ref import ArtifactRef
 
 
@@ -56,10 +57,19 @@ class FakeRunner:
     """Returns `outputs` in order, then `default` for every further run (an empty queue with no
     default is a test error)."""
 
-    def __init__(self, outputs: list[RunOutput], default: RunOutput | None = None) -> None:
+    def __init__(
+        self,
+        outputs: list[RunOutput],
+        default: RunOutput | None = None,
+        version: str = SUMO_VERSION,
+    ) -> None:
         self._outputs = outputs
         self._default = default
+        self._version = version
         self.calls: list[tuple[ArtifactRef, int, Path]] = []
+
+    def sumo_version(self) -> str:
+        return self._version
 
     def run_batch(self, sumocfg: ArtifactRef, seed: int, out_dir: Path) -> RunOutput:
         self.calls.append((sumocfg, seed, out_dir))

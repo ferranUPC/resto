@@ -32,7 +32,7 @@ from time import perf_counter
 
 from resto.adapters.persistence.filesystem import artifact_ref
 from resto.adapters.sumo.outputs import output_artifact, parse_kpis
-from resto.adapters.sumo.sumo_process import launch
+from resto.adapters.sumo.sumo_process import checked_version, launch
 from resto.adapters.sumo.writers.sumocfg import (
     parse_settings,
     render_sumocfg,
@@ -72,6 +72,10 @@ _REPORT = {"duration-log.statistics": "true", "no-step-log": "true"}
 class SubprocessSumoRunner:
     def __init__(self, sumo_binary: str = "sumo") -> None:
         self._sumo = sumo_binary
+
+    def sumo_version(self) -> str:
+        """The `sumo` binary's version; raises if it is not the pinned one."""
+        return checked_version(self._sumo)
 
     def run_batch(self, sumocfg: ArtifactRef, seed: int, out_dir: Path) -> RunOutput:
         out_dir.mkdir(parents=True, exist_ok=True)
