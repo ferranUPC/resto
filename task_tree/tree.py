@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 STAGES = ("needs-triage", "ready", "specified", "ticketed", "done", "wontfix", "needs-info")
+FINISHED = ("done", "wontfix")
 _TITLE = re.compile(
     r"^#\s+(?:(?:Refactor|Unplanned)\s+)?(?:([A-Za-z]+\d+(?:\.\d+)?):\s*)?(.+?)\s*$"
 )
@@ -70,7 +71,7 @@ def _tickets(directory: Path, warnings: list[str]) -> list[dict[str, Any]]:
                 "blocked_by": _blocked_by(text, _TICKET_ID),
             }
         )
-    finished = {t["id"] for t in tickets if t["stage"] in ("done", "wontfix")}
+    finished = {t["id"] for t in tickets if t["stage"] in FINISHED}
     for ticket in tickets:
         ticket["blocked"] = any(d not in finished for d in ticket["blocked_by"])
     return tickets
@@ -160,7 +161,7 @@ def build_tree(scratch: Path, tracker: Path) -> dict[str, Any]:
                 tasks.setdefault(task.id, task)
     for task_id, name in _tracker_done(tracker).items():
         tasks.setdefault(task_id, Task(task_id, name, "done"))
-    done = {t.id for t in tasks.values() if t.stage in ("done", "wontfix")}
+    done = {t.id for t in tasks.values() if t.stage in FINISHED}
     nodes: dict[str, dict[str, Any]] = {}
     for task in tasks.values():
         nodes[task.id] = {

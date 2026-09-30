@@ -14,6 +14,7 @@
   .chip { padding: 2px 8px; border-radius: 10px; color: #fff; font-size: 12px; }
   svg { width: 100vw; height: 100vh; display: block; }
   .node rect { stroke: rgba(255,255,255,.35); stroke-width: 1; }
+  .node rect.frame { fill: #1c1f26; }
   .node text { fill: #fff; font-size: 12px; pointer-events: none; }
   .node.done { opacity: .4; }
   .ticket rect { stroke: rgba(255,255,255,.2); }
@@ -29,8 +30,12 @@
 <svg id="canvas"><g id="viewport"></g></svg>
 <div id="error"></div>
 <script>
-const W = 260, H = 34, RH = 22, GX = 60, GY = 14, NS = "http://www.w3.org/2000/svg";
+const W = 260, H = 34, GX = 60, GY = 14, NS = "http://www.w3.org/2000/svg";
+const RH = 22, ROW_GAP = 3, ROW_INSET = 10, ROWS_PAD = 6;
+const FINISHED = ["done", "wontfix"];
 const color = s => `var(--${s})`;
+const fill = (item, stages) => item.blocked && item.stage !== "done" ? color("blocked")
+  : color(stages.includes(item.stage) ? item.stage : "needs-triage");
 
 function el(name, attrs, parent) {
   const e = document.createElementNS(NS, name);
@@ -53,7 +58,7 @@ function draw(tree) {
   g.innerHTML = "";
   const pos = {}, height = {}, nextY = {};
   for (const n of [...tree.nodes].sort((a, b) => a.column - b.column || a.row - b.row)) {
-    height[n.id] = H + n.tickets.length * RH + (n.tickets.length ? 6 : 0);
+    height[n.id] = H + n.tickets.length * RH + (n.tickets.length ? ROWS_PAD : 0);
     const y = nextY[n.column] ?? 50;
     pos[n.id] = { x: 20 + n.column * (W + GX), y };
     nextY[n.column] = y + height[n.id] + GY;
@@ -68,22 +73,20 @@ function draw(tree) {
     const p = pos[n.id];
     const node = el("g", { class: "node" + (n.stage === "done" ? " done" : ""),
                            transform: `translate(${p.x},${p.y})` }, g);
-    el("rect", { width: W, height: H, rx: 6,
-                 fill: color(n.blocked && n.stage !== "done" ? "blocked" : n.stage) }, node);
+    el("rect", { class: "frame", width: W, height: height[n.id], rx: 6 }, node);
+    el("rect", { width: W, height: H, rx: 6, fill: fill(n, tree.stages) }, node);
     const label = el("text", { x: 8, y: H / 2 + 4 }, node);
     label.textContent = truncate(`${n.id} ${n.name}`, 40);
     const title = el("title", {}, node);
     title.textContent = [`${n.id} ${n.name}`, `stage: ${n.stage}`, ...n.warnings.map(w => "warning: " + w)].join("\n");
     n.tickets.forEach((t, i) => {
-      const y = H + 3 + i * RH, known = tree.stages.includes(t.stage);
-      const row = el("g", { class: "ticket" + (t.stage === "done" ? " done" : ""),
-                            transform: `translate(10,${y})` }, node);
-      el("rect", { width: W - 20, height: RH - 3, rx: 4,
-                   fill: color(t.blocked && t.stage !== "done" ? "blocked" : known ? t.stage : "needs-triage") }, row);
-      const text = el("text", { x: 6, y: RH / 2 + 1 }, row);
-      text.textContent = truncate(`${t.id} - ${t.name}`, 38);
-      const tip = el("title", {}, row);
-      tip.textContent = `${t.id} - ${t.name}\nstage: ${t.stage}` + (t.blocked ? "\nblocked by: " + t.blocked_by.join(", ") : "");
+      const label = `${t.id} - ${t.name}`;
+      const row = el("g", { class: "ticket" + (FINISHED.includes(t.stage) ? " done" : ""),
+                            transform: `translate(${ROW_INSET},${H + ROW_GAP + i * RH})` }, node);
+      el("rect", { width: W - 2 * ROW_INSET, height: RH - ROW_GAP, rx: 4, fill: fill(t, tree.stages) }, row);
+      el("text", { x: 6, y: RH / 2 + 1 }, row).textContent = truncate(label, 38);
+      el("title", {}, row).textContent = `${label}\nstage: ${t.stage}`
+        + (t.blocked ? "\nblocked by: " + t.blocked_by.join(", ") : "");
     });
   }
 }

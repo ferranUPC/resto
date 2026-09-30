@@ -90,12 +90,16 @@ def test_stage_follows_the_status_line_the_spec_section_and_the_issues_directory
     assert [t["id"] for t in nodes["E2.4"]["tickets"]] == ["01", "02"]
 
 
-def test_a_ticket_row_carries_its_name_stage_and_whether_a_blocker_is_unfinished(base_url, scratch):
+def test_a_ticket_row_carries_its_name_stage_and_number_in_order(base_url):
     tickets = _tree(base_url)["E2.4"]["tickets"]
-    assert [(t["id"], t["name"], t["stage"], t["blocked"]) for t in tickets] == [
-        ("01", "First", "done", False),
-        ("02", "Second", "ready", False),  # its only blocker, 01, is done
+    assert [(t["id"], t["name"], t["stage"]) for t in tickets] == [
+        ("01", "First", "done"),
+        ("02", "Second", "ready"),
     ]
+
+
+def test_a_ticket_is_blocked_only_while_a_ticket_it_lists_is_unfinished(base_url, scratch):
+    assert [t["blocked"] for t in _tree(base_url)["E2.4"]["tickets"]] == [False, False]
     (scratch / "e2-4-ticketed" / "issues" / "01-first.md").write_text(
         "# 01: First\n\n**Status:** ready\n", encoding="utf-8"
     )
