@@ -12,7 +12,8 @@
   body { margin: 0; background: var(--bg); color: var(--fg); font: 13px system-ui, sans-serif; }
   #legend { position: fixed; top: 8px; left: 8px; display: flex; gap: 6px; flex-wrap: wrap; z-index: 1; }
   .chip { padding: 2px 8px; border-radius: 10px; color: #fff; font-size: 12px; }
-  svg { width: 100vw; height: 100vh; display: block; }
+  svg { width: 100vw; height: 100vh; display: block; user-select: none; cursor: grab; }
+  svg.dragging { cursor: grabbing; }
   .node rect { stroke: rgba(255,255,255,.35); stroke-width: 1; }
   .node rect.frame { fill: #1c1f26; }
   .node text { fill: #fff; font-size: 12px; pointer-events: none; }
@@ -99,8 +100,11 @@ canvas.addEventListener("wheel", ev => {
   const f = ev.deltaY < 0 ? 1.1 : 1 / 1.1;
   tx = ev.clientX - (ev.clientX - tx) * f; ty = ev.clientY - (ev.clientY - ty) * f; scale *= f; apply();
 }, { passive: false });
-canvas.addEventListener("mousedown", ev => { drag = [ev.clientX - tx, ev.clientY - ty]; });
-window.addEventListener("mouseup", () => { drag = null; });
+canvas.addEventListener("mousedown", ev => {
+  ev.preventDefault();
+  drag = [ev.clientX - tx, ev.clientY - ty]; canvas.classList.add("dragging");
+});
+window.addEventListener("mouseup", () => { drag = null; canvas.classList.remove("dragging"); });
 window.addEventListener("mousemove", ev => { if (drag) { tx = ev.clientX - drag[0]; ty = ev.clientY - drag[1]; apply(); } });
 
 fetch("/api/tree").then(r => r.json()).then(draw)
