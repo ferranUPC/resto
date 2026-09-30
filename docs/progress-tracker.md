@@ -14,40 +14,46 @@ Status (decided 2026-09-24, wayfinder #3 — exact wording, applied by the `prog
 - 🚧 **blocked**: cannot proceed for a stated reason outside our control (an external person, data or
   service); the Notes say what unblocks it.
 
-Last updated: 2026-09-29
+Last updated: 2026-09-30
 
 **Summary: 31 / 76 tasks done (40.8 %), 6 awaiting measurement, 1 in progress, 0 blocked** (⏳: E4.2,
 E4.3, E4.4, E4.5, E4.7, E5.1, 92 of 954 pts, counted apart from done; 🔄: E5.3; E7.7 is Stretch, never
 scheduled, excluded from the count per work plan §5).
 
-Since the last review (`c7a54d2`, 2026-09-28), nine commits landed, none of them changing a task's
-status. Six (`f2d73bc`…`974b933`) split the `run_study` Executor, already ✅ under E5.10, out of a
-single 955-line use case into `application/executor/` (`steps`, `expert_round`, `closing`,
-`plan_validation`, `failures`, `recorder`, `spend`, `planning`, `deps`), recorded as ADR-0030; every
-commit message states "no behaviour change" and the same GP-shaped tests in
-`test_run_study.py`/`test_plan_validation.py`/`test_failures.py` still pass. The other three
-(`258b4b8`, `e064862`, `644717f`, plus `0224bdb`) add `config/prices.toml` as the single priced-model
-source (`UnknownModelError` on anything absent from it) and `eval/paid_runs.py`, a shared cost-capped
-job runner (resume-by-key, the $1 gate, per-worker in-flight reservation) that `expert_benchmark`,
-`parser_benchmark` and `hygiene_probes` now all run through instead of three separate ad hoc loops;
-`Usage.cost_usd` also starts carrying OpenRouter's real reported cost next to the estimate. This is
-infrastructure hardening for the paid measurement runs V1/V2 still need (E4.7, E5.1's second held-out
-use, E5.8), cheaper to trust when those runs happen, but none of them ran this week, so no ⏳ task
-crosses its bar and no build milestone moves. E5.10 and E7.4's rows note the refactor and the new
-per-call real-cost field below; no other row changed.
+Since the last review (`3386f9b`, 2026-09-29), eight commits landed (PR #10, merged same day as the
+last review), none of them changing a task's status. One is a real bug fix, not a refactor:
+`d72f880` (ADR-0031) found that `SqliteResultRepository`'s idempotency check raised `ConflictError`
+on a retried *failed* simulation, because a second `failed` attempt under the same `result_id`
+differs in `status`/`kpis`/`error`/`wall_clock_s` from the first, a crash the in-memory repository
+never surfaced because it overwrote instead of conflict-checking. `run_simulation` now takes a
+required `attempt` label, runs into a per-attempt staging directory, and stores only an `ok` result,
+promoting the staging directory to the canonical path first; a failed attempt is returned to its
+caller but never stored, so retrying a failed seed no longer crashes the CLI-wired SQLite path. The
+Executor's `steps.py` was updated to pass its own `attempt` label into `run_simulation` (confirmed by
+reading the call site). This is a correctness fix under E2.1's existing ✅ scope (reliability of the
+already-met "zero redundant simulations" bar, not a new capability), relevant to V1/V2 runs that will
+retry failed seeds for real. The other seven commits are pure refactors already covered by their own
+"no behaviour change" claims and this review's own green test run: `application/promotion.py`
+(`RunWithoutDraft`, `DraftRejected(blame)`, `require_draft`) replaces four per-module exception types
+so the Executor classifies failures by `blame` instead of importing exceptions from `build_scenario`;
+`domain/services/ownership.py` centralises the "demand belongs to network" rule used by
+`build_scenario` and `scale_demand`; `EvidenceLedger.ensure_cited` replaces duplicated evidence-check
+code in `ask_expert`/`write_note`; a `RunDirectories` port now owns the staging/promotion directory
+logic `run_simulation` used to touch on disk directly. None of this reaches a DoD bar on its own, so
+no ⏳ task crosses its threshold and no build milestone moves; E2.1's row below notes the bug fix.
 
 By plan points, 374 of 954 (39.2 %) are in ✅ tasks, 92 in ⏳, 14 in 🔄, unchanged from last review.
-Verified now in a system Python 3.11 venv (no `resto` conda env in this container): `eclipse-sumo`
-1.27.1, `sumolib`, `traci` installed from PyPI via `pip install -e ".[dev]"`, which puts the `sumo`
-binary on `PATH`; `SUMO_HOME` left unset, since `conftest.py` warns the pinned PyPI SUMO needs it
-unset. `pytest -q` 964 passed, 1 skipped (same pre-existing fixture needing a locally-generated,
-uncommitted run directory), up from 923 passed, consistent with the new executor-package and
-`paid_runs` tests. `ruff check .` clean. `mypy` (run with no path argument, so it honours
-`pyproject.toml`'s `files` list rather than walking the whole tree; running it as `mypy .` instead
-surfaces 7 pre-existing errors in the deliberately-excluded `eval/dev-net/demand/sim_utils.py`, a false
-alarm, not a regression) is clean over 275 source files, up from 259 at the last review by roughly the
-11 new executor-package modules plus `eval/paid_runs.py` and their tests. See
-`docs/feasability-analisis/2026-09-29.md`.
+Verified now in a system Python 3.11 venv (no `resto` conda env in this container, same limitation as
+every prior review): `eclipse-sumo` 1.27.1, `sumolib`, `traci`, `mcp`, `openai`, `pydantic` installed
+from PyPI (`pip install --user`, since `pip install -e ".[dev]"` hit an unrelated apt/pip conflict
+over a Debian-packaged `PyJWT` this session, worked around with `pip install -e . --no-deps` plus the
+individual packages), which puts the `sumo` binary on `PATH`; `SUMO_HOME` left unset, as `conftest.py`
+requires for the pinned PyPI SUMO. `pytest -q` **992 passed, 1 skipped** (same pre-existing fixture
+needing a locally-generated, uncommitted run directory), up from 964 passed, consistent with the new
+`test_promotion.py`, `test_run_directories.py`, `test_ownership.py`, `test_reproducibility.py` and the
+grown `test_memory_repositories.py`/`test_result_repository_contract.py`. `ruff check .` clean.
+`mypy` (run with no path argument, honouring `pyproject.toml`'s `files` list) clean over 286 source
+files, up from 275. See `docs/feasability-analisis/2026-09-30.md`.
 
 ---
 
@@ -79,7 +85,7 @@ alarm, not a regression) is clean over 275 source files, up from 259 at the last
 
 | ID | Task | Status | Notes |
 |---|---|---|---|
-| E2.1 | Runner batch mode (+ ephemeral mode for probe/calibration) + reproducibility test (20 runs) | ✅ | 2026-09-15, commit `1e23009` (CI green, verified now): `adapters/sumo/runner.py`'s `SubprocessSumoRunner.run_batch` derives a run cfg, runs `sumo -c`, collects edgedata/tripinfo/statistics/summary as `ArtifactRef`s. `application/use_cases/run_simulation.py`: `run_simulation` computes `result_id = hash(scenario_id, seed, mode, sumo_version)` before running, returns an existing *ok* result unrun; `run_ephemeral` is the unstored probe/calibration path. `test_twenty_runs_with_the_same_seed_are_byte_identical` runs 20 real SUMO batch runs and asserts a single distinct content-hash tuple. Online mode (`run_online`) still raises `NotImplementedError`, correctly deferred to E2.5 |
+| E2.1 | Runner batch mode (+ ephemeral mode for probe/calibration) + reproducibility test (20 runs) | ✅ | 2026-09-15, commit `1e23009` (CI green, verified now): `adapters/sumo/runner.py`'s `SubprocessSumoRunner.run_batch` derives a run cfg, runs `sumo -c`, collects edgedata/tripinfo/statistics/summary as `ArtifactRef`s. `application/use_cases/run_simulation.py`: `run_simulation` computes `result_id = hash(scenario_id, seed, mode, sumo_version)` before running, returns an existing *ok* result unrun; `run_ephemeral` is the unstored probe/calibration path. `test_twenty_runs_with_the_same_seed_are_byte_identical` runs 20 real SUMO batch runs and asserts a single distinct content-hash tuple. Online mode (`run_online`) still raises `NotImplementedError`, correctly deferred to E2.5. 2026-09-29, commit `d72f880` (ADR-0031, found in this review): fixes a real crash, retrying a failed seed under the SQLite backend raised `ConflictError` instead of re-running, because a second `failed` attempt's content always differs from the first. Only an `ok` result is stored now; `run_simulation` takes a required `attempt` label and stages each attempt's SUMO output separately, promoting it to the canonical path on success. This task's own Done bar (byte-identical reproducibility over 20 runs) was already met and is unaffected; the fix matters for V1/V2 runs that will retry failed seeds for real |
 | E2.2 | Builder Minimal (agent + writer tools): static `lane_closure`/`speed_limit` → `.add.xml` + `sumocfg` | ✅ | 2026-09-15, commit `ee85dad` (CI green, verified now): `adapters/llm/agents/scenario_builder.py` assembles the `AgentTask`/tool list/budget and calls the shared `ToolAgent` port; system prompt restricts it to `lane_closure`/`speed_limit` on a single lane with a fixed window, "no silent coercion" (ADR-0007). `application/tools/scenario_builder.py` binds real `Tool`s; `application/use_cases/build_scenario.py::build_scenario` promotes an `AgentRun[ScenarioDraft]` in the DoD §2.4 order. Real `OpenRouterToolAgent` (`adapters/llm/anthropic_client.py`) wired with `RESTO_LLM_DEFAULT_MODEL=deepseek/deepseek-v4.1-flash` as the hard default per CLAUDE.md's cost policy |
 | E2.3 | Builder static: `edge_closure`, `signal_program` (WAUT), `demand_scale` | ✅ | 2026-09-15, commit `7ad97c5` (verified now): rerouter writer dispatches on `edge_closure` (with `disallow="all"` fixed in `bc46212`), `write_tls_program` for static `signal_program`/WAUT, `scale_demand` (deterministic resample + `duarouter`) for `demand_scale`. Covered end-to-end by the E3.1 matrix against real SUMO |
 | E2.4 | Effect-verification harness | ✅ | 2026-09-15, commit `bc46212` (verified now): `verify/effects.py` implements the DoD §4.5 checks (edge flow, completion rate, speed limit, signal-program coverage+revert, demand-scale departed count), one `test_*.py` per intervention type running the real `SubprocessSumoRunner` against DEV-NET. `pytest -q conformance/ verify/` → 61 passed (verified now, still green) |
@@ -143,7 +149,7 @@ still wires them to a `_Pending` stub.
 | E5.7 | Output Composer Done: automatic traceability checker; faithfulness rubric on 20 V2 reports | ⬜ | Wave 5 (checker) / F (rubric) |
 | E5.8 | Stability: 3 repeated runs of Input Parser + Coordinator benchmarks, read from V2 | ⬜ | Wave F. Parser half reads N4 (E5.1's second held-out use); Coordinator half reads E5.5's 3-rep run |
 | E5.9 | Domain change (ADR-0023/0025): `Phase`, `Study.phases`, typed `PlanStep` union, `StepError`, `ExpertRound.forced_by_limit`; schemas regenerated | ✅ | 2026-09-23, commit `a3a363a`: `domain/entities/study.py` gains `Phase`/`Study.phases`, `domain/value_objects/study_plan.py` gains the discriminated `PlanStep` union. Schemas and `docs/class_diagram.md` regenerated same commit. Verified now: `test_study.py`/`test_study_plan.py` exercise the invariants directly |
-| E5.10 | Executor (`run_study`, deterministic code): resolves `FromStep`, calls specialists, guards in code, runs `ask_expert`/`compose_report` itself; agent ports + composition root; note writer | ✅ | 2026-09-23, commit `6ccb66b` (976 new lines): parse → `Study` → per-phase plan → semantic validation → step execution → forced-last-round Expert loop → note writer → report, `StepError` classified into `user_input`/`budget`/`agent`/`infrastructure`. Verified now: `test_run_study.py` (965 lines, 29 test functions) covers GP-1/GP-2/GP-3-shaped scenarios, forced mode, every `StepError.kind`, budget accounting. 2026-09-29 (`f2d73bc`…`974b933`, ADR-0030): moved verbatim out of `run_study.py` into `application/executor/` as nine modules by responsibility (steps, Expert round, closing, plan validation, failure table, recorder, spend, planning); `TODO(E5.3)`'s multi-network `ExpertTask` gap is still open. Still no behaviour change, this task's own Done bar was already met and stays met |
+| E5.10 | Executor (`run_study`, deterministic code): resolves `FromStep`, calls specialists, guards in code, runs `ask_expert`/`compose_report` itself; agent ports + composition root; note writer | ✅ | 2026-09-23, commit `6ccb66b` (976 new lines): parse → `Study` → per-phase plan → semantic validation → step execution → forced-last-round Expert loop → note writer → report, `StepError` classified into `user_input`/`budget`/`agent`/`infrastructure`. Verified now: `test_run_study.py` (965 lines, 29 test functions) covers GP-1/GP-2/GP-3-shaped scenarios, forced mode, every `StepError.kind`, budget accounting. 2026-09-29 (`f2d73bc`…`974b933`, ADR-0030): moved verbatim out of `run_study.py` into `application/executor/` as nine modules by responsibility (steps, Expert round, closing, plan validation, failure table, recorder, spend, planning); `TODO(E5.3)`'s multi-network `ExpertTask` gap is still open. Still no behaviour change, this task's own Done bar was already met and stays met. Later the same day (`d72f880`, `ddc8e41`, `384b57d`): `executor/steps.py` was updated to pass the new required `attempt` label into `run_simulation` (ADR-0031, see E2.1) and `executor/failures.py`'s `draft_of` now delegates to the shared `promotion.require_draft` instead of importing per-module exceptions; the classification behaviour these tests already covered (`test_run_study.py`, `test_failures.py`, both still green) is unchanged, only where the exception types live |
 | E5.11 | Deterministic rendering (ADR-0025) of `failed`/`awaiting_user` studies in `interface/render.py`; CLI error when no `Study` is created | ✅ | 2026-09-23, commit `9f13608`: `render_study` produces the three-block failure render and an `awaiting_user` render. Verified now: `test_render.py` parametrises every `StepErrorKind`; `test_main.py` covers both CLI paths |
 | E5.12 | Domain change (ADR-0027): `Arm`, `Contrast`, `Question.arms`/`contrasts`, `required_arms`/`reference_arms`, `AddEdge.edge_id`, `arm` on plan/experiment types | ✅ | 2026-09-23, commit `cfb9711`: `domain/value_objects/arm.py`, `Question.arms`/`.contrasts` with `effective_arms`/`effective_contrasts`. This task's own scope is domain-only, met: `test_arm.py` + `test_experiment_design.py`. ADR-0027 itself is now **Accepted** (2026-09-25, E5.13, ✅) |
 | E5.13 | *(new 2026-09-24)* Accept or change-then-accept ADR-0027 (arms and contrasts) — roots E3.7, E5.2, E5.4, E6.7 | ✅ | 2026-09-25, commit `c912797`: `docs/adr/0027-experiment-arms-and-contrasts.md`'s status line now reads "Accepted (2026-09-24, E5.13, with the contrast-direction rule added to §1)". The change resolved during acceptance: of two nested arms, the one contained in the other is always the reference regardless of how a request wrote the contrast (`Question.effective_contrasts` now orients every such pair). The blind annotation for E5.1 had written two of three multi-arm contrasts backwards, and both had scored as correct under the old rule. Planning/plan-validation use (E5.2/E5.10) and Expert/Composer use (E5.3/E5.4) remain pending, as the ADR's own status line says, but this task's own scope (accept, or change-then-accept) is met |
