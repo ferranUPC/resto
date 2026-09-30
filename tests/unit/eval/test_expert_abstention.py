@@ -24,7 +24,7 @@ def _question(qid: str) -> BenchmarkQuestion:
         text="which edges exceed 3.5% occupancy?",
         network_id="n",
         result_ids=("r1",),
-        gold={"edges_above_threshold": [GOLD_EDGE]},
+        gold={"network_id": "n", "edges_above_threshold": [GOLD_EDGE]},
     )
 
 

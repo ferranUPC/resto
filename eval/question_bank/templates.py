@@ -132,6 +132,7 @@ def descriptive_occupancy_item(
         scenario_id=scenario.scenario_id,
         result_ids=result_ids,
         gold_answer={
+            "network_id": network_id,
             "threshold_pct": DESCRIPTIVE_OCCUPANCY_THRESHOLD_PCT,
             "window": [window.start, window.end],
             "edges_above_threshold": edges,
@@ -167,7 +168,7 @@ def descriptive_travel_time_item(
         for seed in seed_edgedata
         if seed[edge_id][EdgeMeasure.SAMPLED_SECONDS] > 0
     ]
-    gold: dict[str, Any] = {"edge_id": edge_id}
+    gold: dict[str, Any] = {"network_id": network_id, "edge_id": edge_id}
     if with_traffic:
         gold["mean_travel_time_s"] = sum(with_traffic) / len(with_traffic)
     else:
@@ -207,7 +208,8 @@ def diagnostic_bottleneck_item(
 ) -> QuestionBankItem:
     """`gold_answer["top_3"]` is graded by Jaccard against the Expert's own top-3 (DoD §4.7);
     `gold_answer["causes"]` holds one Bottleneck cause per `top_3` edge (ADR-0029), keyed by
-    edge, graded on the edges both answers share."""
+    edge, graded on the edges both answers share. Every gold answer that names an edge also holds
+    the `network_id` those edges are on (ADR-0032); a band answer names none."""
     window = descriptive_window(row)
     top3 = top_bottleneck_edges(mean_edgedata, k=3)
     causes = bottleneck_causes(top3, scenario.interventions, topology)
@@ -226,7 +228,11 @@ def diagnostic_bottleneck_item(
         question=question,
         scenario_id=scenario.scenario_id,
         result_ids=result_ids,
-        gold_answer={"top_3": top3, "causes": dict(zip(top3, causes, strict=True))},
+        gold_answer={
+            "network_id": network_id,
+            "top_3": top3,
+            "causes": dict(zip(top3, causes, strict=True)),
+        },
         evidence={
             "score_measure": "total time_loss, vehicle-seconds (mean of 3 seeds)",
             "scores": {edge_id: mean_edgedata[edge_id][EdgeMeasure.TIME_LOSS] for edge_id in top3},
@@ -268,6 +274,7 @@ def counterfactual_direction_item(
         scenario_id=scenario.scenario_id,
         result_ids=result_ids,
         gold_answer={
+            "network_id": network_id,
             "edge_id": edge_id,
             "direction": direction,
             "pct_change": pct_change(baseline_value, value),
@@ -313,7 +320,10 @@ def counterfactual_top_k_item(
         question=question,
         scenario_id=scenario.scenario_id,
         result_ids=result_ids,
-        gold_answer={"top_k_by_delay_change": [[edge_id, delta] for edge_id, delta in top_k]},
+        gold_answer={
+            "network_id": network_id,
+            "top_k_by_delay_change": [[edge_id, delta] for edge_id, delta in top_k],
+        },
         evidence={
             "measure": EdgeMeasure.TIME_LOSS,
             "baseline_scenario_id": baseline_scenario_id,

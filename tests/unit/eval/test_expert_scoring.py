@@ -13,10 +13,12 @@ from eval.expert_benchmark.report import (
     ScoredRun,
     render_markdown,
     repetition_metrics,
+    score_records,
     summarize,
 )
 from eval.expert_benchmark.scoring import Score, jaccard, score_answer, within_tolerance
 
+from resto.application.schemas import adapter_for
 from resto.domain.value_objects.answer_value import (
     AnswerValue,
     BottleneckCause,
@@ -31,14 +33,14 @@ from resto.domain.value_objects.answer_value import (
 )
 from resto.domain.value_objects.expert_answer import Basis, Evidence, EvidenceKind, ExpertAnswer
 
+NET = "abc123"
+OTHER_NET = "def456"
+
 
 def _question(qid: str, gold: Mapping[str, Any]) -> BenchmarkQuestion:
     return BenchmarkQuestion(
         id=qid, family=Family.of(qid), text="q", network_id="n", result_ids=("r1",), gold=gold
     )
-
-
-NET = "abc123"
 
 
 def _ranked(edge_ids: tuple[str, ...]) -> Edges:
@@ -55,18 +57,26 @@ def _answer(*values: AnswerValue) -> ExpertAnswer:
     )
 
 
-OCC = _question("S03-desc-occ", {"edges_above_threshold": ["B1B0"]})
-TT = _question("S00-desc-tt", {"edge_id": "B2C2", "mean_travel_time_s": 23.403})
+OCC = _question("S03-desc-occ", {"network_id": NET, "edges_above_threshold": ["B1B0"]})
+TT = _question("S00-desc-tt", {"network_id": NET, "edge_id": "B2C2", "mean_travel_time_s": 23.403})
 DIAG = _question(
     "S00-diag",
     {
+        "network_id": NET,
         "top_3": ["B2C2", "C2D2", "E3E2"],
         "causes": {"B2C2": "intervention", "C2D2": "spillback", "E3E2": "signal"},
     },
 )
-DIR = _question("S09-cf-dir", {"edge_id": "B2C2", "direction": "increase", "pct_change": 114.4})
+DIR = _question(
+    "S09-cf-dir",
+    {"network_id": NET, "edge_id": "B2C2", "direction": "increase", "pct_change": 114.4},
+)
 TOPK = _question(
-    "S05-cf-topk", {"top_k_by_delay_change": [["B0C0", 594.9], ["C1C0", 92.5], ["C1C2", 7.6]]}
+    "S05-cf-topk",
+    {
+        "network_id": NET,
+        "top_k_by_delay_change": [["B0C0", 594.9], ["C1C0", 92.5], ["C1C2", 7.6]],
+    },
 )
 BAND = _question("S17-cf-band", {"band": "5-20%", "pct_change": 7.6})
 
@@ -121,7 +131,7 @@ def test_desc_occ_needs_the_exact_set() -> None:
     assert score_answer(OCC, _answer(Edges(edge_ids=("B1B0",), network_id=NET))).correct
     assert not score_answer(OCC, _answer(Edges(edge_ids=("B1B0", "B2C2"), network_id=NET))).correct
     assert not score_answer(OCC, _answer(Quantity(Measure.MEAN_DELAY, 3.0))).correct
-    empty = _question("S00-desc-occ", {"edges_above_threshold": []})
+    empty = _question("S00-desc-occ", {"network_id": NET, "edges_above_threshold": []})
     assert score_answer(empty, _answer(Edges(edge_ids=(), network_id=NET))).correct
 
 
@@ -249,7 +259,7 @@ def test_cf_topk_compares_edge_sets() -> None:
     ],
 )
 def test_cf_dir_compares_directions(direction: ChangeDirection, gold: str, correct: bool) -> None:
-    question = _question("S09-cf-dir", {"edge_id": "B2C2", "direction": gold})
+    question = _question("S09-cf-dir", {"network_id": NET, "edge_id": "B2C2", "direction": gold})
     answer = _answer(Change(Measure.TIME_LOSS, direction, edge_id="B2C2", network_id=NET))
     assert score_answer(question, answer).correct is correct
 
@@ -275,8 +285,152 @@ def test_cf_band_derives_the_band_from_the_percentage() -> None:
 
 
 def test_desc_tt_on_an_edge_without_traffic_expects_no_value() -> None:
-    closed = _question("S01-desc-tt", {"edge_id": "B2C2", "no_value": "no_traffic"})
+    closed = _question(
+        "S01-desc-tt", {"network_id": NET, "edge_id": "B2C2", "no_value": "no_traffic"}
+    )
     assert score_answer(closed, _answer(NoValue(Measure.TRAVEL_TIME, "B2C2", NET))).correct
     zero = _answer(Quantity(Measure.TRAVEL_TIME, 0.0, "B2C2", NET))
     assert not score_answer(closed, zero).correct
     assert not score_answer(TT, _answer(NoValue(Measure.TRAVEL_TIME, "B2C2", NET))).correct
+
+
+def test_every_gold_answer_that_names_an_edge_names_its_network() -> None:
+    bank = load_bank()
+    for question in bank:
+        if question.family is Family.CF_BAND:
+            assert "network_id" not in question.gold
+        else:
+            assert question.gold["network_id"] == question.network_id
+
+
+def test_the_right_edge_on_the_wrong_network_is_incorrect() -> None:
+    wrong = OTHER_NET
+    closed = _question(
+        "S01-desc-tt", {"network_id": NET, "edge_id": "B2C2", "no_value": "no_traffic"}
+    )
+    scored: list[tuple[BenchmarkQuestion, AnswerValue]] = [
+        (OCC, Edges(edge_ids=("B1B0",), network_id=wrong)),
+        (TT, Quantity(Measure.TRAVEL_TIME, 23.4, "B2C2", wrong)),
+        (closed, NoValue(Measure.TRAVEL_TIME, "B2C2", wrong)),
+        (TOPK, Edges(("B0C0", "C1C0", "C1C2"), network_id=wrong, ranked=True)),
+        (
+            DIR,
+            Change(Measure.TIME_LOSS, ChangeDirection.INCREASE, edge_id="B2C2", network_id=wrong),
+        ),
+    ]
+    for question, value in scored:
+        assert not score_answer(question, _answer(value)).correct, question.id
+
+
+def test_diag_counts_a_cause_only_on_the_network_the_gold_names() -> None:
+    ranking = _ranked(("B2C2", "C2D2", "E3E2"))
+    causes = BottleneckCauses(
+        tuple(
+            EdgeCause(edge, OTHER_NET, cause)
+            for edge, cause in [
+                ("B2C2", BottleneckCause.INTERVENTION),
+                ("C2D2", BottleneckCause.SPILLBACK),
+                ("E3E2", BottleneckCause.SIGNAL),
+            ]
+        )
+    )
+    score = score_answer(DIAG, _answer(ranking, causes))
+    assert score.correct
+    assert score.shared_edges == 3
+    assert score.correct_causes == 0
+
+
+def _stored_before_adr_0032(answer: ExpertAnswer) -> dict[str, Any]:
+    """The JSON a run stored before every value named its network: no `network_id` anywhere."""
+
+    def strip(node: Any) -> Any:
+        if isinstance(node, dict):
+            return {k: strip(v) for k, v in node.items() if k != "network_id"}
+        if isinstance(node, list):
+            return [strip(v) for v in node]
+        return node
+
+    stored: dict[str, Any] = strip(adapter_for(ExpertAnswer).dump_python(answer, mode="json"))
+    return stored
+
+
+def test_rescoring_a_run_stored_before_adr_0032_takes_the_network_from_the_question() -> None:
+    questions = [
+        BenchmarkQuestion(
+            id=question.id,
+            family=question.family,
+            text="q",
+            network_id=NET,
+            result_ids=("r1",),
+            gold=question.gold,
+        )
+        for question in (OCC, TT, DIAG, DIR)
+    ]
+    answers = {
+        "S03-desc-occ": _answer(Edges(edge_ids=("B1B0",), network_id=NET)),
+        "S00-desc-tt": _answer(Quantity(Measure.TRAVEL_TIME, 23.4, "B2C2", NET)),
+        "S00-diag": _answer(
+            _ranked(("B2C2", "C2D2", "E3E2")),
+            BottleneckCauses((EdgeCause("B2C2", NET, BottleneckCause.INTERVENTION),)),
+        ),
+        "S09-cf-dir": _answer(
+            Change(Measure.TIME_LOSS, ChangeDirection.INCREASE, edge_id="B2C2", network_id=NET)
+        ),
+    }
+    records = [
+        {
+            "question_id": qid,
+            "repetition": 1,
+            "answer": _stored_before_adr_0032(answer),
+            "rejection": None,
+        }
+        for qid, answer in answers.items()
+    ]
+    scored = score_records(records, questions)
+    assert [run.score.correct for run in scored] == [True, True, True, True]
+    assert scored[2].score.correct_causes == 1
+
+
+def test_rescoring_keeps_a_network_the_stored_value_already_names() -> None:
+    stored = adapter_for(ExpertAnswer).dump_python(
+        _answer(Edges(edge_ids=("B1B0",), network_id=OTHER_NET)), mode="json"
+    )
+    question = BenchmarkQuestion(
+        id=OCC.id, family=OCC.family, text="q", network_id=NET, result_ids=(), gold=OCC.gold
+    )
+    record = {"question_id": OCC.id, "repetition": 1, "answer": stored, "rejection": None}
+    (run,) = score_records([record], [question])
+    assert not run.score.correct
+
+
+def test_rescoring_reads_a_legacy_no_value_and_a_legacy_ranking() -> None:
+    closed = _question(
+        "S01-desc-tt", {"network_id": NET, "edge_id": "B2C2", "no_value": "no_traffic"}
+    )
+    answers = {
+        closed.id: _answer(NoValue(Measure.TRAVEL_TIME, "B2C2", NET)),
+        TOPK.id: _answer(_ranked(("B0C0", "C1C0", "C1C2"))),
+    }
+    records = [
+        {
+            "question_id": qid,
+            "repetition": 1,
+            "answer": _stored_before_adr_0032(answer),
+            "rejection": None,
+        }
+        for qid, answer in answers.items()
+    ]
+    questions = [
+        BenchmarkQuestion(
+            id=q.id, family=q.family, text="q", network_id=NET, result_ids=(), gold=q.gold
+        )
+        for q in (closed, TOPK)
+    ]
+    assert [run.score.correct for run in score_records(records, questions)] == [True, True]
+
+
+def test_diag_ranking_on_the_wrong_network_is_incorrect() -> None:
+    wrong = Edges(("B2C2", "C2D2", "E3E2"), network_id=OTHER_NET, ranked=True)
+    score = score_answer(DIAG, _answer(wrong))
+    assert not score.correct
+    assert score.jaccard == 0.0

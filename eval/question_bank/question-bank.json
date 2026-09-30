@@ -6,6 +6,7 @@
     },
     "gold_answer": {
       "edges_above_threshold": [],
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "threshold_pct": 3.5,
       "window": [
         28800.0,
@@ -53,7 +54,8 @@
     },
     "gold_answer": {
       "edge_id": "B2C2",
-      "mean_travel_time_s": 23.403333333333332
+      "mean_travel_time_s": 23.403333333333332,
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979"
     },
     "id": "S00-desc-tt",
     "question": {
@@ -100,6 +102,7 @@
         "B2C2": "signal",
         "E3E2": "signal"
       },
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "top_3": [
         "A2B2",
         "E3E2",
@@ -163,6 +166,7 @@
         "B1B2",
         "B3B2"
       ],
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "threshold_pct": 3.5,
       "window": [
         28800.0,
@@ -227,6 +231,7 @@
     },
     "gold_answer": {
       "edge_id": "B2C2",
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "no_value": "no_traffic"
     },
     "id": "S01-desc-tt",
@@ -291,6 +296,7 @@
         "B1B2": "intervention",
         "B3B2": "intervention"
       },
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "top_3": [
         "B1B2",
         "A2B2",
@@ -359,6 +365,7 @@
     "gold_answer": {
       "direction": "decrease",
       "edge_id": "B2C2",
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "pct_change": -100.0
     },
     "id": "S01-cf-dir",
@@ -419,6 +426,7 @@
       "measure": "time_loss"
     },
     "gold_answer": {
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "top_k_by_delay_change": [
         [
           "B1B2",
@@ -570,6 +578,7 @@
         "B2C2",
         "C3C2"
       ],
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "threshold_pct": 3.5,
       "window": [
         28800.0,
@@ -634,6 +643,7 @@
     },
     "gold_answer": {
       "edge_id": "C2D2",
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "no_value": "no_traffic"
     },
     "id": "S02-desc-tt",
@@ -698,6 +708,7 @@
         "B2C2": "intervention",
         "C3C2": "intervention"
       },
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "top_3": [
         "B2C2",
         "C3C2",
@@ -766,6 +777,7 @@
     "gold_answer": {
       "direction": "decrease",
       "edge_id": "C2D2",
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "pct_change": -100.0
     },
     "id": "S02-cf-dir",
@@ -826,6 +838,7 @@
       "measure": "time_loss"
     },
     "gold_answer": {
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "top_k_by_delay_change": [
         [
           "B2C2",
@@ -971,6 +984,7 @@
       "edges_above_threshold": [
         "B1B0"
       ],
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "threshold_pct": 3.5,
       "window": [
         28800.0,
@@ -1035,6 +1049,7 @@
     },
     "gold_answer": {
       "edge_id": "B0C0",
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "no_value": "no_traffic"
     },
     "id": "S03-desc-tt",
@@ -1099,6 +1114,7 @@
         "B1B0": "intervention",
         "E3E2": "signal"
       },
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "top_3": [
         "B1B0",
         "A2B2",
@@ -1167,6 +1183,7 @@
     "gold_answer": {
       "direction": "decrease",
       "edge_id": "B0C0",
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "pct_change": -100.0
     },
     "id": "S03-cf-dir",
@@ -1227,6 +1244,7 @@
       "measure": "time_loss"
     },
     "gold_answer": {
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "top_k_by_delay_change": [
         [
           "B1B0",
@@ -1372,6 +1390,7 @@
       "edges_above_threshold": [
         "B1C1"
       ],
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "threshold_pct": 3.5,
       "window": [
         28800.0,
@@ -1436,6 +1455,7 @@
     },
     "gold_answer": {
       "edge_id": "C1D1",
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "no_value": "no_traffic"
     },
     "id": "S04-desc-tt",
@@ -1500,6 +1520,7 @@
         "B1C1": "intervention",
         "E3E2": "signal"
       },
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "top_3": [
         "B1C1",
         "A2B2",
@@ -1568,6 +1589,7 @@
     "gold_answer": {
       "direction": "decrease",
       "edge_id": "C1D1",
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "pct_change": -100.0
     },
     "id": "S04-cf-dir",
@@ -1628,6 +1650,7 @@
       "measure": "time_loss"
     },
     "gold_answer": {
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "top_k_by_delay_change": [
         [
           "B1C1",
@@ -1765,6 +1788,7 @@
     },
     "gold_answer": {
       "edges_above_threshold": [],
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "threshold_pct": 3.5,
       "window": [
         28800.0,
@@ -1828,6 +1852,7 @@
     },
     "gold_answer": {
       "edge_id": "C0D0",
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "no_value": "no_traffic"
     },
     "id": "S05-desc-tt",
@@ -1891,6 +1916,7 @@
         "B0C0": "intervention",
         "E3E2": "signal"
       },
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "top_3": [
         "B0C0",
         "A2B2",
@@ -1958,6 +1984,7 @@
     "gold_answer": {
       "direction": "decrease",
       "edge_id": "C0D0",
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "pct_change": -100.0
     },
     "id": "S05-cf-dir",
@@ -2017,6 +2044,7 @@
       "measure": "time_loss"
     },
     "gold_answer": {
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "top_k_by_delay_change": [
         [
           "B0C0",
@@ -2152,6 +2180,7 @@
     },
     "gold_answer": {
       "edges_above_threshold": [],
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "threshold_pct": 3.5,
       "window": [
         28800.0,
@@ -2215,6 +2244,7 @@
     },
     "gold_answer": {
       "edge_id": "A1B1",
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "no_value": "no_traffic"
     },
     "id": "S06-desc-tt",
@@ -2278,6 +2308,7 @@
         "A2B2": "signal",
         "E3E2": "signal"
       },
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "top_3": [
         "A2A1",
         "A2B2",
@@ -2345,6 +2376,7 @@
     "gold_answer": {
       "direction": "decrease",
       "edge_id": "A1B1",
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "pct_change": -100.0
     },
     "id": "S06-cf-dir",
@@ -2404,6 +2436,7 @@
       "measure": "time_loss"
     },
     "gold_answer": {
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "top_k_by_delay_change": [
         [
           "A2A1",
@@ -2547,6 +2580,7 @@
       "edges_above_threshold": [
         "C2D2"
       ],
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "threshold_pct": 3.5,
       "window": [
         28800.0,
@@ -2610,6 +2644,7 @@
     },
     "gold_answer": {
       "edge_id": "D2E2",
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "no_value": "no_traffic"
     },
     "id": "S07-desc-tt",
@@ -2673,6 +2708,7 @@
         "C2D2": "intervention",
         "E3E2": "signal"
       },
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "top_3": [
         "C2D2",
         "A2B2",
@@ -2740,6 +2776,7 @@
     "gold_answer": {
       "direction": "decrease",
       "edge_id": "D2E2",
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "pct_change": -100.0
     },
     "id": "S07-cf-dir",
@@ -2799,6 +2836,7 @@
       "measure": "time_loss"
     },
     "gold_answer": {
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "top_k_by_delay_change": [
         [
           "C2D2",
@@ -2954,6 +2992,7 @@
         "B1B2",
         "B3B2"
       ],
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "threshold_pct": 3.5,
       "window": [
         28800.0,
@@ -3017,6 +3056,7 @@
     },
     "gold_answer": {
       "edge_id": "B2C2",
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "no_value": "no_traffic"
     },
     "id": "S08-desc-tt",
@@ -3080,6 +3120,7 @@
         "B1B2": "intervention",
         "B3B2": "intervention"
       },
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "top_3": [
         "B1B2",
         "A2B2",
@@ -3147,6 +3188,7 @@
     "gold_answer": {
       "direction": "decrease",
       "edge_id": "B2C2",
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "pct_change": -100.0
     },
     "id": "S08-cf-dir",
@@ -3206,6 +3248,7 @@
       "measure": "time_loss"
     },
     "gold_answer": {
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "top_k_by_delay_change": [
         [
           "B1B2",
@@ -3349,6 +3392,7 @@
       "edges_above_threshold": [
         "B2C2"
       ],
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "threshold_pct": 3.5,
       "window": [
         28800.0,
@@ -3416,7 +3460,8 @@
     },
     "gold_answer": {
       "edge_id": "B2C2",
-      "mean_travel_time_s": 60.14333333333334
+      "mean_travel_time_s": 60.14333333333334,
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979"
     },
     "id": "S09-desc-tt",
     "question": {
@@ -3483,6 +3528,7 @@
         "B2C2": "intervention",
         "E3E2": "signal"
       },
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "top_3": [
         "B2C2",
         "A2B2",
@@ -3554,6 +3600,7 @@
     "gold_answer": {
       "direction": "increase",
       "edge_id": "B2C2",
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "pct_change": 114.45271227210397
     },
     "id": "S09-cf-dir",
@@ -3617,6 +3664,7 @@
       "measure": "time_loss"
     },
     "gold_answer": {
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "top_k_by_delay_change": [
         [
           "B2C2",
@@ -3760,6 +3808,7 @@
     },
     "gold_answer": {
       "edges_above_threshold": [],
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "threshold_pct": 3.5,
       "window": [
         28800.0,
@@ -3827,7 +3876,8 @@
     },
     "gold_answer": {
       "edge_id": "C1D1",
-      "mean_travel_time_s": 47.19333333333333
+      "mean_travel_time_s": 47.19333333333333,
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979"
     },
     "id": "S10-desc-tt",
     "question": {
@@ -3894,6 +3944,7 @@
         "B2C2": "signal",
         "E3E2": "signal"
       },
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "top_3": [
         "A2B2",
         "E3E2",
@@ -3965,6 +4016,7 @@
     "gold_answer": {
       "direction": "increase",
       "edge_id": "C1D1",
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "pct_change": 177.7777777777778
     },
     "id": "S10-cf-dir",
@@ -4028,6 +4080,7 @@
       "measure": "time_loss"
     },
     "gold_answer": {
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "top_k_by_delay_change": [
         [
           "C1D1",
@@ -4179,6 +4232,7 @@
       "edges_above_threshold": [
         "B2C2"
       ],
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "threshold_pct": 3.5,
       "window": [
         28800.0,
@@ -4246,7 +4300,8 @@
     },
     "gold_answer": {
       "edge_id": "A2B2",
-      "mean_travel_time_s": 39.44
+      "mean_travel_time_s": 39.44,
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979"
     },
     "id": "S11-desc-tt",
     "question": {
@@ -4313,6 +4368,7 @@
         "C2D2": "signal",
         "E3E2": "signal"
       },
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "top_3": [
         "B2C2",
         "C2D2",
@@ -4384,6 +4440,7 @@
     "gold_answer": {
       "direction": "decrease",
       "edge_id": "A2B2",
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "pct_change": -28.207316168286724
     },
     "id": "S11-cf-dir",
@@ -4447,6 +4504,7 @@
       "measure": "time_loss"
     },
     "gold_answer": {
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "top_k_by_delay_change": [
         [
           "B2C2",
@@ -4590,6 +4648,7 @@
     },
     "gold_answer": {
       "edges_above_threshold": [],
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "threshold_pct": 3.5,
       "window": [
         28800.0,
@@ -4657,7 +4716,8 @@
     },
     "gold_answer": {
       "edge_id": "B0C0",
-      "mean_travel_time_s": 44.04
+      "mean_travel_time_s": 44.04,
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979"
     },
     "id": "S12-desc-tt",
     "question": {
@@ -4724,6 +4784,7 @@
         "B2C2": "signal",
         "E3E2": "signal"
       },
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "top_3": [
         "E3E2",
         "A2B2",
@@ -4795,6 +4856,7 @@
     "gold_answer": {
       "direction": "increase",
       "edge_id": "B0C0",
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "pct_change": 397.44981009224085
     },
     "id": "S12-cf-dir",
@@ -4858,6 +4920,7 @@
       "measure": "time_loss"
     },
     "gold_answer": {
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "top_k_by_delay_change": [
         [
           "B0C0",
@@ -5015,6 +5078,7 @@
         "B2C2",
         "D2C2"
       ],
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "threshold_pct": 3.5,
       "window": [
         28920.0,
@@ -5080,7 +5144,8 @@
     },
     "gold_answer": {
       "edge_id": "C2D2",
-      "mean_travel_time_s": 22.873333333333335
+      "mean_travel_time_s": 22.873333333333335,
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979"
     },
     "id": "S13-desc-tt",
     "question": {
@@ -5145,6 +5210,7 @@
         "B2C2": "intervention",
         "D2C2": "intervention"
       },
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "top_3": [
         "B2C2",
         "D2C2",
@@ -5214,6 +5280,7 @@
     "gold_answer": {
       "direction": "decrease",
       "edge_id": "C2D2",
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "pct_change": -48.37297243506817
     },
     "id": "S13-cf-dir",
@@ -5275,6 +5342,7 @@
       "measure": "time_loss"
     },
     "gold_answer": {
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "top_k_by_delay_change": [
         [
           "B2C2",
@@ -5434,6 +5502,7 @@
         "C2B2",
         "D2C2"
       ],
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "threshold_pct": 3.5,
       "window": [
         29100.0,
@@ -5499,7 +5568,8 @@
     },
     "gold_answer": {
       "edge_id": "B2C2",
-      "mean_travel_time_s": 33.24666666666666
+      "mean_travel_time_s": 33.24666666666666,
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979"
     },
     "id": "S14-desc-tt",
     "question": {
@@ -5564,6 +5634,7 @@
         "C2B2": "intervention",
         "D2C2": "spillback"
       },
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "top_3": [
         "C2B2",
         "B2A2",
@@ -5633,6 +5704,7 @@
     "gold_answer": {
       "direction": "increase",
       "edge_id": "B2C2",
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "pct_change": 41.67225622537101
     },
     "id": "S14-cf-dir",
@@ -5694,6 +5766,7 @@
       "measure": "time_loss"
     },
     "gold_answer": {
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "top_k_by_delay_change": [
         [
           "C2B2",
@@ -5847,6 +5920,7 @@
         "C2D2",
         "D2C2"
       ],
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "threshold_pct": 3.5,
       "window": [
         29280.0,
@@ -5912,7 +5986,8 @@
     },
     "gold_answer": {
       "edge_id": "D2E2",
-      "mean_travel_time_s": 29.568971071434962
+      "mean_travel_time_s": 29.568971071434962,
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979"
     },
     "id": "S15-desc-tt",
     "question": {
@@ -5977,6 +6052,7 @@
         "D2C2": "spillback",
         "E2D2": "intervention"
       },
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "top_3": [
         "C2D2",
         "E2D2",
@@ -6046,6 +6122,7 @@
     "gold_answer": {
       "direction": "increase",
       "edge_id": "D2E2",
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "pct_change": 52.81170987297046
     },
     "id": "S15-cf-dir",
@@ -6107,6 +6184,7 @@
       "measure": "time_loss"
     },
     "gold_answer": {
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "top_k_by_delay_change": [
         [
           "C2D2",
@@ -6254,6 +6332,7 @@
       "edges_above_threshold": [
         "B2A2"
       ],
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "threshold_pct": 3.5,
       "window": [
         29460.0,
@@ -6319,7 +6398,8 @@
     },
     "gold_answer": {
       "edge_id": "A2B2",
-      "mean_travel_time_s": 27.09
+      "mean_travel_time_s": 27.09,
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979"
     },
     "id": "S16-desc-tt",
     "question": {
@@ -6384,6 +6464,7 @@
         "C2D2": "signal",
         "E2D2": "signal"
       },
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "top_3": [
         "B2A2",
         "E2D2",
@@ -6453,6 +6534,7 @@
     "gold_answer": {
       "direction": "increase",
       "edge_id": "A2B2",
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "pct_change": 13.360982780344383
     },
     "id": "S16-cf-dir",
@@ -6514,6 +6596,7 @@
       "measure": "time_loss"
     },
     "gold_answer": {
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "top_k_by_delay_change": [
         [
           "B2A2",
@@ -6667,6 +6750,7 @@
         "B2C2",
         "C2D2"
       ],
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "threshold_pct": 3.5,
       "window": [
         28800.0,
@@ -6729,7 +6813,8 @@
     },
     "gold_answer": {
       "edge_id": "B2C2",
-      "mean_travel_time_s": 21.843333333333334
+      "mean_travel_time_s": 21.843333333333334,
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979"
     },
     "id": "S17-desc-tt",
     "question": {
@@ -6791,6 +6876,7 @@
         "B1B2": "signal",
         "C2D2": "signal"
       },
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "top_3": [
         "A2B2",
         "C2D2",
@@ -6857,6 +6943,7 @@
     "gold_answer": {
       "direction": "increase",
       "edge_id": "B2C2",
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "pct_change": 8.97196681878471
     },
     "id": "S17-cf-dir",
@@ -6915,6 +7002,7 @@
       "measure": "time_loss"
     },
     "gold_answer": {
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "top_k_by_delay_change": [
         [
           "B1B2",
@@ -7048,6 +7136,7 @@
     },
     "gold_answer": {
       "edges_above_threshold": [],
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "threshold_pct": 3.5,
       "window": [
         28800.0,
@@ -7110,7 +7199,8 @@
     },
     "gold_answer": {
       "edge_id": "B2C2",
-      "mean_travel_time_s": 23.80333333333333
+      "mean_travel_time_s": 23.80333333333333,
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979"
     },
     "id": "S18-desc-tt",
     "question": {
@@ -7172,6 +7262,7 @@
         "A3A2": "spillback",
         "E3E2": "signal"
       },
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "top_3": [
         "E3E2",
         "A2B2",
@@ -7238,6 +7329,7 @@
     "gold_answer": {
       "direction": "decrease",
       "edge_id": "B2C2",
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "pct_change": -22.714295348784923
     },
     "id": "S18-cf-dir",
@@ -7296,6 +7388,7 @@
       "measure": "time_loss"
     },
     "gold_answer": {
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "top_k_by_delay_change": [
         [
           "C2D2",
@@ -7455,6 +7548,7 @@
         "C2D2",
         "E3E2"
       ],
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "threshold_pct": 3.5,
       "window": [
         28800.0,
@@ -7517,7 +7611,8 @@
     },
     "gold_answer": {
       "edge_id": "B2C2",
-      "mean_travel_time_s": 32.00333333333333
+      "mean_travel_time_s": 32.00333333333333,
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979"
     },
     "id": "S19-desc-tt",
     "question": {
@@ -7579,6 +7674,7 @@
         "B2C2": "signal",
         "C2D2": "signal"
       },
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "top_3": [
         "B2C2",
         "C2D2",
@@ -7645,6 +7741,7 @@
     "gold_answer": {
       "direction": "increase",
       "edge_id": "B2C2",
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "pct_change": 185.34721129420222
     },
     "id": "S19-cf-dir",
@@ -7703,6 +7800,7 @@
       "measure": "time_loss"
     },
     "gold_answer": {
+      "network_id": "e027898cfe07fbeaa3584a6b8cbd971ea03c13cf4309cd006a72c35dd3424979",
       "top_k_by_delay_change": [
         [
           "B2C2",

@@ -29,7 +29,7 @@ QUESTIONS = [
         text=f"which edges exceed 3.5% occupancy? ({i})",
         network_id="n",
         result_ids=(),
-        gold={"edges_above_threshold": ["B1B0"]},
+        gold={"network_id": "n", "edges_above_threshold": ["B1B0"]},
     )
     for i in range(2)
 ]
