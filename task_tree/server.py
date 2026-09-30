@@ -9,6 +9,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote
 
+from task_tree.launch import Launcher, LaunchRejected, build_prompt, terminal_launcher
 from task_tree.tree import build_tree, task_detail, ticket_detail
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -16,7 +17,11 @@ PAGE = Path(__file__).with_name("page.html")
 
 
 def make_server(
-    scratch: Path, tracker: Path, port: int = 0, plan: Path | None = None
+    scratch: Path,
+    tracker: Path,
+    port: int = 0,
+    plan: Path | None = None,
+    launcher: Launcher = terminal_launcher,
 ) -> ThreadingHTTPServer:
     plan_path = plan or tracker.with_name("tfm-work-plan.md")
 
@@ -42,6 +47,29 @@ def make_server(
                     self._send(200, "application/json", json.dumps(detail).encode("utf-8"))
             else:
                 self._send(404, "text/plain; charset=utf-8", b"not found")
+
+        def do_POST(self) -> None:
+            if self.path.split("?", 1)[0] != "/api/launch":
+                self._send(404, "text/plain; charset=utf-8", b"not found")
+                return
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                body = json.loads(self.rfile.read(length) or b"{}")
+                if not isinstance(body, dict):
+                    raise ValueError("body must be an object")
+                fields = [body.get("id"), body.get("action"), body.get("ticket")]
+                if not all(f is None or isinstance(f, str) for f in fields):
+                    raise ValueError("id, action and ticket must be strings")
+                prompt = build_prompt(scratch, tracker, str(fields[0]), str(fields[1]), fields[2])
+            except (ValueError, LaunchRejected) as exc:
+                self._send(400, "text/plain; charset=utf-8", str(exc).encode("utf-8"))
+                return
+            try:
+                launcher(prompt, scratch.parent)
+            except Exception as exc:
+                self._send(500, "text/plain; charset=utf-8", f"launch failed: {exc}".encode())
+                return
+            self._send(200, "application/json", json.dumps({"prompt": prompt}).encode("utf-8"))
 
         def _send(self, status: int, content_type: str, body: bytes) -> None:
             self.send_response(status)

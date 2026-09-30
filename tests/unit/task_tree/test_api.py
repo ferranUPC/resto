@@ -137,12 +137,21 @@ def plan_text() -> str:
 
 
 @pytest.fixture
-def base_url(scratch: Path, tmp_path: Path, plan_text: str) -> Iterator[str]:
+def launches() -> list[tuple[str, Path]]:
+    return []
+
+
+@pytest.fixture
+def base_url(
+    scratch: Path, tmp_path: Path, plan_text: str, launches: list[tuple[str, Path]]
+) -> Iterator[str]:
     tracker = tmp_path / "progress-tracker.md"
     tracker.write_text(TRACKER, encoding="utf-8")
     plan = tmp_path / "tfm-work-plan.md"
     plan.write_text(plan_text, encoding="utf-8")
-    server = make_server(scratch, tracker, plan=plan)
+    server = make_server(
+        scratch, tracker, plan=plan, launcher=lambda prompt, cwd: launches.append((prompt, cwd))
+    )
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
@@ -413,3 +422,90 @@ def test_dag_nodes_named_after_a_real_task_are_that_task_and_validates_nodes_lin
     assert not any(t == "dag:T1" and f == "E4.2" for f, t in pairs)  # E4.2 is not a node
     assert nodes["E2.1"]["column"] > nodes["dag:T1"]["column"]
     assert nodes["E2.1"]["blocked"] is False  # the diagram never blocks a task
+
+
+def _post(base_url: str, body: dict[str, Any]) -> int:
+    request = urllib.request.Request(
+        f"{base_url}/api/launch",
+        data=json.dumps(body).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(request) as response:
+            return int(response.status)
+    except urllib.error.HTTPError as err:
+        return err.code
+
+
+@pytest.mark.parametrize(
+    ("task", "directory", "expected"),
+    [
+        ("E2.1", "e2-1-triage", "/triage {spec}"),
+        (
+            "E2.2",
+            "e2-2-ready",
+            "/grill-with-docs {spec} and, once the decisions are settled, run /to-spec on it "
+            "in this same session.",
+        ),
+        ("E2.3", "e2-3-specified", "/to-tickets {spec}"),
+        ("E2.4", "e2-4-ticketed", "/implement {ticket}"),
+    ],
+)
+def test_the_next_step_button_launches_the_fixed_template_of_the_stage(
+    base_url, scratch, launches, task, directory, expected
+):
+    assert _post(base_url, {"id": task, "action": "next"}) == 200
+    root = scratch.parent
+    spec = f".scratch/{directory}/spec.md"
+    ticket = f".scratch/{directory}/issues/02-second.md"
+    assert launches == [(expected.format(spec=spec, ticket=ticket), root)]
+
+
+def test_ticketed_launches_the_first_takeable_ticket_and_a_ticket_row_only_its_own(
+    base_url, scratch, launches
+):
+    (scratch / "e2-4-ticketed" / "issues" / "01-first.md").write_text(
+        "# 01: First\n\n**Status:** ready\n", encoding="utf-8"
+    )
+    assert _post(base_url, {"id": "E2.4", "action": "next"}) == 200
+    assert _post(base_url, {"id": "E2.4", "action": "ticket", "ticket": "02"}) == 200
+    assert [p for p, _ in launches] == [
+        "/implement .scratch/e2-4-ticketed/issues/01-first.md",
+        "/implement .scratch/e2-4-ticketed/issues/02-second.md",
+    ]
+
+
+def test_grill_opens_grill_with_docs_on_the_spec_in_every_stage_but_done(
+    base_url, scratch, launches
+):
+    for task in ("E2.1", "E2.2", "E2.3", "E2.4"):
+        assert _post(base_url, {"id": task, "action": "grill"}) == 200
+    assert all(p.startswith("/grill-with-docs .scratch/") for p, _ in launches)
+    assert len(launches) == 4
+    assert _post(base_url, {"id": "E2.10", "action": "grill"}) == 400
+    assert len(launches) == 4
+
+
+def test_an_unknown_id_action_or_ticket_is_rejected_and_launches_nothing(base_url, launches):
+    bad = [
+        {"id": "E9.9", "action": "next"},
+        {"id": "E2.1", "action": "rm -rf"},
+        {"id": "E2.1"},
+        {"id": "E2.4", "action": "ticket", "ticket": "99"},
+        {"id": "E2.4", "action": "ticket", "ticket": "../../etc"},
+        {"id": "E1.1", "action": "next"},  # done, no spec
+        {"id": "E2.10", "action": "next"},  # done
+        {"id": "E2.7", "action": "next"},  # wontfix
+    ]
+    assert [_post(base_url, body) for body in bad] == [400] * len(bad)
+    assert launches == []
+
+
+def test_the_prompt_reaches_claude_as_one_shell_argument_even_with_quotes_and_spaces():
+    import shlex
+
+    from task_tree.launch import terminal_command
+
+    prompt = "/implement .scratch/it's a dir/issues/01-\"x\" $(y).md"
+    words = shlex.split(terminal_command(prompt, Path("/repo root")))
+    assert words == ["cd", "/repo root", "&&", "claude", prompt]

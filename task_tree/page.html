@@ -111,6 +111,12 @@
   #panel a { color: #8ec1ff; cursor: pointer; text-decoration: none; }
   #panel a:hover { text-decoration: underline; }
   #panel ul { margin: 0; padding-left: 18px; }
+  #panel .actions { display: flex; gap: 8px; align-items: center; margin: 12px 0; flex-wrap: wrap; }
+  #panel button.launch { background: #1d2a44; color: var(--text, #e6e6e6); border: 1px solid var(--line);
+    border-radius: 4px; padding: 4px 10px; cursor: pointer; font: inherit; }
+  #panel button.launch:hover { background: #26375a; }
+  #panel button.launch.small { padding: 0 6px; margin-left: 8px; font-size: 11px; }
+  #launch-status { font-size: 12px; color: var(--muted); }
   #close { position: absolute; top: 12px; right: 14px; background: none; border: 0;
     color: var(--muted); font-size: 20px; cursor: pointer; }
   #warning { position: fixed; bottom: 56px; left: 12px; right: 12px; color: #fbbf24; }
@@ -688,6 +694,21 @@ async function load(url) {
   if (!r.ok) throw new Error(r.status + " " + url);
   return r.json();
 }
+const NEXT_LABELS = { "needs-triage": "Triage", ready: "Grill and write spec", specified: "Split into tickets",
+  ticketed: "Implement next ticket" };
+async function launch(body) {
+  const status = document.getElementById("launch-status");
+  if (status) status.textContent = "Opening Terminal...";
+  try {
+    const r = await fetch("/api/launch", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body) });
+    if (status) status.textContent = r.ok ? "Terminal opened." : await r.text();
+  } catch (err) { if (status) status.textContent = "Launch failed: " + err; }
+}
+function launchButton(label, body, parent, small) {
+  const b = text("button", label, parent); b.className = "launch" + (small ? " small" : "");
+  b.addEventListener("click", ev => { ev.stopPropagation(); launch(body); }); return b;
+}
 async function showTask(id) {
   document.body.classList.add("open");
   try {
@@ -702,6 +723,10 @@ async function showTask(id) {
     field(dl, "Measured in", d.measured_in);
     field(dl, "Tracker", d.tracker_status);
     d.warnings.forEach(w => field(dl, "Warning", w));
+    const actions = document.createElement("div"); actions.className = "actions"; detail.appendChild(actions);
+    if (NEXT_LABELS[d.stage]) launchButton(NEXT_LABELS[d.stage], { id: d.id, action: "next" }, actions);
+    if (d.stage !== "done") launchButton("Grill", { id: d.id, action: "grill" }, actions);
+    text("span", "", actions).id = "launch-status";
     if (d.plan_excerpt) { text("h3", "Work plan", detail); text("div", d.plan_excerpt, detail); }
     if (d.tickets.length) {
       text("h3", "Tickets", detail);
@@ -710,6 +735,7 @@ async function showTask(id) {
         const li = document.createElement("li"); ul.appendChild(li);
         link(`${t.id} - ${t.name}`, () => showTicket(d.id, t.id), li);
         text("span", ` (${t.stage})`, li);
+        launchButton("Implement", { id: d.id, action: "ticket", ticket: t.id }, li, true);
       }
     }
     if (d.tracker_notes) { text("h3", "Tracker notes", detail); text("div", d.tracker_notes, detail).className = "notes"; }
@@ -725,6 +751,9 @@ async function showTicket(taskId, ticketId) {
     const dl = document.createElement("dl"); detail.appendChild(dl);
     field(dl, "Status", d.stage + (d.blocked ? " (blocked)" : ""));
     field(dl, "Blocked by", d.blocked_by);
+    const actions = document.createElement("div"); actions.className = "actions"; detail.appendChild(actions);
+    launchButton("Implement", { id: d.task_id, action: "ticket", ticket: d.id }, actions);
+    text("span", "", actions).id = "launch-status";
     if (d.question) { text("h3", "Question", detail); text("div", d.question, detail).className = "notes"; }
   } catch (err) { detail.textContent = "Could not load the ticket: " + err; }
 }
