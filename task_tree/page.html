@@ -84,9 +84,10 @@
   .node.lit .card { stroke-width: 1.8; stroke: var(--brass); }
   .node.selected .card { stroke-width: 2.2; stroke: var(--milestone); }
   .dimmed .node:not(.lit), .dimmed .chip:not(.lit) { opacity: .38; }
-  .pip { fill-opacity: .92; }
-  .pip.off { fill-opacity: .16; }
-  .pts { fill: var(--muted); font-size: 12px; font-weight: 700; text-anchor: middle; }
+  .effort { fill: var(--fg); font: 600 13px var(--serif); font-variation-settings: "SOFT" 100;
+    text-anchor: end; font-feature-settings: "lnum"; }
+  .node.blocked .effort { fill: var(--muted); }
+  #legend svg.hourglass-key { width: 10px; height: 14px; color: var(--brass); }
   .chip .card { fill: #46331f; filter: none; }
   .chip .name { font-size: 12px; font-weight: 500; fill: var(--muted); }
   .chip:hover .name, .chip.lit .name { fill: var(--fg); }
@@ -164,6 +165,18 @@
       <stop offset="0" stop-color="#4a3826"/><stop offset="1" stop-color="#382819"/></linearGradient>
     <linearGradient id="plank-gold" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#7a5e2c"/><stop offset="1" stop-color="#5a4520"/></linearGradient>
+    <!-- Effort mark: brass frame, glass bulbs, sand in currentColor (the card's accent). -->
+    <symbol id="hourglass" viewBox="0 0 12 16">
+      <path d="M2.2,2.4 C2.2,6 5.1,6.7 5.1,8 C5.1,9.3 2.2,10 2.2,13.6 H9.8 C9.8,10 6.9,9.3 6.9,8
+        C6.9,6.7 9.8,6 9.8,2.4 Z" fill="rgba(255,228,180,.08)" stroke="#d9c39a" stroke-width=".8"
+        stroke-linejoin="round"/>
+      <path d="M3.5,4.9 C4.3,6.4 5.6,7 6,7.5 C6.4,7 7.7,6.4 8.5,4.9 Z" fill="currentColor" opacity=".75"/>
+      <path d="M6,7.6 V11" stroke="currentColor" stroke-width=".45" stroke-linecap="round"/>
+      <path d="M2.9,13.6 C3.3,11.7 4.8,10.9 6,10.7 C7.2,10.9 8.7,11.7 9.1,13.6 Z" fill="currentColor"/>
+      <path d="M1.2,2 V14 M10.8,2 V14" stroke="#b08d57" stroke-width=".9" stroke-linecap="round"/>
+      <rect x=".3" y=".6" width="11.4" height="1.9" rx=".9" fill="#c9a66b"/>
+      <rect x=".3" y="13.5" width="11.4" height="1.9" rx=".9" fill="#c9a66b"/>
+    </symbol>
   </defs>
   <defs id="arrows"></defs>
   <g id="viewport"></g>
@@ -199,7 +212,13 @@ const W = 272, H = 50, TILE = 44, GX = 96, GY = 16, DUMMY_H = 10, LANE_GAP = 120
 const RAIL_HEAD = 34, RAIL_PAD = 14, RAIL_GAP = 14;
 const RH = 22, ROW_GAP = 3, ROW_INSET = 10, ROWS_PAD = 8;
 const CHIP_W = 206, CHIP_H = 28, CHIP_GAP = 8, CHIP_COLS = 3;
-const PIP_POINTS = 4, MAX_PIPS = 8, PIP_W = 6, PIP_GAP = 2;
+const EFFORT_UNIT = 4;
+// Points are whole numbers, so points / 4 always lands on a quarter.
+const effortLabel = points => {
+  const whole = Math.floor(points / EFFORT_UNIT);
+  const part = ["", "¼", "½", "¾"][points % EFFORT_UNIT];
+  return whole || !part ? `${whole}${part}` : part;
+};
 const FINISHED = ["done", "wontfix"];
 const DAG_KINDS = ["milestone", "suite", "validates"];
 const GLYPHS = { "needs-triage": "○", ready: "▶", specified: "◆", ticketed: "≡", done: "✓",
@@ -573,13 +592,10 @@ function draw() {
     const sub = dag ? n.kind : `${n.id} · ${n.blocked ? "blocked" : LABELS[n.stage] ?? n.stage}`;
     el("text", { class: "sub", x: TILE + 10, y: H - 8 }, node).textContent = sub;
     if (n.points) {
-      // Effort queue: one pip per PIP_POINTS points (capped), the number under the glyph.
-      const lit = Math.min(MAX_PIPS, Math.ceil(n.points / PIP_POINTS));
-      const x0 = W - 12 - MAX_PIPS * (PIP_W + PIP_GAP) + PIP_GAP;
-      for (let k = 0; k < MAX_PIPS; k++)
-        el("rect", { class: "pip" + (k < lit ? "" : " off"), x: x0 + k * (PIP_W + PIP_GAP), y: H - 15,
-          width: PIP_W, height: 8, rx: 1.5, fill: color(accent) }, node);
-      el("text", { class: "pts", x: TILE / 2, y: H - 6 }, node).textContent = n.points;
+      // Effort in the bottom-right corner: points / EFFORT_UNIT, then the hourglass.
+      el("use", { href: "#hourglass", x: W - 21, y: H - 20, width: 11, height: 15,
+        color: color(accent) }, node);
+      el("text", { class: "effort", x: W - 25, y: H - 8 }, node).textContent = effortLabel(n.points);
     }
     if (!dag && n.warnings.length)
       el("text", { class: "sub", x: W - 12, y: 16, "text-anchor": "end", fill: "#fbbf24",
@@ -727,9 +743,10 @@ function drawLegend() {
     key(e, ring);
   }
   sep();
-  const effort = document.createElement("span");
-  effort.textContent = `▮ 1 pip = ${PIP_POINTS} pts (max ${MAX_PIPS * PIP_POINTS}+)`;
-  legend.appendChild(effort);
+  const glass = document.createElementNS(NS, "svg");
+  glass.setAttribute("class", "hourglass-key");
+  el("use", { href: "#hourglass" }, glass);
+  key(`1 = ${EFFORT_UNIT} pts`, glass);
 }
 
 /* ---------- pan, zoom, fit ---------- */
