@@ -276,6 +276,7 @@ footer { margin-top: 40px; font-size: 12px; color: var(--ink-3); max-width: 80ch
     <a href="#tareas" data-view="tareas">Tareas</a>
     <a href="#plan" data-view="plan">Plan de trabajo</a>
     <a href="#arquitectura" data-view="arquitectura">Arquitectura y DoD</a>
+    <a href="#diary" data-view="diary">Diary</a>
   </nav>
 
   <div id="loading" class="state">Cargando el plan de trabajo…</div>
@@ -333,7 +334,10 @@ footer { margin-top: 40px; font-size: 12px; color: var(--ink-3); max-width: 80ch
     <div class="doclayout"><nav class="toc" id="toc-arch" aria-label="Índice de la arquitectura"></nav><article class="doc" id="doc-arch"></article></div>
   </section>
 
-  <footer id="foot">Todo lo que muestra esta página se calcula al abrirla a partir del contenido de tres ficheros del repositorio: <code>docs/tfm-work-plan.md</code> (tareas, puntos, olas, fechas límite, hitos con objetivo y límite), <code>docs/progress-tracker.md</code> (estado y notas de cada tarea) y <code>docs/tfm-architecture-and-dod.md</code>. La fecha de cierre de una tarea es la primera fecha que aparece en su nota del tracker. Los puntos son las horas estimadas del plan (1 pt = 1 h); las tareas sin puntos cuentan como 0. «Por medir» (⏳) es una tarea construida a la espera de su medición en una validación: no cuenta como hecha.</footer>
+  <section class="view" id="v-diary" hidden>
+    <div class="doclayout"><nav class="toc" id="toc-diary" aria-label="Diary index"></nav><article class="doc" id="doc-diary"></article></div>
+  </section>
+  <footer id="foot">Todo lo que muestra esta página se calcula al abrirla a partir del contenido de cuatro ficheros del repositorio: <code>docs/tfm-work-plan.md</code> (tareas, puntos, olas, fechas límite, hitos con objetivo y límite), <code>docs/progress-tracker.md</code> (estado y notas de cada tarea) <code>docs/tfm-architecture-and-dod.md</code> y <code>docs/diary.md</code> (daily summary of what happened, not computed). La fecha de cierre de una tarea es la primera fecha que aparece en su nota del tracker. Los puntos son las horas estimadas del plan (1 pt = 1 h); las tareas sin puntos cuentan como 0. «Por medir» (⏳) es una tarea construida a la espera de su medición en una validación: no cuenta como hecha.</footer>
 </div>
 
 <script id="docs-data" type="application/json">__DOCS_JSON__</script>
@@ -792,23 +796,24 @@ footer { margin-top: 40px; font-size: 12px; color: var(--ink-3); max-width: 80ch
   }
 
   // ---------- Routing ----------
-  const VIEWS = ["resumen", "tareas", "plan", "arquitectura"];
+  const VIEWS = ["resumen", "tareas", "plan", "arquitectura", "diary"];
   let docs = null;
   function route() {
     const h = location.hash.slice(1);
-    const v = VIEWS.includes(h) ? h : (h.startsWith("plan-") ? "plan" : h.startsWith("arch-") ? "arquitectura" : "resumen");
+    const v = VIEWS.includes(h) ? h : (h.startsWith("plan-") ? "plan" : h.startsWith("arch-") ? "arquitectura" : h.startsWith("diary-") ? "diary" : "resumen");
     VIEWS.forEach(x => { $("#v-" + x).hidden = x !== v; });
     document.querySelectorAll(".tabs a").forEach(a => { if (a.dataset.view === v) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
     if (docs && v === "plan") renderDoc("plan", docs.plan);
     if (docs && v === "arquitectura") renderDoc("arch", docs.arch);
+    if (docs && v === "diary") renderDoc("diary", docs.diary);
     try { localStorage.setItem("resto-tab", v); } catch (e) {}
   }
 
   async function main() {
     if (!window.marked) throw new Error("No se ha podido cargar el intérprete de Markdown.");
-    const { plan, arch, track } = JSON.parse(document.getElementById("docs-data").textContent);
+    const { plan, arch, track, diary } = JSON.parse(document.getElementById("docs-data").textContent);
     if (!plan || !arch || !track) throw new Error("Faltan documentos en la página (plan, arch, track).");
-    docs = { plan, arch };
+    docs = { plan, arch, diary: diary || "" };
     const M = buildModel(plan, track);
     if (!M.tasks.length) throw new Error("No se han encontrado tareas en el plan de trabajo; puede que haya cambiado su formato.");
     $("#asof").innerHTML = `Tracker actualizado el <strong>${M.lastUpdated ? fmt(M.lastUpdated, true) : "—"}</strong><br>Hoy: ${fmt(today, true)}`;
