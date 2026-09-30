@@ -49,6 +49,18 @@ end
 ```
 """
 
+OTHER_SECTION_PLAN = """### 4.2 Measurement DAG
+
+Diagram removed.
+
+### 4.3 Critical paths
+
+```mermaid
+flowchart LR
+  X(("Not the measurement DAG")):::pass
+```
+"""
+
 BROKEN_PLAN = """### 4.2 Measurement DAG
 
 ```mermaid
@@ -287,7 +299,7 @@ def test_a_change_to_the_mermaid_block_shows_up_on_the_next_request(base_url, tm
     assert "dag:V1" not in nodes
 
 
-@pytest.mark.parametrize("plan_text", [BROKEN_PLAN, "no diagram here\n"])
+@pytest.mark.parametrize("plan_text", [BROKEN_PLAN, "no diagram here\n", OTHER_SECTION_PLAN])
 def test_an_unreadable_measurement_dag_keeps_the_tasks_and_reports_a_warning(base_url):
     tree = _full_tree(base_url)
     assert any(n["id"] == "E2.1" and n["kind"] == "task" for n in tree["nodes"])

@@ -8,6 +8,7 @@ from pathlib import Path
 
 PREFIX = "dag:"
 _HEADING = re.compile(r"^#{2,4}\s+4\.2\b", re.MULTILINE)
+_NEXT_HEADING = re.compile(r"^#{1,4}\s", re.MULTILINE)
 _BLOCK = re.compile(r"```mermaid\n(.*?)^```", re.MULTILINE | re.DOTALL)
 _NODE = re.compile(
     r'(\w+)\s*(?:\(\(|\{\{|\(\[|\[\[|\[|\(|\{)"([^"]*)"(?:\)\)|\}\}|\]\)|\]\]|\]|\)|\})'
@@ -35,7 +36,12 @@ def parse_dag(plan: Path) -> Dag:
         dag.warnings.append(f"cannot read the work plan for the measurement DAG: {exc}")
         return dag
     heading = _HEADING.search(text)
-    block = _BLOCK.search(text, heading.end()) if heading else None
+    section_end = _NEXT_HEADING.search(text, heading.end()) if heading else None
+    block = (
+        _BLOCK.search(text, heading.end(), section_end.start() if section_end else len(text))
+        if heading
+        else None
+    )
     if block is None:
         dag.warnings.append("no mermaid block under section 4.2 of the work plan")
         return dag
