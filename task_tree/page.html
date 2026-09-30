@@ -23,6 +23,7 @@
   .ticket.done { opacity: .5; }
   .edge { fill: none; stroke: var(--edge); stroke-width: 1.5; }
   .edge.done { opacity: .3; }
+  .edge.inferred { stroke-dasharray: 5 4; }
   #error { position: fixed; bottom: 8px; left: 8px; color: #f87171; }
 </style>
 </head>
@@ -67,7 +68,7 @@ function draw(tree) {
   for (const e of tree.edges) {
     const a = pos[e.from], b = pos[e.to];
     const x1 = a.x + W, y1 = a.y + H / 2, x2 = b.x, y2 = b.y + H / 2, mx = (x1 + x2) / 2;
-    el("path", { class: "edge" + (e.done ? " done" : ""),
+    el("path", { class: "edge" + (e.done ? " done" : "") + (e.inferred ? " inferred" : ""),
                  d: `M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}` }, g);
   }
   for (const n of tree.nodes) {

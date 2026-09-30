@@ -114,6 +114,28 @@ def _tracker_done(path: Path) -> dict[str, str]:
     return {m.group(1): re.sub(r"^\*\(new [\d-]+\)\*\s*", "", m.group(2)) for m in rows}
 
 
+def _infer_chains(ids: list[str]) -> dict[str, list[str]]:
+    """Guessed order for done tasks that have no spec and so no `Blocked by:` line.
+
+    Each task follows the previous one of its epic, and the first task of an epic follows the first
+    task of the nearest earlier epic. These edges are drawn dashed: they only spread the tree out.
+    """
+    epics: dict[int, list[tuple[int, str]]] = {}
+    for task_id in ids:
+        epic_part, number_part = task_id[1:].split(".")
+        epics.setdefault(int(epic_part), []).append((int(number_part), task_id))
+    inferred: dict[str, list[str]] = {}
+    earlier_first: str | None = None
+    for epic in sorted(epics):
+        ordered = [task_id for _, task_id in sorted(epics[epic])]
+        if earlier_first:
+            inferred[ordered[0]] = [earlier_first]
+        for before, after in zip(ordered, ordered[1:], strict=False):
+            inferred[after] = [before]
+        earlier_first = ordered[0]
+    return inferred
+
+
 def _layout(nodes: dict[str, dict[str, Any]]) -> None:
     """Column = longest chain from a root; row = barycenter of the blockers' rows."""
     column: dict[str, int] = {}
@@ -159,8 +181,13 @@ def build_tree(scratch: Path, tracker: Path) -> dict[str, Any]:
             task = _read_task(directory, finished=True)
             if task is not None:
                 tasks.setdefault(task.id, task)
+    guessed: set[str] = set()
     for task_id, name in _tracker_done(tracker).items():
-        tasks.setdefault(task_id, Task(task_id, name, "done"))
+        if task_id not in tasks:
+            tasks[task_id] = Task(task_id, name, "done")
+            guessed.add(task_id)
+    for task_id, deps in _infer_chains(sorted(guessed)).items():
+        tasks[task_id].blocked_by = deps
     done = {t.id for t in tasks.values() if t.stage in FINISHED}
     nodes: dict[str, dict[str, Any]] = {}
     for task in tasks.values():
@@ -175,7 +202,12 @@ def build_tree(scratch: Path, tracker: Path) -> dict[str, Any]:
         }
     _layout(nodes)
     edges = [
-        {"from": dep, "to": node["id"], "done": dep in done}
+        {
+            "from": dep,
+            "to": node["id"],
+            "done": dep in done,
+            "inferred": node["id"] in guessed,
+        }
         for node in nodes.values()
         for dep in node["blocked_by"]
     ]

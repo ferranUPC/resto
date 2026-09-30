@@ -16,6 +16,8 @@ TRACKER = """| ID | Task | Status | Notes |
 |---|---|---|---|
 | E1.1 | Finished task | ✅ | done |
 | E1.2 | Open task | ⬜ | not yet |
+| E1.3 | Second finished | ✅ | done |
+| E3.1 | Other epic | ✅ | done |
 """
 
 
@@ -112,14 +114,14 @@ def test_a_node_with_an_unfinished_blocker_is_blocked_and_has_an_edge(base_url):
     assert nodes["E2.5"]["blocked"] is True
     assert nodes["E2.1"]["blocked"] is False
     assert nodes["E2.5"]["column"] == nodes["E2.1"]["column"] + 1
-    assert {"from": "E2.1", "to": "E2.5", "done": False} in tree["edges"]
+    assert {"from": "E2.1", "to": "E2.5", "done": False, "inferred": False} in tree["edges"]
 
 
 def test_a_done_blocker_from_the_tracker_leaves_the_node_free_and_the_edge_marked_done(base_url):
     tree = _full_tree(base_url)
     nodes = {node["id"]: node for node in tree["nodes"]}
     assert nodes["E2.6"]["blocked"] is False
-    assert {"from": "E1.1", "to": "E2.6", "done": True} in tree["edges"]
+    assert {"from": "E1.1", "to": "E2.6", "done": True, "inferred": False} in tree["edges"]
     assert "E1.2" not in nodes  # the tracker lists only finished tasks as nodes
 
 
@@ -140,3 +142,11 @@ def test_the_page_is_served_and_the_server_binds_to_loopback_only(base_url):
     assert base_url.startswith("http://127.0.0.1:")
     with urllib.request.urlopen(f"{base_url}/") as response:
         assert b"/api/tree" in response.read()
+
+
+def test_done_tasks_without_a_spec_get_guessed_edges_within_and_across_epics(base_url):
+    tree = _full_tree(base_url)
+    guessed = [(e["from"], e["to"]) for e in tree["edges"] if e["inferred"]]
+    assert sorted(guessed) == [("E1.1", "E1.3"), ("E1.1", "E3.1")]
+    assert all(e["done"] for e in tree["edges"] if e["inferred"])
+    assert not any(e["inferred"] for e in tree["edges"] if e["to"] in ("E2.5", "E2.6"))
