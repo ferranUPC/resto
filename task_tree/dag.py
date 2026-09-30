@@ -73,6 +73,30 @@ def _label(label: str) -> str:
     return re.sub(r"\s+", " ", re.sub(r"<br\s*/?>", " ", label)).strip()
 
 
+def drop_time_markers(
+    nodes: dict[str, tuple[str, str]], edges: list[tuple[str, str]]
+) -> tuple[dict[str, tuple[str, str]], list[tuple[str, str]]]:
+    """Remove the diagram's dates, which are moments in time and not work.
+
+    A milestone survives only when a real task has an edge into it (M7 closes E7.6 and E8.7).
+    Validation 1, Validation 2, the feature freeze and "all built" have no task of their own, so
+    they go, and so does any node whose only links were to them (the January buffer).
+    """
+    closed_by_task = {b for a, b in edges if not a.startswith(PREFIX)}
+    dropped = {
+        i for i, (kind, _) in nodes.items() if kind == "milestone" and i not in closed_by_task
+    }
+    touched = {n for e in edges if dropped.intersection(e) for n in e}
+    while True:
+        kept = [(a, b) for a, b in edges if a not in dropped and b not in dropped]
+        linked = {n for e in kept for n in e}
+        orphans = {i for i in touched if i in nodes and i not in dropped and i not in linked}
+        if not orphans:
+            break
+        dropped |= orphans
+    return {i: v for i, v in nodes.items() if i not in dropped}, kept
+
+
 _TASK_IN_LABEL = re.compile(r"\bE\d+\.\d+\b")
 
 

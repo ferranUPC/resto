@@ -31,6 +31,18 @@ PLAN = """| ID | Task | Proof | Pts | Wave | Due |
 |---|---|---|---|---|---|
 | E1.1 | Finished task, planned | tests | 3 | 1a | 5 Oct |
 | E2.4 | Ticketed task, planned | tests | 12 | 2 | 11 Dec |
+| E2.3 | Specified task, planned | tests | 4 | 3 | 26 Jan |
+| E2.99 | Final delivery → **M8** | — | 8 | M8 | May 2027 |
+
+## 2. Milestones
+
+| ID | Target | Deadline | Milestone | Acceptance check |
+|---|---|---|---|---|
+| **M3** | **Fri 6 Nov** | Fri 11 Dec | **Loop built** | E2.4, E2.6 ✅; E2.2–E2.3 ⏳. V2 → E2.1 |
+| **M6** | **Fri 11 Dec** | ~~Fri 5 Feb~~ Fri 29 Jan | All built | E2.5 ✅ or ⏳ |
+| **M7** | **Fri 18 Feb** | Fri 18 Feb | End of work | E2.9 |
+| **M8** | Delivery | Delivery | Not planned | E2.99 |
+| **FF** | **Fri 22 Jan** | Fri 29 Jan | Feature freeze | No behaviour change after it |
 
 ### 4.2 Measurement DAG
 
@@ -51,6 +63,7 @@ flowchart LR
   S1 --> T1["✅ E4.2 E1.1 report"]:::task
   T1 --> C1["E2.1 calibration · 8"]:::task
   S1 & S2 ==> T2["✅ E5.1"]:::task --> M7(("M7 · 18 Feb")):::pass
+  C1 --> M7
 end
 ```
 """
@@ -95,6 +108,7 @@ def scratch(tmp_path: Path) -> Path:
     _spec(root / "e2-1-triage", "E2.1: Needs triage", "needs-triage", "None")
     _spec(root / "e2-2-ready", "E2.2: Ready", "ready", "None", "_Not written yet._")
     _spec(root / "e2-3-specified", "E2.3: Specified", "ready", "None", "A real spec.")
+    _spec(root / "r1-tidy-up", "Refactor r1: Tidy up", "ready", "None", "A real spec.")
     _spec(root / "e2-4-ticketed", "E2.4: Ticketed", "ready", "None", "A real spec.")
     issues = root / "e2-4-ticketed" / "issues"
     issues.mkdir()
@@ -221,22 +235,63 @@ def test_a_done_blocker_from_the_tracker_leaves_the_node_free_and_the_edge_marke
     assert "E1.2" not in nodes  # the tracker lists only finished tasks as nodes
 
 
-def test_finished_tasks_sit_in_their_own_lane_and_do_not_push_pending_ones_right(base_url):
+def test_finished_tasks_are_laid_out_like_any_other_and_push_their_dependents_right(base_url):
     nodes = {n["id"]: n for n in _full_tree(base_url)["nodes"]}
-    assert nodes["E1.1"]["lane"] == "done"
-    assert nodes["E2.6"]["lane"] == "active"
-    assert nodes["E2.6"]["column"] == 0  # its only blocker, E1.1, is finished
+    assert nodes["E1.1"]["lane"] == "active"
+    assert nodes["E2.6"]["column"] > nodes["E1.1"]["column"]  # its blocker E1.1 is finished
 
 
-def test_pending_nodes_are_grouped_into_one_rail_per_milestone_by_latest_due(base_url):
+def test_pending_nodes_are_grouped_into_the_rail_of_the_milestone_whose_row_lists_them(base_url):
     tree = _full_tree(base_url)
     names = [r["name"] for r in tree["rails"]]
-    assert names[0].startswith("Validation 1")  # 14 Dec, the earliest dated milestone
-    assert names.index(next(n for n in names if n.startswith("M7"))) == 1  # 18 Feb
-    assert names[2].startswith("Validation 2")  # undated milestones close the list
+    assert names[:3] == ["M3 · Loop built", "M6 · All built", "M7 · End of work"]
+    assert names[3:] == ["M8 · Not planned", "Refactors", "Unscheduled"]
+    assert tree["rails"][0]["target"] == "6 Nov"
+    assert tree["rails"][1]["deadline"] == "29 Jan"  # the struck-through 5 Feb is ignored
+    rail = {n["id"]: names[n["rail"]].split(" · ")[0] for n in tree["nodes"] if "rail" in n}
+    assert rail["E2.4"] == rail["E2.6"] == rail["E2.3"] == "M3"  # E2.2–E2.3 is a range
+    assert rail["E2.5"] == "M6"
+    assert rail["E2.99"] == "M8"
+    assert rail["E2.9"] == rail["dag:M7"] == "M7"
+    assert rail["E2.14"] == "Unscheduled"
+    assert rail["dag:S2"] == "M7"  # a suite with nothing downstream closes in the last milestone
+    assert "E2.1" not in {t for t, r in rail.items() if r == "M3"}  # text after an arrow is ignored
+
+
+def test_the_diagrams_dates_are_not_nodes_and_no_rail_is_drawn_for_them(base_url):
+    tree = _full_tree(base_url)
+    ids = {n["id"] for n in tree["nodes"]}
+    assert not {"dag:V1", "dag:V2"} & ids
+    assert not any(r["name"].startswith(("Validation", "Feature")) for r in tree["rails"])
+
+
+def test_a_task_due_after_the_feature_freeze_is_flagged_with_its_due_date(base_url):
+    nodes = _tree(base_url)
+    assert nodes["E2.3"]["due"] == "26 Jan"
+    assert nodes["E2.3"]["after_freeze"] is True
+    assert nodes["E2.4"]["after_freeze"] is False  # due 11 Dec
+    assert nodes["E2.1"]["after_freeze"] is False  # no due date
+
+
+def test_refactors_and_unscheduled_are_collapsed_rails_and_refactors_come_first(base_url):
+    tree = _full_tree(base_url)
+    assert tree["rails"][-2:] == [
+        {"id": "refactors", "name": "Refactors", "collapsed": True},
+        {"id": "unscheduled", "name": "Unscheduled", "collapsed": True},
+    ]
     nodes = {n["id"]: n for n in tree["nodes"]}
-    assert nodes["E2.4"]["rail"] == 0  # planned for 11 Dec, before Validation 1 ends
-    assert nodes["dag:M7"]["rail"] == 1
+    assert nodes["r1"]["rail"] == len(tree["rails"]) - 2
+    assert not any(r.get("collapsed") for r in tree["rails"][:-2])
+
+
+def test_a_task_a_milestone_lists_but_nobody_opened_is_a_node_that_needs_triage(base_url):
+    nodes = _tree(base_url)
+    assert nodes["E2.99"]["stage"] == "needs-triage"
+    assert nodes["E2.99"]["name"] == "Final delivery"
+    with urllib.request.urlopen(f"{base_url}/api/task/E2.99") as response:
+        assert json.load(response)["has_spec"] is False
+    with urllib.request.urlopen(f"{base_url}/api/task/E2.3") as response:
+        assert json.load(response)["has_spec"] is True
 
 
 def test_task_nodes_carry_the_points_of_their_work_plan_row(base_url):
@@ -291,7 +346,7 @@ def test_the_frontier_is_every_unblocked_unfinished_task_and_follows_the_specs(b
     assert nodes["E2.2"]["frontier"] is False  # the tracker marks it 🚧
     assert nodes["E2.7"]["frontier"] is False  # wontfix
     assert nodes["E1.1"]["frontier"] is False  # done
-    assert nodes["dag:V1"]["frontier"] is False
+    assert nodes["dag:S1"]["frontier"] is False
     spec = scratch / "e2-1-triage" / "spec.md"
     spec.write_text(spec.read_text().replace("needs-triage", "done"), encoding="utf-8")
     nodes = _tree(base_url)
@@ -312,10 +367,12 @@ def test_the_page_is_served_and_the_server_binds_to_loopback_only(base_url):
         assert b"/api/tree" in response.read()
 
 
-def test_done_tasks_without_a_spec_get_guessed_edges_within_and_across_epics(base_url):
+def test_done_tasks_without_a_known_blocker_get_guessed_edges_within_and_across_epics(base_url):
     tree = _full_tree(base_url)
     guessed = [(e["from"], e["to"]) for e in tree["edges"] if e["inferred"]]
-    assert sorted(guessed) == [("E1.1", "E1.3"), ("E1.1", "E3.1")]
+    assert sorted(guessed) == [
+        ("E1.1", "E1.3"), ("E1.1", "E2.7"), ("E2.10", "E2.13"), ("E2.7", "E2.10"), ("E2.7", "E3.1"),
+    ]
     assert all(e["done"] for e in tree["edges"] if e["inferred"])
     assert not any(e["inferred"] for e in tree["edges"] if e["to"] in ("E2.5", "E2.6"))
 
@@ -373,32 +430,30 @@ def test_a_task_without_a_spec_shows_no_guessed_blockers(base_url):
 
 def test_the_measurement_dag_adds_milestone_suite_and_validates_nodes_with_their_labels(base_url):
     nodes = _tree(base_url)
-    assert nodes["dag:V1"]["kind"] == "milestone"
-    assert nodes["dag:V1"]["name"] == "Validation 1 · 14 Dec"
-    assert nodes["dag:V2"]["name"] == "Validation 2 each suite once"
+    assert "dag:V1" not in nodes  # a date with no task of its own is dropped
     assert nodes["dag:S1"]["kind"] == "suite"
     assert nodes["dag:T1"]["kind"] == "validates"
     assert nodes["dag:M7"]["kind"] == "milestone"
     assert nodes["E2.1"]["kind"] == "task"
-    assert len([n for n in nodes if n.startswith("dag:")]) == 7
+    dag_ids = {n for n in nodes if n.startswith("dag:")}
+    assert dag_ids == {"dag:S1", "dag:S2", "dag:T1", "dag:T2", "dag:M7"}
 
 
 def test_the_measurement_dag_edges_follow_chains_fan_out_and_labelled_arrows(base_url):
     tree = _full_tree(base_url)
     pairs = {(e["from"], e["to"]) for e in tree["edges"] if e["from"].startswith("dag:")}
     assert pairs == {
-        ("dag:V1", "dag:V2"), ("dag:V1", "dag:S1"), ("dag:V2", "dag:S1"), ("dag:V2", "dag:S2"),
         ("dag:S1", "dag:T1"), ("dag:S1", "dag:T2"), ("dag:S2", "dag:T2"), ("dag:T2", "dag:M7"),
         ("dag:T1", "E2.1"),
     }
-    nodes = {n["id"]: n for n in tree["nodes"]}
-    assert nodes["dag:S1"]["column"] > nodes["dag:V2"]["column"]
     assert tree["warnings"] == []
 
 
 def test_a_change_to_the_mermaid_block_shows_up_on_the_next_request(base_url, tmp_path):
     (tmp_path / "tfm-work-plan.md").write_text(
-        '### 4.2 DAG\n\n```mermaid\nflowchart LR\n  A(("Only one")):::pass\n```\n', encoding="utf-8"
+        '### 4.2 DAG\n\n```mermaid\nflowchart LR\n'
+        '  C["E2.1 calibration"]:::task --> A(("Only one")):::pass\n```\n',
+        encoding="utf-8",
     )
     nodes = _tree(base_url)
     assert nodes["dag:A"]["name"] == "Only one"

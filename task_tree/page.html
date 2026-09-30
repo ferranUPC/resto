@@ -3,30 +3,46 @@
 <head>
 <meta charset="utf-8">
 <title>RESTO task tree</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:wght@400;500;700&family=Fraunces:opsz,wght,SOFT,WONK@9..144,400..700,0..100,0..1&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0d1017; --card: #151a24; --card-hi: #1b2230; --line: #2b3444; --fg: #e7eaf0;
-    --muted: #8994a8; --dim: #566074;
-    --needs-triage: #e0a94a; --ready: #5b9cf5; --specified: #a184f2; --ticketed: #3fc5b1;
-    --done: #56b98a; --wontfix: #6b7385; --needs-info: #ea7fae; --blocked: #66728a;
-    --milestone: #f2c14e; --suite: #7fa6dc; --validates: #9aa6ba;
-    --in: #f2c14e; --out: #6fb2ff;
+    --bg: #46341f; --card: #33241a; --card-hi: #40301f; --line: #a07d4c; --fg: #f1e3c8;
+    --muted: #bea684; --dim: #85704f; --brass: #b08d57;
+    --needs-triage: #dba63f; --ready: #6fa8c9; --specified: #ab8dc6; --ticketed: #5fb3a1;
+    --done: #93b86c; --wontfix: #85704f; --needs-info: #db8b9c; --blocked: #8d7c69;
+    --milestone: #f2c45c; --suite: #92b3c9; --validates: #bcae91;
+    --in: #f2c45c; --out: #7fb8d9;
+    --serif: "Fraunces", "Iowan Old Style", Georgia, serif;
+    --text: "Alegreya Sans", "Gill Sans", "Trebuchet MS", sans-serif;
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--fg); overflow: hidden;
-    font: 13px/1.4 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
-  #toolbar { position: fixed; top: 12px; left: 12px; z-index: 2; display: flex; gap: 8px;
-    align-items: center; padding: 6px 10px; background: #151a24;
-    border: 1px solid var(--line); border-radius: 10px; }
-  #toolbar h1 { margin: 0 6px 0 0; font-size: 13px; font-weight: 600; letter-spacing: .02em; }
-  #toolbar label, #toolbar button { color: var(--muted); font-size: 12px; cursor: pointer; }
+  /* Walnut: a warm vignette over long horizontal streaks of grain. The streaks are drawn once into a
+     tile by the script (--grain) and sit on their own fixed layer, so panning never repaints them. */
+  body { margin: 0; color: var(--fg); overflow: hidden; background-color: var(--bg);
+    font: 14px/1.4 var(--text); }
+  body::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    will-change: transform;
+    background-image:
+      radial-gradient(ellipse at 50% 40%, rgba(190,135,75,.2), transparent 75%),
+      radial-gradient(ellipse at 50% 50%, transparent 65%, rgba(0,0,0,.28)),
+      var(--grain, none); }
+  #toolbar, #legend, #panel { background-image: linear-gradient(180deg, rgba(255,225,170,.06), rgba(0,0,0,.18));
+    box-shadow: inset 0 1px 0 rgba(255,225,170,.14), 0 4px 14px rgba(0,0,0,.45); }
+  #toolbar { position: fixed; top: 12px; left: 12px; z-index: 2; display: flex; gap: 10px;
+    align-items: center; padding: 7px 12px; background-color: #2b1d13;
+    border: 1px solid var(--line); border-radius: 8px; }
+  #toolbar h1 { margin: 0 8px 0 0; font: 600 16px/1 var(--serif); font-variation-settings: "SOFT" 100, "WONK" 1;
+    color: var(--milestone); letter-spacing: .01em; }
+  #toolbar label, #toolbar button { color: var(--muted); font: 14px var(--text); cursor: pointer; }
   #toolbar label { display: flex; align-items: center; gap: 5px; }
-  #toolbar button { background: none; border: 1px solid var(--line); border-radius: 6px;
-    padding: 2px 8px; }
-  #toolbar button:hover, #toolbar label:hover { color: var(--fg); }
+  #toolbar button { background: rgba(0,0,0,.2); border: 1px solid var(--line); border-radius: 5px;
+    padding: 2px 10px; }
+  #toolbar button:hover, #toolbar label:hover { color: var(--fg); border-color: var(--brass); }
   #legend { position: fixed; bottom: 12px; left: 12px; z-index: 2; display: flex; gap: 12px;
-    flex-wrap: wrap; padding: 6px 12px; background: #151a24;
-    border: 1px solid var(--line); border-radius: 10px; font-size: 11px; color: var(--muted); }
+    flex-wrap: wrap; padding: 7px 14px; background-color: #2b1d13;
+    border: 1px solid var(--line); border-radius: 8px; font-size: 13px; color: var(--muted); }
   #legend span { display: flex; align-items: center; gap: 5px; }
   #legend i { width: 9px; height: 9px; border-radius: 3px; display: inline-block; }
   #legend i.ring { background: none; border: 2px solid; }
@@ -36,56 +52,60 @@
   svg { width: 100vw; height: 100vh; display: block; user-select: none; cursor: grab; }
   svg.dragging { cursor: grabbing; }
   svg.dragging * { pointer-events: none; }
-  text { font-family: inherit; pointer-events: none; text-rendering: optimizeSpeed; }
+  text { font-family: var(--text); pointer-events: none; text-rendering: optimizeSpeed; }
   /* zoomed far out the small text is unreadable, so skip painting it */
-  svg.far .ticket, svg.far .sub, svg.far .rail-sub { display: none; }
+  svg.far .ticket, svg.far .sub, svg.far .rail-sub, svg.far .bevel { display: none; }
 
   .node, .ticket, .chip { cursor: pointer; }
   .node.dag { cursor: default; }
-  .card { fill: var(--card); stroke: var(--line); stroke-width: 1; }
-  .tile { fill-opacity: .16; }
-  .accent { stroke-width: 1.5; fill: none; }
-  .name { fill: var(--fg); font-size: 12.5px; font-weight: 600; }
-  .sub { fill: var(--muted); font-size: 10.5px; }
+  .card { fill: url(#plank); stroke: var(--line); stroke-width: 1.2; }
+  .bevel { fill: none; stroke: rgba(255,228,180,.13); stroke-width: 1; pointer-events: none; }
+  .tile { fill-opacity: .2; }
+  .accent { stroke-width: 1.6; fill: none; }
+  .name { fill: var(--fg); font: 600 13px var(--serif); font-variation-settings: "SOFT" 100; }
+  .sub { fill: var(--muted); font-size: 12px; }
   .glyph { font-size: 15px; font-weight: 700; text-anchor: middle; }
   .node.blocked .name { fill: var(--muted); }
-  .node.blocked .card { fill: #121620; }
-  .node.actionable .card { fill: var(--card-hi); }
-  .node.milestone .card { fill: #241f12; }
+  .node.blocked .card { fill: url(#plank-dark); }
+  .node.actionable .card { fill: url(#plank-hi); }
+  .node.milestone .card { fill: url(#plank-gold); }
   .node.milestone .name { fill: var(--milestone); }
   .node.suite .card { stroke-dasharray: 4 3; }
   .node.validates .name { font-weight: 500; }
   .halo { fill: none; stroke: var(--fg); stroke-width: 1.4; stroke-opacity: .55; stroke-dasharray: 2 3; }
   .badge rect { stroke: var(--bg); stroke-width: 2; }
   .badge text { font-size: 10px; font-weight: 700; text-anchor: middle; }
-  .badge.urgent rect { fill: #ef4444; }
-  .badge.urgent text { fill: #fff; letter-spacing: .04em; }
-  .badge.mark rect { fill: #242c3c; }
-  .ticket .urgent-dot { fill: #ef4444; }
-  .node.lit .card { stroke-width: 1.6; }
-  .node.selected .card { stroke-width: 2; }
-  .dimmed .node:not(.lit), .dimmed .chip:not(.lit) { opacity: .35; }
-  .pip { fill-opacity: .9; }
-  .pip.off { fill-opacity: .14; }
-  .pts { fill: var(--muted); font-size: 10.5px; font-weight: 600; text-anchor: middle; }
-  .chip .card { fill: #11151d; }
-  .chip .name { font-size: 11px; font-weight: 500; fill: var(--muted); }
+  .badge.urgent rect { fill: #c9402f; }
+  .badge.urgent text { fill: #fff3e0; letter-spacing: .04em; }
+  .badge.mark rect { fill: #4a3826; }
+  .badge.freeze rect { fill: #4a3a5c; }
+  .badge.freeze text { fill: #e6d8f7; letter-spacing: .03em; }
+  .ticket .urgent-dot { fill: #d6473a; }
+  .node.lit .card { stroke-width: 1.8; stroke: var(--brass); }
+  .node.selected .card { stroke-width: 2.2; stroke: var(--milestone); }
+  .dimmed .node:not(.lit), .dimmed .chip:not(.lit) { opacity: .38; }
+  .pip { fill-opacity: .92; }
+  .pip.off { fill-opacity: .16; }
+  .pts { fill: var(--muted); font-size: 12px; font-weight: 700; text-anchor: middle; }
+  .chip .card { fill: #46331f; filter: none; }
+  .chip .name { font-size: 12px; font-weight: 500; fill: var(--muted); }
   .chip:hover .name, .chip.lit .name { fill: var(--fg); }
   .chip.lit .card { stroke: var(--out); }
-  .ticket .pill { fill: rgba(255,255,255,.035); stroke: none; }
-  .ticket:hover .pill { fill: rgba(255,255,255,.09); }
-  .ticket text { fill: var(--muted); font-size: 10.5px; }
+  .ticket .pill { fill: rgba(0,0,0,.24); stroke: rgba(255,228,180,.07); }
+  .ticket:hover .pill { fill: rgba(255,228,180,.1); }
+  .ticket text { fill: var(--muted); font-size: 12px; }
   .ticket.done text { text-decoration: line-through; fill: var(--dim); }
-  .band { fill: rgba(255,255,255,.02); }
-  .rail { fill: rgba(255,255,255,.022); stroke: rgba(255,255,255,.05); }
-  .rail-mark { fill: var(--milestone); opacity: .8; }
-  .rail-title { fill: var(--fg); font-size: 12px; font-weight: 600; letter-spacing: .03em; }
-  .rail-sub { fill: var(--dim); font-size: 11px; }
-  .band-label, .lane-label { fill: var(--dim); font-size: 10.5px; font-weight: 600;
-    letter-spacing: .08em; text-transform: uppercase; }
-  .lane-label { font-size: 11px; fill: var(--muted); }
+  .band { fill: rgba(14,8,3,.55); }
+  .rail { fill: rgba(14,8,3,.62); stroke: rgba(196,158,98,.55); stroke-width: 1.5; }
+  .rail-mark { fill: var(--milestone); opacity: .85; }
+  .rail-title { fill: var(--fg); font: 600 15px var(--serif); font-variation-settings: "SOFT" 100, "WONK" 1; }
+  .rail-sub { fill: var(--muted); font-size: 13px; font-style: italic; }
+  .rail-toggle { cursor: pointer; }
+  .rail-toggle:hover .rail { fill: rgba(14,8,3,.45); }
+  .band-label, .lane-label { fill: var(--brass); font: 600 13px var(--serif); }
+  .lane-label { font-size: 15px; fill: var(--muted); }
 
-  .edge { fill: none; stroke: #7b879c; stroke-width: 1.4; opacity: .6; }
+  .edge { fill: none; stroke: #a88a5e; stroke-width: 1.5; opacity: .6; }
   .edge.transient { display: none; stroke-dasharray: 3 3; }
   .all-edges .edge.transient { display: inline; opacity: .25; }
   .edge.inferred { stroke-dasharray: 5 4; }
@@ -97,24 +117,26 @@
   #arrows path { stroke: none; }
 
   #panel { position: fixed; top: 0; right: 0; width: 33.333vw; height: 100vh; z-index: 3;
-    display: none; flex-direction: column; padding: 18px 20px; background: #10141c;
-    border-left: 1px solid var(--line); }
+    display: none; flex-direction: column; padding: 18px 20px; background-color: #22170f;
+    border-left: 2px solid var(--line); font-size: 15px; }
   body.open #panel { display: flex; }
   #detail { flex: 1; min-height: 0; overflow-y: auto; padding-right: 4px; }
-  #panel h2 { margin: 0 24px 4px 0; font-size: 16px; line-height: 1.3; }
+  #panel h2 { margin: 0 24px 4px 0; font: 600 20px/1.25 var(--serif); font-variation-settings: "SOFT" 100, "WONK" 1;
+    color: var(--milestone); }
   #panel dl { margin: 12px 0; display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; }
   #panel dt { color: var(--muted); }
   #panel dd { margin: 0; }
-  #panel h3 { margin: 16px 0 6px; font-size: 11px; color: var(--muted); text-transform: uppercase;
-    letter-spacing: .08em; }
+  #panel h3 { margin: 18px 0 6px; font: 600 15px var(--serif); color: var(--brass);
+    border-bottom: 1px solid rgba(176,141,87,.3); padding-bottom: 3px; }
   #panel .notes { max-height: 45vh; overflow-y: auto; white-space: pre-wrap; }
-  #panel a { color: #8ec1ff; cursor: pointer; text-decoration: none; }
+  #panel a { color: #e3b96f; cursor: pointer; text-decoration: none; }
   #panel a:hover { text-decoration: underline; }
   #panel ul { margin: 0; padding-left: 18px; }
   #panel .actions { display: flex; gap: 8px; align-items: center; margin: 12px 0; flex-wrap: wrap; }
-  #panel button.launch { background: #1d2a44; color: var(--text, #e6e6e6); border: 1px solid var(--line);
-    border-radius: 4px; padding: 4px 10px; cursor: pointer; font: inherit; }
-  #panel button.launch:hover { background: #26375a; }
+  #panel button.launch { background: linear-gradient(180deg, #6b4a2b, #4f3620); color: var(--fg);
+    border: 1px solid var(--brass); border-radius: 5px; padding: 4px 12px; cursor: pointer;
+    font: 600 14px var(--text); box-shadow: inset 0 1px 0 rgba(255,228,180,.2); }
+  #panel button.launch:hover { background: linear-gradient(180deg, #7d5732, #5d4025); }
   #panel button.launch.small { padding: 0 6px; margin-left: 8px; font-size: 11px; }
   #launch-status { font-size: 12px; color: var(--muted); }
   #close { position: absolute; top: 12px; right: 14px; background: none; border: 0;
@@ -133,6 +155,16 @@
 </div>
 <div id="legend"></div>
 <svg id="canvas">
+  <defs>
+    <linearGradient id="plank" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5a4028"/><stop offset="1" stop-color="#45311f"/></linearGradient>
+    <linearGradient id="plank-hi" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6b4d2f"/><stop offset="1" stop-color="#523a24"/></linearGradient>
+    <linearGradient id="plank-dark" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4a3826"/><stop offset="1" stop-color="#382819"/></linearGradient>
+    <linearGradient id="plank-gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7a5e2c"/><stop offset="1" stop-color="#5a4520"/></linearGradient>
+  </defs>
   <defs id="arrows"></defs>
   <g id="viewport"></g>
 </svg>
@@ -140,6 +172,28 @@
 <div id="warning"></div>
 <div id="error"></div>
 <script>
+// Grain tile: one random strength per row (blended with its neighbours) times a slow wave along the
+// row. Whole wave cycles per row and wrapped rows make the tile seamless in both directions.
+(function paintGrain() {
+  try {
+    const N = 512, c = document.createElement("canvas"); c.width = c.height = N;
+    const ctx = c.getContext("2d"), img = ctx.createImageData(N, N);
+    const rows = Array.from({ length: N }, Math.random);
+    const phase = Array.from({ length: N }, () => Math.random() * 6.283);
+    for (let y = 0; y < N; y++) {
+      const s = (rows[(y + N - 1) % N] + 2 * rows[y] + rows[(y + 1) % N]) / 4;
+      for (let x = 0; x < N; x++) {
+        const wave = 0.5 + 0.25 * Math.sin(6.283 * 2 * x / N + phase[y])
+          + 0.25 * Math.sin(6.283 * 5 * x / N + phase[(y + 7) % N]);
+        const i = (y * N + x) * 4;
+        img.data[i] = 14; img.data[i + 1] = 6; img.data[i + 2] = 0;
+        img.data[i + 3] = Math.min(255, 130 * s * s * wave * 2);
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    document.body.style.setProperty("--grain", `url(${c.toDataURL()})`);
+  } catch (err) { /* the flat walnut colour is enough without it */ }
+})();
 const NS = "http://www.w3.org/2000/svg";
 const W = 272, H = 50, TILE = 44, GX = 96, GY = 16, DUMMY_H = 10, LANE_GAP = 120, TOP = 96;
 const RAIL_HEAD = 34, RAIL_PAD = 14, RAIL_GAP = 14;
@@ -154,11 +208,11 @@ const LABELS = { "needs-triage": "needs triage", ready: "ready", specified: "spe
   ticketed: "ticketed", done: "done", wontfix: "won't fix", "needs-info": "needs info" };
 const color = s => `var(--${s})`;
 // One border color per epic, cycled by epic number. Tasks outside an epic (refactors) stay neutral.
-const EPIC_COLORS = ["#e5736b", "#e0a94a", "#c2d25a", "#56b98a", "#3fc5b1", "#5bb4e8", "#a184f2",
-  "#e07fc0", "#9aa6ba"];
+const EPIC_COLORS = ["#d9695a", "#dba63f", "#b5c25a", "#93b86c", "#5fb3a1", "#6fa8c9", "#ab8dc6",
+  "#d98aa8", "#bea684"];
 const epicColor = id => {
   const m = /^[A-Za-z]+(\d+)\./.exec(id);
-  return m ? EPIC_COLORS[(+m[1] - 1 + EPIC_COLORS.length) % EPIC_COLORS.length] : "#566074";
+  return m ? EPIC_COLORS[(+m[1] - 1 + EPIC_COLORS.length) % EPIC_COLORS.length] : "#85704f";
 };
 const MARKS = { awaiting: ["⏳", "awaiting measurement"], blocked: ["🚧", "blocked externally"] };
 const isDag = n => DAG_KINDS.includes(n.kind);
@@ -176,10 +230,30 @@ const truncate = (t, max) => t.length > max ? t.slice(0, max - 1) + "…" : t;
 
 /* ---------- layout ---------- */
 
+// Every rail folds. `collapsed` in the data is the default (refactors, unscheduled); a click flips it.
+const flippedRails = new Set();
+const isFolded = meta => Boolean(meta.collapsed) !== flippedRails.has(meta.id);
+function toggleRail(id) { flippedRails.has(id) ? flippedRails.delete(id) : flippedRails.add(id); draw(); }
+
+// Rail header: the milestone name, then its target and deadline from the work plan's table.
+function drawRailHead(parent, meta, y, prefix, extra) {
+  const title = prefix + meta.name;
+  el("rect", { class: "rail-mark", x: originXOf(), y: y + 10, width: 3, height: 16, rx: 1.5 }, parent);
+  el("text", { class: "rail-title", x: originXOf() + 16, y: y + 23 }, parent)
+    .textContent = truncate(title, 60);
+  const dates = [meta.target && `target ${meta.target}`, meta.deadline && `deadline ${meta.deadline}`, extra]
+    .filter(Boolean).join(" · ");
+  if (dates)
+    el("text", { class: "rail-sub", x: originXOf() + 16 + Math.min(title.length, 60) * 8.6 + 14, y: y + 23 },
+      parent).textContent = dates;
+}
+let railOriginX = 0;
+const originXOf = () => railOriginX - 16;
+
 // Layered layout: real nodes keep the server's column; an edge that skips columns gets one thin
 // dummy slot in each column it crosses, so it travels through the gap between two cards.
-function layoutActive(nodes, edges, heightOf) {
-  const railCount = Math.max(1, ...nodes.map(n => (n.rail ?? 0) + 1));
+function layoutActive(nodes, edges, heightOf, folded) {
+  const railCount = Math.max(1, folded.size ? Math.max(...folded) + 1 : 0, ...nodes.map(n => (n.rail ?? 0) + 1));
   const layers = [], items = new Map();
   const add = (item) => {
     (layers[item.col] ??= []).push(item); items.set(item.id, item); return item;
@@ -231,7 +305,7 @@ function layoutActive(nodes, edges, heightOf) {
   let cursor = 0;
   for (let r = 0; r < railCount; r++) {
     const fullest = Math.max(0, ...groups.map(g => g.has(r) ? stackH(g.get(r)) : 0));
-    const height = fullest ? RAIL_HEAD + fullest + RAIL_PAD : 0;
+    const height = folded.has(r) ? RAIL_HEAD : fullest ? RAIL_HEAD + fullest + RAIL_PAD : 0;
     rails.push({ top: cursor, height });
     cursor += height + (height ? RAIL_GAP : 0);
   }
@@ -291,7 +365,7 @@ let tree = null, view = null, selected = null;
 
 function makeArrows() {
   const defs = document.getElementById("arrows"); defs.innerHTML = "";
-  for (const [name, fillColor] of [["dim", "#7b879c"], ["in", "#f2c14e"], ["out", "#6fb2ff"]]) {
+  for (const [name, fillColor] of [["dim", "#a88a5e"], ["in", "#f2c45c"], ["out", "#7fb8d9"]]) {
     const m = el("marker", { id: `arrow-${name}`, viewBox: "0 0 10 10", refX: 9, refY: 5,
       markerWidth: 7, markerHeight: 7, orient: "auto" }, defs);
     el("path", { d: "M0,1 L10,5 L0,9 z", fill: fillColor }, m);
@@ -314,12 +388,35 @@ function draw() {
   const g = document.getElementById("viewport"); g.innerHTML = "";
   const stages = tree.stages;
   const showDone = document.getElementById("show-done").checked;
-  const active = tree.nodes.filter(n => n.lane !== "done");
-  const done = tree.nodes.filter(n => n.lane === "done");
-  const heightOf = n => H + (n.tickets.length ? n.tickets.length * RH + ROWS_PAD : 0);
+  // A collapsible rail (refactors) shows only a header until it is opened.
+  const folded = new Set(tree.rails.flatMap((r, i) => isFolded(r) ? [i] : []));
+  const active = tree.nodes.filter(n => (showDone || !FINISHED.includes(n.stage)) && !folded.has(n.rail));
+  const pendingIds = new Set(tree.nodes.filter(n => n.lane !== "done").map(n => n.id));
+  // The frontier is the finished tasks that directly block a pending one. They sit next to the graph.
+  const frontierIds = new Set(tree.edges.filter(e => pendingIds.has(e.to)).map(e => e.from));
+  const done = tree.nodes.filter(n => n.lane === "done" && !frontierIds.has(n.id));
+  const frontier = tree.nodes.filter(n => n.lane === "done" && frontierIds.has(n.id));
+  const ticketsH = n => n.tickets.length ? n.tickets.length * RH + ROWS_PAD : 0;
+  const heightOf = n => H + ticketsH(n);
+
+  const pos = {}, chipEls = {};
+  function drawChip(n, cx, cy) {
+    pos[n.id] = { x: cx, y: cy, w: CHIP_W, h: CHIP_H };
+    const chip = el("g", { class: "chip", transform: `translate(${cx},${cy})` }, g);
+    chipEls[n.id] = chip;
+    const accent = n.stage === "wontfix" ? "wontfix" : "done";
+    el("rect", { class: "card", width: CHIP_W, height: CHIP_H, rx: 7 }, chip);
+    el("text", { class: "glyph", x: 15, y: CHIP_H / 2 + 5, fill: color(accent),
+      style: "font-size:12px" }, chip).textContent = GLYPHS[n.stage];
+    el("text", { class: "name", x: 28, y: CHIP_H / 2 + 4 }, chip)
+      .textContent = truncate(`${n.id}  ${n.name.replace(/`/g, "")}`, 27);
+    el("title", {}, chip).textContent = `${n.id} ${n.name}\nstage: ${n.stage}` + (n.points ? `\npoints: ${n.points}` : "");
+    chip.addEventListener("click", ev => { ev.stopPropagation(); if (!moved) select(n.id); });
+    chip.addEventListener("mouseenter", () => highlight(n.id));
+    chip.addEventListener("mouseleave", () => highlight(selected));
+  }
 
   // Archive of finished tasks, grouped by epic, on the left.
-  const pos = {}, chipEls = {};
   let archiveW = 0;
   if (showDone && done.length) {
     const groups = {};
@@ -336,23 +433,8 @@ function draw() {
       const bandH = 22 + rows * (CHIP_H + CHIP_GAP) + 4;
       el("rect", { class: "band", x: 0, y, width: archiveW, height: bandH, rx: 8 }, g);
       el("text", { class: "band-label", x: 12, y: y + 15 }, g).textContent = epic;
-      list.forEach((n, i) => {
-        const cx = 12 + (i % CHIP_COLS) * (CHIP_W + CHIP_GAP);
-        const cy = y + 22 + Math.floor(i / CHIP_COLS) * (CHIP_H + CHIP_GAP);
-        pos[n.id] = { x: cx, y: cy, w: CHIP_W, h: CHIP_H };
-        const chip = el("g", { class: "chip", transform: `translate(${cx},${cy})` }, g);
-        chipEls[n.id] = chip;
-        const accent = n.stage === "wontfix" ? "wontfix" : "done";
-        el("rect", { class: "card", width: CHIP_W, height: CHIP_H, rx: 7 }, chip);
-        el("text", { class: "glyph", x: 15, y: CHIP_H / 2 + 5, fill: color(accent),
-          style: "font-size:12px" }, chip).textContent = GLYPHS[n.stage];
-        el("text", { class: "name", x: 28, y: CHIP_H / 2 + 4 }, chip)
-          .textContent = truncate(`${n.id}  ${n.name.replace(/`/g, "")}`, 31);
-        el("title", {}, chip).textContent = `${n.id} ${n.name}\nstage: ${n.stage}` + (n.points ? `\npoints: ${n.points}` : "");
-        chip.addEventListener("click", ev => { ev.stopPropagation(); if (!moved) select(n.id); });
-        chip.addEventListener("mouseenter", () => highlight(n.id));
-        chip.addEventListener("mouseleave", () => highlight(selected));
-      });
+      list.forEach((n, i) => drawChip(n, 12 + (i % CHIP_COLS) * (CHIP_W + CHIP_GAP),
+        y + 22 + Math.floor(i / CHIP_COLS) * (CHIP_H + CHIP_GAP)));
       y += bandH + 10;
     }
   }
@@ -363,28 +445,45 @@ function draw() {
   const seen = new Set();
   const unique = activeEdges.filter(e => { const k = e.from + "|" + e.to;
     return seen.has(k) ? false : (seen.add(k), true); });
-  const { layers, items, routes, rails } = layoutActive(active, unique, heightOf);
-  const originX = showDone && done.length ? archiveW + LANE_GAP : 20;
+  const { layers, items, routes, rails } = layoutActive(active, unique, heightOf, folded);
+  const showFrontier = showDone && frontier.length > 0;
+  const frontX = showDone && done.length ? archiveW + LANE_GAP : 20;
+  const originX = showFrontier ? frontX + CHIP_W + GX : frontX;
   const colX = c => originX + c * (W + GX);
+  railOriginX = originX;
   const columns = layers.length;
   for (const it of items.values()) {
     it.x = colX(it.col); it.y += TOP;
     if (!it.dummy) pos[it.id] = { x: it.x, y: it.y, w: W, h: H };
   }
+  if (showFrontier) {
+    // Each chip sits at the mean height of the tasks it blocks, pushed down where two would overlap.
+    const wanted = frontier.map(n => {
+      const ys = tree.edges.filter(e => e.from === n.id && pos[e.to]).map(e => pos[e.to].y + H / 2);
+      return { n, y: ys.length ? ys.reduce((a, b) => a + b) / ys.length : TOP };
+    }).sort((a, b) => a.y - b.y);
+    let floor = TOP;
+    for (const w of wanted) {
+      const y = Math.max(floor, w.y - CHIP_H / 2);
+      drawChip(w.n, frontX, y);
+      floor = y + CHIP_H + CHIP_GAP;
+    }
+    el("text", { class: "lane-label", x: frontX, y: TOP - 18 }, g).textContent = `Unblocking · ${frontier.length}`;
+  }
   const railWidth = layers.length * (W + GX) - GX + 32;
   let railsBottom = 0;
   rails.forEach((rail, r) => {
     if (!rail.height) return;
-    const meta = tree.rails[r] ?? { name: "Unscheduled" };
+    const meta = tree.rails[r] ?? { id: "unscheduled", name: "Unscheduled" };
     const y = rail.top + TOP;
     railsBottom = Math.max(railsBottom, y + rail.height);
-    el("rect", { class: "rail", x: originX - 16, y, width: railWidth, height: rail.height, rx: 12 }, g);
-    const [title, ...rest] = meta.name.replace(/\s*✅\s*/g, " ").split(/\s+·\s+|\s+\(/);
-    el("rect", { class: "rail-mark", x: originX - 16, y: y + 10, width: 3, height: 16, rx: 1.5 }, g);
-    el("text", { class: "rail-title", x: originX, y: y + 23 }, g).textContent = truncate(title.trim(), 40);
-    if (rest.length)
-      el("text", { class: "rail-sub", x: originX + 8 + title.length * 7.4, y: y + 23 }, g)
-        .textContent = truncate(rest.join(" · ").replace(/\)$/, ""), 60);
+    const rg = el("g", { class: "rail-toggle" }, g);
+    el("rect", { class: "rail", x: originX - 16, y, width: railWidth, height: rail.height, rx: 12 }, rg);
+    if (folded.has(r)) {
+      const count = tree.nodes.filter(n => n.rail === r).length;
+      drawRailHead(rg, meta, y, "▸ ", `${count} tasks, click to open`);
+    } else drawRailHead(rg, meta, y, "▾ ");
+    rg.addEventListener("click", () => toggleRail(meta.id));
   });
 
   // Edges first so cards paint over them.
@@ -438,9 +537,11 @@ function draw() {
   for (const e of tree.edges) {
     if (ids.has(e.from) && ids.has(e.to)) continue;
     if (!pos[e.from] || !pos[e.to]) continue;
-    const path = el("path", { class: "edge transient" + (e.inferred ? " inferred" : ""),
+    // Edges out of the frontier stay visible: they are the reason the chip is in the graph.
+    const shown = showFrontier && frontierIds.has(e.from) && ids.has(e.to);
+    const path = el("path", { class: "edge" + (shown ? "" : " transient") + (e.inferred ? " inferred" : ""),
       d: curve(pos[e.from], pos[e.to]), "marker-end": "url(#arrow-dim)" }, edgeLayer);
-    paths.push({ path, from: e.from, to: e.to, transient: true });
+    paths.push({ path, from: e.from, to: e.to, transient: !shown });
   }
 
   // Cards.
@@ -454,6 +555,7 @@ function draw() {
     nodeEls[n.id] = node;
     const h = heightOf(n);
     el("rect", { class: "card", width: W, height: h, rx: 10 }, node);
+    el("rect", { class: "bevel", x: 2.5, y: 2.5, width: W - 5, height: h - 5, rx: 8 }, node);
     if (n.frontier)
       el("rect", { class: "halo", x: -5, y: -5, width: W + 10, height: h + 10, rx: 14 }, node);
     el("rect", { class: "accent", width: W, height: h, rx: 10,
@@ -486,6 +588,7 @@ function draw() {
     const badges = [];
     if (n.urgent) badges.push({ cls: "urgent", label: "URGENT", w: 50 });
     if (n.tracker_mark) badges.push({ cls: "mark", label: MARKS[n.tracker_mark][0], w: 26 });
+    if (n.after_freeze) badges.push({ cls: "freeze", label: "POST-FREEZE", w: 82 });
     let bx = W - 10;
     for (const b of badges) {
       bx -= b.w;
@@ -501,6 +604,7 @@ function draw() {
       ...(n.urgent ? ["priority: urgent"] : []),
       ...(n.tracker_mark ? [`tracker: ${MARKS[n.tracker_mark][1]}`] : []),
       ...(n.points ? [`points: ${n.points}`] : []),
+      ...(n.due ? [`due: ${n.due}` + (n.after_freeze ? " (after the feature freeze)" : "")] : []),
       ...n.warnings.map(w => "warning: " + w)].join("\n");
     n.tickets.forEach((t, i) => {
       const label = `${t.id}  ${t.name}`;
@@ -732,9 +836,9 @@ async function showTask(id) {
     const actions = actionsBar();
     // A ticketed task with no takeable ticket has no next step, and the server would reject it.
     const takeable = d.tickets.some(t => !FINISHED.includes(t.stage) && !t.blocked);
-    if (NEXT_LABELS[d.stage] && (d.stage !== "ticketed" || takeable))
+    if (d.has_spec && NEXT_LABELS[d.stage] && (d.stage !== "ticketed" || takeable))
       launchButton(NEXT_LABELS[d.stage], { id: d.id, action: "next" }, actions);
-    if (d.stage !== "done") launchButton("Grill", { id: d.id, action: "grill" }, actions);
+    if (d.stage !== "done" && d.has_spec) launchButton("Grill", { id: d.id, action: "grill" }, actions);
     if (d.plan_excerpt) { text("h3", "Work plan", detail); text("div", d.plan_excerpt, detail); }
     if (d.tickets.length) {
       text("h3", "Tickets", detail);
@@ -771,7 +875,7 @@ function loadTree(first) {
   return fetch("/api/tree").then(r => r.json()).then(t => {
       tree = t; drawLegend(); draw(); if (first) fit();
       document.getElementById("warning").textContent = tree.warnings.length
-        ? "Measurement DAG: " + tree.warnings.join("; ") : "";
+        ? "Work plan: " + tree.warnings.join("; ") : "";
       document.getElementById("error").textContent = "";
     })
     .catch(err => { document.getElementById("error").textContent = "Could not load the tree: " + err; });
