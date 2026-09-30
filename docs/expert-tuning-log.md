@@ -480,10 +480,10 @@ $0.99 (cap $1.30), no crashes. Report: `eval/expert_benchmark/reports/v2-e38-for
   1-repetition development sweep; v4 sat exactly on it with no margin, and the decision of
   2026-09-25 (no re-tuning for it before Validation 1) still applies. Nothing was rerun.
 
-### Diagnostic questions from v0 to v4
+### Diagnostic questions from v0 to v5
 
 The diagnostic family is the one that drove most of the tuning. Its history in one table (1
-repetition each, 20 questions; v0–v1 on the old bank, v2–v4 on the E3.8 bank):
+repetition each, 20 questions; v0–v1 on the old bank, v2–v5 on the E3.8 bank):
 
 | Version | What changed for the diagnosis | Answered | Jaccard | Cause acc. | Budget stops | Main failure |
 |---|---|---|---|---|---|---|
@@ -492,6 +492,7 @@ repetition each, 20 questions; v0–v1 on the old bank, v2–v4 on the E3.8 bank
 | v2 | Batched topology tools | 16 | 0.80 | not asked | 4 | Text or tool arguments cut at 2,048 tokens |
 | v3 | Typed cause per edge (ADR-0029) | 2 | 0.10 | 1.00 (6 edges) | 18 | Guessing light ids, hunting lane drops, deliberation cut |
 | v4 | Cause lookups spelled out; a diagnosis with two values | 12 | 0.60 | 0.89 (36 edges) | 8 | Reasoning cut at 2,048 tokens |
+| v5 | Per-tool guidance moved into the tool descriptions | 11 | 0.55 | 0.94 | 9 | Reasoning cut at 2,048 tokens |
 
 The same pattern holds in every version: when the Expert answers, it names the right edges, and what
 changes is whether it answers within 6 steps of 2,048 output tokens. The versions changed this as
@@ -500,7 +501,9 @@ follows:
 - v3 asked for more, a typed cause per edge, and left the Expert to find the facts on its own, which
   spent its budget on searching;
 - v4 told the Expert which fields answer each cause and which calls fetch them. That recovered most
-  of the loss, with 0.89 cause accuracy.
+  of the loss, with 0.89 cause accuracy;
+- v5 changed no information, only where the per-tool advice lives. The result (11 answers against 12) is
+  within what one repetition can show.
 
 The limit left at the end is the one first seen in v0: the output-token budget per step.
 
