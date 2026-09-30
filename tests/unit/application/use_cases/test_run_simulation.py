@@ -196,8 +196,13 @@ def test_the_result_id_with_the_pinned_version_is_the_one_computed_before(tmp_pa
     results = InMemoryResultRepository()
 
     result = run_simulation(
-        batch_scenario(), 7, runner=runner, results=results, run_dirs=RUN_DIRS,
-        out_dir=tmp_path, attempt="a",
+        batch_scenario(),
+        7,
+        runner=runner,
+        results=results,
+        run_dirs=RUN_DIRS,
+        out_dir=tmp_path,
+        attempt="a",
     )
 
     assert result.result_id == result_id_for("s-batch", 7, "batch", SUMO_VERSION)  # as before
@@ -210,8 +215,13 @@ def test_a_runner_on_another_sumo_version_never_produces_a_stored_result(tmp_pat
 
     with pytest.raises(ValueError, match="results must come from SUMO"):
         run_simulation(
-            batch_scenario(), 7, runner=runner, results=results, run_dirs=RUN_DIRS,
-            out_dir=tmp_path, attempt="a",
+            batch_scenario(),
+            7,
+            runner=runner,
+            results=results,
+            run_dirs=RUN_DIRS,
+            out_dir=tmp_path,
+            attempt="a",
         )
 
     assert results.get(result_id_for("s-batch", 7, "batch", "1.20.0")) is None

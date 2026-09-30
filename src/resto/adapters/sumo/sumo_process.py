@@ -47,12 +47,9 @@ def launch(tool: str, args: Sequence[str], cwd: Path, seed: int) -> LaunchResult
     """
     if tool not in _version_cache:
         try:
-            proc = subprocess.run([tool, "--version"], capture_output=True, text=True, cwd=cwd)
-        except OSError as exc:
-            return LaunchResult(ok=False, message=str(exc))
-        if proc.returncode != 0:
-            return LaunchResult(ok=False, message=_failure_message(tool, proc))
-        _version_cache[tool] = _read_version(tool, proc.stdout + proc.stderr)
+            _probe_version(tool, cwd)
+        except _ProbeFailed as failure:
+            return LaunchResult(ok=False, message=str(failure))
     _require_pinned(tool)
 
     command = [tool, *args]
@@ -78,15 +75,26 @@ def checked_version(tool: str) -> str:
     """
     if tool not in _version_cache:
         try:
-            proc = subprocess.run([tool, "--version"], capture_output=True, text=True)
-        except OSError as exc:
-            raise SumoVersionError(f"cannot run {tool}: {exc}") from exc
-        if proc.returncode != 0:
-            message = _failure_message(tool, proc)
-            raise SumoVersionError(f"cannot read the version of {tool}: {message}")
-        _version_cache[tool] = _read_version(tool, proc.stdout + proc.stderr)
+            _probe_version(tool, None)
+        except _ProbeFailed as failure:
+            raise SumoVersionError(f"cannot read the version of {tool}: {failure}") from failure
     _require_pinned(tool)
     return _version_cache[tool]
+
+
+class _ProbeFailed(Exception):
+    """`<tool> --version` could not run or exited non-zero; the text is the reason."""
+
+
+def _probe_version(tool: str, cwd: Path | None) -> None:
+    """Runs `<tool> --version` and caches what it reads."""
+    try:
+        proc = subprocess.run([tool, "--version"], capture_output=True, text=True, cwd=cwd)
+    except OSError as exc:
+        raise _ProbeFailed(str(exc)) from exc
+    if proc.returncode != 0:
+        raise _ProbeFailed(_failure_message(tool, proc))
+    _version_cache[tool] = _read_version(tool, proc.stdout + proc.stderr)
 
 
 def _require_pinned(tool: str) -> None:
