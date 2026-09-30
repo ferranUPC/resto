@@ -57,7 +57,7 @@ ADR-0029) ≥ 0.70, CF direction ≥ 0.75, CF band ≥ 0.50, Brier ≤ 0.25, acc
 
 ¹ Re-scored after ADR-0029: v2 has no cause value, so every shared edge counts as wrong.
 ² Diagnostic-only sweeps: the other families were not run, and Brier and accepted cover the 20
-diagnostic questions only. v3 to v6 changed only the diagnostic part of the prompt.
+diagnostic questions only. v3 and v4 changed only the diagnostic part of the prompt; v5 and v6 changed tool descriptions and one tool.
 
 ### v0 — baseline
 
