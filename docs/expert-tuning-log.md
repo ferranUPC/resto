@@ -504,7 +504,7 @@ follows:
 
 The limit left at the end is the one first seen in v0: the output-token budget per step.
 
-Spent on Expert runs so far: **$4.71** (v0 $1.54, v1 $0.98, v2 retry $0.10, smokes $0.27,
+Spent on Expert runs so far (sum of the runs' estimated costs; v5 billed $0.145 of its $0.24): **$4.71** (v0 $1.54, v1 $0.98, v2 retry $0.10, smokes $0.27,
 `v2-e38-forced-1rep` $0.99, `v3-diag-1rep` $0.32, `v4-diag-1rep` $0.28, `v5-diag-1rep` $0.24 estimated, $0.145 billed). E4.3's share is $0.60.
 
 ## 4. Entry template
