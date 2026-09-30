@@ -4,6 +4,7 @@ ADR-0009)."""
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -15,6 +16,7 @@ from resto.application.ports.writers import SimulationSettings
 from resto.application.tools.scenario_builder import (
     BuilderCollaborators,
     BuilderRequest,
+    BuilderRun,
     build_scenario_builder_tools,
     edge_exists,
     lane_exists,
@@ -41,25 +43,13 @@ from tests.unit.domain._samples import network as sample_network
 LANE = LaneTarget(edge_id="A0A1", lane_index=0)
 
 
-
-
-
-
-
-
 @pytest.fixture(scope="module")
 def query() -> SumolibNetworkQuery:
     return SumolibNetworkQuery(DEV_NET)
 
 
-
-
-
-
 def lane_closure() -> Intervention:
-    return Intervention(
-        type=InterventionType.LANE_CLOSURE, target=LANE, window=TimeWindow(0, 3600)
-    )
+    return Intervention(type=InterventionType.LANE_CLOSURE, target=LANE, window=TimeWindow(0, 3600))
 
 
 def demand_scale_intervention(scale: float = 1.2) -> Intervention:
@@ -69,6 +59,51 @@ def demand_scale_intervention(scale: float = 1.2) -> Intervention:
         window=TimeWindow(0, 3600),
         params={"scale": scale},
     )
+
+
+def _run(  # noqa: ANN202
+    tmp_path: Path,
+    rerouter_writer=None,  # noqa: ANN001
+    vss_writer=None,  # noqa: ANN001
+    tls_program_writer=None,  # noqa: ANN001
+    sumocfg_writer=None,  # noqa: ANN001
+    query=None,  # noqa: ANN001
+    demand_scaler=None,  # noqa: ANN001
+    duarouter=None,  # noqa: ANN001
+    demands=None,  # noqa: ANN001
+    interventions=None,  # noqa: ANN001
+    demand=None,  # noqa: ANN001
+    route_files=(Path("routes.rou.xml"),),  # noqa: ANN001
+):
+    collaborators = BuilderCollaborators(
+        networks=InMemoryNetworkRepository(),
+        demands=demands or RecordingDemandRepository(),
+        network_query_factory=SumolibNetworkQuery,
+        rerouter_writer=rerouter_writer or RecordingAdditionalFileWriter(),
+        vss_writer=vss_writer or RecordingAdditionalFileWriter(),
+        tls_program_writer=tls_program_writer or RecordingAdditionalFileWriter(),
+        sumocfg_writer=sumocfg_writer or RecordingWriter(),
+        demand_scaler=demand_scaler or RecordingDemandScaler(),
+        duarouter=duarouter or RecordingDuarouter(),
+        out_dir=tmp_path,
+    )
+    request = BuilderRequest(
+        interventions=interventions if interventions is not None else (lane_closure(),),
+        query=query or SumolibNetworkQuery(DEV_NET),
+        network=sample_network(),
+        demand=demand or sample_demand(),
+        net_file=Path("net.xml"),
+        route_files=route_files,
+        begin=0.0,
+        end=3600.0,
+        out_dir=tmp_path,
+    )
+    return BuilderRun(collaborators, request)
+
+
+def _builder_tools(tmp_path: Path, **kwargs):  # noqa: ANN003, ANN202
+    run = _run(tmp_path, **kwargs)
+    return build_scenario_builder_tools(run.collaborators, run.request)
 
 
 # --- id checks -------------------------------------------------------------------------------
@@ -91,7 +126,7 @@ def test_write_rerouter_delegates_and_flattens_the_result(tmp_path: Path) -> Non
     writer = RecordingAdditionalFileWriter()
     intervention = lane_closure()
 
-    result = write_rerouter(writer, intervention, tmp_path)
+    result = write_rerouter(_run(tmp_path, rerouter_writer=writer), 0)
 
     assert writer.calls == [(intervention, tmp_path)]
     assert result == {
@@ -105,7 +140,7 @@ def test_write_vss_delegates_and_flattens_the_result(tmp_path: Path) -> None:
     writer = RecordingAdditionalFileWriter()
     intervention = lane_closure()
 
-    result = write_vss(writer, intervention, tmp_path)
+    result = write_vss(_run(tmp_path, vss_writer=writer), 0)
 
     assert writer.calls == [(intervention, tmp_path)]
     assert result["file_kind"] == "rerouter"  # the fake writer always reports this file_kind
@@ -115,7 +150,7 @@ def test_write_tls_program_delegates_and_flattens_the_result(tmp_path: Path) -> 
     writer = RecordingAdditionalFileWriter()
     intervention = lane_closure()
 
-    result = write_tls_program(writer, intervention, tmp_path)
+    result = write_tls_program(_run(tmp_path, tls_program_writer=writer), 0)
 
     assert writer.calls == [(intervention, tmp_path)]
     assert result["file_kind"] == "rerouter"  # the fake writer always reports this file_kind
@@ -130,10 +165,15 @@ def test_scale_demand_delegates_through_the_use_case(tmp_path: Path) -> None:
     demands = RecordingDemandRepository()
     demand = sample_demand()
     network = sample_network()
-
-    result = scale_demand(
-        demand, network, 1.2, scaler=scaler, duarouter=duarouter, demands=demands, out_dir=tmp_path
+    run = _run(
+        tmp_path,
+        demand_scaler=scaler,
+        duarouter=duarouter,
+        demands=demands,
+        interventions=(demand_scale_intervention(1.2),),
     )
+
+    result = scale_demand(run, 0)
 
     assert scaler.calls == [(demand.trips, 1.2, tmp_path)]
     assert duarouter.calls == [(network.net_xml, scaler._result, demand.spec.seed, tmp_path)]
@@ -142,20 +182,14 @@ def test_scale_demand_delegates_through_the_use_case(tmp_path: Path) -> None:
 
 
 def test_scale_demand_surfaces_a_network_mismatch(tmp_path: Path) -> None:
-    demand = sample_demand()
-    network = sample_network()
-    from dataclasses import replace
+    run = _run(
+        tmp_path,
+        demand=replace(sample_demand(), network_id="other"),
+        interventions=(demand_scale_intervention(1.2),),
+    )
 
     with pytest.raises(ValueError):
-        scale_demand(
-            replace(demand, network_id="other"),
-            network,
-            1.2,
-            scaler=RecordingDemandScaler(),
-            duarouter=RecordingDuarouter(),
-            demands=RecordingDemandRepository(),
-            out_dir=tmp_path,
-        )
+        scale_demand(run, 0)
 
 
 # --- write_sumocfg (E2.1) -----------------------------------------------------------------------
@@ -163,18 +197,16 @@ def test_scale_demand_surfaces_a_network_mismatch(tmp_path: Path) -> None:
 
 def test_write_sumocfg_builds_the_settings_and_delegates(tmp_path: Path) -> None:
     writer = RecordingWriter()
-
-    ref = write_sumocfg(
-        writer,
-        Path("net.xml"),
-        [Path("a.rou.xml"), Path("b.rou.xml")],
+    run = _run(
         tmp_path,
-        additional_files=[Path("x.add.xml")],
-        begin=0,
-        end=3600,
+        sumocfg_writer=writer,
+        route_files=(Path("a.rou.xml"), Path("b.rou.xml")),
     )
+    run.written_additional_files.append(Path("x.add.xml"))
 
-    assert ref.kind == "sumocfg"
+    ref = write_sumocfg(run)
+
+    assert ref["kind"] == "sumocfg"
     ((settings, out_dir, name),) = writer.calls
     assert settings == SimulationSettings(
         net_file=Path("net.xml"),
@@ -188,48 +220,10 @@ def test_write_sumocfg_builds_the_settings_and_delegates(tmp_path: Path) -> None
 
 def test_write_sumocfg_surfaces_invalid_settings(tmp_path: Path) -> None:
     with pytest.raises(ValueError):
-        write_sumocfg(RecordingWriter(), Path("net.xml"), [], tmp_path)
+        write_sumocfg(_run(tmp_path, route_files=()))
 
 
 # --- build_scenario_builder_tools ----------------------------------------------------------------
-
-
-def _builder_tools(  # noqa: ANN201
-    tmp_path: Path,
-    rerouter_writer=None,  # noqa: ANN001
-    vss_writer=None,  # noqa: ANN001
-    tls_program_writer=None,  # noqa: ANN001
-    sumocfg_writer=None,  # noqa: ANN001
-    query=None,  # noqa: ANN001
-    demand_scaler=None,  # noqa: ANN001
-    duarouter=None,  # noqa: ANN001
-    demands=None,  # noqa: ANN001
-    interventions=None,  # noqa: ANN001
-):
-    collaborators = BuilderCollaborators(
-        networks=InMemoryNetworkRepository(),
-        demands=demands or RecordingDemandRepository(),
-        network_query_factory=SumolibNetworkQuery,
-        rerouter_writer=rerouter_writer or RecordingAdditionalFileWriter(),
-        vss_writer=vss_writer or RecordingAdditionalFileWriter(),
-        tls_program_writer=tls_program_writer or RecordingAdditionalFileWriter(),
-        sumocfg_writer=sumocfg_writer or RecordingWriter(),
-        demand_scaler=demand_scaler or RecordingDemandScaler(),
-        duarouter=duarouter or RecordingDuarouter(),
-        out_dir=tmp_path,
-    )
-    request = BuilderRequest(
-        interventions=interventions if interventions is not None else (lane_closure(),),
-        query=query or SumolibNetworkQuery(DEV_NET),
-        network=sample_network(),
-        demand=sample_demand(),
-        net_file=Path("net.xml"),
-        route_files=(Path("routes.rou.xml"),),
-        begin=0.0,
-        end=3600.0,
-        out_dir=tmp_path,
-    )
-    return build_scenario_builder_tools(collaborators, request)
 
 
 def test_builds_exactly_the_e2_3_tool_set(tmp_path: Path) -> None:
