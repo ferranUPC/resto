@@ -1,6 +1,7 @@
 # ADR-0025: Executor contract — plan shape, planning rules by intent, typed failures, forced last round
 
-- Status: Accepted — completes ADR-0023; amends its free-mode loop (last round) and the §5 GP-11 row
+- Status: Accepted — completes ADR-0023; amends its free-mode loop (last round) and the §5 GP-11 row;
+  §2 gains a network-only `describe` row ([ADR-0035](0035-described-demand-no-default.md))
 - Date: 2026-09-23
 - Architecture reference: [`tfm-architecture-and-dod.md`](../tfm-architecture-and-dod.md) §2.2, §2.3
   (`Study`, `StudyPlan`, `StepRecord`, `Experiment`, `ExpertRound`), §4.2, §4.8, §5;

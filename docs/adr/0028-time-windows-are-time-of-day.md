@@ -1,6 +1,7 @@
 # ADR-0028: Time windows are time of day — the Parser writes clock times, simulations run on the same clock
 
-- Status: Accepted
+- Status: Accepted — decision 4 and the Coordinator half of decision 3 replaced by
+  [ADR-0035](0035-described-demand-no-default.md)
 - Date: 2026-09-23
 - Architecture reference: [`tfm-architecture-and-dod.md`](../tfm-architecture-and-dod.md) §2.3 (`TimeWindow`,
   `Question`, `Intervention`), §3 (DEV-NET demand profiles, scenario matrix), §4.1;
