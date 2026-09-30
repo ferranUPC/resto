@@ -30,7 +30,7 @@ from resto.domain.entities.simulation_result import RunMode
 from resto.domain.entities.study import Study, StudyStatus
 from resto.domain.services.ids import result_id_for
 from resto.domain.value_objects.answer_value import Edges, Measure, Quantity
-from resto.domain.value_objects.arm import BASE_ARM, Arm
+from resto.domain.value_objects.arm import BASE_ARM, Arm, Contrast
 from resto.domain.value_objects.drafts import (
     ExpertNoteDraft,
     ExpertNoteDrafts,
@@ -706,6 +706,76 @@ def test_a_note_about_a_predicted_scenario_goes_under_the_base_scenarios_network
 
     ((hit, _),) = world.notes.search("a note", NET, {"scenario_id": CLOSURE_SID})
     assert hit.network_id == NET
+
+
+def test_a_note_about_a_derived_scenario_is_settled_by_a_later_result(tmp_path: Path) -> None:
+    claim = Quantity(measure=Measure.MEAN_DELAY, value=KPIS.mean_delay)
+    derived_sid = ""
+
+    def write(task: Any) -> Any:
+        nonlocal derived_sid
+        derived_sid = next(s.scenario_id for s in task.scenarios if s.arm == "edge")
+        draft = ExpertNoteDraft(
+            text="the new edge keeps the mean delay",
+            basis=Basis.INFERRED,
+            values=(claim,),
+            scenario_ref=derived_sid,
+        )
+        return run_of(ExpertNoteDrafts(notes=(draft,)))
+
+    world = World(
+        tmp_path,
+        question=_edge_question(),
+        plans=(_derive_plan(),),
+        expert=(answers(),),
+        note_writer=(write,),
+    )
+    world.run()
+    ((before, _),) = world.notes.search("", "derived-1", {"scenario_id": derived_sid})
+    assert before.status is NoteStatus.UNVERIFIED
+
+    # A second study meets the same scenario again with no stored results, so it simulates it.
+    world.results._results.clear()
+    world.parser.items.append(run_of(_edge_question(), tokens=50))
+    world.coordinator.items.append(_derive_plan())
+    world.expert.items.append(answers())
+    world.run()
+
+    ((after, _),) = world.notes.search("", "derived-1", {"scenario_id": derived_sid})
+    assert after.status is NoteStatus.CONFIRMED
+
+
+def test_a_prediction_keeps_the_base_network_when_a_derived_network_exists(
+    tmp_path: Path,
+) -> None:
+    question = Question(
+        text="does the new J7-J9 edge relieve E12, and what if lane 1 closes?",
+        intent=Intent.COUNTERFACTUAL,
+        mode=Mode.FORCED,
+        arms=(
+            Arm("edge", topology_changes=(NEW_EDGE,)),
+            Arm("closure", interventions=(CLOSURE,)),
+        ),
+        contrasts=(Contrast("edge"), Contrast("closure", "edge")),
+    )
+    draft = ExpertNoteDraft(
+        text="closing lane 1 would add delay", basis=Basis.EXTRAPOLATED, scenario_ref=CLOSURE_SID
+    )
+    world = World(
+        tmp_path,
+        question=question,
+        plans=(_derive_plan(),),
+        expert=(answers(),),
+        note_writer=(run_of(ExpertNoteDrafts(notes=(draft,))),),
+    )
+
+    study = world.run()
+
+    assert study.status is StudyStatus.COMPLETED, study.phases[0].steps[-1]
+    assert "derived-1" in study.network_ids
+    ((hit, _),) = world.notes.search("", NET, {"scenario_id": CLOSURE_SID})
+    assert hit.network_id == NET
+    assert world.notes.search("", "derived-1", {"scenario_id": CLOSURE_SID}) == []
 
 
 def test_a_failing_note_writer_is_traced_and_the_study_completes(tmp_path: Path) -> None:

@@ -11,6 +11,7 @@ import pytest
 from eval.fixed_network_query_loader import FixedNetworkQueryLoader
 
 from resto.adapters.llm.agents.expert import (
+    NOTE_SYSTEM_PROMPT,
     ExpertPort,
     NoteWriterPort,
     build_note_task,
@@ -226,3 +227,8 @@ def test_the_note_writer_port_runs_the_note_writer() -> None:
     port = NoteWriterPort(agent=FakeToolAgent(output=ExpertNoteDrafts()), budget=BUDGET)
 
     assert port.write(NOTE_TASK).output == ExpertNoteDrafts()
+
+
+def test_the_note_prompt_asks_for_one_note_per_scenario_when_networks_are_contrasted() -> None:
+    prompt = " ".join(NOTE_SYSTEM_PROMPT.split())
+    assert "contrasts two networks is written as two notes, one per scenario" in prompt

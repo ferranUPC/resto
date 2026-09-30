@@ -7,7 +7,7 @@ from resto.application.executor.deps import StudyDeps
 from resto.application.executor.failures import StepFailed, crash, describe, draft_of, promote
 from resto.application.executor.recorder import StudyRecorder
 from resto.application.executor.spend import StudySpend
-from resto.application.ports.repositories import ScenarioRepository
+from resto.application.ports.repositories import NetworkRepository, ScenarioRepository
 from resto.application.tools.expert import EvidenceLedger
 from resto.application.use_cases.write_note import write_note
 from resto.domain.entities.scenario import Scenario
@@ -33,7 +33,7 @@ def write_notes(
         study = recorder.study
         task = NoteTask(
             round=final,
-            base_network_id=base_network_id(study, deps.scenarios),
+            base_network_id=base_network_id(study, deps.networks),
             scenarios=allow_list(study, deps.scenarios),
         )
         run = spend.agent_call(lambda: deps.agents.note_writer.write(task))
@@ -50,13 +50,15 @@ def write_notes(
     recorder.set_note_ids(tuple(n.note_id for n in written))
 
 
-def base_network_id(study: Study, scenarios: ScenarioRepository) -> str:
-    """The network of the study's base scenario. `Study.network_ids` is in the order the study met
-    its networks, so a derived network can come first: it cannot say which one is the base."""
-    base = _base_scenario(study, scenarios)
-    if base is None:
-        raise ValueError("the study has no stored base scenario to take its base network from")
-    return base.network_id
+def base_network_id(study: Study, networks: NetworkRepository) -> str:
+    """The study's own network: the one of its networks that was not derived from another.
+    `Study.network_ids` is in the order the study met its networks, so a derived network can come
+    first: the position cannot say which one is the base."""
+    for network_id in study.network_ids:
+        network = networks.get(network_id)
+        if network is not None and network.derived_from is None:
+            return network_id
+    raise ValueError("none of the study's networks is stored as a base network")
 
 
 def _base_scenario(study: Study, scenarios: ScenarioRepository) -> Scenario | None:
