@@ -25,7 +25,7 @@ def _fake_tool(bin_dir: Path, name: str, version: str, body: str = "") -> Path:
     script = bin_dir / name
     script.write_text(
         "#!/bin/sh\n"
-        f'echo "$@" >> "{bin_dir}/{name}.calls"\n'
+        f'printf \'%s\\n\' "$*" >> "{bin_dir}/{name}.calls"\n'
         f'if [ "$1" = "--version" ]; then echo "Eclipse SUMO {name} {version}"; exit 0; fi\n'
         f"{body}\n"
     )
