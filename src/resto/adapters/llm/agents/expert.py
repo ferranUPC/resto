@@ -28,7 +28,7 @@ from resto.domain.value_objects.tasks import ExpertTask, NoteTask
 
 # Bump whenever the prompt, the tool set or the default budget changes in a way that can change
 # answers: every benchmark run records it, and docs/expert-tuning-log.md explains each version.
-EXPERT_VERSION = "v4"
+EXPERT_VERSION = "v5"
 
 _EDGE_MEASURES = ", ".join(f"{m.value} ({m.unit})" for m in Measure if not m.is_network_wide)
 _NETWORK_MEASURES = ", ".join(f"{m.value} ({m.unit})" for m in Measure if m.is_network_wide)
@@ -43,10 +43,8 @@ Facts only through tools. Topology comes from get_edges, get_lanes, get_neighbou
 capacity_estimate and get_tls. Simulated data:
   - edge_stats, rank_edges, compare_edges, compare_kpis: already aggregated across the runs you pass
     (mean, std, runs). Use these first.
-  - get_result (a run's KPIs and its scenario_id) and get_scenario (a scenario's interventions; pass
-    the scenario_id from get_result, never a result id): to tell baseline runs from treatment runs.
-  - query_edgedata: raw data of every edge for one run, very large. Only when the others cannot
-    express what you need.
+  - get_result and get_scenario: to tell baseline runs from treatment runs.
+  - query_edgedata: raw data, only when the others cannot express what you need.
 Never state a number, an edge id or a result you did not get from a tool call in this conversation.
 Only the results listed in `result_ids` are available; if it is empty, no simulation data is
 available for this question. When `notes_allowed` is true you also have search_notes: earlier notes
@@ -115,8 +113,7 @@ The causes need only these lookups, in two steps once the edges are ranked:
   1. get_scenario (the target), get_edges and get_neighbours on your edges (from_node, to_node,
      lane_count; the edges they continue into);
   2. get_edges on the target and the edges they continue into, and get_tls on each of your edges'
-     to_node (or the target light), one get_tls call per id: a traffic light usually has the id of
-     its junction, and an unknown id means no light there.
+     to_node (or the target light).
 Then submit; look no further. Any other "why" stays in `answer`.
 
 Submit your ExpertAnswer with submit_output: answer, basis, confidence, evidence, values,

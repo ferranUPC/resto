@@ -215,7 +215,8 @@ _Window = (
 @tool(
     name="get_edges",
     description=(
-        "Attributes of several edges in one call: endpoints, length, speed, lane count, priority,"
+        "Attributes of several edges in one call: endpoints (from_node, to_node), length, speed, "
+        "lane count, priority, shape."
     ),
 )
 def get_edges(ctx: ExpertContext, edge_ids: _EdgeIds) -> Mapping[str, Any]:
@@ -233,7 +234,8 @@ def get_edges(ctx: ExpertContext, edge_ids: _EdgeIds) -> Mapping[str, Any]:
 @tool(
     name="get_neighbours",
     description=(
-        "Ids of the edges reachable in one hop downstream of each edge (outgoing connections), one"
+        "Ids of the edges reachable in one hop downstream of each edge (outgoing connections), one "
+        "call for several edges."
     ),
 )
 def get_neighbours(ctx: ExpertContext, edge_ids: _EdgeIds) -> Mapping[str, Any]:
@@ -251,8 +253,8 @@ def get_neighbours(ctx: ExpertContext, edge_ids: _EdgeIds) -> Mapping[str, Any]:
 @tool(
     name="capacity_estimate",
     description=(
-        "Rough capacity of several edges in veh/h (Greenshields estimate — ADR-0015; "
-        "order-of-"
+        "Rough capacity of several edges in veh/h (Greenshields estimate; order-of-magnitude "
+        "only, not a substitute for a simulated result), one call for several edges."
     ),
 )
 def capacity_estimate(ctx: ExpertContext, edge_ids: _EdgeIds) -> Mapping[str, Any]:
@@ -269,7 +271,11 @@ def capacity_estimate(ctx: ExpertContext, edge_ids: _EdgeIds) -> Mapping[str, An
 
 @tool(
     name="get_tls",
-    description="Controlled edges and signal programs of several traffic lights in one call.",
+    description=(
+        "Controlled edges and signal programs of a traffic light. Give one id per call: an "
+        "unknown id fails the whole call and only means there is no light there. A light "
+        "usually has the id of its junction."
+    ),
 )
 def get_tls(ctx: ExpertContext, tls_ids: _TlsIds) -> Mapping[str, Any]:
     """Controlled edges and signal programs of several traffic lights in one call.
@@ -285,7 +291,8 @@ def get_tls(ctx: ExpertContext, tls_ids: _TlsIds) -> Mapping[str, Any]:
 @tool(
     name="get_result",
     description=(
-        "One simulation result: scenario_id, seed, status, KPIs and artifact references."
+        "One simulation result: scenario_id, seed, status, KPIs and artifact references. Its "
+        "scenario_id is what get_scenario takes."
     ),
 )
 def get_result(ctx: ExpertContext, result_id: _ResultId) -> Mapping[str, Any]:
@@ -436,7 +443,8 @@ def rank_edges(
 @tool(
     name="compare_edges",
     description=(
-        "Per edge, the mean of one measure in baseline and treatment runs, the difference and the"
+        "Per edge, the mean of one measure in baseline and treatment runs, the difference and the "
+        "relative change."
     ),
 )
 def compare_edges(
@@ -480,8 +488,8 @@ def compare_edges(
 @tool(
     name="compare_kpis",
     description=(
-        "Network-wide KPIs (mean_delay, mean_travel_time, teleports, departed, arrived): "
-        "mean across"
+        "Network-wide KPIs (mean_delay, mean_travel_time, teleports, departed, arrived): mean "
+        "across baseline and treatment runs, the difference and the relative change in percent."
     ),
 )
 def compare_kpis(
@@ -517,8 +525,9 @@ def compare_kpis(
 @tool(
     name="query_edgedata",
     description=(
-        "EXPENSIVE raw per-run data of every edge (~17,000 characters per result): "
-        "prefer edge_stats,"
+        "EXPENSIVE raw per-run data of every edge (~17,000 characters per result), very large. "
+        "A last resort: prefer edge_stats, rank_edges or compare_edges, and use this only when "
+        "they cannot express what you need."
     ),
 )
 def query_edgedata(
@@ -550,7 +559,9 @@ def query_edgedata(
 @tool(
     name="get_scenario",
     description=(
-        "The scenario an available result was run on: its interventions and context tags - how"
+        "The scenario an available result was run on: its interventions and context tags, to "
+        "tell a baseline result from an intervention one. Pass the scenario_id from get_result, "
+        "never a result id."
     ),
 )
 def get_scenario(ctx: ExpertContext, scenario_id: str) -> Mapping[str, Any]:

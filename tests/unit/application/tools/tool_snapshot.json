@@ -38,7 +38,7 @@
       "name": "shortest_path"
     },
     {
-      "description": "Attributes of several edges in one call: endpoints, length, speed, lane count, priority,",
+      "description": "Attributes of several edges in one call: endpoints (from_node, to_node), length, speed, lane count, priority, shape.",
       "input_schema": {
         "properties": {
           "edge_ids": {
@@ -58,7 +58,7 @@
       "name": "get_edges"
     },
     {
-      "description": "Ids of the edges reachable in one hop downstream of each edge (outgoing connections), one",
+      "description": "Ids of the edges reachable in one hop downstream of each edge (outgoing connections), one call for several edges.",
       "input_schema": {
         "properties": {
           "edge_ids": {
@@ -78,7 +78,7 @@
       "name": "get_neighbours"
     },
     {
-      "description": "Rough capacity of several edges in veh/h (Greenshields estimate \u2014 ADR-0015; order-of-",
+      "description": "Rough capacity of several edges in veh/h (Greenshields estimate; order-of-magnitude only, not a substitute for a simulated result), one call for several edges.",
       "input_schema": {
         "properties": {
           "edge_ids": {
@@ -98,7 +98,7 @@
       "name": "capacity_estimate"
     },
     {
-      "description": "Controlled edges and signal programs of several traffic lights in one call.",
+      "description": "Controlled edges and signal programs of a traffic light. Give one id per call: an unknown id fails the whole call and only means there is no light there. A light usually has the id of its junction.",
       "input_schema": {
         "properties": {
           "tls_ids": {
@@ -207,7 +207,7 @@
       "name": "rank_edges"
     },
     {
-      "description": "Per edge, the mean of one measure in baseline and treatment runs, the difference and the",
+      "description": "Per edge, the mean of one measure in baseline and treatment runs, the difference and the relative change.",
       "input_schema": {
         "properties": {
           "baseline_result_ids": {
@@ -268,7 +268,7 @@
       "name": "compare_edges"
     },
     {
-      "description": "Network-wide KPIs (mean_delay, mean_travel_time, teleports, departed, arrived): mean across",
+      "description": "Network-wide KPIs (mean_delay, mean_travel_time, teleports, departed, arrived): mean across baseline and treatment runs, the difference and the relative change in percent.",
       "input_schema": {
         "properties": {
           "baseline_result_ids": {
@@ -295,7 +295,7 @@
       "name": "compare_kpis"
     },
     {
-      "description": "One simulation result: scenario_id, seed, status, KPIs and artifact references.",
+      "description": "One simulation result: scenario_id, seed, status, KPIs and artifact references. Its scenario_id is what get_scenario takes.",
       "input_schema": {
         "properties": {
           "result_id": {
@@ -326,7 +326,7 @@
       "name": "list_results"
     },
     {
-      "description": "EXPENSIVE raw per-run data of every edge (~17,000 characters per result): prefer edge_stats,",
+      "description": "EXPENSIVE raw per-run data of every edge (~17,000 characters per result), very large. A last resort: prefer edge_stats, rank_edges or compare_edges, and use this only when they cannot express what you need.",
       "input_schema": {
         "properties": {
           "edge_ids": {
@@ -358,7 +358,7 @@
       "name": "query_edgedata"
     },
     {
-      "description": "The scenario an available result was run on: its interventions and context tags - how",
+      "description": "The scenario an available result was run on: its interventions and context tags, to tell a baseline result from an intervention one. Pass the scenario_id from get_result, never a result id.",
       "input_schema": {
         "properties": {
           "scenario_id": {
@@ -412,7 +412,7 @@
       "name": "shortest_path"
     },
     {
-      "description": "Attributes of several edges in one call: endpoints, length, speed, lane count, priority,",
+      "description": "Attributes of several edges in one call: endpoints (from_node, to_node), length, speed, lane count, priority, shape.",
       "input_schema": {
         "properties": {
           "edge_ids": {
@@ -432,7 +432,7 @@
       "name": "get_edges"
     },
     {
-      "description": "Ids of the edges reachable in one hop downstream of each edge (outgoing connections), one",
+      "description": "Ids of the edges reachable in one hop downstream of each edge (outgoing connections), one call for several edges.",
       "input_schema": {
         "properties": {
           "edge_ids": {
@@ -452,7 +452,7 @@
       "name": "get_neighbours"
     },
     {
-      "description": "Rough capacity of several edges in veh/h (Greenshields estimate \u2014 ADR-0015; order-of-",
+      "description": "Rough capacity of several edges in veh/h (Greenshields estimate; order-of-magnitude only, not a substitute for a simulated result), one call for several edges.",
       "input_schema": {
         "properties": {
           "edge_ids": {
@@ -472,7 +472,7 @@
       "name": "capacity_estimate"
     },
     {
-      "description": "Controlled edges and signal programs of several traffic lights in one call.",
+      "description": "Controlled edges and signal programs of a traffic light. Give one id per call: an unknown id fails the whole call and only means there is no light there. A light usually has the id of its junction.",
       "input_schema": {
         "properties": {
           "tls_ids": {
@@ -581,7 +581,7 @@
       "name": "rank_edges"
     },
     {
-      "description": "Per edge, the mean of one measure in baseline and treatment runs, the difference and the",
+      "description": "Per edge, the mean of one measure in baseline and treatment runs, the difference and the relative change.",
       "input_schema": {
         "properties": {
           "baseline_result_ids": {
@@ -642,7 +642,7 @@
       "name": "compare_edges"
     },
     {
-      "description": "Network-wide KPIs (mean_delay, mean_travel_time, teleports, departed, arrived): mean across",
+      "description": "Network-wide KPIs (mean_delay, mean_travel_time, teleports, departed, arrived): mean across baseline and treatment runs, the difference and the relative change in percent.",
       "input_schema": {
         "properties": {
           "baseline_result_ids": {
@@ -669,7 +669,7 @@
       "name": "compare_kpis"
     },
     {
-      "description": "One simulation result: scenario_id, seed, status, KPIs and artifact references.",
+      "description": "One simulation result: scenario_id, seed, status, KPIs and artifact references. Its scenario_id is what get_scenario takes.",
       "input_schema": {
         "properties": {
           "result_id": {
@@ -700,7 +700,7 @@
       "name": "list_results"
     },
     {
-      "description": "EXPENSIVE raw per-run data of every edge (~17,000 characters per result): prefer edge_stats,",
+      "description": "EXPENSIVE raw per-run data of every edge (~17,000 characters per result), very large. A last resort: prefer edge_stats, rank_edges or compare_edges, and use this only when they cannot express what you need.",
       "input_schema": {
         "properties": {
           "edge_ids": {
@@ -732,7 +732,7 @@
       "name": "query_edgedata"
     },
     {
-      "description": "The scenario an available result was run on: its interventions and context tags - how",
+      "description": "The scenario an available result was run on: its interventions and context tags, to tell a baseline result from an intervention one. Pass the scenario_id from get_result, never a result id.",
       "input_schema": {
         "properties": {
           "scenario_id": {
