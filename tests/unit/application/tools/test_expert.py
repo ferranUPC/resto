@@ -137,6 +137,26 @@ def test_topology_tools_batch_several_ids_in_one_call(query: SumolibNetworkQuery
     }
 
 
+def test_get_tls_answers_a_known_light_with_its_edges_and_programs(
+    query: SumolibNetworkQuery,
+) -> None:
+    tools, _, _ = _tools(query)
+    response = call_tool(tools, "get_tls", tls_ids=["A2"])
+    assert response["result"] == {"A2": query.get_tls("A2")}
+
+
+def test_get_tls_says_a_light_does_not_exist_and_still_answers_the_others(
+    query: SumolibNetworkQuery,
+) -> None:
+    tools, ledger, _ = _tools(query)
+    response = call_tool(tools, "get_tls", tls_ids=["A2", "NOPE"])
+    result = response["result"]
+    assert result["A2"] == query.get_tls("A2")
+    assert result["NOPE"]["exists"] is False
+    assert "no traffic light" in result["NOPE"]["message"]
+    assert [e.ref for e in ledger.entries] == [response["ref"]]
+
+
 def test_refs_increment_per_successful_call(query: SumolibNetworkQuery) -> None:
     tools, ledger, _ = _tools(query)
     call_tool(tools, "get_neighbours", edge_ids=["A0A1"])

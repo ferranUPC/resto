@@ -28,7 +28,7 @@ from resto.domain.value_objects.tasks import ExpertTask, NoteTask
 
 # Bump whenever the prompt, the tool set or the default budget changes in a way that can change
 # answers: every benchmark run records it, and docs/expert-tuning-log.md explains each version.
-EXPERT_VERSION = "v5"
+EXPERT_VERSION = "v6"
 
 _EDGE_MEASURES = ", ".join(f"{m.value} ({m.unit})" for m in Measure if not m.is_network_wide)
 _NETWORK_MEASURES = ", ".join(f"{m.value} ({m.unit})" for m in Measure if m.is_network_wide)

@@ -98,7 +98,7 @@
       "name": "capacity_estimate"
     },
     {
-      "description": "Controlled edges and signal programs of a traffic light. Give one id per call: an unknown id fails the whole call and only means there is no light there. A light usually has the id of its junction.",
+      "description": "Controlled edges and signal programs of several traffic lights in one call. A light usually has the id of its junction. An id with no light on this network is answered with exists=false and a message, which means that junction has no signal; the other ids are answered as usual.",
       "input_schema": {
         "properties": {
           "tls_ids": {
@@ -472,7 +472,7 @@
       "name": "capacity_estimate"
     },
     {
-      "description": "Controlled edges and signal programs of a traffic light. Give one id per call: an unknown id fails the whole call and only means there is no light there. A light usually has the id of its junction.",
+      "description": "Controlled edges and signal programs of several traffic lights in one call. A light usually has the id of its junction. An id with no light on this network is answered with exists=false and a message, which means that junction has no signal; the other ids are answered as usual.",
       "input_schema": {
         "properties": {
           "tls_ids": {

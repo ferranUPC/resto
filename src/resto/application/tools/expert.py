@@ -272,20 +272,27 @@ def capacity_estimate(ctx: ExpertContext, edge_ids: _EdgeIds) -> Mapping[str, An
 @tool(
     name="get_tls",
     description=(
-        "Controlled edges and signal programs of a traffic light. Give one id per call: an "
-        "unknown id fails the whole call and only means there is no light there. A light "
-        "usually has the id of its junction."
+        "Controlled edges and signal programs of several traffic lights in one call. A light "
+        "usually has the id of its junction. An id with no light on this network is answered "
+        "with exists=false and a message, which means that junction has no signal; the other "
+        "ids are answered as usual."
     ),
 )
 def get_tls(ctx: ExpertContext, tls_ids: _TlsIds) -> Mapping[str, Any]:
-    """Controlled edges and signal programs of several traffic lights in one call.
-
-    Raises:
-        KeyError: a tls_id does not exist on this network.
-    """
+    """Controlled edges and signal programs of several traffic lights in one call. An id with no
+    light is answered with `{"exists": False, "message": ...}` instead of failing the call."""
     if not tls_ids:
         raise ValueError("give at least one tls_id")
-    return {tls_id: ctx.query.get_tls(tls_id) for tls_id in tls_ids}
+    return {tls_id: _tls_or_absent(ctx.query, tls_id) for tls_id in tls_ids}
+
+
+def _tls_or_absent(query: NetworkQuery, tls_id: str) -> Mapping[str, Any]:
+    if not query.has_tls(tls_id):
+        return {
+            "exists": False,
+            "message": f"no traffic light with id {tls_id!r} on this network; nothing to report",
+        }
+    return query.get_tls(tls_id)
 
 
 @tool(
