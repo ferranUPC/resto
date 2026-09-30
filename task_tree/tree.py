@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from task_tree.dag import PREFIX, parse_dag
+from task_tree.dag import link_tasks, parse_dag
 
 STAGES = ("needs-triage", "ready", "specified", "ticketed", "done", "wontfix", "needs-info")
 FINISHED = ("done", "wontfix")
@@ -139,8 +139,12 @@ def _infer_chains(ids: list[str]) -> dict[str, list[str]]:
     return inferred
 
 
-def _layout(nodes: dict[str, dict[str, Any]]) -> None:
-    """Column = longest chain from a root; row = barycenter of the blockers' rows."""
+def _layout(nodes: dict[str, dict[str, Any]], extra_deps: dict[str, list[str]]) -> None:
+    """Column = longest chain from a root; row = barycenter of the blockers' rows.
+
+    `extra_deps` are the diagram's edges. They place nodes but never block a task.
+    """
+    deps_of = {i: n["blocked_by"] + extra_deps.get(i, []) for i, n in nodes.items()}
     column: dict[str, int] = {}
 
     def depth(node_id: str, seen: frozenset[str]) -> int:
@@ -148,7 +152,7 @@ def _layout(nodes: dict[str, dict[str, Any]]) -> None:
             return column[node_id]
         if node_id in seen:
             return 0
-        deps = [d for d in nodes[node_id]["blocked_by"] if d in nodes]
+        deps = [d for d in deps_of[node_id] if d in nodes]
         column[node_id] = 1 + max((depth(d, seen | {node_id}) for d in deps), default=-1)
         return column[node_id]
 
@@ -160,7 +164,7 @@ def _layout(nodes: dict[str, dict[str, Any]]) -> None:
         by_column.setdefault(col, []).append(node_id)
     for col in sorted(by_column):
         def key(node_id: str) -> tuple[float, str]:
-            deps = [rows[d] for d in nodes[node_id]["blocked_by"] if d in rows]
+            deps = [rows[d] for d in deps_of[node_id] if d in rows]
             return (sum(deps) / len(deps) if deps else 1e9, node_id)
 
         for row, node_id in enumerate(sorted(by_column[col], key=key)):
@@ -214,19 +218,22 @@ def build_tree(scratch: Path, tracker: Path, plan: Path | None = None) -> dict[s
     if plan is not None:
         dag = parse_dag(plan)
         tree_warnings = dag.warnings
-        dag_edges = [(PREFIX + a, PREFIX + b) for a, b in dag.edges]
-        for dag_id, (kind, label) in dag.nodes.items():
-            nodes[PREFIX + dag_id] = {
-                "id": PREFIX + dag_id,
+        dag_nodes, dag_edges = link_tasks(dag, set(tasks))
+        for dag_id, (kind, label) in dag_nodes.items():
+            nodes[dag_id] = {
+                "id": dag_id,
                 "kind": kind,
                 "name": label,
                 "stage": kind,
-                "blocked_by": [PREFIX + a for a, b in dag.edges if b == dag_id],
+                "blocked_by": [],
                 "blocked": False,
                 "tickets": [],
                 "warnings": [],
             }
-    _layout(nodes)
+    extra_deps: dict[str, list[str]] = {}
+    for a, b in dag_edges:
+        extra_deps.setdefault(b, []).append(a)
+    _layout(nodes, extra_deps)
     edges = [
         {
             "from": dep,
@@ -237,7 +244,7 @@ def build_tree(scratch: Path, tracker: Path, plan: Path | None = None) -> dict[s
         for node in nodes.values()
         for dep in node["blocked_by"]
     ]
-    edges += [{"from": a, "to": b, "done": False, "inferred": False} for a, b in dag_edges]
+    edges += [{"from": a, "to": b, "done": a in done, "inferred": False} for a, b in dag_edges]
     return {
         "nodes": list(nodes.values()),
         "edges": edges,

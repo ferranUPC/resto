@@ -43,7 +43,8 @@ flowchart LR
   V1 --> V2
   V1 -.->|"reduced checkpoints"| S1
   V2 --> S1 & S2
-  S1 --> T1["✅ E4.2 report"]:::task
+  S1 --> T1["✅ E4.2 E1.1 report"]:::task
+  T1 --> C1["E2.1 calibration · 8"]:::task
   S1 & S2 ==> T2["✅ E5.1"]:::task --> M7(("M7 · 18 Feb")):::pass
 end
 ```
@@ -284,6 +285,7 @@ def test_the_measurement_dag_edges_follow_chains_fan_out_and_labelled_arrows(bas
     assert pairs == {
         ("dag:V1", "dag:V2"), ("dag:V1", "dag:S1"), ("dag:V2", "dag:S1"), ("dag:V2", "dag:S2"),
         ("dag:S1", "dag:T1"), ("dag:S1", "dag:T2"), ("dag:S2", "dag:T2"), ("dag:T2", "dag:M7"),
+        ("dag:T1", "E2.1"),
     }
     nodes = {n["id"]: n for n in tree["nodes"]}
     assert nodes["dag:S1"]["column"] > nodes["dag:V2"]["column"]
@@ -304,3 +306,17 @@ def test_an_unreadable_measurement_dag_keeps_the_tasks_and_reports_a_warning(bas
     tree = _full_tree(base_url)
     assert any(n["id"] == "E2.1" and n["kind"] == "task" for n in tree["nodes"])
     assert tree["warnings"]
+
+
+def test_dag_nodes_named_after_a_real_task_are_that_task_and_result_nodes_link_from_theirs(
+    base_url,
+):
+    tree = _full_tree(base_url)
+    nodes = {n["id"]: n for n in tree["nodes"]}
+    pairs = {(e["from"], e["to"]) for e in tree["edges"]}
+    assert "dag:C1" not in nodes  # "E2.1 calibration" is the real task E2.1
+    assert ("dag:T1", "E2.1") in pairs
+    assert ("E1.1", "dag:T1") in pairs  # a task listed in a "✅" node leads to it
+    assert not any(t == "dag:T1" and f == "E4.2" for f, t in pairs)  # E4.2 is not a node
+    assert nodes["E2.1"]["column"] > nodes["dag:T1"]["column"]
+    assert nodes["E2.1"]["blocked"] is False  # the diagram never blocks a task

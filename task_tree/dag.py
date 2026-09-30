@@ -71,3 +71,33 @@ def parse_dag(plan: Path) -> Dag:
 
 def _label(label: str) -> str:
     return re.sub(r"\s+", " ", re.sub(r"<br\s*/?>", " ", label)).strip()
+
+
+_TASK_IN_LABEL = re.compile(r"\bE\d+\.\d+\b")
+
+
+def link_tasks(
+    dag: Dag, task_ids: set[str]
+) -> tuple[dict[str, tuple[str, str]], list[tuple[str, str]]]:
+    """Join the diagram to the real tasks.
+
+    A node whose label starts with a task id (`E4.10 calibration`) is that task, so it is dropped
+    and its edges point at the task. A node marked done (`✅ E4.2 E4.3`) gets an edge from each
+    listed task that exists. Returns the remaining `dag:` nodes and every edge with full ids.
+    """
+    alias: dict[str, str] = {}
+    for node_id, (_, label) in dag.nodes.items():
+        first = _TASK_IN_LABEL.match(label)
+        if first and first.group() in task_ids:
+            alias[node_id] = first.group()
+    nodes = {PREFIX + i: v for i, v in dag.nodes.items() if i not in alias}
+
+    def full(node_id: str) -> str:
+        return alias.get(node_id) or PREFIX + node_id
+
+    edges = [(full(a), full(b)) for a, b in dag.edges]
+    for node_id, (_, label) in dag.nodes.items():
+        if label.startswith("✅"):
+            edges += [(t, PREFIX + node_id) for t in dict.fromkeys(_TASK_IN_LABEL.findall(label))
+                      if t in task_ids]
+    return nodes, edges
