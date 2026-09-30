@@ -20,6 +20,9 @@ TRACKER = """| ID | Task | Status | Notes |
 | E1.3 | Second finished | ✅ | done |
 | E3.1 | Other epic | ✅ | done |
 | E2.4 | Ticketed task | 🔄 | half built |
+| E2.1 | Needs triage task | ⏳ | waits for EXP-01 |
+| E2.2 | Ready task | 🚧 | waiting on an external person |
+| E2.3 | Specified task | ⬜ | not started |
 """
 
 PLAN = """| ID | Task | Proof | Pts | Wave | Due |
@@ -105,6 +108,24 @@ def scratch(tmp_path: Path) -> Path:
     _spec(root / "e2-9-info", "E2.9: Waiting", "needs-info", "None")
     _spec(root / "done" / "e2-10-finished", "E2.10: Finished dir", "done", "None")
     _spec(root / "e2-11-after-dropped", "E2.11: After wontfix", "ready", "E2.7")
+    _spec(root / "e2-12-urgent", "E2.12: Urgent spec", "ready", "None")
+    _spec(root / "e2-13-urgent-done", "E2.13: Urgent but dropped", "wontfix", "None")
+    for name in ("e2-12-urgent", "e2-13-urgent-done"):
+        spec = root / name / "spec.md"
+        spec.write_text(spec.read_text() + "**Priority:** urgent\n", encoding="utf-8")
+    _spec(root / "e2-16-urgent-ticket", "E2.16: Urgent ticket inside", "ready", "None", "A spec.")
+    urgent_issues = root / "e2-16-urgent-ticket" / "issues"
+    urgent_issues.mkdir()
+    (urgent_issues / "01-urgent.md").write_text(
+        "# 03: Urgent ticket\n\n**Status:** ready\n\n**Priority:** urgent\n", encoding="utf-8"
+    )
+    (urgent_issues / "02-urgent-done.md").write_text(
+        "# 04: Urgent and done\n\n**Status:** done\n\n**Priority:** urgent\n", encoding="utf-8"
+    )
+    (root / "e2-14-half").mkdir()
+    (root / "e2-14-half" / "spec.md").write_text("# E2.14: Half written\n", encoding="utf-8")
+    (root / "e2-15-binary").mkdir()
+    (root / "e2-15-binary" / "spec.md").write_bytes(b"\xff\xfe\x00 not utf-8")
     (root / "e2-8-broken").mkdir()
     (root / "e2-8-broken" / "spec.md").write_text("no title, no status\n", encoding="utf-8")
     return root
@@ -189,10 +210,82 @@ def test_a_done_blocker_from_the_tracker_leaves_the_node_free_and_the_edge_marke
     assert "E1.2" not in nodes  # the tracker lists only finished tasks as nodes
 
 
+def test_finished_tasks_sit_in_their_own_lane_and_do_not_push_pending_ones_right(base_url):
+    nodes = {n["id"]: n for n in _full_tree(base_url)["nodes"]}
+    assert nodes["E1.1"]["lane"] == "done"
+    assert nodes["E2.6"]["lane"] == "active"
+    assert nodes["E2.6"]["column"] == 0  # its only blocker, E1.1, is finished
+
+
+def test_pending_nodes_are_grouped_into_one_rail_per_milestone_by_latest_due(base_url):
+    tree = _full_tree(base_url)
+    names = [r["name"] for r in tree["rails"]]
+    assert names[0].startswith("Validation 1")  # 14 Dec, the earliest dated milestone
+    assert names.index(next(n for n in names if n.startswith("M7"))) == 1  # 18 Feb
+    assert names[2].startswith("Validation 2")  # undated milestones close the list
+    nodes = {n["id"]: n for n in tree["nodes"]}
+    assert nodes["E2.4"]["rail"] == 0  # planned for 11 Dec, before Validation 1 ends
+    assert nodes["dag:M7"]["rail"] == 1
+
+
+def test_task_nodes_carry_the_points_of_their_work_plan_row(base_url):
+    nodes = {n["id"]: n for n in _full_tree(base_url)["nodes"]}
+    assert nodes["E2.4"]["points"] == 12
+    assert nodes["E1.1"]["points"] == 3  # a finished task keeps its points
+    assert nodes["E2.6"]["points"] is None  # not in the plan table
+    assert nodes["dag:M7"]["points"] is None
+
+
 def test_a_malformed_spec_yields_a_node_with_a_warning_and_the_rest_still_loads(base_url):
     nodes = _tree(base_url)
     assert nodes["e2-8-broken"]["warnings"]
     assert "E2.1" in nodes
+
+
+def test_a_half_written_or_unreadable_spec_keeps_its_parsed_fields_and_the_rest_still_loads(
+    base_url,
+):
+    nodes = _tree(base_url)
+    assert nodes["E2.14"]["name"] == "Half written"
+    assert any("Status" in w for w in nodes["E2.14"]["warnings"])
+    assert nodes["e2-15-binary"]["warnings"]
+    assert nodes["E2.1"]["warnings"] == []
+    assert nodes["E2.12"]["stage"] == "ready"
+
+
+def test_the_tracker_marks_awaiting_measurement_and_external_blocks_on_exactly_those_tasks(
+    base_url,
+):
+    nodes = _tree(base_url)
+    marks = {i: n["tracker_mark"] for i, n in nodes.items() if n["kind"] == "task"}
+    assert marks["E2.1"] == "awaiting"
+    assert marks["E2.2"] == "blocked"
+    assert [i for i, m in marks.items() if m] == ["E2.1", "E2.2"]
+
+
+def test_an_open_urgent_spec_or_ticket_is_urgent_and_a_finished_one_is_not(base_url):
+    nodes = _tree(base_url)
+    assert nodes["E2.12"]["urgent"] is True
+    assert nodes["E2.13"]["urgent"] is False  # wontfix
+    assert nodes["E2.16"]["urgent"] is True  # carries an open urgent ticket
+    assert nodes["E2.3"]["urgent"] is False
+    assert [t["urgent"] for t in nodes["E2.16"]["tickets"]] == [True, False]
+
+
+def test_the_frontier_is_every_unblocked_unfinished_task_and_follows_the_specs(base_url, scratch):
+    nodes = _tree(base_url)
+    assert nodes["E2.3"]["frontier"] is True
+    assert nodes["E2.5"]["frontier"] is False  # blocked by E2.1
+    assert nodes["E2.9"]["frontier"] is False  # needs-info
+    assert nodes["E2.2"]["frontier"] is False  # the tracker marks it 🚧
+    assert nodes["E2.7"]["frontier"] is False  # wontfix
+    assert nodes["E1.1"]["frontier"] is False  # done
+    assert nodes["dag:V1"]["frontier"] is False
+    spec = scratch / "e2-1-triage" / "spec.md"
+    spec.write_text(spec.read_text().replace("needs-triage", "done"), encoding="utf-8")
+    nodes = _tree(base_url)
+    assert nodes["E2.1"]["frontier"] is False
+    assert nodes["E2.5"]["frontier"] is True
 
 
 def test_editing_a_spec_changes_the_next_response_without_restarting(base_url, scratch):
@@ -267,13 +360,13 @@ def test_a_task_without_a_spec_shows_no_guessed_blockers(base_url):
     assert detail is not None and detail["blocked_by"] == []
 
 
-def test_the_measurement_dag_adds_milestone_suite_and_result_nodes_with_their_labels(base_url):
+def test_the_measurement_dag_adds_milestone_suite_and_validates_nodes_with_their_labels(base_url):
     nodes = _tree(base_url)
     assert nodes["dag:V1"]["kind"] == "milestone"
     assert nodes["dag:V1"]["name"] == "Validation 1 · 14 Dec"
     assert nodes["dag:V2"]["name"] == "Validation 2 each suite once"
     assert nodes["dag:S1"]["kind"] == "suite"
-    assert nodes["dag:T1"]["kind"] == "result"
+    assert nodes["dag:T1"]["kind"] == "validates"
     assert nodes["dag:M7"]["kind"] == "milestone"
     assert nodes["E2.1"]["kind"] == "task"
     assert len([n for n in nodes if n.startswith("dag:")]) == 7
@@ -308,7 +401,7 @@ def test_an_unreadable_measurement_dag_keeps_the_tasks_and_reports_a_warning(bas
     assert tree["warnings"]
 
 
-def test_dag_nodes_named_after_a_real_task_are_that_task_and_result_nodes_link_from_theirs(
+def test_dag_nodes_named_after_a_real_task_are_that_task_and_validates_nodes_link_from_theirs(
     base_url,
 ):
     tree = _full_tree(base_url)

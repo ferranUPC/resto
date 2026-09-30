@@ -5,64 +5,160 @@
 <title>RESTO task tree</title>
 <style>
   :root {
-    --bg: #14161a; --fg: #e8e8ea; --edge: #6b7280;
-    --needs-triage: #b45309; --ready: #2563eb; --specified: #7c3aed; --ticketed: #0d9488;
-    --done: #16a34a; --wontfix: #4b5563; --needs-info: #be185d; --blocked: #52525b;
-    --milestone: #1f3b73; --suite: #3b5b9d; --result: #2f3542;
+    --bg: #0d1017; --card: #151a24; --card-hi: #1b2230; --line: #2b3444; --fg: #e7eaf0;
+    --muted: #8994a8; --dim: #566074;
+    --needs-triage: #e0a94a; --ready: #5b9cf5; --specified: #a184f2; --ticketed: #3fc5b1;
+    --done: #56b98a; --wontfix: #6b7385; --needs-info: #ea7fae; --blocked: #66728a;
+    --milestone: #f2c14e; --suite: #7fa6dc; --validates: #9aa6ba;
+    --in: #f2c14e; --out: #6fb2ff;
   }
-  body { margin: 0; background: var(--bg); color: var(--fg); font: 13px system-ui, sans-serif; }
-  #legend { position: fixed; top: 8px; left: 8px; display: flex; gap: 6px; flex-wrap: wrap; z-index: 1; }
-  .chip { padding: 2px 8px; border-radius: 10px; color: #fff; font-size: 12px; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); overflow: hidden;
+    font: 13px/1.4 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  #toolbar { position: fixed; top: 12px; left: 12px; z-index: 2; display: flex; gap: 8px;
+    align-items: center; padding: 6px 10px; background: #151a24;
+    border: 1px solid var(--line); border-radius: 10px; }
+  #toolbar h1 { margin: 0 6px 0 0; font-size: 13px; font-weight: 600; letter-spacing: .02em; }
+  #toolbar label, #toolbar button { color: var(--muted); font-size: 12px; cursor: pointer; }
+  #toolbar label { display: flex; align-items: center; gap: 5px; }
+  #toolbar button { background: none; border: 1px solid var(--line); border-radius: 6px;
+    padding: 2px 8px; }
+  #toolbar button:hover, #toolbar label:hover { color: var(--fg); }
+  #legend { position: fixed; bottom: 12px; left: 12px; z-index: 2; display: flex; gap: 12px;
+    flex-wrap: wrap; padding: 6px 12px; background: #151a24;
+    border: 1px solid var(--line); border-radius: 10px; font-size: 11px; color: var(--muted); }
+  #legend span { display: flex; align-items: center; gap: 5px; }
+  #legend i { width: 9px; height: 9px; border-radius: 3px; display: inline-block; }
+  #legend i.ring { background: none; border: 2px solid; }
+  #legend i.halo-key { background: none; border: 1.4px dashed var(--fg); opacity: .7; }
+  #legend .sep { width: 1px; height: 12px; background: var(--line); }
   body.open svg { width: 66.667vw; }
   svg { width: 100vw; height: 100vh; display: block; user-select: none; cursor: grab; }
   svg.dragging { cursor: grabbing; }
-  .node rect { stroke: rgba(255,255,255,.35); stroke-width: 1; }
-  .node rect.frame { fill: #1c1f26; }
-  .node text { fill: #fff; font-size: 12px; pointer-events: none; }
-  .node.done { opacity: .4; }
-  .node.suite rect.head { stroke-dasharray: 4 3; }
-  .node.milestone text { font-weight: 600; }
+  svg.dragging * { pointer-events: none; }
+  text { font-family: inherit; pointer-events: none; text-rendering: optimizeSpeed; }
+  /* zoomed far out the small text is unreadable, so skip painting it */
+  svg.far .ticket, svg.far .sub, svg.far .rail-sub { display: none; }
+
+  .node, .ticket, .chip { cursor: pointer; }
   .node.dag { cursor: default; }
-  .ticket rect { stroke: rgba(255,255,255,.2); }
-  .ticket text { font-size: 11px; }
-  .ticket.done { opacity: .5; }
-  .edge { fill: none; stroke: var(--edge); stroke-width: 1.5; }
-  .edge.done { opacity: .3; }
+  .card { fill: var(--card); stroke: var(--line); stroke-width: 1; }
+  .tile { fill-opacity: .16; }
+  .accent { stroke-width: 1.5; fill: none; }
+  .name { fill: var(--fg); font-size: 12.5px; font-weight: 600; }
+  .sub { fill: var(--muted); font-size: 10.5px; }
+  .glyph { font-size: 15px; font-weight: 700; text-anchor: middle; }
+  .node.blocked .name { fill: var(--muted); }
+  .node.blocked .card { fill: #121620; }
+  .node.actionable .card { fill: var(--card-hi); }
+  .node.milestone .card { fill: #241f12; }
+  .node.milestone .name { fill: var(--milestone); }
+  .node.suite .card { stroke-dasharray: 4 3; }
+  .node.validates .name { font-weight: 500; }
+  .halo { fill: none; stroke: var(--fg); stroke-width: 1.4; stroke-opacity: .55; stroke-dasharray: 2 3; }
+  .badge rect { stroke: var(--bg); stroke-width: 2; }
+  .badge text { font-size: 10px; font-weight: 700; text-anchor: middle; }
+  .badge.urgent rect { fill: #ef4444; }
+  .badge.urgent text { fill: #fff; letter-spacing: .04em; }
+  .badge.mark rect { fill: #242c3c; }
+  .ticket .urgent-dot { fill: #ef4444; }
+  .node.lit .card { stroke-width: 1.6; }
+  .node.selected .card { stroke-width: 2; }
+  .dimmed .node:not(.lit), .dimmed .chip:not(.lit) { opacity: .35; }
+  .pip { fill-opacity: .9; }
+  .pip.off { fill-opacity: .14; }
+  .pts { fill: var(--muted); font-size: 10.5px; font-weight: 600; text-anchor: middle; }
+  .chip .card { fill: #11151d; }
+  .chip .name { font-size: 11px; font-weight: 500; fill: var(--muted); }
+  .chip:hover .name, .chip.lit .name { fill: var(--fg); }
+  .chip.lit .card { stroke: var(--out); }
+  .ticket .pill { fill: rgba(255,255,255,.035); stroke: none; }
+  .ticket:hover .pill { fill: rgba(255,255,255,.09); }
+  .ticket text { fill: var(--muted); font-size: 10.5px; }
+  .ticket.done text { text-decoration: line-through; fill: var(--dim); }
+  .band { fill: rgba(255,255,255,.02); }
+  .rail { fill: rgba(255,255,255,.022); stroke: rgba(255,255,255,.05); }
+  .rail-mark { fill: var(--milestone); opacity: .8; }
+  .rail-title { fill: var(--fg); font-size: 12px; font-weight: 600; letter-spacing: .03em; }
+  .rail-sub { fill: var(--dim); font-size: 11px; }
+  .band-label, .lane-label { fill: var(--dim); font-size: 10.5px; font-weight: 600;
+    letter-spacing: .08em; text-transform: uppercase; }
+  .lane-label { font-size: 11px; fill: var(--muted); }
+
+  .edge { fill: none; stroke: #7b879c; stroke-width: 1.4; opacity: .6; }
+  .edge.transient { display: none; stroke-dasharray: 3 3; }
+  .all-edges .edge.transient { display: inline; opacity: .25; }
   .edge.inferred { stroke-dasharray: 5 4; }
-  .node, .ticket { cursor: pointer; }
-  #panel { position: fixed; top: 0; right: 0; width: 33.333vw; height: 100vh; box-sizing: border-box;
-    display: none; flex-direction: column; padding: 14px 16px; background: #1c1f26;
-    border-left: 1px solid #333844; }
+  .edge.hot { opacity: 1; stroke-width: 2.2; }
+  .edge.hot.into { stroke: var(--in); }
+  .edge.hot.out { stroke: var(--out); }
+  .edge.hot.transient { display: inline; opacity: .9; }
+  .dimmed .edge:not(.hot) { opacity: .14; }
+  #arrows path { stroke: none; }
+
+  #panel { position: fixed; top: 0; right: 0; width: 33.333vw; height: 100vh; z-index: 3;
+    display: none; flex-direction: column; padding: 18px 20px; background: #10141c;
+    border-left: 1px solid var(--line); }
   body.open #panel { display: flex; }
-  #detail { flex: 1; min-height: 0; overflow-y: auto; }
-  #panel h2 { margin: 0 0 6px; font-size: 15px; }
-  #panel dl { margin: 8px 0; display: grid; grid-template-columns: max-content 1fr; gap: 2px 10px; }
-  #panel dt { color: #9ca3af; }
+  #detail { flex: 1; min-height: 0; overflow-y: auto; padding-right: 4px; }
+  #panel h2 { margin: 0 24px 4px 0; font-size: 16px; line-height: 1.3; }
+  #panel dl { margin: 12px 0; display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; }
+  #panel dt { color: var(--muted); }
   #panel dd { margin: 0; }
-  #panel h3 { margin: 12px 0 4px; font-size: 12px; color: #9ca3af; text-transform: uppercase; }
+  #panel h3 { margin: 16px 0 6px; font-size: 11px; color: var(--muted); text-transform: uppercase;
+    letter-spacing: .08em; }
   #panel .notes { max-height: 45vh; overflow-y: auto; white-space: pre-wrap; }
-  #panel a { color: #93c5fd; cursor: pointer; text-decoration: underline; }
+  #panel a { color: #8ec1ff; cursor: pointer; text-decoration: none; }
+  #panel a:hover { text-decoration: underline; }
   #panel ul { margin: 0; padding-left: 18px; }
-  #close { position: absolute; top: 10px; right: 12px; background: none; border: 0; color: #9ca3af;
-    font-size: 18px; cursor: pointer; }
-  #warning { position: fixed; bottom: 28px; left: 8px; right: 8px; color: #fbbf24; }
-  #error { position: fixed; bottom: 8px; left: 8px; color: #f87171; }
+  #close { position: absolute; top: 12px; right: 14px; background: none; border: 0;
+    color: var(--muted); font-size: 20px; cursor: pointer; }
+  #warning { position: fixed; bottom: 56px; left: 12px; right: 12px; color: #fbbf24; }
+  #error { position: fixed; bottom: 8px; left: 12px; color: #f87171; }
 </style>
 </head>
 <body>
+<div id="toolbar">
+  <h1>RESTO task tree</h1>
+  <label><input type="checkbox" id="show-done" checked> Completed</label>
+  <label><input type="checkbox" id="all-edges"> All edges</label>
+  <button id="fit">Fit</button>
+  <button id="refresh" title="Re-read the specs and the tracker">Refresh</button>
+</div>
 <div id="legend"></div>
-<svg id="canvas"><g id="viewport"></g></svg>
+<svg id="canvas">
+  <defs id="arrows"></defs>
+  <g id="viewport"></g>
+</svg>
 <div id="panel"><button id="close" title="Close">×</button><div id="detail"></div></div>
 <div id="warning"></div>
 <div id="error"></div>
 <script>
-const W = 260, H = 34, GX = 60, GY = 14, NS = "http://www.w3.org/2000/svg";
-const RH = 22, ROW_GAP = 3, ROW_INSET = 10, ROWS_PAD = 6;
+const NS = "http://www.w3.org/2000/svg";
+const W = 272, H = 50, TILE = 44, GX = 96, GY = 16, DUMMY_H = 10, LANE_GAP = 120, TOP = 96;
+const RAIL_HEAD = 34, RAIL_PAD = 14, RAIL_GAP = 14;
+const RH = 22, ROW_GAP = 3, ROW_INSET = 10, ROWS_PAD = 8;
+const CHIP_W = 206, CHIP_H = 28, CHIP_GAP = 8, CHIP_COLS = 3;
+const PIP_POINTS = 4, MAX_PIPS = 8, PIP_W = 6, PIP_GAP = 2;
 const FINISHED = ["done", "wontfix"];
+const DAG_KINDS = ["milestone", "suite", "validates"];
+const GLYPHS = { "needs-triage": "○", ready: "▶", specified: "◆", ticketed: "≡", done: "✓",
+  wontfix: "✕", "needs-info": "?", milestone: "⚑", suite: "▦", validates: "🏁" };
+const LABELS = { "needs-triage": "needs triage", ready: "ready", specified: "specified",
+  ticketed: "ticketed", done: "done", wontfix: "won't fix", "needs-info": "needs info" };
 const color = s => `var(--${s})`;
-const DAG_KINDS = ["milestone", "suite", "result"];
-const fill = (item, stages) => DAG_KINDS.includes(item.kind) ? color(item.kind) : item.blocked && item.stage !== "done" ? color("blocked")
-  : color(stages.includes(item.stage) ? item.stage : "needs-triage");
+// One border color per epic, cycled by epic number. Tasks outside an epic (refactors) stay neutral.
+const EPIC_COLORS = ["#e5736b", "#e0a94a", "#c2d25a", "#56b98a", "#3fc5b1", "#5bb4e8", "#a184f2",
+  "#e07fc0", "#9aa6ba"];
+const epicColor = id => {
+  const m = /^[A-Za-z]+(\d+)\./.exec(id);
+  return m ? EPIC_COLORS[(+m[1] - 1 + EPIC_COLORS.length) % EPIC_COLORS.length] : "#566074";
+};
+const MARKS = { awaiting: ["⏳", "awaiting measurement"], blocked: ["🚧", "blocked externally"] };
+const isDag = n => DAG_KINDS.includes(n.kind);
+const accentOf = (item, stages) => isDag(item) ? item.kind
+  : item.blocked && !FINISHED.includes(item.stage) ? "blocked"
+  : stages.includes(item.stage) ? item.stage : "needs-triage";
 
 function el(name, attrs, parent) {
   const e = document.createElementNS(NS, name);
@@ -70,77 +166,511 @@ function el(name, attrs, parent) {
   if (parent) parent.appendChild(e);
   return e;
 }
+const truncate = (t, max) => t.length > max ? t.slice(0, max - 1) + "…" : t;
 
-function truncate(text, max) { return text.length > max ? text.slice(0, max - 1) + "…" : text; }
+/* ---------- layout ---------- */
 
-function draw(tree) {
-  const legend = document.getElementById("legend");
-  legend.innerHTML = "";
-  for (const s of [...tree.stages, "blocked", ...DAG_KINDS]) {
-    const chip = document.createElement("span");
-    chip.className = "chip"; chip.style.background = color(s); chip.textContent = s;
-    legend.appendChild(chip);
+// Layered layout: real nodes keep the server's column; an edge that skips columns gets one thin
+// dummy slot in each column it crosses, so it travels through the gap between two cards.
+function layoutActive(nodes, edges, heightOf) {
+  const railCount = Math.max(1, ...nodes.map(n => (n.rail ?? 0) + 1));
+  const layers = [], items = new Map();
+  const add = (item) => {
+    (layers[item.col] ??= []).push(item); items.set(item.id, item); return item;
+  };
+  for (const n of nodes) add({ id: n.id, col: n.column, h: heightOf(n), pos: n.row, rail: n.rail ?? 0, node: n,
+    preds: [], succs: [] });
+  const routes = [];
+  for (const e of edges) {
+    const a = items.get(e.from), b = items.get(e.to);
+    if (!a || !b) continue;
+    const chain = [a];
+    if (b.col > a.col) {
+      for (let c = a.col + 1; c < b.col; c++)
+        chain.push(add({ id: `${e.from}>${e.to}@${c}`, col: c, h: DUMMY_H, pos: a.pos,
+          dummy: true, rail: a.rail, preds: [], succs: [] }));
+    }
+    chain.push(b);
+    chain.forEach((it, i) => { if (i) { it.preds.push(chain[i - 1]); chain[i - 1].succs.push(it); } });
+    routes.push({ edge: e, chain, forward: b.col > a.col });
   }
-  const g = document.getElementById("viewport");
-  g.innerHTML = "";
-  const pos = {}, height = {}, nextY = {};
-  for (const n of [...tree.nodes].sort((a, b) => a.column - b.column || a.row - b.row)) {
-    height[n.id] = H + n.tickets.length * RH + (n.tickets.length ? ROWS_PAD : 0);
-    const y = nextY[n.column] ?? 50;
-    pos[n.id] = { x: 20 + n.column * (W + GX), y };
-    nextY[n.column] = y + height[n.id] + GY;
+  for (const layer of layers) layer?.sort((p, q) => p.rail - q.rail || p.pos - q.pos);
+  const reindex = () => layers.forEach(l => l?.forEach((it, i) => { it.pos = i; }));
+  reindex();
+  const mean = (list) => list.reduce((s, x) => s + x.pos, 0) / list.length;
+  for (let pass = 0; pass < 6; pass++) {
+    const down = pass % 2 === 0;
+    const order = down ? layers.keys() : [...layers.keys()].reverse();
+    for (const c of order) {
+      const layer = layers[c]; if (!layer) continue;
+      layer.forEach(it => {
+        const ns = down ? it.preds : it.succs;
+        it.bary = ns.length ? mean(ns) : it.pos;
+      });
+      layer.sort((p, q) => p.rail - q.rail || p.bary - q.bary || p.pos - q.pos);
+      layer.forEach((it, i) => { it.pos = i; });
+    }
   }
-  for (const e of tree.edges) {
-    const a = pos[e.from], b = pos[e.to];
-    const x1 = a.x + W, y1 = a.y + H / 2, x2 = b.x, y2 = b.y + H / 2, mx = (x1 + x2) / 2;
-    el("path", { class: "edge" + (e.done ? " done" : "") + (e.inferred ? " inferred" : ""),
-                 d: `M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}` }, g);
+  // Vertical placement. Each rail is a band as tall as its fullest column; inside it, items are
+  // stacked, then pulled toward their neighbours' centres without leaving the band.
+  const centre = it => it.y + (it.dummy ? it.h / 2 : H / 2);
+  const gap = it => it.dummy ? GY / 2 : GY;
+  const stackH = group => group.reduce((sum, it) => sum + it.h + gap(it), 0) - GY / 2;
+  const groups = layers.map(layer => {
+    const byRail = new Map();
+    layer?.forEach(it => { if (!byRail.has(it.rail)) byRail.set(it.rail, []); byRail.get(it.rail).push(it); });
+    return byRail;
+  });
+  const rails = [];
+  let cursor = 0;
+  for (let r = 0; r < railCount; r++) {
+    const fullest = Math.max(0, ...groups.map(g => g.has(r) ? stackH(g.get(r)) : 0));
+    const height = fullest ? RAIL_HEAD + fullest + RAIL_PAD : 0;
+    rails.push({ top: cursor, height });
+    cursor += height + (height ? RAIL_GAP : 0);
   }
-  for (const n of tree.nodes) {
-    const p = pos[n.id];
-    const node = el("g", { class: "node" + (n.stage === "done" ? " done" : "")
-                             + (DAG_KINDS.includes(n.kind) ? ` dag ${n.kind}` : ""),
-                           transform: `translate(${p.x},${p.y})` }, g);
-    el("rect", { class: "frame", width: W, height: height[n.id], rx: 6 }, node);
-    const dag = DAG_KINDS.includes(n.kind);
-    el("rect", { class: "head", width: W, height: H, rx: n.kind === "milestone" ? H / 2 : 6,
-                 fill: fill(n, tree.stages) }, node);
-    const label = el("text", { x: 8, y: H / 2 + 4 }, node);
-    label.textContent = truncate(dag ? n.name : `${n.id} ${n.name}`, 40);
-    if (!dag) node.addEventListener("click", () => { if (!moved) showTask(n.id); });
-    const title = el("title", {}, node);
-    title.textContent = [dag ? n.name : `${n.id} ${n.name}`, dag ? `kind: ${n.kind}` : `stage: ${n.stage}`, ...n.warnings.map(w => "warning: " + w)].join("\n");
-    n.tickets.forEach((t, i) => {
-      const label = `${t.id} - ${t.name}`;
-      const row = el("g", { class: "ticket" + (FINISHED.includes(t.stage) ? " done" : ""),
-                            transform: `translate(${ROW_INSET},${H + ROW_GAP + i * RH})` }, node);
-      el("rect", { width: W - 2 * ROW_INSET, height: RH - ROW_GAP, rx: 4, fill: fill(t, tree.stages) }, row);
-      el("text", { x: 6, y: RH / 2 + 1 }, row).textContent = truncate(label, 38);
-      row.addEventListener("click", ev => { ev.stopPropagation(); if (!moved) showTicket(n.id, t.id); });
-      el("title", {}, row).textContent = `${label}\nstage: ${t.stage}`
-        + (t.blocked ? "\nblocked by: " + t.blocked_by.join(", ") : "");
-    });
+  groups.forEach(byRail => byRail.forEach((group, r) => {
+    let y = rails[r].top + RAIL_HEAD;
+    group.forEach(it => { it.y = y; y += it.h + gap(it); });
+  }));
+  for (let pass = 0; pass < 10; pass++) {
+    const down = pass % 2 === 0;
+    const order = down ? [...layers.keys()] : [...layers.keys()].reverse();
+    for (const c of order) {
+      groups[c]?.forEach((group, r) => {
+        const lo = rails[r].top + RAIL_HEAD, hi = rails[r].top + rails[r].height - RAIL_PAD;
+        const wants = group.map(it => {
+          const ns = down ? it.preds : it.succs;
+          const w = ns.length ? ns.reduce((sum, x) => sum + centre(x), 0) / ns.length : centre(it);
+          return w - (it.dummy ? it.h / 2 : H / 2);
+        });
+        let floor = lo;
+        group.forEach((it, i) => { it.y = Math.max(wants[i], floor); floor = it.y + it.h + gap(it); });
+        // Keep the group inside its band: pull up from the bottom edge, then push down from the top.
+        // The tightest stack always fits the band, so both passes can be satisfied.
+        let ceil = hi;
+        for (let i = group.length - 1; i >= 0; i--) {
+          group[i].y = Math.min(group[i].y, ceil - group[i].h);
+          ceil = group[i].y - gap(group[i]);
+        }
+        floor = lo;
+        group.forEach(it => { it.y = Math.max(it.y, floor); floor = it.y + it.h + gap(it); });
+      });
+    }
+  }
+  return { layers, items, routes, rails };
+}
+
+// Right-angle path through the gap between columns, corners rounded with a small arc.
+function roundedPath(points, r = 9) {
+  const pts = points.filter((p, i) => !i || p[0] !== points[i - 1][0] || p[1] !== points[i - 1][1]);
+  let d = `M${pts[0][0]},${pts[0][1]}`;
+  for (let i = 1; i < pts.length - 1; i++) {
+    const [px, py] = pts[i - 1], [x, y] = pts[i], [nx, ny] = pts[i + 1];
+    const l1 = Math.hypot(x - px, y - py), l2 = Math.hypot(nx - x, ny - y);
+    const rr = Math.min(r, l1 / 2, l2 / 2);
+    d += ` L${x - (x - px) / l1 * rr},${y - (y - py) / l1 * rr}`
+      + ` Q${x},${y} ${x + (nx - x) / l2 * rr},${y + (ny - y) / l2 * rr}`;
+  }
+  const last = pts[pts.length - 1];
+  return d + ` L${last[0]},${last[1]}`;
+}
+
+function epicOf(id) { const m = /^([A-Za-z]+\d+)\./.exec(id); return m ? m[1] : "Other"; }
+const epicKey = e => { const m = /^([A-Za-z]+)(\d+)$/.exec(e); return m ? [m[1], +m[2]] : ["~", 0]; };
+
+/* ---------- drawing ---------- */
+
+let tree = null, view = null, selected = null;
+
+function makeArrows() {
+  const defs = document.getElementById("arrows"); defs.innerHTML = "";
+  for (const [name, fillColor] of [["dim", "#7b879c"], ["in", "#f2c14e"], ["out", "#6fb2ff"]]) {
+    const m = el("marker", { id: `arrow-${name}`, viewBox: "0 0 10 10", refX: 9, refY: 5,
+      markerWidth: 7, markerHeight: 7, orient: "auto" }, defs);
+    el("path", { d: "M0,1 L10,5 L0,9 z", fill: fillColor }, m);
   }
 }
 
+function drawGlyph(g, item, accent, x, y) {
+  if (item.blocked && !FINISHED.includes(item.stage) && !isDag(item)) {
+    // small padlock
+    el("rect", { x: x - 5, y: y - 1, width: 10, height: 8, rx: 1.5, fill: color(accent) }, g);
+    el("path", { d: `M${x - 3},${y - 1} v-2.5 a3,3 0 0 1 6,0 v2.5`, fill: "none",
+      stroke: color(accent), "stroke-width": 1.6 }, g);
+    return;
+  }
+  const key = isDag(item) ? item.kind : item.stage;
+  el("text", { class: "glyph", x, y: y + 5, fill: color(accent) }, g).textContent = GLYPHS[key] ?? "○";
+}
+
+function draw() {
+  const g = document.getElementById("viewport"); g.innerHTML = "";
+  const stages = tree.stages;
+  const showDone = document.getElementById("show-done").checked;
+  const active = tree.nodes.filter(n => n.lane !== "done");
+  const done = tree.nodes.filter(n => n.lane === "done");
+  const heightOf = n => H + (n.tickets.length ? n.tickets.length * RH + ROWS_PAD : 0);
+
+  // Archive of finished tasks, grouped by epic, on the left.
+  const pos = {}, chipEls = {};
+  let archiveW = 0;
+  if (showDone && done.length) {
+    const groups = {};
+    for (const n of done) (groups[epicOf(n.id)] ??= []).push(n);
+    const epics = Object.keys(groups).sort((a, b) => {
+      const [pa, na] = epicKey(a), [pb, nb] = epicKey(b); return pa < pb ? -1 : pa > pb ? 1 : na - nb;
+    });
+    archiveW = CHIP_COLS * (CHIP_W + CHIP_GAP) - CHIP_GAP + 24;
+    el("text", { class: "lane-label", x: 12, y: TOP - 18 }, g).textContent = `Completed · ${done.length}`;
+    let y = TOP;
+    for (const epic of epics) {
+      const list = groups[epic];
+      const rows = Math.ceil(list.length / CHIP_COLS);
+      const bandH = 22 + rows * (CHIP_H + CHIP_GAP) + 4;
+      el("rect", { class: "band", x: 0, y, width: archiveW, height: bandH, rx: 8 }, g);
+      el("text", { class: "band-label", x: 12, y: y + 15 }, g).textContent = epic;
+      list.forEach((n, i) => {
+        const cx = 12 + (i % CHIP_COLS) * (CHIP_W + CHIP_GAP);
+        const cy = y + 22 + Math.floor(i / CHIP_COLS) * (CHIP_H + CHIP_GAP);
+        pos[n.id] = { x: cx, y: cy, w: CHIP_W, h: CHIP_H };
+        const chip = el("g", { class: "chip", transform: `translate(${cx},${cy})` }, g);
+        chipEls[n.id] = chip;
+        const accent = n.stage === "wontfix" ? "wontfix" : "done";
+        el("rect", { class: "card", width: CHIP_W, height: CHIP_H, rx: 7 }, chip);
+        el("text", { class: "glyph", x: 15, y: CHIP_H / 2 + 5, fill: color(accent),
+          style: "font-size:12px" }, chip).textContent = GLYPHS[n.stage];
+        el("text", { class: "name", x: 28, y: CHIP_H / 2 + 4 }, chip)
+          .textContent = truncate(`${n.id}  ${n.name.replace(/`/g, "")}`, 31);
+        el("title", {}, chip).textContent = `${n.id} ${n.name}\nstage: ${n.stage}` + (n.points ? `\npoints: ${n.points}` : "");
+        chip.addEventListener("click", ev => { ev.stopPropagation(); if (!moved) select(n.id); });
+        chip.addEventListener("mouseenter", () => highlight(n.id));
+        chip.addEventListener("mouseleave", () => highlight(selected));
+      });
+      y += bandH + 10;
+    }
+  }
+
+  // Pending graph.
+  const ids = new Set(active.map(n => n.id));
+  const activeEdges = tree.edges.filter(e => ids.has(e.from) && ids.has(e.to));
+  const seen = new Set();
+  const unique = activeEdges.filter(e => { const k = e.from + "|" + e.to;
+    return seen.has(k) ? false : (seen.add(k), true); });
+  const { layers, items, routes, rails } = layoutActive(active, unique, heightOf);
+  const originX = showDone && done.length ? archiveW + LANE_GAP : 20;
+  const colX = c => originX + c * (W + GX);
+  const columns = layers.length;
+  for (const it of items.values()) {
+    it.x = colX(it.col); it.y += TOP;
+    if (!it.dummy) pos[it.id] = { x: it.x, y: it.y, w: W, h: H };
+  }
+  const railWidth = layers.length * (W + GX) - GX + 32;
+  let railsBottom = 0;
+  rails.forEach((rail, r) => {
+    if (!rail.height) return;
+    const meta = tree.rails[r] ?? { name: "Unscheduled" };
+    const y = rail.top + TOP;
+    railsBottom = Math.max(railsBottom, y + rail.height);
+    el("rect", { class: "rail", x: originX - 16, y, width: railWidth, height: rail.height, rx: 12 }, g);
+    const [title, ...rest] = meta.name.replace(/\s*✅\s*/g, " ").split(/\s+·\s+|\s+\(/);
+    el("rect", { class: "rail-mark", x: originX - 16, y: y + 10, width: 3, height: 16, rx: 1.5 }, g);
+    el("text", { class: "rail-title", x: originX, y: y + 23 }, g).textContent = truncate(title.trim(), 40);
+    if (rest.length)
+      el("text", { class: "rail-sub", x: originX + 8 + title.length * 7.4, y: y + 23 }, g)
+        .textContent = truncate(rest.join(" · ").replace(/\)$/, ""), 60);
+  });
+
+  // Edges first so cards paint over them.
+  const edgeLayer = el("g", {}, g);
+  const paths = [];
+  const gaps = {};  // gap index -> [segment], to spread parallel vertical runs apart
+  const segments = [];
+  for (const r of routes) {
+    r.segs = [];
+    if (!r.forward) continue;
+    r.chain.forEach((it, i) => {
+      if (!i) return;
+      const a = r.chain[i - 1], gap = a.col, seg = { a, b: it, gap };
+      (gaps[gap] ??= []).push(seg); r.segs.push(seg); segments.push(seg);
+    });
+  }
+  for (const list of Object.values(gaps)) {
+    const moving = list.filter(s => portY(s.a) !== portY(s.b));
+    moving.sort((p, q) => Math.sign(portY(p.b) - portY(p.a)) - Math.sign(portY(q.b) - portY(q.a))
+      || portY(p.a) - portY(q.a));
+    const n = moving.length, step = Math.min(7, (GX - 30) / Math.max(n, 1));
+    moving.forEach((s, i) => { s.lane = (i - (n - 1) / 2) * step; });
+  }
+  function portY(it) { return it.y + (it.dummy ? it.h / 2 : H / 2); }
+  for (const r of routes) {
+    let d, cls = "edge";
+    if (r.forward) {
+      const pts = [];
+      r.segs.forEach((s, i) => {
+        const x1 = s.a.x + (s.a.dummy ? W : W), x2 = s.b.x;
+        const trunk = x1 + GX / 2 + (s.lane ?? 0);
+        if (i === 0) pts.push([s.a.x + W, portY(s.a)]);
+        pts.push([trunk, portY(s.a)], [trunk, portY(s.b)], [x2, portY(s.b)]);
+        if (s.b.dummy) pts.push([s.b.x + W, portY(s.b)]);
+      });
+      d = roundedPath(pts);
+    } else {
+      const a = items.get(r.edge.from), b = items.get(r.edge.to);
+      d = curve({ x: a.x, y: a.y, w: W, h: H }, { x: b.x, y: b.y, w: W, h: H });
+    }
+    if (r.edge.inferred) cls += " inferred";
+    const path = el("path", { class: cls, d, "marker-end": "url(#arrow-dim)" }, edgeLayer);
+    paths.push({ path, from: r.edge.from, to: r.edge.to, transient: false });
+  }
+  function curve(a, b) {
+    const x1 = a.x + a.w, y1 = a.y + a.h / 2, x2 = b.x, y2 = b.y + b.h / 2;
+    const dx = Math.max(60, Math.abs(x2 - x1) / 2);
+    return `M${x1},${y1} C${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}`;
+  }
+  // Edges that touch a finished task only show when their node is hovered or selected.
+  for (const e of tree.edges) {
+    if (ids.has(e.from) && ids.has(e.to)) continue;
+    if (!pos[e.from] || !pos[e.to]) continue;
+    const path = el("path", { class: "edge transient" + (e.inferred ? " inferred" : ""),
+      d: curve(pos[e.from], pos[e.to]), "marker-end": "url(#arrow-dim)" }, edgeLayer);
+    paths.push({ path, from: e.from, to: e.to, transient: true });
+  }
+
+  // Cards.
+  const nodeEls = {};
+  for (const it of items.values()) {
+    if (it.dummy) continue;
+    const n = it.node, accent = accentOf(n, stages), dag = isDag(n);
+    const cls = ["node", dag ? `dag ${n.kind}` : "", n.blocked && !dag ? "blocked" : "",
+      !dag && !n.blocked ? "actionable" : ""].join(" ");
+    const node = el("g", { class: cls, transform: `translate(${it.x},${it.y})` }, g);
+    nodeEls[n.id] = node;
+    const h = heightOf(n);
+    el("rect", { class: "card", width: W, height: h, rx: 10 }, node);
+    if (n.frontier)
+      el("rect", { class: "halo", x: -5, y: -5, width: W + 10, height: h + 10, rx: 14 }, node);
+    el("rect", { class: "accent", width: W, height: h, rx: 10,
+      stroke: dag ? color(accent) : epicColor(n.id),
+      "stroke-opacity": n.blocked && !dag ? .4 : .85 }, node);
+    el("path", { class: "tile", fill: color(accent),
+      d: `M10,0 H${TILE} V${H} H10 a10,10 0 0 1 -10,-10 V10 a10,10 0 0 1 10,-10 z` }, node);
+    el("line", { x1: TILE, x2: TILE, y1: 0, y2: H, stroke: color(accent), "stroke-opacity": .25 }, node);
+    drawGlyph(node, n, accent, TILE / 2, H / 2 - 5);
+    // A validates node closes tasks once its suite runs, so the flag replaces the plan's "✅" prefix.
+    const lines = wrap(n.name.replace(/`/g, "").replace(/^✅\s*/, ""), 27, 2);
+    const ty = lines.length === 1 ? H / 2 - 4 : H / 2 - 10;
+    lines.forEach((ln, i) =>
+      el("text", { class: "name", x: TILE + 10, y: ty + i * 14 }, node).textContent = ln);
+    const sub = dag ? n.kind : `${n.id} · ${n.blocked ? "blocked" : LABELS[n.stage] ?? n.stage}`;
+    el("text", { class: "sub", x: TILE + 10, y: H - 8 }, node).textContent = sub;
+    if (n.points) {
+      // Effort queue: one pip per PIP_POINTS points (capped), the number under the glyph.
+      const lit = Math.min(MAX_PIPS, Math.ceil(n.points / PIP_POINTS));
+      const x0 = W - 12 - MAX_PIPS * (PIP_W + PIP_GAP) + PIP_GAP;
+      for (let k = 0; k < MAX_PIPS; k++)
+        el("rect", { class: "pip" + (k < lit ? "" : " off"), x: x0 + k * (PIP_W + PIP_GAP), y: H - 15,
+          width: PIP_W, height: 8, rx: 1.5, fill: color(accent) }, node);
+      el("text", { class: "pts", x: TILE / 2, y: H - 6 }, node).textContent = n.points;
+    }
+    if (!dag && n.warnings.length)
+      el("text", { class: "sub", x: W - 12, y: 16, "text-anchor": "end", fill: "#fbbf24",
+        style: "fill:#fbbf24" }, node).textContent = "!";
+    // Badges sit on the card's top edge, right-aligned, so they never cover the name.
+    const badges = [];
+    if (n.urgent) badges.push({ cls: "urgent", label: "URGENT", w: 50 });
+    if (n.tracker_mark) badges.push({ cls: "mark", label: MARKS[n.tracker_mark][0], w: 26 });
+    let bx = W - 10;
+    for (const b of badges) {
+      bx -= b.w;
+      const badge = el("g", { class: "badge " + b.cls, transform: `translate(${bx},-9)` }, node);
+      el("rect", { width: b.w, height: 16, rx: 8 }, badge);
+      el("text", { x: b.w / 2, y: 12 }, badge).textContent = b.label;
+      bx -= 4;
+    }
+    const tip = el("title", {}, node);
+    tip.textContent = [dag ? n.name : `${n.id} ${n.name}`, dag ? `kind: ${n.kind}` : `stage: ${n.stage}`,
+      ...(!dag && epicOf(n.id) !== "Other" ? [`epic: ${epicOf(n.id)}`] : []),
+      ...(n.frontier ? ["frontier: can start now"] : []),
+      ...(n.urgent ? ["priority: urgent"] : []),
+      ...(n.tracker_mark ? [`tracker: ${MARKS[n.tracker_mark][1]}`] : []),
+      ...(n.points ? [`points: ${n.points}`] : []),
+      ...n.warnings.map(w => "warning: " + w)].join("\n");
+    n.tickets.forEach((t, i) => {
+      const label = `${t.id}  ${t.name}`;
+      const tacc = t.blocked && !FINISHED.includes(t.stage) ? "blocked"
+        : stages.includes(t.stage) ? t.stage : "needs-triage";
+      const row = el("g", { class: "ticket" + (FINISHED.includes(t.stage) ? " done" : ""),
+        transform: `translate(${ROW_INSET},${H + ROW_GAP + i * RH})` }, node);
+      el("rect", { class: "pill", width: W - 2 * ROW_INSET, height: RH - ROW_GAP, rx: 5 }, row);
+      el("circle", { cx: 10, cy: (RH - ROW_GAP) / 2, r: 3.5, fill: color(tacc) }, row);
+      if (t.urgent)
+        el("circle", { class: "urgent-dot", cx: W - 2 * ROW_INSET - 10, cy: (RH - ROW_GAP) / 2, r: 3.5 }, row);
+      el("text", { x: 20, y: RH / 2 + 1 }, row).textContent = truncate(label, 37);
+      row.addEventListener("click", ev => { ev.stopPropagation(); if (!moved) showTicket(n.id, t.id); });
+      el("title", {}, row).textContent = `${label}\nstage: ${t.stage}`
+        + (t.blocked ? "\nblocked by: " + t.blocked_by.join(", ") : "") + (t.urgent ? "\npriority: urgent" : "");
+    });
+    if (!dag) node.addEventListener("click", ev => { ev.stopPropagation(); if (!moved) select(n.id); });
+    node.addEventListener("mouseenter", () => highlight(n.id));
+    node.addEventListener("mouseleave", () => highlight(selected));
+  }
+
+  const adj = new Map();
+  for (const p of paths) for (const k of [p.from, p.to]) {
+    if (!adj.has(k)) adj.set(k, []);
+    adj.get(k).push(p);
+  }
+  view = { paths, adj, els: { ...nodeEls, ...chipEls }, lit: new Set(), hot: new Set(), sel: null,
+    dimmed: false, pos, width: originX + columns * (W + GX),
+    height: Math.max(railsBottom, ...Object.values(pos).map(p => p.y + p.h), 0) + 60 };
+  canvas.classList.remove("dimmed");
+  highlight(selected);
+  applyEdgeMode();
+}
+
+// "Line one that fits" wrapping for SVG text: at most `lines` lines of `width` characters.
+function wrap(text, width, lines) {
+  const words = text.split(/\s+/), out = [""];
+  for (const w of words) {
+    const cur = out[out.length - 1];
+    if ((cur + " " + w).trim().length <= width) out[out.length - 1] = (cur + " " + w).trim();
+    else if (out.length < lines) out.push(w);
+    else { out[out.length - 1] = truncate(cur + " " + w, width); break; }
+  }
+  return out.map(l => truncate(l, width));
+}
+
+// Hover events arrive in pairs (leave one card, enter the next), so the repaint waits for the frame
+// and touches only the elements whose state changed.
+let wanted = null, highlightFrame = 0;
+function highlight(id) {
+  wanted = id;
+  if (!highlightFrame) highlightFrame = requestAnimationFrame(paintHighlight);
+}
+
+function paintHighlight() {
+  highlightFrame = 0;
+  if (!view) return;
+  const id = wanted;
+  const hot = new Set(id ? view.adj.get(id) ?? [] : []);
+  const lit = new Set(id ? [id] : []);
+  for (const p of hot) { lit.add(p.from); lit.add(p.to); }
+  for (const p of view.hot) if (!hot.has(p)) paintPath(p, null);
+  for (const p of hot) if (!view.hot.has(p)) paintPath(p, id);
+  for (const nid of view.lit) if (!lit.has(nid)) view.els[nid]?.classList.remove("lit");
+  for (const nid of lit) if (!view.lit.has(nid)) view.els[nid]?.classList.add("lit");
+  if (view.sel !== selected) {
+    view.els[view.sel]?.classList.remove("selected");
+    view.els[selected]?.classList.add("selected");
+    view.sel = selected;
+  }
+  const dimmed = !!id;
+  if (view.dimmed !== dimmed) { canvas.classList.toggle("dimmed", dimmed); view.dimmed = dimmed; }
+  view.hot = hot; view.lit = lit;
+}
+
+function paintPath(p, id) {
+  const into = !!id && p.to === id, out = !!id && p.from === id;
+  p.path.classList.toggle("hot", into || out);
+  p.path.classList.toggle("into", into);
+  p.path.classList.toggle("out", out);
+  p.path.setAttribute("marker-end", `url(#arrow-${into ? "in" : out ? "out" : "dim"})`);
+  if (into || out) p.path.parentNode.appendChild(p.path);  // paint hot edges over the rest
+}
+
+function applyEdgeMode() {
+  canvas.classList.toggle("all-edges", document.getElementById("all-edges").checked);
+}
+
+function select(id) { selected = id; highlight(id); showTask(id); }
+
+/* ---------- legend ---------- */
+
+function drawLegend() {
+  const legend = document.getElementById("legend"); legend.innerHTML = "";
+  const entries = [...tree.stages.filter(s => s !== "done" && s !== "wontfix"), "blocked", "done",
+    "milestone", "suite"];
+  for (const s of entries) {
+    const span = document.createElement("span");
+    const dot = document.createElement("i"); dot.style.background = color(s);
+    span.append(dot, LABELS[s] ?? s); legend.appendChild(span);
+  }
+  const sep = () => { const i = document.createElement("span"); i.className = "sep"; legend.appendChild(i); };
+  sep();
+  const key = (label, mark) => {
+    const span = document.createElement("span"); span.append(mark, label); legend.appendChild(span);
+  };
+  const halo = document.createElement("i"); halo.className = "halo-key";
+  key("frontier (can start now)", halo);
+  key("awaiting measurement", "⏳");
+  key("blocked externally", "🚧");
+  key("urgent", Object.assign(document.createElement("b"), { textContent: "!", style: "color:#ef4444" }));
+  sep();
+  const epics = [...new Set(tree.nodes.filter(n => n.kind === "task").map(n => epicOf(n.id)))]
+    .filter(e => e !== "Other").sort((a, b) => {
+      const [pa, na] = epicKey(a), [pb, nb] = epicKey(b); return pa < pb ? -1 : pa > pb ? 1 : na - nb;
+    });
+  for (const e of epics) {
+    const ring = document.createElement("i"); ring.className = "ring";
+    ring.style.borderColor = epicColor(e + ".");
+    key(e, ring);
+  }
+  sep();
+  const effort = document.createElement("span");
+  effort.textContent = `▮ 1 pip = ${PIP_POINTS} pts (max ${MAX_PIPS * PIP_POINTS}+)`;
+  legend.appendChild(effort);
+}
+
+/* ---------- pan, zoom, fit ---------- */
+
 let scale = 1, tx = 0, ty = 0, drag = null, moved = false;
 const canvas = document.getElementById("canvas"), viewport = document.getElementById("viewport");
-const apply = () => viewport.setAttribute("transform", `translate(${tx},${ty}) scale(${scale})`);
+let applyFrame = 0;
+function apply() {
+  if (applyFrame) return;
+  applyFrame = requestAnimationFrame(() => {
+    applyFrame = 0;
+    viewport.setAttribute("transform", `translate(${tx},${ty}) scale(${scale})`);
+    canvas.classList.toggle("far", scale < 0.5);
+  });
+}
+function fit() {
+  if (!view) return;
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  scale = Math.min(1, (w - 40) / view.width, (h - 120) / view.height);
+  scale = Math.max(scale, 0.25);
+  tx = 20; ty = 30; apply();
+}
 canvas.addEventListener("wheel", ev => {
   ev.preventDefault();
-  const f = ev.deltaY < 0 ? 1.1 : 1 / 1.1;
-  tx = ev.clientX - (ev.clientX - tx) * f; ty = ev.clientY - (ev.clientY - ty) * f; scale *= f; apply();
+  // Zoom in proportion to how far the wheel moved, in pixels whatever the browser's delta unit:
+  // a mouse notch is ~100 px (Firefox reports 3 lines), a trackpad sends many tiny deltas.
+  const pixels = ev.deltaY * (ev.deltaMode === 1 ? 33 : ev.deltaMode === 2 ? 400 : 1);
+  const speed = ev.ctrlKey ? 0.01 : 0.0015;  // a trackpad pinch arrives as ctrl+wheel
+  const f = Math.exp(-Math.max(-120, Math.min(120, pixels)) * speed);
+  const next = Math.min(2.5, Math.max(0.15, scale * f));
+  const k = next / scale;
+  tx = ev.clientX - (ev.clientX - tx) * k; ty = ev.clientY - (ev.clientY - ty) * k; scale = next; apply();
 }, { passive: false });
 canvas.addEventListener("mousedown", ev => {
   ev.preventDefault();
-  drag = [ev.clientX - tx, ev.clientY - ty]; moved = false; canvas.classList.add("dragging");
+  drag = [ev.clientX - tx, ev.clientY - ty]; moved = false;
 });
 window.addEventListener("mouseup", () => { drag = null; canvas.classList.remove("dragging"); });
 window.addEventListener("mousemove", ev => { if (drag) {
   const nx = ev.clientX - drag[0], ny = ev.clientY - drag[1];
-  if (Math.abs(nx - tx) + Math.abs(ny - ty) > 3) moved = true;
+  // The drag style turns off hover on the cards, so it starts only once the pointer really moves;
+  // a plain click must keep its card as the event target.
+  if (!moved && Math.abs(nx - tx) + Math.abs(ny - ty) > 3) { moved = true; canvas.classList.add("dragging"); }
   tx = nx; ty = ny; apply();
 } });
+canvas.addEventListener("click", () => { if (!moved && selected) { selected = null; highlight(null); } });
+document.getElementById("fit").addEventListener("click", fit);
+document.getElementById("show-done").addEventListener("change", () => { draw(); fit(); });
+document.getElementById("all-edges").addEventListener("change", () => view && applyEdgeMode());
+
+/* ---------- side panel ---------- */
 
 const detail = document.getElementById("detail");
 function text(tag, content, parent) {
@@ -200,12 +730,19 @@ async function showTicket(taskId, ticketId) {
 }
 document.getElementById("close").addEventListener("click", () => document.body.classList.remove("open"));
 
-fetch("/api/tree").then(r => r.json()).then(tree => {
-    draw(tree);
-    document.getElementById("warning").textContent = tree.warnings.length
-      ? "Measurement DAG: " + tree.warnings.join("; ") : "";
-  })
-  .catch(err => { document.getElementById("error").textContent = "Could not load the tree: " + err; });
+makeArrows();
+// The page reads the files on every load, so the frontier moves when a spec does and the button is pressed.
+function loadTree(first) {
+  return fetch("/api/tree").then(r => r.json()).then(t => {
+      tree = t; drawLegend(); draw(); if (first) fit();
+      document.getElementById("warning").textContent = tree.warnings.length
+        ? "Measurement DAG: " + tree.warnings.join("; ") : "";
+      document.getElementById("error").textContent = "";
+    })
+    .catch(err => { document.getElementById("error").textContent = "Could not load the tree: " + err; });
+}
+document.getElementById("refresh").addEventListener("click", () => loadTree(false));
+loadTree(true);
 </script>
 </body>
 </html>

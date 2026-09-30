@@ -16,6 +16,7 @@ _TITLE = re.compile(
 )
 _STATUS = re.compile(r"^\*\*Status:\*\*\s*(\S+)", re.MULTILINE)
 _BLOCKED = re.compile(r"^\*\*Blocked by:\*\*(.*(?:\n(?![\n*#]).*)*)", re.MULTILINE)
+_PRIORITY = re.compile(r"^\*\*Priority:\*\*\s*urgent\s*$", re.MULTILINE | re.IGNORECASE)
 _TASK_ID = re.compile(r"\b(E\d+\.\d+|r\d+)\b")
 _TICKET_ID = re.compile(r"\b(\d{2})\b")
 _LINK = re.compile(r"\[[^\]]*\]\([^)]*\)|`[^`]*`")
@@ -31,6 +32,7 @@ class Task:
     tickets: list[dict[str, Any]] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     directory: Path | None = None
+    urgent: bool = False
 
 
 def _read(path: Path, warnings: list[str]) -> str:
@@ -44,6 +46,11 @@ def _read(path: Path, warnings: list[str]) -> str:
 def _status(text: str) -> str | None:
     match = _STATUS.search(text)
     return match.group(1).lower() if match else None
+
+
+def _is_urgent(text: str, stage: str) -> bool:
+    """An urgent line only counts while the work is open."""
+    return stage not in FINISHED and _PRIORITY.search(text) is not None
 
 
 def _blocked_by(text: str, pattern: re.Pattern[str]) -> list[str]:
@@ -62,16 +69,18 @@ def _spec_is_filled(text: str) -> bool:
 
 
 def _tickets(directory: Path, warnings: list[str]) -> list[dict[str, Any]]:
-    tickets = []
+    tickets: list[dict[str, Any]] = []
     for path in sorted((directory / "issues").glob("[0-9][0-9]-*.md")):
         text = _read(path, warnings)
         title = re.search(r"^#\s+(?:\d+\s*[:.-]\s*)?(.+?)\s*$", text, re.MULTILINE)
+        stage = _status(text) or "needs-triage"
         tickets.append(
             {
                 "id": path.name[:2],
                 "name": title.group(1) if title else path.stem,
-                "stage": _status(text) or "needs-triage",
+                "stage": stage,
                 "blocked_by": _blocked_by(text, _TICKET_ID),
+                "urgent": _is_urgent(text, stage),
             }
         )
     finished = {t["id"] for t in tickets if t["stage"] in FINISHED}
@@ -104,7 +113,12 @@ def _read_task(directory: Path, finished: bool) -> Task | None:
         stage = "specified"
     else:
         stage = status if status in ("needs-triage", "ready") else "needs-triage"
-    return Task(task_id, name, stage, _blocked_by(text, _TASK_ID), tickets, problems, directory)
+    urgent = stage not in FINISHED and (
+        _is_urgent(text, stage) or any(t["urgent"] for t in tickets)
+    )
+    return Task(
+        task_id, name, stage, _blocked_by(text, _TASK_ID), tickets, problems, directory, urgent
+    )
 
 
 def _tracker_done(path: Path) -> dict[str, str]:
@@ -115,6 +129,28 @@ def _tracker_done(path: Path) -> dict[str, str]:
         return {}
     rows = re.finditer(r"^\|\s*(E\d+\.\d+)\s*\|\s*(.+?)\s*\|\s*✅\s*\|", text, re.MULTILINE)
     return {m.group(1): re.sub(r"^\*\(new [\d-]+\)\*\s*", "", m.group(2)) for m in rows}
+
+
+_MARKS = {"⏳": "awaiting", "🚧": "blocked"}
+
+
+def _tracker_marks(path: Path) -> dict[str, str]:
+    """Task id -> `awaiting` (⏳) or `blocked` (🚧) for every tracker row carrying that status."""
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return {}
+    marks: dict[str, str] = {}
+    for line in text.splitlines():
+        cells = [c.strip() for c in line.strip().strip("|").split(" | ")]
+        if (
+            line.startswith("|")
+            and len(cells) > 2
+            and cells[2] in _MARKS
+            and re.fullmatch(r"E\d+\.\d+", cells[0])
+        ):
+            marks[cells[0]] = _MARKS[cells[2]]
+    return marks
 
 
 def _infer_chains(ids: list[str]) -> dict[str, list[str]]:
@@ -140,11 +176,17 @@ def _infer_chains(ids: list[str]) -> dict[str, list[str]]:
 
 
 def _layout(nodes: dict[str, dict[str, Any]], extra_deps: dict[str, list[str]]) -> None:
-    """Column = longest chain from a root; row = barycenter of the blockers' rows.
+    """Column = longest chain of unfinished work from a root; row = barycenter of blocker rows.
 
+    Finished tasks are history, so they do not take part: they get `lane: "done"` and are ordered
+    by id for the page's archive, and a finished blocker never pushes a pending node to the right.
     `extra_deps` are the diagram's edges. They place nodes but never block a task.
     """
-    deps_of = {i: n["blocked_by"] + extra_deps.get(i, []) for i, n in nodes.items()}
+    for node in nodes.values():
+        node["lane"] = "done" if node["stage"] in FINISHED else "active"
+    active = {i for i, n in nodes.items() if n["lane"] == "active"}
+    deps_of = {i: [d for d in nodes[i]["blocked_by"] + extra_deps.get(i, []) if d in active]
+               for i in active}
     column: dict[str, int] = {}
 
     def depth(node_id: str, seen: frozenset[str]) -> int:
@@ -152,12 +194,14 @@ def _layout(nodes: dict[str, dict[str, Any]], extra_deps: dict[str, list[str]]) 
             return column[node_id]
         if node_id in seen:
             return 0
-        deps = [d for d in deps_of[node_id] if d in nodes]
-        column[node_id] = 1 + max((depth(d, seen | {node_id}) for d in deps), default=-1)
+        column[node_id] = 1 + max(
+            (depth(d, seen | {node_id}) for d in deps_of[node_id]), default=-1
+        )
         return column[node_id]
 
     for node_id in nodes:
-        depth(node_id, frozenset())
+        if node_id in active:
+            depth(node_id, frozenset())
     rows: dict[str, float] = {}
     by_column: dict[int, list[str]] = {}
     for node_id, col in column.items():
@@ -169,8 +213,150 @@ def _layout(nodes: dict[str, dict[str, Any]], extra_deps: dict[str, list[str]]) 
 
         for row, node_id in enumerate(sorted(by_column[col], key=key)):
             rows[node_id] = row
+    for node_id in active:
+        nodes[node_id]["column"], nodes[node_id]["row"] = column[node_id], int(rows[node_id])
+    for row, node_id in enumerate(sorted((i for i in nodes if i not in active), key=_id_order)):
+        nodes[node_id]["column"], nodes[node_id]["row"] = 0, row
+
+
+_MONTHS = {m: i for i, m in enumerate(
+    ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"), 1)}
+_DATE = re.compile(r"(\d{1,2})(?:\s*[–-]\s*(\d{1,2}))?\s+(" + "|".join(_MONTHS) + r")\b")
+
+
+def _date_key(day: str, month: str) -> int:
+    """Sortable month*100+day. The TFM runs Sep 2026 to Feb 2027, so Aug-Dec sorts first."""
+    number = _MONTHS[month]
+    return (number if number >= 8 else number + 12) * 100 + int(day)
+
+
+def _due_dates(plan: Path) -> dict[str, int]:
+    """Task id -> latest date in the last cell of its work-plan row (the `Latest due` column)."""
+    try:
+        text = plan.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return {}
+    dues: dict[str, int] = {}
+    for line in text.splitlines():
+        cells = [c.strip() for c in line.strip().strip("|").split(" | ")]
+        if not line.startswith("|") or len(cells) < 3 or not re.fullmatch(r"E\d+\.\d+", cells[0]):
+            continue
+        found = [_date_key(m.group(1), m.group(3)) for m in _DATE.finditer(cells[-1])]
+        if found:
+            dues[cells[0]] = max(found)
+    return dues
+
+
+def _plan_points(plan: Path) -> dict[str, int]:
+    """Task id -> points from the `pts` column of each work-plan table.
+
+    The column is found from the end of the row, so a `|` inside the task text cannot shift it.
+    """
+    try:
+        text = plan.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return {}
+    points: dict[str, int] = {}
+    from_end: int | None = None
+    for line in text.splitlines():
+        if not line.startswith("|"):
+            continue
+        cells = [c.strip() for c in line.strip().strip("|").split(" | ")]
+        lowered = [c.lower() for c in cells]
+        if cells[0] == "ID":
+            from_end = len(cells) - lowered.index("pts") if "pts" in lowered else None
+        elif from_end and re.fullmatch(r"E\d+\.\d+", cells[0]) and len(cells) >= from_end:
+            match = re.fullmatch(r"\**(\d+)\**", cells[-from_end])
+            if match:
+                points[cells[0]] = int(match.group(1))
+    return points
+
+
+def _milestone_date(label: str) -> int | None:
+    """End of the first date in a milestone label (`14–18 Dec` -> 18 Dec), or None if undated."""
+    match = _DATE.search(label)
+    if match is None:
+        return None
+    return _date_key(match.group(2) or match.group(1), match.group(3))
+
+
+def _assign_rails(
+    nodes: dict[str, dict[str, Any]], edges: list[tuple[str, str]], plan: Path | None
+) -> list[dict[str, str]]:
+    """Group pending nodes into one horizontal rail per milestone and set `node["rail"]`.
+
+    A task goes in the first rail whose date is on or after its latest due; a diagram node goes in
+    the rail of the earliest milestone downstream of it, else the rail of the latest due among the
+    tasks its label names, else the rail of the latest milestone upstream (a suite runs inside its
+    validation). Undated milestones close the list; anything left is in a last "Unscheduled" rail.
+    """
+    milestones = [n for n in nodes.values() if n["kind"] == "milestone"]
+    dated = sorted(
+        ((d, n) for n in milestones if (d := _milestone_date(n["name"])) is not None),
+        key=lambda pair: pair[0],
+    )
+    ordered = [n for _, n in dated] + [n for n in milestones if _milestone_date(n["name"]) is None]
+    rails = [{"id": n["id"], "name": n["name"]} for n in ordered]
+    if not rails:
+        return []
+    index = {n["id"]: i for i, n in enumerate(ordered)}
+    limits = [d for d, _ in dated]
+    dues = _due_dates(plan) if plan is not None else {}
+    successors: dict[str, list[str]] = {}
+    predecessors: dict[str, list[str]] = {}
+    for a, b in edges:
+        successors.setdefault(a, []).append(b)
+        predecessors.setdefault(b, []).append(a)
+
+    def by_due(due: int) -> int:
+        return next((i for i, d in enumerate(limits) if d >= due), len(rails) - 1)
+    known: dict[str, int | None] = {}
+
+    def rail_of(node_id: str, seen: frozenset[str] = frozenset()) -> int | None:
+        if node_id in known:
+            return known[node_id]
+        node = nodes.get(node_id)
+        if node is None or node_id in seen:
+            return None
+        found: int | None = None
+        if node_id in index:
+            found = index[node_id]
+        elif node["kind"] == "task" and node_id in dues:
+            found = by_due(dues[node_id])
+        else:
+            below = [r for s in successors.get(node_id, [])
+                     if (r := rail_of(s, seen | {node_id})) is not None]
+            named = [dues[t] for t in _TASK_ID.findall(node["name"]) if t in dues]
+            above = [r for s in predecessors.get(node_id, [])
+                     if nodes.get(s, {}).get("lane") == "active"
+                     and (r := rail_of(s, seen | {node_id})) is not None]
+            if below:
+                found = min(below)
+            elif named:
+                found = by_due(max(named))
+            elif above:
+                found = max(above)
+        known[node_id] = found
+        return found
+
+    unscheduled = False
     for node_id, node in nodes.items():
-        node["column"], node["row"] = column[node_id], int(rows[node_id])
+        if node["lane"] != "active":
+            continue
+        rail = rail_of(node_id)
+        if rail is None:
+            rail, unscheduled = len(rails), True
+        node["rail"] = rail
+    if unscheduled:
+        rails.append({"id": "unscheduled", "name": "Unscheduled"})
+    return rails
+
+
+def _id_order(task_id: str) -> tuple[str, int, int, str]:
+    match = re.fullmatch(r"([A-Za-z]+)(\d+)(?:\.(\d+))?", task_id)
+    if match is None:
+        return ("~", 0, 0, task_id)
+    return (match.group(1), int(match.group(2)), int(match.group(3) or 0), task_id)
 
 
 def _load_tasks(scratch: Path, tracker: Path) -> tuple[dict[str, Task], set[str]]:
@@ -201,15 +387,25 @@ def _load_tasks(scratch: Path, tracker: Path) -> tuple[dict[str, Task], set[str]
 def build_tree(scratch: Path, tracker: Path, plan: Path | None = None) -> dict[str, Any]:
     tasks, guessed = _load_tasks(scratch, tracker)
     done = {t.id for t in tasks.values() if t.stage in FINISHED}
+    points = _plan_points(plan) if plan is not None else {}
+    marks = _tracker_marks(tracker)
     nodes: dict[str, dict[str, Any]] = {}
     for task in tasks.values():
+        blocked = any(d in tasks and d not in done for d in task.blocked_by)
         nodes[task.id] = {
             "id": task.id,
             "kind": "task",
             "name": task.name,
+            "points": points.get(task.id),
             "stage": task.stage,
             "blocked_by": [d for d in task.blocked_by if d in tasks],
-            "blocked": any(d in tasks and d not in done for d in task.blocked_by),
+            "blocked": blocked,
+            # Startable now: no open blocker, and the tracker has no ⏳ or 🚧 on it.
+            "frontier": not blocked
+            and task.stage not in (*FINISHED, "needs-info")
+            and task.id not in marks,
+            "urgent": task.urgent,
+            "tracker_mark": marks.get(task.id),
             "tickets": task.tickets,
             "warnings": task.warnings,
         }
@@ -224,9 +420,13 @@ def build_tree(scratch: Path, tracker: Path, plan: Path | None = None) -> dict[s
                 "id": dag_id,
                 "kind": kind,
                 "name": label,
+                "points": None,
                 "stage": kind,
                 "blocked_by": [],
                 "blocked": False,
+                "frontier": False,
+                "urgent": False,
+                "tracker_mark": None,
                 "tickets": [],
                 "warnings": [],
             }
@@ -234,6 +434,8 @@ def build_tree(scratch: Path, tracker: Path, plan: Path | None = None) -> dict[s
     for a, b in dag_edges:
         extra_deps.setdefault(b, []).append(a)
     _layout(nodes, extra_deps)
+    rails = _assign_rails(nodes, dag_edges + [(d, n["id"]) for n in nodes.values()
+                                               for d in n["blocked_by"]], plan)
     edges = [
         {
             "from": dep,
@@ -249,6 +451,7 @@ def build_tree(scratch: Path, tracker: Path, plan: Path | None = None) -> dict[s
         "nodes": list(nodes.values()),
         "edges": edges,
         "stages": list(STAGES),
+        "rails": rails,
         "warnings": tree_warnings,
     }
 

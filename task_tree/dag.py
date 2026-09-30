@@ -51,7 +51,7 @@ def parse_dag(plan: Path) -> Dag:
             continue
         for match in _NODE.finditer(line):
             node_id, label, style = match.groups()
-            dag.nodes[node_id] = (_KINDS.get(style or "", "result"), _label(label))
+            dag.nodes[node_id] = (_KINDS.get(style or "", "validates"), _label(label))
         line = _NODE.sub(lambda m: m.group(1), line)
         segments = [[i.strip() for i in seg.split("&")] for seg in _ARROW.split(line)]
         if not all(re.fullmatch(r"\w+", i) for seg in segments for i in seg):
@@ -62,7 +62,7 @@ def parse_dag(plan: Path) -> Dag:
     for a, b in dag.edges:
         for node_id in (a, b):
             if node_id not in dag.nodes:
-                dag.nodes[node_id] = ("result", node_id)
+                dag.nodes[node_id] = ("validates", node_id)
                 dag.warnings.append(f"mermaid node {node_id} is used but never defined")
     if not dag.nodes:
         dag.warnings.append("the mermaid block of section 4.2 has no nodes")
