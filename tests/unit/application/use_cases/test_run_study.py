@@ -645,6 +645,69 @@ def test_notes_are_written_after_the_final_round_with_its_ledger(tmp_path: Path)
     assert hit.study_id == study.study_id
 
 
+def _note(scenario_ref: str | None, basis: Basis = Basis.INFERRED) -> ExpertNoteDraft:
+    return ExpertNoteDraft(text="a note", basis=basis, scenario_ref=scenario_ref)
+
+
+def test_a_note_about_a_derived_scenario_is_stored_where_its_verification_looks(
+    tmp_path: Path,
+) -> None:
+    derived_sid = ""
+
+    def write(task: Any) -> Any:
+        nonlocal derived_sid
+        derived_sid = next(s.scenario_id for s in task.scenarios if s.arm == "edge")
+        return run_of(ExpertNoteDrafts(notes=(_note(derived_sid),)))
+
+    world = World(
+        tmp_path,
+        question=_edge_question(),
+        plans=(_derive_plan(),),
+        expert=(answers(),),
+        note_writer=(write,),
+    )
+    study = world.run()
+
+    (note_id,) = study.note_ids
+    lookup = {"scenario_id": derived_sid, "status": [NoteStatus.UNVERIFIED.value]}
+    ((hit, _),) = world.notes.search("", "derived-1", lookup)
+    assert hit.note_id == note_id and hit.network_id == "derived-1"
+
+
+def test_a_note_without_a_scenario_goes_under_the_base_network_when_a_derived_one_exists(
+    tmp_path: Path,
+) -> None:
+    world = World(
+        tmp_path,
+        question=_edge_question(),
+        plans=(_derive_plan(),),
+        expert=(answers(),),
+        note_writer=(run_of(ExpertNoteDrafts(notes=(_note(None),))),),
+    )
+
+    world.run()
+
+    assert [n.network_id for n, _ in world.notes.search("a note", NET, {})] == [NET]
+    assert world.notes.search("a note", "derived-1", {}) == []
+
+
+def test_a_note_about_a_predicted_scenario_goes_under_the_base_scenarios_network(
+    tmp_path: Path,
+) -> None:
+    world = World(
+        tmp_path,
+        question=replace(WHAT_IF, mode=Mode.FORCED),
+        plans=(BASELINE_PLAN,),
+        expert=(answers(),),
+        note_writer=(run_of(ExpertNoteDrafts(notes=(_note(CLOSURE_SID, Basis.EXTRAPOLATED),))),),
+    )
+
+    world.run()
+
+    ((hit, _),) = world.notes.search("a note", NET, {"scenario_id": CLOSURE_SID})
+    assert hit.network_id == NET
+
+
 def test_a_failing_note_writer_is_traced_and_the_study_completes(tmp_path: Path) -> None:
     world = World(
         tmp_path,

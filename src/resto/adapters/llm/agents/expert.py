@@ -174,7 +174,9 @@ For each note:
 `text`: a short, self-contained summary in prose — a future reader will not see the original
 question, so restate what it was about.
 `scenario_ref`: the `scenario_id` of the one scenario the note is about, copied from `scenarios`, or
-null when it is about the network in general. Never invent an id.
+null when it is about the network in general. Never invent an id. A note belongs to the network of
+its scenario, which code sets. A note that contrasts two networks is written as two notes, one per
+scenario.
 `basis`: same meaning as when you answered (observed / inferred / extrapolated). A note about a
 scenario that was not simulated cannot be observed. An observed note must carry `evidence` pointing
 at what was observed, using only refs you were actually given below — you have no tools here, so

@@ -22,7 +22,6 @@ from resto.domain.value_objects.tasks import NoteScenario, NoteTask
 def write_notes(
     final: ExpertRound,
     ledger: EvidenceLedger,
-    network_id: str,
     recorder: StudyRecorder,
     spend: StudySpend,
     deps: StudyDeps,
@@ -30,13 +29,17 @@ def write_notes(
     """Asks the note writer about the final round and stores the notes' ids on the study; a
     failure is traced and leaves the study as it was."""
     try:
-        task = NoteTask(round=final, scenarios=allow_list(recorder.study, deps.scenarios))
+        study = recorder.study
+        task = NoteTask(
+            round=final,
+            base_network_id=base_network_id(study, deps.scenarios),
+            scenarios=allow_list(study, deps.scenarios),
+        )
         run = spend.agent_call(lambda: deps.agents.note_writer.write(task))
         written = write_note(
             run,
             ledger,
             task,
-            network_id=network_id,
             study_id=recorder.study.study_id,
             notes=deps.notes,
         )
@@ -46,15 +49,29 @@ def write_notes(
     recorder.set_note_ids(tuple(n.note_id for n in written))
 
 
+def base_network_id(study: Study, scenarios: ScenarioRepository) -> str:
+    """The network of the study's base scenario. `Study.network_ids` is in the order the study met
+    its networks, so a derived network can come first: it cannot say which one is the base."""
+    experiments = [e for p in study.phases for e in p.experiments]
+    base = next((e for e in experiments if e.arm == BASE_ARM), None)
+    scenario = scenarios.get(base.scenario_id) if base is not None else None
+    return scenario.network_id if scenario is not None else study.network_ids[0]
+
+
 def allow_list(study: Study, scenarios: ScenarioRepository) -> tuple[NoteScenario, ...]:
     """Every scenario of the study, plus the predicted id of each arm of the original question
     that was not realised and keeps the topology (ADR-0026)."""
     entries: dict[str, NoteScenario] = {}
     experiments = [e for p in study.phases for e in p.experiments]
     for e in experiments:
+        scenario = scenarios.get(e.scenario_id)
+        if scenario is None:
+            continue
         entries.setdefault(
             e.scenario_id,
-            NoteScenario(e.scenario_id, e.arm, e.role, e.purpose, bool(e.result_ids)),
+            NoteScenario(
+                e.scenario_id, e.arm, e.role, e.purpose, bool(e.result_ids), scenario.network_id
+            ),
         )
     base = next((e for e in experiments if e.arm == BASE_ARM), None)
     base_scenario = scenarios.get(base.scenario_id) if base is not None else None
@@ -79,6 +96,7 @@ def allow_list(study: Study, scenarios: ScenarioRepository) -> tuple[NoteScenari
                 ExperimentRole.TREATMENT,
                 f"arm {arm.label!r} as asked, not simulated in this study",
                 simulated=False,
+                network_id=base_scenario.network_id,
             ),
         )
     return tuple(entries.values())

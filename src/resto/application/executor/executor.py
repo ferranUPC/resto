@@ -48,6 +48,6 @@ def execute_study(
         if final.answer.needs_simulation and proposed is not None:
             recorder.open_phase(proposed)
             continue
-        write_notes(final, ledger, network_id, recorder, spend, deps)
+        write_notes(final, ledger, recorder, spend, deps)
         compose(recorder, spend, deps)
         return recorder.study

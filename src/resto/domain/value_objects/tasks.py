@@ -84,29 +84,37 @@ class ExpertTask:
 class NoteScenario:
     """One entry of the note writer's allow-list. `simulated` is true when the scenario has ok
     results in the study; false for the predicted id of an intervention that was not simulated
-    (ADR-0026)."""
+    (ADR-0026). `network_id` is the network of the scenario, which a note about it is stored under
+    (ADR-0032); the note writer never sees it or chooses it."""
 
     scenario_id: str
     arm: str
     role: ExperimentRole
     purpose: str
     simulated: bool
+    network_id: str
 
     def __post_init__(self) -> None:
         if not self.scenario_id:
             raise ValueError("a NoteScenario requires a scenario_id")
+        if not self.network_id:
+            raise ValueError("a NoteScenario requires a network_id")
 
 
 @dataclass(frozen=True, slots=True)
 class NoteTask:
-    """The note writer's input: the study's final round and the scenarios a note may be about."""
+    """The note writer's input: the study's final round and the scenarios a note may be about.
+    `base_network_id` is where a note with no scenario is stored (ADR-0032)."""
 
     round: ExpertRound
+    base_network_id: str
     scenarios: tuple[NoteScenario, ...] = ()
 
     def __post_init__(self) -> None:
         if self.round.answer.needs_simulation:
             raise ValueError("notes are written after the final round, which answers")
+        if not self.base_network_id:
+            raise ValueError("a NoteTask requires a base_network_id")
         ids = [s.scenario_id for s in self.scenarios]
         if len(set(ids)) != len(ids):
             raise ValueError("a scenario appears twice in the allow-list")

@@ -237,10 +237,16 @@ def test_a_note_task_follows_the_final_answer() -> None:
         proposed_experiment=Question(text="close E12", intent=Intent.RUN),
     )
     with pytest.raises(ValueError, match="final round"):
-        NoteTask(round=ExpertRound(question="q", answer=abstain))
+        NoteTask(round=ExpertRound(question="q", answer=abstain), base_network_id="n")
 
 
 def test_a_scenario_appears_once_in_the_allow_list() -> None:
-    entry = NoteScenario("s1", "base", ExperimentRole.BASELINE, "as it is", simulated=True)
+    entry = NoteScenario(
+        "s1", "base", ExperimentRole.BASELINE, "as it is", simulated=True, network_id="abc123"
+    )
     with pytest.raises(ValueError, match="twice"):
-        NoteTask(round=ExpertRound(question="q", answer=expert_answer()), scenarios=(entry, entry))
+        NoteTask(
+            round=ExpertRound(question="q", answer=expert_answer()),
+            base_network_id="n",
+            scenarios=(entry, entry),
+        )

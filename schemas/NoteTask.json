@@ -664,10 +664,14 @@
       "type": "string"
     },
     "NoteScenario": {
-      "description": "One entry of the note writer's allow-list. `simulated` is true when the scenario has ok\nresults in the study; false for the predicted id of an intervention that was not simulated\n(ADR-0026).",
+      "description": "One entry of the note writer's allow-list. `simulated` is true when the scenario has ok\nresults in the study; false for the predicted id of an intervention that was not simulated\n(ADR-0026). `network_id` is the network of the scenario, which a note about it is stored under\n(ADR-0032); the note writer never sees it or chooses it.",
       "properties": {
         "arm": {
           "title": "Arm",
+          "type": "string"
+        },
+        "network_id": {
+          "title": "Network Id",
           "type": "string"
         },
         "purpose": {
@@ -691,7 +695,8 @@
         "arm",
         "role",
         "purpose",
-        "simulated"
+        "simulated",
+        "network_id"
       ],
       "title": "NoteScenario",
       "type": "object"
@@ -1006,8 +1011,12 @@
       "type": "object"
     }
   },
-  "description": "The note writer's input: the study's final round and the scenarios a note may be about.",
+  "description": "The note writer's input: the study's final round and the scenarios a note may be about.\n`base_network_id` is where a note with no scenario is stored (ADR-0032).",
   "properties": {
+    "base_network_id": {
+      "title": "Base Network Id",
+      "type": "string"
+    },
     "round": {
       "$ref": "#/$defs/ExpertRound"
     },
@@ -1021,7 +1030,8 @@
     }
   },
   "required": [
-    "round"
+    "round",
+    "base_network_id"
   ],
   "title": "NoteTask",
   "type": "object"

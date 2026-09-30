@@ -28,9 +28,32 @@ NETWORK = "abc123"
 STUDY = "st-1"
 TASK = NoteTask(
     round=ExpertRound(question="what if lane 0 of E12 closes?", answer=expert_answer()),
+    base_network_id=NETWORK,
     scenarios=(
-        NoteScenario("s-base", "base", ExperimentRole.BASELINE, "as it is", simulated=True),
-        NoteScenario("s-pred", "treatment", ExperimentRole.TREATMENT, "closure", simulated=False),
+        NoteScenario(
+            "s-base",
+            "base",
+            ExperimentRole.BASELINE,
+            "as it is",
+            simulated=True,
+            network_id="abc123",
+        ),
+        NoteScenario(
+            "s-pred",
+            "treatment",
+            ExperimentRole.TREATMENT,
+            "closure",
+            simulated=False,
+            network_id="abc123",
+        ),
+        NoteScenario(
+            "s-derived",
+            "edge",
+            ExperimentRole.TREATMENT,
+            "new edge",
+            simulated=True,
+            network_id="derived-1",
+        ),
     ),
 )
 
@@ -68,7 +91,6 @@ def _write(run: AgentRun, notes: InMemoryNoteRepository | None = None):  # noqa:
         run,
         _ledger(),
         TASK,
-        network_id=NETWORK,
         study_id=STUDY,
         notes=notes if notes is not None else InMemoryNoteRepository(),
     )
@@ -85,9 +107,7 @@ def test_a_note_about_a_simulated_scenario_is_simulation_provenance() -> None:
 
 def test_a_prediction_is_opinion_and_keeps_its_predicted_scenario() -> None:
     claim = Quantity(measure=Measure.MEAN_DELAY, value=95.0)
-    (note,) = _write(
-        _run(_draft(basis=Basis.EXTRAPOLATED, scenario_ref="s-pred", values=(claim,)))
-    )
+    (note,) = _write(_run(_draft(basis=Basis.EXTRAPOLATED, scenario_ref="s-pred", values=(claim,))))
     assert note.provenance is Provenance.OPINION
     assert note.scenario_id == "s-pred"
     assert note.values == (claim,)
@@ -101,9 +121,7 @@ def test_a_note_about_the_network_in_general_is_opinion_without_a_scenario() -> 
 
 def test_several_notes_are_stored_each_with_a_fresh_id() -> None:
     notes = InMemoryNoteRepository()
-    written = _write(
-        _run(_draft(), _draft(basis=Basis.EXTRAPOLATED, scenario_ref="s-pred")), notes
-    )
+    written = _write(_run(_draft(), _draft(basis=Basis.EXTRAPOLATED, scenario_ref="s-pred")), notes)
     assert len({n.note_id for n in written}) == 2
     assert {n.note_id for n, _ in notes.search("saturates", NETWORK, {})} == {
         n.note_id for n in written
@@ -155,3 +173,24 @@ def test_an_artifact_ref_not_returned_by_a_result_call_is_rejected() -> None:
     )
     with pytest.raises(ExpertNoteRejected, match="missing.xml"):
         _write(_run(draft))
+
+
+def test_a_note_takes_the_network_of_its_scenario() -> None:
+    notes = InMemoryNoteRepository()
+    (note,) = _write(_run(_draft(scenario_ref="s-derived")), notes)
+    assert note.network_id == "derived-1"
+    assert notes.search("saturates", "derived-1", {})[0][0].note_id == note.note_id
+
+
+def test_a_note_without_a_scenario_takes_the_base_network() -> None:
+    (note,) = _write(_run(_draft(basis=Basis.INFERRED, scenario_ref=None)))
+    assert note.network_id == NETWORK
+
+
+def test_a_prediction_takes_the_network_its_allow_list_entry_names() -> None:
+    (note,) = _write(_run(_draft(basis=Basis.EXTRAPOLATED, scenario_ref="s-pred")))
+    assert note.network_id == NETWORK
+
+
+def test_the_note_draft_has_no_network_field() -> None:
+    assert not any("network" in f for f in ExpertNoteDraft.__dataclass_fields__)

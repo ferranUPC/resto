@@ -118,9 +118,19 @@ def test_run_expert_offers_the_expert_tools_and_returns_the_agent_run() -> None:
 
 NOTE_TASK = NoteTask(
     round=ExpertRound(question=TASK.question, answer=expert_answer()),
+    base_network_id="abc123",
     scenarios=(
-        NoteScenario("s1", "base", ExperimentRole.BASELINE, "as it is", simulated=True),
-        NoteScenario("s2", "treatment", ExperimentRole.TREATMENT, "closure", simulated=False),
+        NoteScenario(
+            "s1", "base", ExperimentRole.BASELINE, "as it is", simulated=True, network_id="abc123"
+        ),
+        NoteScenario(
+            "s2",
+            "treatment",
+            ExperimentRole.TREATMENT,
+            "closure",
+            simulated=False,
+            network_id="abc123",
+        ),
     ),
 )
 

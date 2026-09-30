@@ -456,13 +456,33 @@ SAMPLES: dict[type, Callable[[], object]] = {
         context_tags=frozenset({"peak"}),
     ),
     NoteScenario: lambda: NoteScenario(
-        "s1", "treatment", ExperimentRole.TREATMENT, "measure the closure", simulated=True
+        "s1",
+        "treatment",
+        ExperimentRole.TREATMENT,
+        "measure the closure",
+        simulated=True,
+        network_id="abc123",
     ),
     NoteTask: lambda: NoteTask(
         round=ExpertRound(question="how bad is it?", answer=expert_answer()),
+        base_network_id="abc123",
         scenarios=(
-            NoteScenario("s1", "treatment", ExperimentRole.TREATMENT, "closure", simulated=True),
-            NoteScenario("s9", "retime", ExperimentRole.TREATMENT, "predicted", simulated=False),
+            NoteScenario(
+                "s1",
+                "treatment",
+                ExperimentRole.TREATMENT,
+                "closure",
+                simulated=True,
+                network_id="abc123",
+            ),
+            NoteScenario(
+                "s9",
+                "retime",
+                ExperimentRole.TREATMENT,
+                "predicted",
+                simulated=False,
+                network_id="abc123",
+            ),
         ),
     ),
     ExpertTask: lambda: ExpertTask(

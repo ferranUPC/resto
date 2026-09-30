@@ -12,7 +12,9 @@ Promotion order (ADR-0001), all drafts checked before any is stored:
   2. semantic  - every evidence ref resolves to a tool call in the ledger (query) or to an artifact
                  a result tool call returned (artifact); every `scenario_ref` is in the task's
                  allow-list; a note about a scenario that was not simulated is not `observed`.
-  3. construct - `note_id` (UUID, ADR-0002), `scenario_id = scenario_ref`, `provenance`
+  3. construct - `note_id` (UUID, ADR-0002), `scenario_id = scenario_ref`, `network_id` = the
+                 scenario's network (the base scenario's for a prediction) or, with no scenario,
+                 the study's base network (ADR-0032), `provenance`
                  (`SIMULATION` only when that scenario has ok results in the study, `OPINION`
                  otherwise — a prediction keeps its predicted `scenario_id`), `status = UNVERIFIED`.
   4. persist   - `notes.store(note)` for each.
@@ -45,7 +47,6 @@ def write_note(
     ledger: EvidenceLedger,
     task: NoteTask,
     *,
-    network_id: str,
     study_id: str,
     notes: NoteRepository,
 ) -> tuple[ExpertNote, ...]:
@@ -55,20 +56,18 @@ def write_note(
     for draft in drafts:
         _check_evidence(draft, ledger)
         _check_scenario(draft, task)
-    written = tuple(_construct(d, task, network_id=network_id, study_id=study_id) for d in drafts)
+    written = tuple(_construct(d, task, study_id=study_id) for d in drafts)
     for note in written:
         notes.store(note)
     return written
 
 
-def _construct(
-    draft: ExpertNoteDraft, task: NoteTask, *, network_id: str, study_id: str
-) -> ExpertNote:
+def _construct(draft: ExpertNoteDraft, task: NoteTask, *, study_id: str) -> ExpertNote:
     scenario = task.scenario(draft.scenario_ref) if draft.scenario_ref is not None else None
     simulated = scenario is not None and scenario.simulated
     return ExpertNote(
         note_id=new_id(),
-        network_id=network_id,
+        network_id=scenario.network_id if scenario is not None else task.base_network_id,
         study_id=study_id,
         text=draft.text,
         provenance=Provenance.SIMULATION if simulated else Provenance.OPINION,
