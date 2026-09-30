@@ -107,6 +107,11 @@ def _peak_demand(network_id: str) -> Demand:
         ),
         trips=trips_ref,
         routes=routes_ref,
+        description=(
+            "Random trips spread over the whole network, peak intensity (1200 veh/h), "
+            "08:00–09:00."
+        ),
+        labels=frozenset({"peak"}),
     )
 
 

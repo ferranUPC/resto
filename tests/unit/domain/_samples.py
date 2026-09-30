@@ -211,6 +211,8 @@ def demand() -> Demand:
         spec=demand_spec(),
         trips=artifact("trips.xml", "t1", "trips"),
         routes=artifact("routes.xml", "r1", "routes"),
+        description="Random trips spread over the whole network, peak intensity, 08:00–09:00.",
+        labels=frozenset({"peak", "weekday"}),
         sources=(ParametersSource(),),
         fidelity=fidelity(),
         calibration_rounds=(CalibrationRound(round=1, max_relative_error=0.05),),

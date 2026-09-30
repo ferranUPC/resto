@@ -231,7 +231,7 @@
       "type": "object"
     }
   },
-  "description": "Trips (the demand itself) plus routes computed for one network.\n`demand_id` is the content hash of the trips artifact.",
+  "description": "Trips (the demand itself) plus routes computed for one network.\n`demand_id` is the content hash of the trips artifact.\n\n`description` says what traffic the demand stands for and `labels` are free short tags\n(ADR-0035). Both are content, not identity: they stay out of `demand_id`, so the same trips\nstored with another description are a conflict.",
   "properties": {
     "calibration_rounds": {
       "default": [],
@@ -257,6 +257,10 @@
       "default": null,
       "title": "Derived From"
     },
+    "description": {
+      "title": "Description",
+      "type": "string"
+    },
     "fidelity": {
       "anyOf": [
         {
@@ -267,6 +271,15 @@
         }
       ],
       "default": null
+    },
+    "labels": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Labels",
+      "type": "array",
+      "uniqueItems": true
     },
     "network_id": {
       "title": "Network Id",
@@ -305,7 +318,8 @@
     "network_id",
     "spec",
     "trips",
-    "routes"
+    "routes",
+    "description"
   ],
   "title": "Demand",
   "type": "object"

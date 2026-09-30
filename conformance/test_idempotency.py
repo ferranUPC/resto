@@ -65,6 +65,17 @@ def test_storing_a_demand_with_changed_content_under_the_same_id_conflicts(
         db.demands.store(dataclasses.replace(d, fidelity=None))
 
 
+def test_storing_the_same_trips_with_another_description_conflicts(db: McpClientDatabase) -> None:
+    # Unlike a network's `label`, a demand's description is content (ADR-0035).
+    net = network()
+    db.networks.store(net)
+    d = dataclasses.replace(demand(), network_id=net.network_id)
+    db.demands.store(d)
+
+    with pytest.raises(ConflictError):
+        db.demands.store(dataclasses.replace(d, description="Low traffic on a Saturday."))
+
+
 def test_storing_the_same_scenario_twice_is_a_no_op(db: McpClientDatabase) -> None:
     s = scenario()
 

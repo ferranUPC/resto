@@ -231,7 +231,7 @@
       "type": "object"
     }
   },
-  "description": "Demand Generator output: trips plus routes computed for one network.",
+  "description": "Demand Generator output: trips plus routes computed for one network, with the\n`description` and `labels` the promoted `Demand` carries.",
   "properties": {
     "calibration_rounds": {
       "default": [],
@@ -240,6 +240,10 @@
       },
       "title": "Calibration Rounds",
       "type": "array"
+    },
+    "description": {
+      "title": "Description",
+      "type": "string"
     },
     "fidelity": {
       "anyOf": [
@@ -251,6 +255,15 @@
         }
       ],
       "default": null
+    },
+    "labels": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Labels",
+      "type": "array",
+      "uniqueItems": true
     },
     "rationale": {
       "title": "Rationale",
@@ -288,6 +301,7 @@
     "spec",
     "trips_artifact",
     "routes_artifact",
+    "description",
     "rationale"
   ],
   "title": "DemandDraft",

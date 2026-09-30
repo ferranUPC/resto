@@ -33,7 +33,7 @@ present** in `tools/list`. A partially implemented group is not a capability: a 
 | Situation | Behaviour |
 |---|---|
 | A required capability is missing | Hard failure at start-up, naming the capability and the missing tools. The framework does not start in a degraded mode for required capabilities. |
-| `historical_demand` is missing | The Demand Generator falls back to parameter-driven generation, and the `StudyPlan` records the fallback in `reuse_decisions`. Golden path GP-10 exercises exactly this. |
+| `historical_demand` is missing | When a request needs a demand that only historical data could give, the Coordinator asks with a `ClarificationRequest` that says what cannot be obtained and offers random trips instead. There is no silent fallback to random demand. Golden path GP-10 checks that the Coordinator asks. *(Amended by ADR-0035: v1.0 had the Demand Generator fall back to parameter-driven generation and record the fallback in `reuse_decisions`.)* |
 | An unknown extra tool is present | Ignored. Servers may expose more than the contract. |
 
 Discovery is about *capabilities*, never about data formats: the formats are fixed here and are
@@ -103,7 +103,8 @@ notes are amended through `update_note_status`, not by rewriting. `Network.label
 field-level exception (§5.1, resolving open point 1): it plays no part in `network_id` and carries
 no content claim either, so a repeated `store_network` for an existing id with the same `net_xml`
 content hash but a different `label` is **not** `CONFLICT` — the server updates the stored `label`
-in place. Every other field of `Network` keeps the general rule.
+in place. Every other field of `Network` keeps the general rule. `Demand.description` and
+`Demand.labels` get no such exception (§5.2, ADR-0035).
 
 ---
 
@@ -172,6 +173,15 @@ A `Demand` is trips plus routes computed for **one** network, so `list_demands` 
 `network_id` — there is no global demand list. A demand derived by `reroute_demand` for a
 different network is a separate `Demand` with `derived_from` set, and is listed under its own
 `network_id`, not the original one.
+
+**`description` and `labels`** (ADR-0035). Every `Demand` says what traffic it stands for.
+`description` is a required string that must not be blank, e.g. `"Random trips spread over the
+whole network, peak intensity (1200 veh/h), 08:00–09:00."`. `labels` is a set of free short tags,
+e.g. `["peak"]`: empty by default, no blank entry, no closed vocabulary. The store keeps both as
+written, with no case folding and no trimming, and returns `labels` as a set (order carries no
+meaning). Both are content, not identity: neither enters `demand_id`, so storing the same trips
+with another description or other labels is `CONFLICT` (§3). There is no in-place update like
+`Network.label`'s.
 
 ### 5.3 `scenarios` (required)
 

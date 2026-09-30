@@ -33,7 +33,8 @@ def scale_demand(
     demands: DemandRepository,
     out_dir: Path,
 ) -> Demand:
-    """Resamples `demand`'s trips by `factor` and re-routes them over `network`.
+    """Resamples `demand`'s trips by `factor` and re-routes them over `network`. The derived
+    demand keeps the parent's labels and its description with the factor appended (ADR-0035).
 
     Raises:
         ValueError: `factor` is not positive, or `demand.network_id != network.network_id`.
@@ -53,6 +54,8 @@ def scale_demand(
         spec=replace(demand.spec, scale=demand.spec.scale * factor),
         trips=new_trips,
         routes=new_routes,
+        description=f"{demand.description} Scaled by ×{factor}.",
+        labels=demand.labels,
         derived_from=demand.demand_id,
     )
     demands.store(derived)

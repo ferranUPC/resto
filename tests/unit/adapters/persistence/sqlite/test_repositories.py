@@ -7,7 +7,10 @@ stored entity is a real, invariant-valid instance rather than a hand-rolled shor
 from __future__ import annotations
 
 import dataclasses
+import os
 import sqlite3
+import subprocess
+import sys
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -33,6 +36,8 @@ from resto.domain.value_objects.mechanism import StaticFileMechanism
 from resto.domain.value_objects.time_window import TimeWindow
 from tests.unit.domain._fixtures import artifact
 from tests.unit.domain._samples import demand, expert_note, network, scenario, simulation_result
+
+_REPO_ROOT = Path(__file__).resolve().parents[5]
 
 _EDGEDATA_FIXTURE = """<?xml version="1.0"?>
 <edgedata>
@@ -406,6 +411,32 @@ def test_demand_list_is_scoped_to_one_network(conn: sqlite3.Connection) -> None:
     repo.store(other_network)
 
     assert [x.demand_id for x in repo.list(d.network_id)] == [d.demand_id]
+
+
+_STORE_DEMAND = """
+import dataclasses, sys
+from resto.adapters.persistence.sqlite.repositories import SqliteDatabase
+from tests.unit.domain._samples import demand
+labels = frozenset({"peak", "weekday", "morning", "random", "dev-net", "commute"})
+SqliteDatabase(sys.argv[1]).demands.store(dataclasses.replace(demand(), labels=labels))
+"""
+
+
+def test_a_demand_stored_again_by_another_process_is_a_no_op(tmp_path: Path) -> None:
+    # A frozenset dumps in hash order, which changes with PYTHONHASHSEED: seeds 1 and 2 write
+    # these labels in different orders, and the second store must still see the same content.
+    db_path = tmp_path / "resto.db"
+    for seed in ("1", "2"):
+        subprocess.run(
+            [sys.executable, "-c", _STORE_DEMAND, str(db_path)],
+            env={**os.environ, "PYTHONHASHSEED": seed},
+            cwd=_REPO_ROOT,
+            check=True,
+            capture_output=True,
+        )
+
+    stored = SqliteDatabase(db_path).demands.get(demand().demand_id)
+    assert stored is not None and len(stored.labels) == 6
 
 
 # --- SqliteDatabase wiring -----------------------------------------------------------------------

@@ -94,12 +94,15 @@ class NetworkDraft:
 
 @dataclass(frozen=True, slots=True)
 class DemandDraft:
-    """Demand Generator output: trips plus routes computed for one network."""
+    """Demand Generator output: trips plus routes computed for one network, with the
+    `description` and `labels` the promoted `Demand` carries."""
 
     spec: DemandSpec
     trips_artifact: ArtifactRef
     routes_artifact: ArtifactRef
+    description: str
     rationale: str
+    labels: frozenset[str] = frozenset()
     sources: tuple[DemandSource, ...] = ()
     fidelity: Fidelity | None = None
     calibration_rounds: tuple[CalibrationRound, ...] = ()
@@ -107,6 +110,10 @@ class DemandDraft:
     def __post_init__(self) -> None:
         if not self.rationale.strip():
             raise ValueError("a DemandDraft must explain what the agent decided")
+        if not self.description.strip():
+            raise ValueError("a DemandDraft must say what traffic it stands for")
+        if any(not label.strip() for label in self.labels):
+            raise ValueError("labels must not be blank")
         rounds = [r.round for r in self.calibration_rounds]
         if rounds != sorted(set(rounds)):
             raise ValueError("calibration rounds must be strictly increasing")

@@ -49,6 +49,7 @@ def test_demand_round_trips_with_optional_fields_absent(db: McpClientDatabase) -
         fidelity=None,
         calibration_rounds=(),
         derived_from=None,
+        labels=frozenset(),
     )
 
     db.demands.store(d)

@@ -121,6 +121,8 @@ def demand_draft(**overrides: object) -> DemandDraft:
         "spec": demand_spec(),
         "trips_artifact": artifact("trips.xml", "t1", "trips"),
         "routes_artifact": artifact("routes.xml", "r1", "routes"),
+        "description": "Weekday morning commute fitted to the control-edge counts, 08:00–09:00.",
+        "labels": frozenset({"counts", "weekday"}),
         "rationale": "sampled candidate routes against the control-edge counts",
     }
     kwargs.update(overrides)

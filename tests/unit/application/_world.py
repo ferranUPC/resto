@@ -357,6 +357,8 @@ class World:
             spec=demand.spec,
             trips=artifact("trips2.xml", f"{demand.demand_id}-on-{network.network_id}", "trips"),
             routes=artifact("routes2.xml", "r2", "routes"),
+            description=demand.description,
+            labels=demand.labels,
             derived_from=demand.demand_id,
         )
         self.demands.store(rerouted)

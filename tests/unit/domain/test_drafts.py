@@ -25,6 +25,7 @@ from tests.unit.domain._fixtures import (
     artifact,
     bad_sanity,
     demand_draft,
+    demand_spec,
     dynamic_intervention,
     fidelity,
     good_sanity,
@@ -98,6 +99,29 @@ def test_unresolved_issue_must_name_the_element_and_the_defect() -> None:
         UnresolvedIssue(element_kind="edge", element_id="", issue="broken")
     with pytest.raises(ValueError):
         UnresolvedIssue(element_kind="edge", element_id="E1", issue="  ")
+
+
+@pytest.mark.parametrize("blank", ["", "   "])
+def test_demand_draft_rejects_a_blank_description(blank: str) -> None:
+    with pytest.raises(ValueError):
+        demand_draft(description=blank)
+
+
+def test_demand_draft_has_no_labels_unless_given() -> None:
+    draft = DemandDraft(
+        spec=demand_spec(),
+        trips_artifact=artifact("trips.xml", "t1", "trips"),
+        routes_artifact=artifact("routes.xml", "r1", "routes"),
+        description="Random trips over the whole network.",
+        rationale="random trips at the requested intensity",
+    )
+
+    assert draft.labels == frozenset()
+
+
+def test_demand_draft_rejects_a_blank_label() -> None:
+    with pytest.raises(ValueError):
+        demand_draft(labels=frozenset({"peak", " "}))
 
 
 def test_demand_draft_rejects_out_of_order_calibration_rounds() -> None:

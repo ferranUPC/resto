@@ -27,6 +27,8 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
+from pydantic import TypeAdapter
+
 from resto.adapters.embedding.hashing import HashingEmbedder
 from resto.adapters.persistence.edgedata import query_edgedata as _aggregate_edgedata
 from resto.application.ports.embedding import Embedder
@@ -96,17 +98,21 @@ def _idempotent_store(
     table: str,
     id_col: str,
     id_value: str,
-    data_json: bytes,
+    adapter: TypeAdapter[Any],
+    entity: Any,
     extra_columns: Mapping[str, Any],
 ) -> bool:
-    """Inserts a new row, or no-ops on a byte-identical repeat. Returns True if inserted.
+    """Inserts a new row, or no-ops on a repeat with equal content. Returns True if inserted.
 
-    Raises ConflictError if `id_value` exists with a different `data` payload (§3).
+    Equal content is compared on the parsed value, not the JSON text: a `frozenset` dumps in hash
+    order, which differs between processes, so the same entity can serialise to other bytes.
+
+    Raises ConflictError if `id_value` exists with different content (§3).
     """
     row = conn.execute(f"SELECT data FROM {table} WHERE {id_col} = ?", (id_value,)).fetchone()  # noqa: S608
-    text = data_json.decode("utf-8")
+    text = adapter.dump_json(entity).decode("utf-8")
     if row is not None:
-        if row[0] == text:
+        if row[0] == text or adapter.validate_json(row[0]) == entity:
             return False
         raise ConflictError(f"{table}: {id_value} already exists with different content")
     columns = [id_col, "data", *extra_columns.keys()]
@@ -198,7 +204,8 @@ class SqliteDemandRepository:
             "demands",
             "demand_id",
             demand.demand_id,
-            self._adapter.dump_json(demand),
+            self._adapter,
+            demand,
             {"network_id": demand.network_id},
         )
 
@@ -226,7 +233,8 @@ class SqliteScenarioRepository:
             "scenarios",
             "scenario_id",
             scenario.scenario_id,
-            self._adapter.dump_json(scenario),
+            self._adapter,
+            scenario,
             {"network_id": scenario.network_id},
         )
 
@@ -272,7 +280,8 @@ class SqliteResultRepository:
             "results",
             "result_id",
             result.result_id,
-            self._adapter.dump_json(result),
+            self._adapter,
+            result,
             {"scenario_id": result.scenario_id},
         )
 
@@ -317,7 +326,8 @@ class SqliteNoteRepository:
             "notes",
             "note_id",
             note.note_id,
-            self._adapter.dump_json(note),
+            self._adapter,
+            note,
             {
                 "network_id": note.network_id,
                 "status": note.status.value,

@@ -69,6 +69,8 @@ def test_scales_and_routes_a_new_demand(tmp_path: Path) -> None:
     assert derived.spec.scale == pytest.approx(demand.spec.scale * 1.2)
     assert derived.trips == scaled_trips()
     assert derived.routes == routed()
+    assert derived.description == demand.description + " Scaled by ×1.2."
+    assert derived.labels == demand.labels
     assert scaler.calls == [(demand.trips, 1.2, tmp_path)]
     assert duarouter.calls == [(network.net_xml, scaled_trips(), demand.spec.seed, tmp_path)]
     assert demands.get("scaled1") == derived
