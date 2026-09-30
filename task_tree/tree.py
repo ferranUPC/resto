@@ -70,6 +70,9 @@ def _tickets(directory: Path, warnings: list[str]) -> list[dict[str, Any]]:
                 "blocked_by": _blocked_by(text, _TICKET_ID),
             }
         )
+    finished = {t["id"] for t in tickets if t["stage"] in ("done", "wontfix")}
+    for ticket in tickets:
+        ticket["blocked"] = any(d not in finished for d in ticket["blocked_by"])
     return tickets
 
 
