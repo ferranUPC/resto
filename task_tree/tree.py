@@ -7,6 +7,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from task_tree.dag import PREFIX, parse_dag
+
 STAGES = ("needs-triage", "ready", "specified", "ticketed", "done", "wontfix", "needs-info")
 FINISHED = ("done", "wontfix")
 _TITLE = re.compile(
@@ -192,13 +194,14 @@ def _load_tasks(scratch: Path, tracker: Path) -> tuple[dict[str, Task], set[str]
     return tasks, guessed
 
 
-def build_tree(scratch: Path, tracker: Path) -> dict[str, Any]:
+def build_tree(scratch: Path, tracker: Path, plan: Path | None = None) -> dict[str, Any]:
     tasks, guessed = _load_tasks(scratch, tracker)
     done = {t.id for t in tasks.values() if t.stage in FINISHED}
     nodes: dict[str, dict[str, Any]] = {}
     for task in tasks.values():
         nodes[task.id] = {
             "id": task.id,
+            "kind": "task",
             "name": task.name,
             "stage": task.stage,
             "blocked_by": [d for d in task.blocked_by if d in tasks],
@@ -206,6 +209,23 @@ def build_tree(scratch: Path, tracker: Path) -> dict[str, Any]:
             "tickets": task.tickets,
             "warnings": task.warnings,
         }
+    tree_warnings: list[str] = []
+    dag_edges: list[tuple[str, str]] = []
+    if plan is not None:
+        dag = parse_dag(plan)
+        tree_warnings = dag.warnings
+        dag_edges = [(PREFIX + a, PREFIX + b) for a, b in dag.edges]
+        for dag_id, (kind, label) in dag.nodes.items():
+            nodes[PREFIX + dag_id] = {
+                "id": PREFIX + dag_id,
+                "kind": kind,
+                "name": label,
+                "stage": kind,
+                "blocked_by": [PREFIX + a for a, b in dag.edges if b == dag_id],
+                "blocked": False,
+                "tickets": [],
+                "warnings": [],
+            }
     _layout(nodes)
     edges = [
         {
@@ -217,7 +237,13 @@ def build_tree(scratch: Path, tracker: Path) -> dict[str, Any]:
         for node in nodes.values()
         for dep in node["blocked_by"]
     ]
-    return {"nodes": list(nodes.values()), "edges": edges, "stages": list(STAGES)}
+    edges += [{"from": a, "to": b, "done": False, "inferred": False} for a, b in dag_edges]
+    return {
+        "nodes": list(nodes.values()),
+        "edges": edges,
+        "stages": list(STAGES),
+        "warnings": tree_warnings,
+    }
 
 
 def _table_row(path: Path, task_id: str) -> list[str] | None:

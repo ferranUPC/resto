@@ -8,6 +8,7 @@
     --bg: #14161a; --fg: #e8e8ea; --edge: #6b7280;
     --needs-triage: #b45309; --ready: #2563eb; --specified: #7c3aed; --ticketed: #0d9488;
     --done: #16a34a; --wontfix: #4b5563; --needs-info: #be185d; --blocked: #52525b;
+    --milestone: #1f3b73; --suite: #3b5b9d; --result: #2f3542;
   }
   body { margin: 0; background: var(--bg); color: var(--fg); font: 13px system-ui, sans-serif; }
   #legend { position: fixed; top: 8px; left: 8px; display: flex; gap: 6px; flex-wrap: wrap; z-index: 1; }
@@ -19,6 +20,9 @@
   .node rect.frame { fill: #1c1f26; }
   .node text { fill: #fff; font-size: 12px; pointer-events: none; }
   .node.done { opacity: .4; }
+  .node.suite rect.head { stroke-dasharray: 4 3; }
+  .node.milestone text { font-weight: 600; }
+  .node.dag { cursor: default; }
   .ticket rect { stroke: rgba(255,255,255,.2); }
   .ticket text { font-size: 11px; }
   .ticket.done { opacity: .5; }
@@ -41,6 +45,7 @@
   #panel ul { margin: 0; padding-left: 18px; }
   #close { position: absolute; top: 10px; right: 12px; background: none; border: 0; color: #9ca3af;
     font-size: 18px; cursor: pointer; }
+  #warning { position: fixed; bottom: 8px; left: 8px; right: 8px; color: #fbbf24; }
   #error { position: fixed; bottom: 8px; left: 8px; color: #f87171; }
 </style>
 </head>
@@ -48,13 +53,15 @@
 <div id="legend"></div>
 <svg id="canvas"><g id="viewport"></g></svg>
 <div id="panel"><button id="close" title="Close">×</button><div id="detail"></div></div>
+<div id="warning"></div>
 <div id="error"></div>
 <script>
 const W = 260, H = 34, GX = 60, GY = 14, NS = "http://www.w3.org/2000/svg";
 const RH = 22, ROW_GAP = 3, ROW_INSET = 10, ROWS_PAD = 6;
 const FINISHED = ["done", "wontfix"];
 const color = s => `var(--${s})`;
-const fill = (item, stages) => item.blocked && item.stage !== "done" ? color("blocked")
+const DAG_KINDS = ["milestone", "suite", "result"];
+const fill = (item, stages) => DAG_KINDS.includes(item.kind) ? color(item.kind) : item.blocked && item.stage !== "done" ? color("blocked")
   : color(stages.includes(item.stage) ? item.stage : "needs-triage");
 
 function el(name, attrs, parent) {
@@ -69,7 +76,7 @@ function truncate(text, max) { return text.length > max ? text.slice(0, max - 1)
 function draw(tree) {
   const legend = document.getElementById("legend");
   legend.innerHTML = "";
-  for (const s of [...tree.stages, "blocked"]) {
+  for (const s of [...tree.stages, "blocked", ...DAG_KINDS]) {
     const chip = document.createElement("span");
     chip.className = "chip"; chip.style.background = color(s); chip.textContent = s;
     legend.appendChild(chip);
@@ -91,15 +98,18 @@ function draw(tree) {
   }
   for (const n of tree.nodes) {
     const p = pos[n.id];
-    const node = el("g", { class: "node" + (n.stage === "done" ? " done" : ""),
+    const node = el("g", { class: "node" + (n.stage === "done" ? " done" : "")
+                             + (DAG_KINDS.includes(n.kind) ? ` dag ${n.kind}` : ""),
                            transform: `translate(${p.x},${p.y})` }, g);
     el("rect", { class: "frame", width: W, height: height[n.id], rx: 6 }, node);
-    el("rect", { width: W, height: H, rx: 6, fill: fill(n, tree.stages) }, node);
+    const dag = DAG_KINDS.includes(n.kind);
+    el("rect", { class: "head", width: W, height: H, rx: n.kind === "milestone" ? H / 2 : 6,
+                 fill: fill(n, tree.stages) }, node);
     const label = el("text", { x: 8, y: H / 2 + 4 }, node);
-    label.textContent = truncate(`${n.id} ${n.name}`, 40);
-    node.addEventListener("click", () => { if (!moved) showTask(n.id); });
+    label.textContent = truncate(dag ? n.name : `${n.id} ${n.name}`, 40);
+    if (!dag) node.addEventListener("click", () => { if (!moved) showTask(n.id); });
     const title = el("title", {}, node);
-    title.textContent = [`${n.id} ${n.name}`, `stage: ${n.stage}`, ...n.warnings.map(w => "warning: " + w)].join("\n");
+    title.textContent = [dag ? n.name : `${n.id} ${n.name}`, dag ? `kind: ${n.kind}` : `stage: ${n.stage}`, ...n.warnings.map(w => "warning: " + w)].join("\n");
     n.tickets.forEach((t, i) => {
       const label = `${t.id} - ${t.name}`;
       const row = el("g", { class: "ticket" + (FINISHED.includes(t.stage) ? " done" : ""),
@@ -190,7 +200,11 @@ async function showTicket(taskId, ticketId) {
 }
 document.getElementById("close").addEventListener("click", () => document.body.classList.remove("open"));
 
-fetch("/api/tree").then(r => r.json()).then(draw)
+fetch("/api/tree").then(r => r.json()).then(tree => {
+    draw(tree);
+    document.getElementById("warning").textContent = tree.warnings.length
+      ? "Measurement DAG: " + tree.warnings.join("; ") : "";
+  })
   .catch(err => { document.getElementById("error").textContent = "Could not load the tree: " + err; });
 </script>
 </body>

@@ -26,7 +26,7 @@ def make_server(
             if path == "/":
                 self._send(200, "text/html; charset=utf-8", PAGE.read_bytes())
             elif path == "/api/tree":
-                body = json.dumps(build_tree(scratch, tracker)).encode("utf-8")
+                body = json.dumps(build_tree(scratch, tracker, plan_path)).encode("utf-8")
                 self._send(200, "application/json", body)
             elif path.startswith("/api/task/"):
                 parts = [unquote(p) for p in path[len("/api/task/") :].split("/")]

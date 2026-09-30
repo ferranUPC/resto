@@ -26,6 +26,37 @@ PLAN = """| ID | Task | Proof | Pts | Wave | Due |
 |---|---|---|---|---|---|
 | E1.1 | Finished task, planned | tests | 3 | 1a | 5 Oct |
 | E2.4 | Ticketed task, planned | tests | 12 | 2 | 11 Dec |
+
+### 4.2 Measurement DAG
+
+```mermaid
+flowchart LR
+  classDef pass fill:#1f3b73,color:#fff
+  classDef suite fill:#e8eefc,color:#000
+  classDef task fill:#fff,color:#000
+
+  V1{{"Validation 1 · 14 Dec"}}:::pass
+  V2{{"Validation 2<br/>each suite once"}}:::pass
+  S1(["EXP-01 forced · $4"]):::suite
+  S2(["N4 Parser held-out"]):::suite
+
+  V1 --> V2
+  V1 -.->|"reduced checkpoints"| S1
+  V2 --> S1 & S2
+  S1 --> T1["✅ E4.2 report"]:::task
+  S1 & S2 ==> T2["✅ E5.1"]:::task --> M7(("M7 · 18 Feb")):::pass
+end
+```
+"""
+
+BROKEN_PLAN = """### 4.2 Measurement DAG
+
+```mermaid
+flowchart LR
+  V1{{"Validation 1"}}:::pass
+  this line is not mermaid at all !!
+  V1 --> V2
+```
 """
 
 
@@ -67,11 +98,16 @@ def scratch(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def base_url(scratch: Path, tmp_path: Path) -> Iterator[str]:
+def plan_text() -> str:
+    return PLAN
+
+
+@pytest.fixture
+def base_url(scratch: Path, tmp_path: Path, plan_text: str) -> Iterator[str]:
     tracker = tmp_path / "progress-tracker.md"
     tracker.write_text(TRACKER, encoding="utf-8")
     plan = tmp_path / "tfm-work-plan.md"
-    plan.write_text(PLAN, encoding="utf-8")
+    plan.write_text(plan_text, encoding="utf-8")
     server = make_server(scratch, tracker, plan=plan)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -216,3 +252,43 @@ def test_a_task_with_a_spec_also_shows_its_plan_row_and_tracker_notes(base_url):
 def test_a_task_without_a_spec_shows_no_guessed_blockers(base_url):
     _, detail = _get(base_url, "/api/task/E1.3")
     assert detail is not None and detail["blocked_by"] == []
+
+
+def test_the_measurement_dag_adds_milestone_suite_and_result_nodes_with_their_labels(base_url):
+    nodes = _tree(base_url)
+    assert nodes["dag:V1"]["kind"] == "milestone"
+    assert nodes["dag:V1"]["name"] == "Validation 1 · 14 Dec"
+    assert nodes["dag:V2"]["name"] == "Validation 2 each suite once"
+    assert nodes["dag:S1"]["kind"] == "suite"
+    assert nodes["dag:T1"]["kind"] == "result"
+    assert nodes["dag:M7"]["kind"] == "milestone"
+    assert nodes["E2.1"]["kind"] == "task"
+    assert len([n for n in nodes if n.startswith("dag:")]) == 7
+
+
+def test_the_measurement_dag_edges_follow_chains_fan_out_and_labelled_arrows(base_url):
+    tree = _full_tree(base_url)
+    pairs = {(e["from"], e["to"]) for e in tree["edges"] if e["from"].startswith("dag:")}
+    assert pairs == {
+        ("dag:V1", "dag:V2"), ("dag:V1", "dag:S1"), ("dag:V2", "dag:S1"), ("dag:V2", "dag:S2"),
+        ("dag:S1", "dag:T1"), ("dag:S1", "dag:T2"), ("dag:S2", "dag:T2"), ("dag:T2", "dag:M7"),
+    }
+    nodes = {n["id"]: n for n in tree["nodes"]}
+    assert nodes["dag:S1"]["column"] > nodes["dag:V2"]["column"]
+    assert tree["warnings"] == []
+
+
+def test_a_change_to_the_mermaid_block_shows_up_on_the_next_request(base_url, tmp_path):
+    (tmp_path / "tfm-work-plan.md").write_text(
+        '### 4.2 DAG\n\n```mermaid\nflowchart LR\n  A(("Only one")):::pass\n```\n', encoding="utf-8"
+    )
+    nodes = _tree(base_url)
+    assert nodes["dag:A"]["name"] == "Only one"
+    assert "dag:V1" not in nodes
+
+
+@pytest.mark.parametrize("plan_text", [BROKEN_PLAN, "no diagram here\n"])
+def test_an_unreadable_measurement_dag_keeps_the_tasks_and_reports_a_warning(base_url):
+    tree = _full_tree(base_url)
+    assert any(n["id"] == "E2.1" and n["kind"] == "task" for n in tree["nodes"])
+    assert tree["warnings"]
