@@ -1,24 +1,23 @@
-"""`NetworkQueries` (ADR-0032, "One loader"): the one place that turns a network id into the
-`NetworkQuery` over its `.net.xml`. No network."""
+"""`StoredNetworkQueryLoader` (ADR-0032, "One loader"). No SUMO process."""
 
 from pathlib import Path
 
 import pytest
 
 from resto.adapters.persistence.memory import InMemoryNetworkRepository
-from resto.application.network_queries import NetworkNotStored, NetworkQueries
-from resto.application.ports.network_query import NetworkQuery
+from resto.adapters.sumo.network_query_loader import StoredNetworkQueryLoader
+from resto.application.ports.network_query import NetworkNotStored, NetworkQuery
 from tests.unit.application._world import QUERY, sample_network
 
 
-def queries_over(
+def loader_over(
     networks: InMemoryNetworkRepository, opened: list[Path]
-) -> NetworkQueries:
+) -> StoredNetworkQueryLoader:
     def factory(path: Path) -> NetworkQuery:
         opened.append(path)
         return QUERY
 
-    return NetworkQueries(networks, factory)
+    return StoredNetworkQueryLoader(networks, factory)
 
 
 def test_a_stored_network_is_queried_through_its_net_xml() -> None:
@@ -27,40 +26,40 @@ def test_a_stored_network_is_queried_through_its_net_xml() -> None:
     networks.store(network)
     opened: list[Path] = []
 
-    query = queries_over(networks, opened).get(network.network_id)
+    query = loader_over(networks, opened).load(network.network_id)
 
     assert query is QUERY
     assert opened == [network.net_xml.path]
 
 
-def test_a_network_id_is_loaded_once_per_resolver() -> None:
+def test_a_network_id_is_loaded_once_per_loader() -> None:
     networks = InMemoryNetworkRepository()
     network = sample_network()
     networks.store(network)
     opened: list[Path] = []
-    resolver = queries_over(networks, opened)
+    loader = loader_over(networks, opened)
 
-    first = resolver.get(network.network_id)
-    second = resolver.get(network.network_id)
+    first = loader.load(network.network_id)
+    second = loader.load(network.network_id)
 
     assert first is second
     assert len(opened) == 1
 
 
 def test_a_network_that_is_not_stored_is_reported_by_its_id() -> None:
-    resolver = queries_over(InMemoryNetworkRepository(), [])
+    loader = loader_over(InMemoryNetworkRepository(), [])
 
     with pytest.raises(NetworkNotStored, match="'missing'"):
-        resolver.get("missing")
+        loader.load("missing")
 
 
 def test_a_network_stored_after_a_miss_is_found() -> None:
     networks = InMemoryNetworkRepository()
     network = sample_network()
-    resolver = queries_over(networks, [])
+    loader = loader_over(networks, [])
     with pytest.raises(NetworkNotStored):
-        resolver.get(network.network_id)
+        loader.load(network.network_id)
 
     networks.store(network)
 
-    assert resolver.get(network.network_id) is QUERY
+    assert loader.load(network.network_id) is QUERY

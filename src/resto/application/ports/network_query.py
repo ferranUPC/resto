@@ -17,3 +17,18 @@ class NetworkQuery(Protocol):
     def edges_in_bbox(self, bbox: tuple[float, float, float, float]) -> Sequence[str]: ...
     def capacity_estimate(self, edge_id: str) -> float: ...
     def get_tls(self, tls_id: str) -> Mapping[str, Any]: ...
+
+
+class NetworkNotStored(LookupError):
+    """The network id names no stored network. The Executor records it as `infrastructure`."""
+
+
+class NetworkQueryLoader(Protocol):
+    """Which `NetworkQuery` belongs to a network id (ADR-0032, "One loader"). Callers ask this
+    port instead of reading the network repository and building the query themselves."""
+
+    def load(self, network_id: str) -> NetworkQuery:
+        """Raises:
+        NetworkNotStored: no network is stored under `network_id`.
+        """
+        ...

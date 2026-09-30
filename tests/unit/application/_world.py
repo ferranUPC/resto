@@ -15,6 +15,7 @@ from resto.adapters.persistence.memory import (
     InMemoryScenarioRepository,
     InMemoryStudyRepository,
 )
+from resto.adapters.sumo.network_query_loader import StoredNetworkQueryLoader
 from resto.adapters.sumo.run_directories import FilesystemRunDirectories
 from resto.application.executor import (
     StudyAgents,
@@ -23,7 +24,6 @@ from resto.application.executor import (
     StudyPromotions,
     StudySettings,
 )
-from resto.application.network_queries import NetworkQueries
 from resto.application.ports.agents.coordinator import PlanningContext
 from resto.application.ports.llm import AgentRun, StopReason
 from resto.application.ports.sumo import RunOutput
@@ -330,8 +330,7 @@ class World:
             studies=self.studies,
             runner=self.runner,
             run_dirs=FilesystemRunDirectories(),
-            network_query_factory=lambda path: QUERY,
-            network_queries=NetworkQueries(self.networks, self._load_query),
+            network_query_loader=StoredNetworkQueryLoader(self.networks, self._load_query),
             tracer=self.tracer,
         )
         self.settings = StudySettings(

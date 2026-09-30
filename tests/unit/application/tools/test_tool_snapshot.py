@@ -32,6 +32,7 @@ from resto.domain.value_objects.question import Mode
 from resto.domain.value_objects.tasks import ExpertTask
 from resto.domain.value_objects.time_window import TimeWindow
 from tests.unit._paths import DEV_NET
+from tests.unit.application._doubles import FixedNetworkQueryLoader
 from tests.unit.application.tools._recorders import (
     RecordingAdditionalFileWriter,
     RecordingDemandRepository,
@@ -82,7 +83,7 @@ def _builder(query: SumolibNetworkQuery) -> tuple[Tool, ...]:
     collaborators = BuilderCollaborators(
         networks=InMemoryNetworkRepository(),
         demands=RecordingDemandRepository(),
-        network_query_factory=SumolibNetworkQuery,
+        network_query_loader=FixedNetworkQueryLoader(query),
         rerouter_writer=RecordingAdditionalFileWriter(),
         vss_writer=RecordingAdditionalFileWriter(),
         tls_program_writer=RecordingAdditionalFileWriter(),

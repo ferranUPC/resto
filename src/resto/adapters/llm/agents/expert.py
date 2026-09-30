@@ -215,7 +215,7 @@ class ExpertPort:
 
     def answer(self, task: ExpertTask, ledger: EvidenceLedger) -> AgentRun[ExpertAnswer]:
         collaborators = self.collaborators
-        query = collaborators.network_queries.get(task.network_id)
+        query = collaborators.network_query_loader.load(task.network_id)
         context = collaborators.context(task, query)
         return run_expert(task, self.agent, self.budget, context, ledger)
 

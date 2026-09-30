@@ -31,9 +31,8 @@ from typing import Annotated, Any
 
 from pydantic import Field
 
-from resto.application.network_queries import NetworkQueries
 from resto.application.ports.llm import Tool
-from resto.application.ports.network_query import NetworkQuery
+from resto.application.ports.network_query import NetworkQuery, NetworkQueryLoader
 from resto.application.ports.repositories import (
     NoteRepository,
     ResultRepository,
@@ -171,10 +170,11 @@ def expert_context(
 
 @dataclass(frozen=True, slots=True)
 class ExpertCollaborators:
-    """Everything the Expert needs that does not depend on the task: the network resolver and the
-    repositories. Built once in the composition root; a new collaborator is one more field."""
+    """Everything the Expert needs that does not depend on the task: the network query
+    loader and the repositories. Built once in the composition root; a new collaborator is one
+    more field."""
 
-    network_queries: NetworkQueries
+    network_query_loader: NetworkQueryLoader
     results: ResultRepository
     scenarios: ScenarioRepository
     notes: NoteRepository | None

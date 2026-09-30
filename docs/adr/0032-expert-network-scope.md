@@ -24,8 +24,11 @@ never verified.
 - **Notes.** A note's network is derived by code: the network of its scenario, or the study's base network
   when it has no scenario. The note writer never chooses it. A note that contrasts two networks is written
   as two notes, one per scenario.
-- **One loader.** A single module answers "which `NetworkQuery` belongs to this network id"; `expert_round`,
-  the tools, `ask_expert` and the notes ask it instead of loading networks.
+- **One loader.** A `NetworkQueryLoader` port (`application/ports/network_query.py`) answers "which
+  `NetworkQuery` belongs to this network id"; `expert_round`, the tools, `ask_expert`, the notes and the
+  Scenario Builder ask it instead of loading networks. Its adapter (`adapters/sumo/network_query_loader.py`)
+  reads the repository, builds the sumolib query and keeps one query per id, so `application/` never holds
+  a query factory.
 
 ## Consequences
 

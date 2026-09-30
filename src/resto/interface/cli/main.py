@@ -24,7 +24,7 @@ from resto.adapters.persistence.memory import InMemoryStudyRepository
 from resto.adapters.persistence.sqlite.repositories import SqliteDatabase
 from resto.adapters.sumo.demand import SumoDemandTools
 from resto.adapters.sumo.demand_scaling import SumoDemandScaler
-from resto.adapters.sumo.netxml import SumolibNetworkQuery
+from resto.adapters.sumo.network_query_loader import StoredNetworkQueryLoader
 from resto.adapters.sumo.run_directories import FilesystemRunDirectories
 from resto.adapters.sumo.runner import SubprocessSumoRunner
 from resto.adapters.sumo.writers.rerouter import RerouterWriter
@@ -33,7 +33,6 @@ from resto.adapters.sumo.writers.tls_program import TlsProgramWriter
 from resto.adapters.sumo.writers.vss import VssWriter
 from resto.adapters.tracing.jsonl import JsonlTracer
 from resto.application.executor import StudyAgents, StudyDeps, StudyPromotions, StudySettings
-from resto.application.network_queries import NetworkQueries
 from resto.application.ports.llm import Budget, ToolAgent
 from resto.application.ports.tracing import Tracer
 from resto.application.tools.expert import ExpertCollaborators
@@ -66,7 +65,7 @@ def build_deps(
     database is the DatabaseMCP reference backend, which does not hold them (ADR-0002).
     `out_dir` here is only the Builder's; the study's own settings are `StudySettings`.
     `has_historical_demand` stays false until capability negotiation is wired (E5.6)."""
-    network_queries = NetworkQueries(db.networks, SumolibNetworkQuery)
+    network_query_loader = StoredNetworkQueryLoader(db.networks)
     return StudyDeps(
         agents=StudyAgents(
             parser=InputParserPort(agent=agent, budget=budget),
@@ -79,7 +78,7 @@ def build_deps(
                 collaborators=BuilderCollaborators(
                     networks=db.networks,
                     demands=db.demands,
-                    network_query_factory=SumolibNetworkQuery,
+                    network_query_loader=network_query_loader,
                     rerouter_writer=RerouterWriter(),
                     vss_writer=VssWriter(),
                     tls_program_writer=TlsProgramWriter(),
@@ -93,7 +92,7 @@ def build_deps(
                 agent=agent,
                 budget=budget,
                 collaborators=ExpertCollaborators(
-                    network_queries=network_queries,
+                    network_query_loader=network_query_loader,
                     results=db.results,
                     scenarios=db.scenarios,
                     notes=db.notes,
@@ -116,8 +115,7 @@ def build_deps(
         studies=InMemoryStudyRepository(),
         runner=SubprocessSumoRunner(),
         run_dirs=FilesystemRunDirectories(),
-        network_query_factory=SumolibNetworkQuery,
-        network_queries=network_queries,
+        network_query_loader=network_query_loader,
         tracer=tracer,
     )
 

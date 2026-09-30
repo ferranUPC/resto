@@ -34,9 +34,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from resto.application.network_queries import NetworkQueryFactory
 from resto.application.ports.llm import AgentRun, StopReason
-from resto.application.ports.network_query import NetworkQuery
+from resto.application.ports.network_query import NetworkQuery, NetworkQueryLoader
 from resto.application.ports.repositories import (
     DemandRepository,
     NetworkRepository,
@@ -74,7 +73,7 @@ def build_scenario(
     networks: NetworkRepository,
     demands: DemandRepository,
     scenarios: ScenarioRepository,
-    network_query_factory: NetworkQueryFactory,
+    network_query_loader: NetworkQueryLoader,
     runner: SumoRunner,
     out_dir: Path,
 ) -> Scenario:
@@ -104,8 +103,7 @@ def build_scenario(
                 f"{derived_demand.network_id!r}, not {task.network_id!r}"
             )
 
-    query = network_query_factory(network.net_xml.path)
-    _check_targets_exist(draft, query)
+    _check_targets_exist(draft, network_query_loader.load(task.network_id))
 
     scenario_id = scenario_id_for(
         task.network_id, task.demand_id, draft.interventions, task.context_tags

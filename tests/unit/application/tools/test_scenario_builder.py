@@ -30,6 +30,7 @@ from resto.domain.value_objects.intervention import Intervention, InterventionTy
 from resto.domain.value_objects.intervention_target import LaneTarget
 from resto.domain.value_objects.time_window import TimeWindow
 from tests.unit._paths import DEV_NET
+from tests.unit.application._doubles import FixedNetworkQueryLoader
 from tests.unit.application.tools._recorders import (
     RecordingAdditionalFileWriter,
     RecordingDemandRepository,
@@ -78,7 +79,7 @@ def _run(  # noqa: ANN202
     collaborators = BuilderCollaborators(
         networks=InMemoryNetworkRepository(),
         demands=demands or RecordingDemandRepository(),
-        network_query_factory=SumolibNetworkQuery,
+        network_query_loader=FixedNetworkQueryLoader(query),
         rerouter_writer=rerouter_writer or RecordingAdditionalFileWriter(),
         vss_writer=vss_writer or RecordingAdditionalFileWriter(),
         tls_program_writer=tls_program_writer or RecordingAdditionalFileWriter(),

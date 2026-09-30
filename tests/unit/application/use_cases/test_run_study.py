@@ -11,6 +11,7 @@ from resto.application.executor import (
     StudyBudget,
 )
 from resto.application.ports.llm import StopReason
+from resto.application.ports.network_query import NetworkNotStored
 from resto.application.ports.tracing import (
     ExpertRoundHeld,
     ModelCall,
@@ -386,11 +387,21 @@ def test_an_online_scenario_is_infrastructure_until_e2_5(tmp_path: Path) -> None
 
 def test_an_expert_round_on_a_network_that_is_not_stored_is_infrastructure(tmp_path: Path) -> None:
     world = World(tmp_path, plans=(BASELINE_PLAN,))
+    loader = world.deps.network_query_loader
+    gone = False
+
+    class VanishingLoader:
+        def load(self, network_id: str) -> Any:
+            if gone:
+                raise NetworkNotStored(f"network {network_id!r} is not stored")
+            return loader.load(network_id)
 
     def answer_after_the_network_vanishes(task: Any, ledger: Any) -> Any:
-        world.networks._networks.clear()
+        nonlocal gone
+        gone = True
         return answers()(task, ledger)
 
+    world.deps = replace(world.deps, network_query_loader=VanishingLoader())
     world.expert.items.append(answer_after_the_network_vanishes)
 
     study = world.run()

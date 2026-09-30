@@ -43,7 +43,7 @@ def ask_expert_round(
     try:
         run = spend.agent_call(lambda: deps.agents.expert.answer(task, ledger))
         draft_of(run, "expert")
-        query = deps.network_queries.get(task.network_id)
+        query = deps.network_query_loader.load(task.network_id)
         round_ = promote(lambda: ask_expert(task, run, ledger, query=query), run.usage)
     except StepFailed as failed:
         recorder.record_failure("ask_expert", data(task), failed)

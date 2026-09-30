@@ -14,7 +14,7 @@ Builder or wrapped by an MCP server (ADR-0009).
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Annotated, Any
@@ -22,7 +22,7 @@ from typing import Annotated, Any
 from pydantic import Field
 
 from resto.application.ports.llm import Tool
-from resto.application.ports.network_query import NetworkQuery
+from resto.application.ports.network_query import NetworkQuery, NetworkQueryLoader
 from resto.application.ports.repositories import DemandRepository, NetworkRepository
 from resto.application.ports.sumo import DemandScaler, DemandTools
 from resto.application.ports.writers import AdditionalFileWriter, SimulationSettings, SumocfgWriter
@@ -38,12 +38,12 @@ from resto.domain.value_objects.tasks import ScenarioTask
 @dataclass(frozen=True, slots=True)
 class BuilderCollaborators:
     """Everything the Builder's tools need that does not depend on the task: repositories, the
-    query factory, the writers, the SUMO tools and the root output directory. Built once in the
-    composition root; a new mechanism's collaborator is one more field here."""
+    network query loader, the writers, the SUMO tools and the root output directory. Built once in
+    the composition root; a new mechanism's collaborator is one more field here."""
 
     networks: NetworkRepository
     demands: DemandRepository
-    network_query_factory: Callable[[Path], NetworkQuery]
+    network_query_loader: NetworkQueryLoader
     rerouter_writer: AdditionalFileWriter
     vss_writer: AdditionalFileWriter
     tls_program_writer: AdditionalFileWriter
@@ -85,7 +85,7 @@ def builder_request(collaborators: BuilderCollaborators, task: ScenarioTask) -> 
     )
     return BuilderRequest(
         interventions=task.interventions,
-        query=collaborators.network_query_factory(network.net_xml.path),
+        query=collaborators.network_query_loader.load(task.network_id),
         network=network,
         demand=demand,
         net_file=network.net_xml.path,

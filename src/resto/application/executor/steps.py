@@ -243,7 +243,7 @@ def _build_scenario(
                 networks=deps.networks,
                 demands=deps.demands,
                 scenarios=deps.scenarios,
-                network_query_factory=deps.network_query_factory,
+                network_query_loader=deps.network_query_loader,
                 runner=deps.runner,
                 out_dir=settings.out_dir / "scenarios",
             ),

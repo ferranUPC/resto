@@ -25,6 +25,7 @@ from resto.domain.value_objects.tasks import ScenarioTask
 from resto.domain.value_objects.time_window import TimeWindow
 from tests.unit._paths import DEV_NET
 from tests.unit.adapters.llm._fakes import FakeToolAgent, call_tool
+from tests.unit.application._doubles import FixedNetworkQueryLoader
 from tests.unit.application.tools._recorders import (
     RecordingAdditionalFileWriter,
     RecordingDemandScaler,
@@ -62,7 +63,7 @@ def collaborators(tmp_path: Path, **overrides: object) -> BuilderCollaborators:
     fields: dict[str, object] = {
         "networks": networks,
         "demands": demands,
-        "network_query_factory": lambda path: SumolibNetworkQuery(DEV_NET),
+        "network_query_loader": FixedNetworkQueryLoader(SumolibNetworkQuery(DEV_NET)),
         "rerouter_writer": RecordingAdditionalFileWriter(),
         "vss_writer": RecordingAdditionalFileWriter(),
         "tls_program_writer": RecordingAdditionalFileWriter(),

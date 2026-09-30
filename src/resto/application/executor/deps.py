@@ -7,7 +7,6 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from resto.application.network_queries import NetworkQueries, NetworkQueryFactory
 from resto.application.ports.agents.composer import ComposerAgent
 from resto.application.ports.agents.coordinator import CoordinatorAgent
 from resto.application.ports.agents.demand_generator import DemandGeneratorAgent
@@ -17,6 +16,7 @@ from resto.application.ports.agents.network_author import NetworkAuthorAgent
 from resto.application.ports.agents.note_writer import NoteWriterAgent
 from resto.application.ports.agents.scenario_builder import ScenarioBuilderAgent
 from resto.application.ports.llm import AgentRun
+from resto.application.ports.network_query import NetworkQueryLoader
 from resto.application.ports.repositories import (
     DemandRepository,
     NetworkRepository,
@@ -100,6 +100,5 @@ class StudyDeps:
     studies: StudyRepository
     runner: SumoRunner
     run_dirs: RunDirectories
-    network_query_factory: NetworkQueryFactory
-    network_queries: NetworkQueries
+    network_query_loader: NetworkQueryLoader
     tracer: Tracer
