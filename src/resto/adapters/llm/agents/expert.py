@@ -215,10 +215,7 @@ class ExpertPort:
 
     def answer(self, task: ExpertTask, ledger: EvidenceLedger) -> AgentRun[ExpertAnswer]:
         collaborators = self.collaborators
-        network = collaborators.networks.get(task.network_id)
-        if network is None:
-            raise LookupError(f"network {task.network_id!r} is not stored")
-        query = collaborators.network_query_factory(network.net_xml.path)
+        query = collaborators.network_queries.get(task.network_id)
         context = collaborators.context(task, query)
         return run_expert(task, self.agent, self.budget, context, ledger)
 

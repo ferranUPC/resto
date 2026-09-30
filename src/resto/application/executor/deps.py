@@ -7,6 +7,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from resto.application.network_queries import NetworkQueries, NetworkQueryFactory
 from resto.application.ports.agents.composer import ComposerAgent
 from resto.application.ports.agents.coordinator import CoordinatorAgent
 from resto.application.ports.agents.demand_generator import DemandGeneratorAgent
@@ -27,7 +28,6 @@ from resto.application.ports.repositories import (
 from resto.application.ports.run_directories import RunDirectories
 from resto.application.ports.sumo import SumoRunner
 from resto.application.ports.tracing import Tracer
-from resto.application.use_cases.build_scenario import NetworkQueryFactory
 from resto.domain.constants import (
     DEFAULT_STUDY_MAX_AGENT_CALLS,
     DEFAULT_STUDY_MAX_SIMULATIONS,
@@ -101,4 +101,5 @@ class StudyDeps:
     runner: SumoRunner
     run_dirs: RunDirectories
     network_query_factory: NetworkQueryFactory
+    network_queries: NetworkQueries
     tracer: Tracer

@@ -33,6 +33,7 @@ from resto.adapters.sumo.writers.tls_program import TlsProgramWriter
 from resto.adapters.sumo.writers.vss import VssWriter
 from resto.adapters.tracing.jsonl import JsonlTracer
 from resto.application.executor import StudyAgents, StudyDeps, StudyPromotions, StudySettings
+from resto.application.network_queries import NetworkQueries
 from resto.application.ports.llm import Budget, ToolAgent
 from resto.application.ports.tracing import Tracer
 from resto.application.tools.expert import ExpertCollaborators
@@ -65,6 +66,7 @@ def build_deps(
     database is the DatabaseMCP reference backend, which does not hold them (ADR-0002).
     `out_dir` here is only the Builder's; the study's own settings are `StudySettings`.
     `has_historical_demand` stays false until capability negotiation is wired (E5.6)."""
+    network_queries = NetworkQueries(db.networks, SumolibNetworkQuery)
     return StudyDeps(
         agents=StudyAgents(
             parser=InputParserPort(agent=agent, budget=budget),
@@ -91,11 +93,10 @@ def build_deps(
                 agent=agent,
                 budget=budget,
                 collaborators=ExpertCollaborators(
-                    networks=db.networks,
+                    network_queries=network_queries,
                     results=db.results,
                     scenarios=db.scenarios,
                     notes=db.notes,
-                    network_query_factory=SumolibNetworkQuery,
                 ),
             ),
             note_writer=NoteWriterPort(agent=agent, budget=budget),
@@ -116,6 +117,7 @@ def build_deps(
         runner=SubprocessSumoRunner(),
         run_dirs=FilesystemRunDirectories(),
         network_query_factory=SumolibNetworkQuery,
+        network_queries=network_queries,
         tracer=tracer,
     )
 

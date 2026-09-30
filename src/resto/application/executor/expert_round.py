@@ -6,7 +6,7 @@ from __future__ import annotations
 from dataclasses import replace
 
 from resto.application.executor.deps import StudyDeps
-from resto.application.executor.failures import StepFailed, crash, draft_of, fail, promote
+from resto.application.executor.failures import StepFailed, crash, draft_of, promote
 from resto.application.executor.recorder import StudyRecorder, data
 from resto.application.executor.spend import StudySpend
 from resto.application.tools.expert import EvidenceLedger
@@ -14,7 +14,7 @@ from resto.application.use_cases.ask_expert import ask_expert
 from resto.domain.services.experiment_design import mode_for
 from resto.domain.value_objects.expert_round import ExpertRound
 from resto.domain.value_objects.question import Mode
-from resto.domain.value_objects.step_record import StepErrorKind, StepRecord, StepStatus
+from resto.domain.value_objects.step_record import StepRecord, StepStatus
 from resto.domain.value_objects.tasks import ExpertTask
 
 
@@ -43,10 +43,7 @@ def ask_expert_round(
     try:
         run = spend.agent_call(lambda: deps.agents.expert.answer(task, ledger))
         draft_of(run, "expert")
-        network = deps.networks.get(task.network_id)
-        if network is None:
-            fail(StepErrorKind.INFRASTRUCTURE, f"network {task.network_id!r} disappeared")
-        query = deps.network_query_factory(network.net_xml.path)
+        query = deps.network_queries.get(task.network_id)
         round_ = promote(lambda: ask_expert(task, run, ledger, query=query), run.usage)
     except StepFailed as failed:
         recorder.record_failure("ask_expert", data(task), failed)

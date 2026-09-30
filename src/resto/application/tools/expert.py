@@ -24,18 +24,17 @@ Two things are added on top of plain delegation, both bound in `build_expert_too
 from __future__ import annotations
 
 import statistics
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Annotated, Any
 
 from pydantic import Field
 
+from resto.application.network_queries import NetworkQueries
 from resto.application.ports.llm import Tool
 from resto.application.ports.network_query import NetworkQuery
 from resto.application.ports.repositories import (
-    NetworkRepository,
     NoteRepository,
     ResultRepository,
     ScenarioRepository,
@@ -172,14 +171,13 @@ def expert_context(
 
 @dataclass(frozen=True, slots=True)
 class ExpertCollaborators:
-    """Everything the Expert needs that does not depend on the task: the repositories and the
-    query factory. Built once in the composition root; a new collaborator is one more field."""
+    """Everything the Expert needs that does not depend on the task: the network resolver and the
+    repositories. Built once in the composition root; a new collaborator is one more field."""
 
-    networks: NetworkRepository
+    network_queries: NetworkQueries
     results: ResultRepository
     scenarios: ScenarioRepository
     notes: NoteRepository | None
-    network_query_factory: Callable[[Path], NetworkQuery]
 
     def context(self, task: ExpertTask, query: NetworkQuery) -> ExpertContext:
         """The tools' context for `task`, with the repositories bound here."""

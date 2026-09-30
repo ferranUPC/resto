@@ -23,6 +23,7 @@ from resto.application.executor import (
     StudyPromotions,
     StudySettings,
 )
+from resto.application.network_queries import NetworkQueries
 from resto.application.ports.agents.coordinator import PlanningContext
 from resto.application.ports.llm import AgentRun, StopReason
 from resto.application.ports.sumo import RunOutput
@@ -303,6 +304,7 @@ class World:
         self.runner = runner or FakeRunner([], default=ok_output())
         self.tracer = RecordingTracer()
         self.promoted_networks: list[Any] = []
+        self.query_loads: list[Path] = []
         self.deps = StudyDeps(
             agents=StudyAgents(
                 parser=self.parser,
@@ -329,6 +331,7 @@ class World:
             runner=self.runner,
             run_dirs=FilesystemRunDirectories(),
             network_query_factory=lambda path: QUERY,
+            network_queries=NetworkQueries(self.networks, self._load_query),
             tracer=self.tracer,
         )
         self.settings = StudySettings(
@@ -336,6 +339,10 @@ class World:
             budget=budget or StudyBudget(),
             has_historical_demand=has_historical_demand,
         )
+
+    def _load_query(self, path: Path) -> StubNetworkQuery:
+        self.query_loads.append(path)
+        return QUERY
 
     def _promote_network(self, task: Any, run: Any) -> Network:
         network = derived_network(task, run)

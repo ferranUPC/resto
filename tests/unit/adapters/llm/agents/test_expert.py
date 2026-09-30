@@ -23,6 +23,7 @@ from resto.adapters.persistence.memory import (
     InMemoryScenarioRepository,
 )
 from resto.adapters.sumo.netxml import SumolibNetworkQuery
+from resto.application.network_queries import NetworkQueries
 from resto.application.ports.llm import AgentTask, Budget, Tool
 from resto.application.schemas import adapter_for
 from resto.application.tools.expert import (
@@ -174,11 +175,10 @@ def expert_port(networks: InMemoryNetworkRepository, opened: list[Path]) -> Expe
         agent=FakeToolAgent(output=expert_answer()),
         budget=BUDGET,
         collaborators=ExpertCollaborators(
-            networks=networks,
+            network_queries=NetworkQueries(networks, query_for),
             results=InMemoryResultRepository(),
             scenarios=InMemoryScenarioRepository(),
             notes=None,
-            network_query_factory=query_for,
         ),
     )
 

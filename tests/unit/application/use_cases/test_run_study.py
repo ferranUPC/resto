@@ -384,6 +384,31 @@ def test_an_online_scenario_is_infrastructure_until_e2_5(tmp_path: Path) -> None
     assert_failed_at(study, "run_simulation", StepErrorKind.INFRASTRUCTURE, skipped=0)
 
 
+def test_an_expert_round_on_a_network_that_is_not_stored_is_infrastructure(tmp_path: Path) -> None:
+    world = World(tmp_path, plans=(BASELINE_PLAN,))
+
+    def answer_after_the_network_vanishes(task: Any, ledger: Any) -> Any:
+        world.networks._networks.clear()
+        return answers()(task, ledger)
+
+    world.expert.items.append(answer_after_the_network_vanishes)
+
+    study = world.run()
+
+    assert_failed_at(study, "ask_expert", StepErrorKind.INFRASTRUCTURE, skipped=0)
+    error = study.phases[0].failed_step.error  # type: ignore[union-attr]
+    assert error is not None and "is not stored" in error.message
+    assert study.phases[0].round is None
+
+
+def test_an_expert_round_loads_the_study_network_once(tmp_path: Path) -> None:
+    world = World(tmp_path, plans=(BASELINE_PLAN,), expert=(answers(),))
+
+    world.run()
+
+    assert len(world.query_loads) == 1
+
+
 def test_a_rejected_expert_answer_is_the_agents(tmp_path: Path) -> None:
     world = World(tmp_path, plans=(BASELINE_PLAN,), expert=(answers(Edges(edge_ids=("E99",))),))
 

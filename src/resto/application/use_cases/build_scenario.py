@@ -32,9 +32,9 @@ Promotion order (ADR-0001):
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from pathlib import Path
 
+from resto.application.network_queries import NetworkQueryFactory
 from resto.application.ports.llm import AgentRun, StopReason
 from resto.application.ports.network_query import NetworkQuery
 from resto.application.ports.repositories import (
@@ -50,8 +50,6 @@ from resto.domain.value_objects.drafts import ScenarioDraft
 from resto.domain.value_objects.intervention_target import EdgeTarget, LaneTarget, TlsTarget
 from resto.domain.value_objects.mechanism import RegenerateDemandMechanism
 from resto.domain.value_objects.tasks import ScenarioTask
-
-NetworkQueryFactory = Callable[[Path], NetworkQuery]
 
 
 class BuilderRunFailed(RuntimeError):
