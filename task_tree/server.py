@@ -52,15 +52,26 @@ def make_server(
             if self.path.split("?", 1)[0] != "/api/launch":
                 self._send(404, "text/plain; charset=utf-8", b"not found")
                 return
+            host = (self.headers.get("Host") or "").rsplit(":", 1)[0]
+            content_type = (self.headers.get("Content-Type") or "").split(";")[0].strip()
+            if host not in ("127.0.0.1", "localhost") or content_type != "application/json":
+                # A browser cannot send this cross-origin without a preflight the server refuses,
+                # and a rebound hostname fails the Host check.
+                self._send(403, "text/plain; charset=utf-8", b"forbidden")
+                return
             try:
                 length = int(self.headers.get("Content-Length", "0"))
+                if length < 0:
+                    raise ValueError("negative Content-Length")
                 body = json.loads(self.rfile.read(length) or b"{}")
                 if not isinstance(body, dict):
                     raise ValueError("body must be an object")
-                fields = [body.get("id"), body.get("action"), body.get("ticket")]
-                if not all(f is None or isinstance(f, str) for f in fields):
-                    raise ValueError("id, action and ticket must be strings")
-                prompt = build_prompt(scratch, tracker, str(fields[0]), str(fields[1]), fields[2])
+                task_id, action, ticket = body.get("id"), body.get("action"), body.get("ticket")
+                if not isinstance(task_id, str) or not isinstance(action, str):
+                    raise ValueError("id and action are required strings")
+                if ticket is not None and not isinstance(ticket, str):
+                    raise ValueError("ticket must be a string")
+                prompt = build_prompt(scratch, tracker, task_id, action, ticket)
             except (ValueError, LaunchRejected) as exc:
                 self._send(400, "text/plain; charset=utf-8", str(exc).encode("utf-8"))
                 return

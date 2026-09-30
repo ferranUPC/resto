@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shlex
 import threading
 import urllib.error
 import urllib.request
@@ -11,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from task_tree.launch import terminal_command
 from task_tree.server import make_server
 
 TRACKER = """| ID | Task | Status | Notes |
@@ -502,10 +504,23 @@ def test_an_unknown_id_action_or_ticket_is_rejected_and_launches_nothing(base_ur
 
 
 def test_the_prompt_reaches_claude_as_one_shell_argument_even_with_quotes_and_spaces():
-    import shlex
-
-    from task_tree.launch import terminal_command
-
     prompt = "/implement .scratch/it's a dir/issues/01-\"x\" $(y).md"
     words = shlex.split(terminal_command(prompt, Path("/repo root")))
     assert words == ["cd", "/repo root", "&&", "claude", prompt]
+
+
+def test_a_launch_needs_a_json_content_type_and_a_loopback_host(base_url, launches):
+    body = json.dumps({"id": "E2.1", "action": "next"}).encode("utf-8")
+    plain = urllib.request.Request(
+        f"{base_url}/api/launch", data=body, headers={"Content-Type": "text/plain"}
+    )
+    rebound = urllib.request.Request(
+        f"{base_url}/api/launch",
+        data=body,
+        headers={"Content-Type": "application/json", "Host": "evil.example"},
+    )
+    for request in (plain, rebound):
+        with pytest.raises(urllib.error.HTTPError) as err:
+            urllib.request.urlopen(request)
+        assert err.value.code == 403
+    assert launches == []
