@@ -11,11 +11,17 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
+from eval.fixed_network_query_loader import FixedNetworkQueryLoader
 
 from resto.adapters.llm.anthropic_client import OpenRouterToolAgent
 from resto.adapters.llm.config import LlmConfig
 from resto.adapters.llm.pricing import UnknownModelError
+from resto.adapters.persistence.memory import InMemoryResultRepository, InMemoryScenarioRepository
 from resto.application.ports.llm import AgentTask, Budget, StopReason, Tool
+from resto.application.tools.expert import EvidenceLedger, build_expert_tools, expert_context
+from resto.domain.value_objects.question import Mode
+from resto.domain.value_objects.tasks import ExpertTask
+from tests.unit.application._doubles import StubNetworkQuery
 
 CONFIG = LlmConfig(api_key="test-key", default_model="deepseek/deepseek-v4.1-flash")
 
@@ -322,3 +328,31 @@ def test_repr_of_the_config_never_leaks_into_a_trace_payload() -> None:
     # dedicated repr test) - this just re-asserts the invariant from the client's point of view.
     assert CONFIG.api_key not in repr(CONFIG)
     assert CONFIG.api_key not in str(CONFIG)
+
+
+def test_an_expert_tool_called_with_a_network_outside_the_scope_is_fed_back_as_an_error() -> None:
+    results, scenarios = InMemoryResultRepository(), InMemoryScenarioRepository()
+    task = ExpertTask(question="q", mode=Mode.FORCED, network_ids=("base",), notes_allowed=False)
+    context = expert_context(
+        task,
+        loader=FixedNetworkQueryLoader(StubNetworkQuery()),
+        results=results,
+        scenarios=scenarios,
+        notes=None,
+    )
+    tools = build_expert_tools(context, EvidenceLedger())
+    complete = ScriptedCompletions(
+        completion(
+            tool_calls=(
+                tool_call("c1", "get_edges", {"network_id": "stranger", "edge_ids": ["E1"]}),
+            )
+        ),
+        completion(tool_calls=(tool_call("c2", "submit_output", {"text": "recovered"}),)),
+    )
+    agent = OpenRouterToolAgent(CONFIG, complete=complete)
+
+    run = agent.run(DUMMY_TASK, tools=tools, output=Answer, budget=DUMMY_BUDGET)
+
+    assert run.stop_reason is StopReason.OUTPUT
+    assert "error:" in run.tool_calls[0].result_summary
+    assert "stranger" in run.tool_calls[0].result_summary

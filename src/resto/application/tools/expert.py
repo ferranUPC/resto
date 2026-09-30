@@ -354,7 +354,7 @@ def capacity_estimate(
     name="get_tls",
     description=(
         "Controlled edges and signal programs of several traffic lights in one call. A light "
-        "usually has the id of its junction. An id with no light on this network is answered "
+        "usually has the id of its junction. An id with no light on that network is answered "
         "with exists=false and a message, which means that junction has no signal; the other "
         "ids are answered as usual."
     ),
@@ -689,7 +689,8 @@ def search_notes(
     | None = None,
     limit: _TopK = 10,
 ) -> list[Mapping[str, Any]]:
-    """Earlier notes on this network ranked by relevance to `query`, each with its score.
+    """Earlier notes on one of the study's networks ranked by relevance to `query`, each with its
+    score.
     Filters: status, basis, provenance, scenario_id, context_tags."""
     assert ctx.notes is not None, "search_notes is only offered with a NoteRepository"
     ctx.require_in_scope(network_id)

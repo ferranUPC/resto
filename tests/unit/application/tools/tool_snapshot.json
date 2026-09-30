@@ -123,7 +123,7 @@
       "name": "capacity_estimate"
     },
     {
-      "description": "Controlled edges and signal programs of several traffic lights in one call. A light usually has the id of its junction. An id with no light on this network is answered with exists=false and a message, which means that junction has no signal; the other ids are answered as usual.",
+      "description": "Controlled edges and signal programs of several traffic lights in one call. A light usually has the id of its junction. An id with no light on that network is answered with exists=false and a message, which means that junction has no signal; the other ids are answered as usual.",
       "input_schema": {
         "properties": {
           "network_id": {
@@ -527,7 +527,7 @@
       "name": "capacity_estimate"
     },
     {
-      "description": "Controlled edges and signal programs of several traffic lights in one call. A light usually has the id of its junction. An id with no light on this network is answered with exists=false and a message, which means that junction has no signal; the other ids are answered as usual.",
+      "description": "Controlled edges and signal programs of several traffic lights in one call. A light usually has the id of its junction. An id with no light on that network is answered with exists=false and a message, which means that junction has no signal; the other ids are answered as usual.",
       "input_schema": {
         "properties": {
           "network_id": {

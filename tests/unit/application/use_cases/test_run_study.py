@@ -315,22 +315,29 @@ def test_a_proposed_experiment_may_name_the_derived_network_but_not_a_stranger(
     assert_failed_at(rejecting.run(), "ask_expert", StepErrorKind.AGENT, skipped=0)
 
 
-def test_the_scope_of_a_later_round_includes_a_network_derived_in_an_earlier_phase(
+def test_a_network_derived_after_the_first_round_is_in_the_scope_of_the_second(
     tmp_path: Path,
 ) -> None:
+    proposed = replace(_edge_question(), text="does the new J7-J9 edge relieve E12?")
     about_new_edge = answers(Edges(edge_ids=("J7J9",), network_id="derived-1"))
+    derive_only = plan(
+        DeriveNetworkStep(base_network_id=NET, modifications=(NEW_EDGE,)),
+        RerouteDemandStep(demand_id=DEMAND, network_id=FromStep(0), depends_on=(0,)),
+        build_step("edge", network=FromStep(0), demand=FromStep(1), depends_on=(0, 1)),
+        run_step(2),
+    )
     world = World(
         tmp_path,
-        question=_edge_question(),
-        plans=(_derive_plan(), TREATMENT_PLAN),
-        expert=(abstains(PROPOSED), about_new_edge),
+        plans=(BASELINE_PLAN, derive_only),
+        expert=(abstains(proposed), about_new_edge),
     )
 
     study = world.run()
 
     assert study.status is StudyStatus.COMPLETED
     first, second = (call[0] for call in world.expert.calls)
-    assert set(first.network_ids) == set(second.network_ids) == {NET, "derived-1"}
+    assert first.network_ids == (NET,)
+    assert set(second.network_ids) == {NET, "derived-1"}
 
 
 def test_an_ambiguous_question_awaits_the_user_without_planning(tmp_path: Path) -> None:
