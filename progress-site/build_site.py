@@ -1,8 +1,8 @@
 """Build the progress site: embed the current docs into progress-site/template.html.
 
-The page parses the raw Markdown of the work plan, the progress tracker, the architecture doc and the diary in
-the browser, so the only thing this script does is inline those four files. Stdlib only, so the
-Pages workflow needs no install step.
+The page parses the raw Markdown of the work plan, the progress tracker, the architecture doc and
+the diary in the browser, so the only thing this script does is inline those four files. Stdlib
+only, so the Pages workflow needs no install step.
 
     python progress-site/build_site.py                 # full document at _site/index.html (Pages)
     python progress-site/build_site.py --fragment OUT  # body-only page, for a claude.ai artifact
