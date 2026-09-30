@@ -16,7 +16,7 @@ Do not duplicate `progress-review`'s job: don't re-derive DoD compliance from sc
 - `git status` to surface uncommitted or stashed work — this matters as much as merged commits for "where did I leave off."
 - `git log -1 --format=%cd --date=relative` for a sense of recency.
 - List `docs/feasability-analisis/` and note the date of the most recent entry, if any.
-- Read the **phase** of every task in `.scratch/` (the local tracker, git-excluded; conventions in `docs/agents/issue-tracker.md`): `grep -rH --include='*.md' '^\*\*Status' .scratch`, plus each spec's `**Blocked by:**` line and whether its `## Spec` section is still the seeded placeholder. If `.scratch/` does not exist (e.g. a fresh clone), say so in one line and fall back to naming a task without a command.
+- Read the **phase** of every task in `.scratch/` (the local tracker, git-excluded; conventions in `docs/agents/issue-tracker.md`): `grep -rH --include='*.md' --exclude-dir=done '^\*\*Status' .scratch` (finished work lives in `.scratch/done/`), plus each spec's `**Blocked by:**` line and whether its `## Spec` section is still the seeded placeholder. If `.scratch/` does not exist (e.g. a fresh clone), say so in one line and fall back to naming a task without a command.
 
 ## 2. Read project state
 
@@ -31,7 +31,7 @@ Choose **one task**, then read its **next command** off its phase.
 **Which task**, first match wins:
 
 1. A task already in flight: a spec past `needs-triage` and not `done`, or a 🔄 task in the tracker. Finishing beats starting.
-2. Otherwise, an **unblocked** `needs-triage` spec — every task on its `Blocked by:` line is `done` in `.scratch/` or ✅/⏳ in the tracker. Among those, prefer the head of the critical chain that feeds the nearest milestone target (work plan §4.3), then the earlier wave, then the earlier latest due.
+2. Otherwise, an **unblocked** `needs-triage` spec — every task on its `Blocked by:` line is `done` in `.scratch/` (a spec under `.scratch/done/` counts) or ✅/⏳ in the tracker. Among those, prefer the head of the critical chain that feeds the nearest milestone target (work plan §4.3), then the earlier wave, then the earlier latest due.
 
 Skip specs whose only remaining work is a measurement (a `**Measured in:**` line and ⏳ in the tracker): they wait for their validation pass.
 

@@ -3,7 +3,7 @@
 - Status: Accepted (2026-09-29) — refines the DatabaseMCP paragraph of §2.2 (SQLite reference
   implementation, ADR-0012); does not change the contract
 - Architecture reference: [`tfm-architecture-and-dod.md`](../tfm-architecture-and-dod.md) §2.2, §4 layout;
-  refactor r2 (`.scratch/r2-database-backends/`)
+  refactor r2 ([work plan §7](../tfm-work-plan.md#7-deviations-from-the-plan))
 
 ## Context
 

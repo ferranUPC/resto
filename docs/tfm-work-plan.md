@@ -531,3 +531,27 @@ thesis. Nothing that needs SUMO, API budget or sustained work moves past 18 Feb.
    (strike the old date through, never delete it); a deadline never moves later.
 3. If a milestone's target is past and its deadline is at risk, apply the next step of §5 and note it.
 4. Write the paragraph of the thesis corresponding to whatever closed this week (writing track).
+
+---
+
+## 7. Deviations from the plan
+
+Work the plan did not list: refactors and one bug fix, each found while building a listed task. This is
+the only place to cite them. An ADR or another doc that needs to point at one links here, never to
+`.scratch/`. Each row gives the reason and the ADR that holds the decision, if there is one. Status stays in
+the tracker. Ids `r1`–`r6` follow the order of the 2026-09-29 architecture review; the first two predate
+the numbering.
+
+| Id | Refactor | Why | ADR | Prepares |
+|---|---|---|---|---|
+| — | Executor out of `run_study.py` | The private `_Executor` held about 700 lines and too many responsibilities inside the use case, which made it hard to maintain. | [0030](adr/0030-executor-package-and-module-split.md) | E5.2, E5.3, E5.5 |
+| — | One module for paid evaluation runs | Three eval runners copied the same loop, and their cost caps had drifted apart (optional cap, no $1 gate, cap applied per mode). | — | E4.2–E4.4 sweeps, the validation passes |
+| r1 | Each responsibility of `run_simulation` gets its own home | The use case also owned the reproducibility rule, result building and directory promotion, which are not orchestration. Behavior does not change. | — | E2.5 |
+| r2 | One `Database` protocol for the in-memory and SQLite repositories | The two backends answered the same query differently (filters ignored, ordering, error types), so a test could pass on behavior production does not have. | [0034](adr/0034-database-protocol-and-backends.md) | E5.2, E5.6, E4.9 |
+| r3 | Declare each tool once | Changing an Expert tool parameter meant editing five places, and about twenty more tools are coming. A forgotten edit failed only when a model called the tool. | [0033](adr/0033-tools-declared-once.md) | E5.2, E5.3, E2.6, E6.1, E6.2 |
+| r4 | One network scope for the Expert round | `ExpertTask` carried one network id, so the Expert could not see a derived network's new edge and rejected correct answers about it. | [0032](adr/0032-expert-network-scope.md) | E5.3, E6.7, M4 |
+| r5 | Typed study trace, one emitter, one shared test world | Trace events were free strings emitted from five modules, the plan and the Expert round were missing, and CLI runs lost the cost events. | — | E7.1, E5.5, E7.3, E7.4 |
+| r6 | One module launches SUMO tools | Two call sites treated seed and errors differently, six or seven more were coming, and nobody checked the binary's version. | — | E2.5, E6.1, E6.2, E6.5, E7.3 |
+| u2 | Failed `SimulationResult` retry conflicts in SQLite | Re-running a failed result raised `ConflictError`, which broke the real path. | [0031](adr/0031-only-ok-results-are-persisted.md) | — |
+
+A new refactor adds a row here in the same change that opens it.
