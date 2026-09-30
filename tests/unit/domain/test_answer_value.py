@@ -138,3 +138,21 @@ def test_a_cause_outside_the_five_is_rejected_at_the_boundary() -> None:
     payload["causes"] = [{"edge_id": "E12", "network_id": "n1", "cause": "weather"}]
     with pytest.raises(ValueError):
         adapter.validate_python(payload)
+
+
+def test_every_value_lists_the_edges_it_names_with_their_network() -> None:
+    assert Edges(edge_ids=("A", "B"), network_id="n1").edge_references == (("n1", "A"), ("n1", "B"))
+    assert Quantity(
+        measure=Measure.SPEED, value=1.0, edge_id="A", network_id="n1"
+    ).edge_references == (("n1", "A"),)
+    assert Quantity(measure=Measure.MEAN_DELAY, value=1.0).edge_references == ()
+    assert Change(
+        measure=Measure.SPEED, direction=ChangeDirection.UNCHANGED, edge_id="A", network_id="n1"
+    ).edge_references == (("n1", "A"),)
+    assert NoValue(measure=Measure.SPEED, edge_id="A", network_id="n1").edge_references == (
+        ("n1", "A"),
+    )
+    causes = BottleneckCauses(
+        causes=(EdgeCause(edge_id="A", network_id="n1", cause=BottleneckCause.SIGNAL),)
+    )
+    assert causes.edge_references == (("n1", "A"),)

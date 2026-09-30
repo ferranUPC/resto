@@ -6,6 +6,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from eval.fixed_network_query_loader import FixedNetworkQueryLoader
 
 from resto.adapters.llm.agents.scenario_builder import (
     ScenarioBuilderPort,
@@ -25,7 +26,6 @@ from resto.domain.value_objects.tasks import ScenarioTask
 from resto.domain.value_objects.time_window import TimeWindow
 from tests.unit._paths import DEV_NET
 from tests.unit.adapters.llm._fakes import FakeToolAgent, call_tool
-from tests.unit.application._doubles import FixedNetworkQueryLoader
 from tests.unit.application.tools._recorders import (
     RecordingAdditionalFileWriter,
     RecordingDemandScaler,

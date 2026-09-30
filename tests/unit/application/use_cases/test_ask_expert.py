@@ -8,6 +8,7 @@ from __future__ import annotations
 from dataclasses import replace
 
 import pytest
+from eval.fixed_network_query_loader import FixedNetworkQueryLoader
 
 from resto.application.ports.llm import AgentRun, StopReason
 from resto.application.tools.expert import EvidenceLedger
@@ -37,7 +38,7 @@ from resto.domain.value_objects.expert_answer import (
 from resto.domain.value_objects.question import Intent, Mode, Question
 from resto.domain.value_objects.step_record import Usage
 from resto.domain.value_objects.tasks import ExpertTask
-from tests.unit.application._doubles import FixedNetworkQueryLoader, StubNetworkQuery
+from tests.unit.application._doubles import StubNetworkQuery
 
 NETWORK = "abc123"
 INCREASE_ON_B2C2 = Change(

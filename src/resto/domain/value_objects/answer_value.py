@@ -79,6 +79,12 @@ def _check_network(edge_id: str | None, network_id: str | None) -> None:
         raise ValueError("a network-wide value names no network_id")
 
 
+def _reference(edge_id: str | None, network_id: str | None) -> tuple[tuple[str, str], ...]:
+    if edge_id is None or network_id is None:
+        return ()
+    return ((network_id, edge_id),)
+
+
 class ChangeDirection(StrEnum):
     INCREASE = "increase"
     DECREASE = "decrease"
@@ -103,6 +109,11 @@ class Edges:
         if any(not e for e in self.edge_ids):
             raise ValueError("edge ids must be non-empty")
 
+    @property
+    def edge_references(self) -> tuple[tuple[str, str], ...]:
+        """Every (network id, edge id) this value names."""
+        return tuple((self.network_id, e) for e in self.edge_ids)
+
 
 @dataclass(frozen=True, slots=True)
 class Quantity:
@@ -118,6 +129,11 @@ class Quantity:
         _check_scope(self.measure, self.edge_id, self.network_id)
         if not math.isfinite(self.value):
             raise ValueError("a quantity must be finite")
+
+    @property
+    def edge_references(self) -> tuple[tuple[str, str], ...]:
+        """Every (network id, edge id) this value names; none when network-wide."""
+        return _reference(self.edge_id, self.network_id)
 
 
 @dataclass(frozen=True, slots=True)
@@ -143,6 +159,11 @@ class Change:
             self.direction is ChangeDirection.DECREASE and pct > 0
         ):
             raise ValueError("relative_change_pct contradicts the direction")
+
+    @property
+    def edge_references(self) -> tuple[tuple[str, str], ...]:
+        """Every (network id, edge id) this value names; none when network-wide."""
+        return _reference(self.edge_id, self.network_id)
 
 
 class NoValueReason(StrEnum):
@@ -172,6 +193,11 @@ class NoValue:
         if not self.edge_id:
             raise ValueError("a NoValue names the edge it refers to")
         _check_network(self.edge_id, self.network_id)
+
+    @property
+    def edge_references(self) -> tuple[tuple[str, str], ...]:
+        """Every (network id, edge id) this value names."""
+        return ((self.network_id, self.edge_id),)
 
 
 class BottleneckCause(StrEnum):
@@ -215,6 +241,11 @@ class BottleneckCauses:
     @property
     def edge_ids(self) -> tuple[str, ...]:
         return tuple(c.edge_id for c in self.causes)
+
+    @property
+    def edge_references(self) -> tuple[tuple[str, str], ...]:
+        """Every (network id, edge id) this value names."""
+        return tuple((c.network_id, c.edge_id) for c in self.causes)
 
 
 AnswerValue = Edges | Quantity | Change | NoValue | BottleneckCauses

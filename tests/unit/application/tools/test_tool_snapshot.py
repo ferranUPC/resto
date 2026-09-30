@@ -11,6 +11,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from eval.fixed_network_query_loader import FixedNetworkQueryLoader
+
 from resto.adapters.persistence.memory import (
     InMemoryNetworkRepository,
     InMemoryNoteRepository,
@@ -32,7 +34,6 @@ from resto.domain.value_objects.question import Mode
 from resto.domain.value_objects.tasks import ExpertTask
 from resto.domain.value_objects.time_window import TimeWindow
 from tests.unit._paths import DEV_NET
-from tests.unit.application._doubles import FixedNetworkQueryLoader
 from tests.unit.application.tools._recorders import (
     RecordingAdditionalFileWriter,
     RecordingDemandRepository,

@@ -6,6 +6,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from eval.fixed_network_query_loader import FixedNetworkQueryLoader
 
 from resto.adapters.persistence.memory import (
     InMemoryDemandRepository,
@@ -25,7 +26,7 @@ from resto.domain.value_objects.mechanism import RegenerateDemandMechanism, Stat
 from resto.domain.value_objects.step_record import Usage
 from resto.domain.value_objects.tasks import ScenarioTask
 from resto.domain.value_objects.time_window import TimeWindow
-from tests.unit.application._doubles import FakeRunner, FixedNetworkQueryLoader, StubNetworkQuery
+from tests.unit.application._doubles import FakeRunner, StubNetworkQuery
 from tests.unit.domain._fixtures import artifact, scenario_draft, static_intervention
 from tests.unit.domain._samples import demand as sample_demand
 from tests.unit.domain._samples import network as sample_network

@@ -8,6 +8,7 @@ from dataclasses import replace
 from pathlib import Path
 
 import pytest
+from eval.fixed_network_query_loader import FixedNetworkQueryLoader
 
 from resto.adapters.persistence.memory import InMemoryNetworkRepository
 from resto.adapters.sumo.netxml import SumolibNetworkQuery
@@ -30,7 +31,6 @@ from resto.domain.value_objects.intervention import Intervention, InterventionTy
 from resto.domain.value_objects.intervention_target import LaneTarget
 from resto.domain.value_objects.time_window import TimeWindow
 from tests.unit._paths import DEV_NET
-from tests.unit.application._doubles import FixedNetworkQueryLoader
 from tests.unit.application.tools._recorders import (
     RecordingAdditionalFileWriter,
     RecordingDemandRepository,

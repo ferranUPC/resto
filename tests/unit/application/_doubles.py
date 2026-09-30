@@ -82,12 +82,3 @@ class FakeRunner:
     ) -> RunOutput:
         raise AssertionError("not used")
 
-
-class FixedNetworkQueryLoader:
-    """A `NetworkQueryLoader` that answers every network id with the same query."""
-
-    def __init__(self, query: Any) -> None:
-        self._query = query
-
-    def load(self, network_id: str) -> Any:
-        return self._query

@@ -23,11 +23,6 @@ from __future__ import annotations
 from resto.application.ports.llm import AgentRun, StopReason
 from resto.application.ports.network_query import NetworkQueryLoader
 from resto.application.tools.expert import EvidenceLedger
-from resto.domain.value_objects.answer_value import (
-    AnswerValue,
-    BottleneckCauses,
-    Edges,
-)
 from resto.domain.value_objects.expert_answer import EvidenceKind, ExpertAnswer
 from resto.domain.value_objects.expert_round import ExpertRound
 from resto.domain.value_objects.question import Mode
@@ -79,10 +74,10 @@ def _check_evidence(answer: ExpertAnswer, ledger: EvidenceLedger) -> None:
 
 def _check_values(task: ExpertTask, answer: ExpertAnswer, loader: NetworkQueryLoader) -> None:
     # Load the task's network first: one that is not stored fails here even when no value names an
-    # edge, as it did when the caller passed the query in.
+    # edge.
     loader.load(task.network_id)
     for value in answer.values:
-        for network_id, edge_id in _edge_references(value):
+        for network_id, edge_id in value.edge_references:
             if network_id != task.network_id:
                 raise ExpertAnswerRejected(
                     f"edge {edge_id!r} names network {network_id!r}, "
@@ -92,17 +87,6 @@ def _check_values(task: ExpertTask, answer: ExpertAnswer, loader: NetworkQueryLo
                 raise ExpertAnswerRejected(
                     f"edge {edge_id!r} in the answer is not on network {network_id!r}"
                 )
-
-
-def _edge_references(value: AnswerValue) -> tuple[tuple[str, str], ...]:
-    """Every (network id, edge id) a value names; network-wide values name none."""
-    if isinstance(value, Edges):
-        return tuple((value.network_id, e) for e in value.edge_ids)
-    if isinstance(value, BottleneckCauses):
-        return tuple((c.network_id, c.edge_id) for c in value.causes)
-    if value.edge_id is None or value.network_id is None:
-        return ()
-    return ((value.network_id, value.edge_id),)
 
 
 def _check_proposed_experiment(task: ExpertTask, answer: ExpertAnswer) -> None:
