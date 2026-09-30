@@ -7,6 +7,7 @@ on:
     paths:
       - "docs/tfm-work-plan.md"
       - "docs/progress-tracker.md"
+      - "docs/diary.md"
       - "docs/tfm-architecture-and-dod.md"
       - "progress-site/**"
       - ".github/workflows/pages.yml"
