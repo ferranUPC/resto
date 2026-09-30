@@ -141,7 +141,7 @@ Traces as phases (P = Input Parser, C = Coordinator, E = Expert, N = note writer
 | GP-7 | compare A and B | P → C (0 steps, reused A + B as comparison) → E | — | N → Comp |
 | GP-8 | new place, nothing exists | P → C → Network Author → Demand Generator → Builder → Runner → E | — | N → Comp |
 | GP-9 | ambiguous | P (or C) → `awaiting_user`, render | — | — |
-| GP-10 | no `historical_demand` | P → C (parameter-driven demand, fallback in `rationale`) → Demand Generator → … | — | N → Comp |
+| GP-10 | historical demand asked for, no `historical_demand` | P → C → `awaiting_user` (`ClarificationRequest`: no historical data, random trips offered), render; no silent fallback (ADR-0035) | — | — |
 | GP-11 | add an edge J7–J9 (`run`) | P → C → Network Author (derive) → `reroute_demand` → Builder ×2 → Runner ×2 → E (compare) | — | N → Comp |
 
 A free *counterfactual* topology question ("what if we added an edge…") is GP-3-shaped: phase 1 is
