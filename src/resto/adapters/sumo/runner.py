@@ -25,7 +25,6 @@ Online mode (SUMO under TraCI with a sandboxed script) is E2.5.
 
 from __future__ import annotations
 
-import subprocess
 import xml.etree.ElementTree as ET
 from collections.abc import Sequence
 from pathlib import Path
@@ -33,6 +32,7 @@ from time import perf_counter
 
 from resto.adapters.persistence.filesystem import artifact_ref
 from resto.adapters.sumo.outputs import output_artifact, parse_kpis
+from resto.adapters.sumo.sumo_process import launch
 from resto.adapters.sumo.writers.sumocfg import (
     parse_settings,
     render_sumocfg,
@@ -94,20 +94,17 @@ class SubprocessSumoRunner:
             encoding="utf-8",
         )
         inputs = (artifact_ref(run_cfg, "sumocfg"), artifact_ref(edgedata_add, "additional"))
-        command = [self._sumo, "-c", str(run_cfg)]
+        args = ["-c", str(run_cfg)]
         if _has_rerouter(settings.additional_files):
-            command.extend(IGNORE_ROUTE_ERRORS_ARGS)
+            args.extend(IGNORE_ROUTE_ERRORS_ARGS)
 
         started = perf_counter()
-        try:
-            proc = subprocess.run(command, capture_output=True, text=True, cwd=out_dir)
-        except OSError as exc:
-            return RunOutput(ok=False, error=str(exc), artifacts=inputs, wall_clock_s=0.0)
+        launched = launch(self._sumo, args, out_dir, seed)
         wall_clock_s = perf_counter() - started
-
-        if proc.returncode != 0:
-            message = _sumo_message(proc.stderr) or f"sumo exited with code {proc.returncode}"
-            return RunOutput(ok=False, error=message, artifacts=inputs, wall_clock_s=wall_clock_s)
+        if not launched.ok:
+            return RunOutput(
+                ok=False, error=launched.message, artifacts=inputs, wall_clock_s=wall_clock_s
+            )
 
         expected = [(out_dir / _EDGEDATA_FILE, "edgedata")] + [
             (out_dir / name, kind) for name, kind in _OUTPUTS.values()
@@ -134,8 +131,3 @@ class SubprocessSumoRunner:
     ) -> RunOutput:
         raise NotImplementedError("online mode is work-plan E2.5")
 
-
-def _sumo_message(stderr: str) -> str:
-    """SUMO's own error lines, without the warnings that precede them."""
-    errors = [line for line in stderr.splitlines() if line.startswith("Error")]
-    return "\n".join(errors) if errors else stderr.strip()

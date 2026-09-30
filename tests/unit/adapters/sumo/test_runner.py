@@ -111,7 +111,8 @@ def test_a_scenario_without_a_rerouter_does_not_get_ignore_route_errors(
 
     SubprocessSumoRunner().run_batch(scenario_cfg, seed=1, out_dir=tmp_path / "r")
 
-    assert seen_commands and "--ignore-route-errors" not in seen_commands[0]
+    sumo_runs = [c for c in seen_commands if "-c" in c]  # not the one-off `sumo --version`
+    assert sumo_runs and "--ignore-route-errors" not in sumo_runs[0]
 
 
 def test_batch_run_succeeds_with_kpis_and_the_five_output_artifacts(
