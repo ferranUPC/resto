@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from task_tree.launch import terminal_command
+from task_tree.launch import terminal_command, terminal_launcher
 from task_tree.server import make_server
 
 TRACKER = """| ID | Task | Status | Notes |
@@ -524,3 +524,15 @@ def test_a_launch_needs_a_json_content_type_and_a_loopback_host(base_url, launch
             urllib.request.urlopen(request)
         assert err.value.code == 403
     assert launches == []
+
+
+def test_the_osascript_source_escapes_backslashes_and_quotes_in_the_prompt(monkeypatch):
+    calls: list[list[str]] = []
+    monkeypatch.setattr(
+        "task_tree.launch.subprocess.run", lambda args, **kwargs: calls.append(args)
+    )
+    terminal_launcher('/implement a"b\\c', Path("/repo"))
+    script = calls[0][2]
+    assert calls[0][:2] == ["osascript", "-e"]
+    # The shell line is single-quoted, so only the AppleScript layer escapes " and \.
+    assert 'do script "cd /repo && claude \'/implement a\\"b\\\\c\'"' in script
