@@ -9,11 +9,11 @@ that already has a caller (ADR-0017's "raise, don't stub silently" convention â€
 
 from __future__ import annotations
 
-import subprocess
 from collections.abc import Sequence
 from pathlib import Path
 
 from resto.adapters.persistence.filesystem import artifact_ref
+from resto.adapters.sumo.sumo_process import launch
 from resto.domain.value_objects.artifact_ref import ArtifactRef
 
 ROUTES_NAME = "routed.rou.xml"
@@ -32,31 +32,29 @@ class SumoDemandTools:
         """Routes `trips` over `net_xml`, writing `<out_dir>/routed.rou.xml`.
 
         Raises:
-            RuntimeError: `duarouter` exits non-zero; the message is its own stderr.
+            RuntimeError: `duarouter` cannot start or exits non-zero; the message follows the
+            launch module's stderr rule.
         """
         out_dir.mkdir(parents=True, exist_ok=True)
         out_path = out_dir / ROUTES_NAME
-        proc = subprocess.run(
+        result = launch(
+            self._duarouter,
             [
-                self._duarouter,
                 "--net-file",
                 str(net_xml.path),
                 "--route-files",
                 str(trips.path),
                 "--output-file",
                 str(out_path),
-                "--seed",
-                str(seed),
                 "--ignore-errors",
                 "false",
                 "--no-step-log",
             ],
-            capture_output=True,
-            text=True,
             cwd=out_dir,
+            seed=seed,
         )
-        if proc.returncode != 0:
-            raise RuntimeError(f"duarouter failed: {proc.stderr.strip() or proc.stdout.strip()}")
+        if not result.ok:
+            raise RuntimeError(f"duarouter failed: {result.message}")
         return artifact_ref(out_path, "routes")
 
     def random_trips(
