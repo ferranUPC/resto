@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import threading
+import urllib.error
 import urllib.request
 from collections.abc import Iterator
 from pathlib import Path
@@ -14,16 +15,24 @@ from task_tree.server import make_server
 
 TRACKER = """| ID | Task | Status | Notes |
 |---|---|---|---|
-| E1.1 | Finished task | ✅ | done |
+| E1.1 | Finished task | ✅ | notes for the finished one |
 | E1.2 | Open task | ⬜ | not yet |
 | E1.3 | Second finished | ✅ | done |
 | E3.1 | Other epic | ✅ | done |
+"""
+
+PLAN = """| ID | Task | Proof | Pts | Wave | Due |
+|---|---|---|---|---|---|
+| E1.1 | Finished task, planned | tests | 3 | 1a | 5 Oct |
 """
 
 
 def _spec(directory: Path, title: str, status: str, blocked: str, spec: str | None = None) -> None:
     directory.mkdir(parents=True)
     body = f"# {title}\n\n**Status:** {status}\n\n**Blocked by:** {blocked}\n\n"
+    if title.startswith("E2.4"):
+        body += "**Work plan:** E2.4 · E2 · 12 pts · wave 2 · latest due 11 Dec\n\n"
+        body += "**Measured in:** V2 · EXP-01\n\n"
     if spec is not None:
         body += f"## Spec\n\n{spec}\n"
     (directory / "spec.md").write_text(body, encoding="utf-8")
@@ -40,7 +49,9 @@ def scratch(tmp_path: Path) -> Path:
     issues.mkdir()
     (issues / "01-first.md").write_text("# 01: First\n\n**Status:** done\n", encoding="utf-8")
     (issues / "02-second.md").write_text(
-        "# 02: Second\n\n**Status:** ready\n\n**Blocked by:** 01\n", encoding="utf-8"
+        "# 02: Second\n\n**What to build:** Do the second thing.\n\n**Status:** ready\n\n"
+        "**Blocked by:** 01\n",
+        encoding="utf-8",
     )
     _spec(root / "e2-5-blocked", "E2.5: Blocked", "ready", "E2.1 ([`x`](../x/spec.md))")
     _spec(root / "e2-6-after-done", "E2.6: After a done task", "ready", "E1.1")
@@ -57,7 +68,9 @@ def scratch(tmp_path: Path) -> Path:
 def base_url(scratch: Path, tmp_path: Path) -> Iterator[str]:
     tracker = tmp_path / "progress-tracker.md"
     tracker.write_text(TRACKER, encoding="utf-8")
-    server = make_server(scratch, tracker)
+    plan = tmp_path / "tfm-work-plan.md"
+    plan.write_text(PLAN, encoding="utf-8")
+    server = make_server(scratch, tracker, plan=plan)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
@@ -150,3 +163,42 @@ def test_done_tasks_without_a_spec_get_guessed_edges_within_and_across_epics(bas
     assert sorted(guessed) == [("E1.1", "E1.3"), ("E1.1", "E3.1")]
     assert all(e["done"] for e in tree["edges"] if e["inferred"])
     assert not any(e["inferred"] for e in tree["edges"] if e["to"] in ("E2.5", "E2.6"))
+
+
+def _get(base_url: str, path: str) -> tuple[int, dict[str, Any] | None]:
+    try:
+        with urllib.request.urlopen(f"{base_url}{path}") as response:
+            return response.status, json.load(response)
+    except urllib.error.HTTPError as err:
+        return err.code, None
+
+
+def test_a_task_detail_carries_its_stage_spec_header_and_tickets(base_url):
+    status, detail = _get(base_url, "/api/task/E2.4")
+    assert status == 200 and detail is not None
+    assert detail["stage"] == "ticketed"
+    assert (detail["points"], detail["latest_due"]) == ("12", "11 Dec")
+    assert detail["measured_in"] == "V2 · EXP-01"
+    assert [t["id"] for t in detail["tickets"]] == ["01", "02"]
+
+
+def test_a_done_task_absent_from_scratch_still_shows_what_the_plan_and_tracker_hold(base_url):
+    status, detail = _get(base_url, "/api/task/E1.1")
+    assert status == 200 and detail is not None
+    assert detail["stage"] == "done"
+    assert "Finished task, planned" in detail["plan_excerpt"]
+    assert detail["tracker_notes"] == "notes for the finished one"
+    assert detail["tickets"] == []
+
+
+def test_a_ticket_detail_carries_its_question_status_and_blockers(base_url):
+    status, detail = _get(base_url, "/api/task/E2.4/ticket/02")
+    assert status == 200 and detail is not None
+    assert detail["question"] == "Do the second thing."
+    assert (detail["stage"], detail["blocked_by"], detail["task_id"]) == ("ready", ["01"], "E2.4")
+
+
+def test_an_unknown_task_or_ticket_is_a_404(base_url):
+    assert _get(base_url, "/api/task/E9.9")[0] == 404
+    assert _get(base_url, "/api/task/E2.4/ticket/09")[0] == 404
+    assert _get(base_url, "/api/task/E2.1/ticket/01")[0] == 404

@@ -12,6 +12,7 @@
   body { margin: 0; background: var(--bg); color: var(--fg); font: 13px system-ui, sans-serif; }
   #legend { position: fixed; top: 8px; left: 8px; display: flex; gap: 6px; flex-wrap: wrap; z-index: 1; }
   .chip { padding: 2px 8px; border-radius: 10px; color: #fff; font-size: 12px; }
+  body.open svg { width: 66.667vw; }
   svg { width: 100vw; height: 100vh; display: block; user-select: none; cursor: grab; }
   svg.dragging { cursor: grabbing; }
   .node rect { stroke: rgba(255,255,255,.35); stroke-width: 1; }
@@ -24,12 +25,29 @@
   .edge { fill: none; stroke: var(--edge); stroke-width: 1.5; }
   .edge.done { opacity: .3; }
   .edge.inferred { stroke-dasharray: 5 4; }
+  .node, .ticket { cursor: pointer; }
+  #panel { position: fixed; top: 0; right: 0; width: 33.333vw; height: 100vh; box-sizing: border-box;
+    display: none; flex-direction: column; padding: 14px 16px; background: #1c1f26;
+    border-left: 1px solid #333844; }
+  body.open #panel { display: flex; }
+  #detail { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+  #panel h2 { margin: 0 0 6px; font-size: 15px; }
+  #panel dl { margin: 8px 0; display: grid; grid-template-columns: max-content 1fr; gap: 2px 10px; }
+  #panel dt { color: #9ca3af; }
+  #panel dd { margin: 0; }
+  #panel h3 { margin: 12px 0 4px; font-size: 12px; color: #9ca3af; text-transform: uppercase; }
+  #panel .notes { flex: 1; min-height: 0; overflow-y: auto; white-space: pre-wrap; }
+  #panel a { color: #93c5fd; cursor: pointer; text-decoration: underline; }
+  #panel ul { margin: 0; padding-left: 18px; }
+  #close { position: absolute; top: 10px; right: 12px; background: none; border: 0; color: #9ca3af;
+    font-size: 18px; cursor: pointer; }
   #error { position: fixed; bottom: 8px; left: 8px; color: #f87171; }
 </style>
 </head>
 <body>
 <div id="legend"></div>
 <svg id="canvas"><g id="viewport"></g></svg>
+<div id="panel"><button id="close" title="Close">×</button><div id="detail"></div></div>
 <div id="error"></div>
 <script>
 const W = 260, H = 34, GX = 60, GY = 14, NS = "http://www.w3.org/2000/svg";
@@ -79,6 +97,7 @@ function draw(tree) {
     el("rect", { width: W, height: H, rx: 6, fill: fill(n, tree.stages) }, node);
     const label = el("text", { x: 8, y: H / 2 + 4 }, node);
     label.textContent = truncate(`${n.id} ${n.name}`, 40);
+    node.addEventListener("click", () => { if (!moved) showTask(n.id); });
     const title = el("title", {}, node);
     title.textContent = [`${n.id} ${n.name}`, `stage: ${n.stage}`, ...n.warnings.map(w => "warning: " + w)].join("\n");
     n.tickets.forEach((t, i) => {
@@ -87,13 +106,14 @@ function draw(tree) {
                             transform: `translate(${ROW_INSET},${H + ROW_GAP + i * RH})` }, node);
       el("rect", { width: W - 2 * ROW_INSET, height: RH - ROW_GAP, rx: 4, fill: fill(t, tree.stages) }, row);
       el("text", { x: 6, y: RH / 2 + 1 }, row).textContent = truncate(label, 38);
+      row.addEventListener("click", ev => { ev.stopPropagation(); if (!moved) showTicket(n.id, t.id); });
       el("title", {}, row).textContent = `${label}\nstage: ${t.stage}`
         + (t.blocked ? "\nblocked by: " + t.blocked_by.join(", ") : "");
     });
   }
 }
 
-let scale = 1, tx = 0, ty = 0, drag = null;
+let scale = 1, tx = 0, ty = 0, drag = null, moved = false;
 const canvas = document.getElementById("canvas"), viewport = document.getElementById("viewport");
 const apply = () => viewport.setAttribute("transform", `translate(${tx},${ty}) scale(${scale})`);
 canvas.addEventListener("wheel", ev => {
@@ -103,10 +123,72 @@ canvas.addEventListener("wheel", ev => {
 }, { passive: false });
 canvas.addEventListener("mousedown", ev => {
   ev.preventDefault();
-  drag = [ev.clientX - tx, ev.clientY - ty]; canvas.classList.add("dragging");
+  drag = [ev.clientX - tx, ev.clientY - ty]; moved = false; canvas.classList.add("dragging");
 });
 window.addEventListener("mouseup", () => { drag = null; canvas.classList.remove("dragging"); });
-window.addEventListener("mousemove", ev => { if (drag) { tx = ev.clientX - drag[0]; ty = ev.clientY - drag[1]; apply(); } });
+window.addEventListener("mousemove", ev => { if (drag) {
+  const nx = ev.clientX - drag[0], ny = ev.clientY - drag[1];
+  if (nx !== tx || ny !== ty) moved = true;
+  tx = nx; ty = ny; apply();
+} });
+
+const detail = document.getElementById("detail");
+function text(tag, content, parent) {
+  const e = document.createElement(tag); e.textContent = content; parent.appendChild(e); return e;
+}
+function field(dl, label, value) {
+  if (value === null || value === undefined || value === "" || (Array.isArray(value) && !value.length)) return;
+  text("dt", label, dl); text("dd", Array.isArray(value) ? value.join(", ") : value, dl);
+}
+function link(label, onclick, parent) {
+  const a = text("a", label, parent); a.addEventListener("click", onclick); return a;
+}
+async function load(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(r.status + " " + url);
+  return r.json();
+}
+async function showTask(id) {
+  document.body.classList.add("open");
+  try {
+    const d = await load("/api/task/" + encodeURIComponent(id));
+    detail.innerHTML = "";
+    text("h2", `${d.id} ${d.name}`, detail);
+    const dl = document.createElement("dl"); detail.appendChild(dl);
+    field(dl, "Stage", d.stage + (d.blocked ? " (blocked)" : ""));
+    field(dl, "Blocked by", d.blocked_by);
+    field(dl, "Points", d.points);
+    field(dl, "Latest due", d.latest_due);
+    field(dl, "Measured in", d.measured_in);
+    field(dl, "Tracker", d.tracker_status);
+    d.warnings.forEach(w => field(dl, "Warning", w));
+    if (d.plan_excerpt) { text("h3", "Work plan", detail); text("div", d.plan_excerpt, detail); }
+    if (d.tickets.length) {
+      text("h3", "Tickets", detail);
+      const ul = document.createElement("ul"); detail.appendChild(ul);
+      for (const t of d.tickets) {
+        const li = document.createElement("li"); ul.appendChild(li);
+        link(`${t.id} - ${t.name}`, () => showTicket(d.id, t.id), li);
+        text("span", ` (${t.stage})`, li);
+      }
+    }
+    if (d.tracker_notes) { text("h3", "Tracker notes", detail); text("div", d.tracker_notes, detail).className = "notes"; }
+  } catch (err) { detail.textContent = "Could not load the task: " + err; }
+}
+async function showTicket(taskId, ticketId) {
+  document.body.classList.add("open");
+  try {
+    const d = await load(`/api/task/${encodeURIComponent(taskId)}/ticket/${encodeURIComponent(ticketId)}`);
+    detail.innerHTML = "";
+    link(`← ${d.task_id} ${d.task_name}`, () => showTask(d.task_id), detail);
+    text("h2", `${d.id} - ${d.name}`, detail);
+    const dl = document.createElement("dl"); detail.appendChild(dl);
+    field(dl, "Status", d.stage + (d.blocked ? " (blocked)" : ""));
+    field(dl, "Blocked by", d.blocked_by);
+    if (d.question) { text("h3", "Question", detail); text("div", d.question, detail).className = "notes"; }
+  } catch (err) { detail.textContent = "Could not load the ticket: " + err; }
+}
+document.getElementById("close").addEventListener("click", () => document.body.classList.remove("open"));
 
 fetch("/api/tree").then(r => r.json()).then(draw)
   .catch(err => { document.getElementById("error").textContent = "Could not load the tree: " + err; });

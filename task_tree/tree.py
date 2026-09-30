@@ -28,6 +28,7 @@ class Task:
     blocked_by: list[str] = field(default_factory=list)
     tickets: list[dict[str, Any]] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+    directory: Path | None = None
 
 
 def _read(path: Path, warnings: list[str]) -> str:
@@ -101,7 +102,7 @@ def _read_task(directory: Path, finished: bool) -> Task | None:
         stage = "specified"
     else:
         stage = status if status in ("needs-triage", "ready") else "needs-triage"
-    return Task(task_id, name, stage, _blocked_by(text, _TASK_ID), tickets, problems)
+    return Task(task_id, name, stage, _blocked_by(text, _TASK_ID), tickets, problems, directory)
 
 
 def _tracker_done(path: Path) -> dict[str, str]:
@@ -166,7 +167,7 @@ def _layout(nodes: dict[str, dict[str, Any]]) -> None:
         node["column"], node["row"] = column[node_id], int(rows[node_id])
 
 
-def build_tree(scratch: Path, tracker: Path) -> dict[str, Any]:
+def _load_tasks(scratch: Path, tracker: Path) -> tuple[dict[str, Task], set[str]]:
     tasks: dict[str, Task] = {}
     directories = sorted(p for p in scratch.iterdir() if p.is_dir()) if scratch.is_dir() else []
     finished_dir = scratch / "done"
@@ -188,6 +189,11 @@ def build_tree(scratch: Path, tracker: Path) -> dict[str, Any]:
             guessed.add(task_id)
     for task_id, deps in _infer_chains(sorted(guessed)).items():
         tasks[task_id].blocked_by = deps
+    return tasks, guessed
+
+
+def build_tree(scratch: Path, tracker: Path) -> dict[str, Any]:
+    tasks, guessed = _load_tasks(scratch, tracker)
     done = {t.id for t in tasks.values() if t.stage in FINISHED}
     nodes: dict[str, dict[str, Any]] = {}
     for task in tasks.values():
@@ -212,3 +218,82 @@ def build_tree(scratch: Path, tracker: Path) -> dict[str, Any]:
         for dep in node["blocked_by"]
     ]
     return {"nodes": list(nodes.values()), "edges": edges, "stages": list(STAGES)}
+
+
+def _table_row(path: Path, task_id: str) -> list[str] | None:
+    """The cells of the first markdown table row in `path` whose first cell is `task_id`."""
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return None
+    for line in text.splitlines():
+        if line.startswith("|"):
+            cells = [c.strip() for c in line.strip().strip("|").split(" | ")]
+            if cells and cells[0] == task_id:
+                return cells
+    return None
+
+
+def _header_line(text: str, label: str) -> str | None:
+    match = re.search(rf"^\*\*{label}:\*\*\s*(.+)$", text, re.MULTILINE)
+    return match.group(1).strip() if match else None
+
+
+def task_detail(scratch: Path, tracker: Path, plan: Path, task_id: str) -> dict[str, Any] | None:
+    """Everything the side panel shows for one task, or None when the id is unknown."""
+    tasks, _ = _load_tasks(scratch, tracker)
+    task = tasks.get(task_id)
+    if task is None:
+        return None
+    done = {t.id for t in tasks.values() if t.stage in FINISHED}
+    spec_text = ""
+    if task.directory is not None:
+        spec_text = _read(task.directory / "spec.md", [])
+    plan_line = _header_line(spec_text, "Work plan") or ""
+    points = re.search(r"(\d+)\s*pts", plan_line)
+    due = re.search(r"latest due\s+\**([^·*]+?)\**\s*(?:·|$)", plan_line)
+    plan_row = _table_row(plan, task_id)
+    tracker_row = _table_row(tracker, task_id)
+    return {
+        "id": task.id,
+        "name": task.name,
+        "stage": task.stage,
+        "blocked": any(d in tasks and d not in done for d in task.blocked_by),
+        "blocked_by": task.blocked_by,
+        "points": points.group(1) if points else None,
+        "latest_due": due.group(1).strip() if due else None,
+        "measured_in": _header_line(spec_text, "Measured in"),
+        "plan_excerpt": " | ".join(plan_row[1:]) if plan_row else None,
+        "tracker_status": tracker_row[2] if tracker_row and len(tracker_row) > 2 else None,
+        "tracker_notes": (
+            " | ".join(tracker_row[3:]) if tracker_row and len(tracker_row) > 3 else None
+        ),
+        "tickets": task.tickets,
+        "warnings": task.warnings,
+    }
+
+
+def ticket_detail(
+    scratch: Path, tracker: Path, task_id: str, ticket_id: str
+) -> dict[str, Any] | None:
+    """One ticket's question, status and blockers, or None when the task or ticket is unknown."""
+    tasks, _ = _load_tasks(scratch, tracker)
+    task = tasks.get(task_id)
+    if task is None or task.directory is None:
+        return None
+    ticket = next((t for t in task.tickets if t["id"] == ticket_id), None)
+    if ticket is None:
+        return None
+    path = next((task.directory / "issues").glob(f"{ticket_id}-*.md"))
+    text = _read(path, [])
+    question = re.search(r"^\*\*What to build:\*\*\s*(.*(?:\n(?!\n).*)*)", text, re.MULTILINE)
+    return {
+        "task_id": task.id,
+        "task_name": task.name,
+        "id": ticket_id,
+        "name": ticket["name"],
+        "stage": ticket["stage"],
+        "blocked": ticket["blocked"],
+        "blocked_by": ticket["blocked_by"],
+        "question": question.group(1).strip() if question else None,
+    }
