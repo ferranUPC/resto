@@ -10,6 +10,7 @@ from resto.application.executor.spend import StudySpend
 from resto.application.ports.repositories import ScenarioRepository
 from resto.application.tools.expert import EvidenceLedger
 from resto.application.use_cases.write_note import write_note
+from resto.domain.entities.scenario import Scenario
 from resto.domain.entities.study import Study, StudyStatus
 from resto.domain.services.ids import scenario_id_for
 from resto.domain.value_objects.arm import BASE_ARM
@@ -40,7 +41,7 @@ def write_notes(
             run,
             ledger,
             task,
-            study_id=recorder.study.study_id,
+            study_id=study.study_id,
             notes=deps.notes,
         )
     except Exception as e:
@@ -52,10 +53,16 @@ def write_notes(
 def base_network_id(study: Study, scenarios: ScenarioRepository) -> str:
     """The network of the study's base scenario. `Study.network_ids` is in the order the study met
     its networks, so a derived network can come first: it cannot say which one is the base."""
+    base = _base_scenario(study, scenarios)
+    if base is None:
+        raise ValueError("the study has no stored base scenario to take its base network from")
+    return base.network_id
+
+
+def _base_scenario(study: Study, scenarios: ScenarioRepository) -> Scenario | None:
     experiments = [e for p in study.phases for e in p.experiments]
     base = next((e for e in experiments if e.arm == BASE_ARM), None)
-    scenario = scenarios.get(base.scenario_id) if base is not None else None
-    return scenario.network_id if scenario is not None else study.network_ids[0]
+    return scenarios.get(base.scenario_id) if base is not None else None
 
 
 def allow_list(study: Study, scenarios: ScenarioRepository) -> tuple[NoteScenario, ...]:
@@ -66,15 +73,14 @@ def allow_list(study: Study, scenarios: ScenarioRepository) -> tuple[NoteScenari
     for e in experiments:
         scenario = scenarios.get(e.scenario_id)
         if scenario is None:
-            continue
+            raise ValueError(f"scenario {e.scenario_id!r} of the study is not stored")
         entries.setdefault(
             e.scenario_id,
             NoteScenario(
                 e.scenario_id, e.arm, e.role, e.purpose, bool(e.result_ids), scenario.network_id
             ),
         )
-    base = next((e for e in experiments if e.arm == BASE_ARM), None)
-    base_scenario = scenarios.get(base.scenario_id) if base is not None else None
+    base_scenario = _base_scenario(study, scenarios)
     if base_scenario is None:
         return tuple(entries.values())
     realised = {e.arm for e in experiments}
