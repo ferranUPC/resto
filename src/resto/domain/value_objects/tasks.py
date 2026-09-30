@@ -62,15 +62,22 @@ class ScenarioTask:
 
 @dataclass(frozen=True, slots=True)
 class ExpertTask:
+    """One Expert round. `network_ids` is the study's network scope (`CONTEXT.md`) as it stood
+    when the round started (ADR-0032)."""
+
     question: str
     mode: Mode
-    network_id: str
+    network_ids: tuple[str, ...]
     result_ids: tuple[str, ...] = ()
     notes_allowed: bool = True
 
     def __post_init__(self) -> None:
         if not self.question.strip():
             raise ValueError("an ExpertTask requires a question")
+        if not self.network_ids:
+            raise ValueError("an ExpertTask requires at least one network in its scope")
+        if len(set(self.network_ids)) != len(self.network_ids):
+            raise ValueError("an ExpertTask scope names each network once")
 
 
 @dataclass(frozen=True, slots=True)

@@ -40,7 +40,7 @@ def execute_study(
         network_id = execute_plan(plan, recorder, spend, deps, settings)
         if network_id is None:
             return recorder.study
-        answered = ask_expert_round(recorder, spend, deps, network_id, max_rounds=max_rounds)
+        answered = ask_expert_round(recorder, spend, deps, max_rounds=max_rounds)
         if answered is None:
             return recorder.study
         final, ledger = answered

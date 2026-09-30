@@ -8,6 +8,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 import pytest
+from eval.fixed_network_query_loader import FixedNetworkQueryLoader
 
 from resto.adapters.llm.agents.expert import (
     ExpertPort,
@@ -47,7 +48,7 @@ from tests.unit.domain._samples import simulation_result as sample_result
 TASK = ExpertTask(
     question="Which edges exceed 3.5% occupancy between 0s and 300s?",
     mode=Mode.FORCED,
-    network_id="abc123",
+    network_ids=("abc123",),
     result_ids=("res1",),
     notes_allowed=False,
 )
@@ -59,7 +60,7 @@ def test_build_task_carries_the_expert_task_as_plain_data() -> None:
     assert task.input == {
         "question": TASK.question,
         "mode": "forced",
-        "network_id": "abc123",
+        "network_ids": ["abc123"],
         "result_ids": ["res1"],
         "notes_allowed": False,
     }
@@ -101,7 +102,7 @@ def test_run_expert_offers_the_expert_tools_and_returns_the_agent_run() -> None:
         BUDGET,
         expert_context(
             TASK,
-            query=SumolibNetworkQuery(DEV_NET),
+            loader=FixedNetworkQueryLoader(SumolibNetworkQuery(DEV_NET)),
             results=results,
             scenarios=InMemoryScenarioRepository(),
             notes=None,
@@ -174,13 +175,17 @@ def test_run_expert_note_offers_no_tools_and_returns_the_agent_run() -> None:
     assert seen["tools"] == []
 
 
+def _reads_the_network(task: AgentTask, tools: Sequence[Tool]) -> None:
+    call_tool(tools, "get_edges", network_id="abc123", edge_ids=["A0A1"])
+
+
 def expert_port(networks: InMemoryNetworkRepository, opened: list[Path]) -> ExpertPort:
     def query_for(path: Path) -> SumolibNetworkQuery:
         opened.append(path)
         return SumolibNetworkQuery(DEV_NET)
 
     return ExpertPort(
-        agent=FakeToolAgent(output=expert_answer()),
+        agent=FakeToolAgent(output=expert_answer(), interact=_reads_the_network),
         budget=BUDGET,
         collaborators=ExpertCollaborators(
             network_query_loader=StoredNetworkQueryLoader(networks, query_for),
@@ -191,7 +196,7 @@ def expert_port(networks: InMemoryNetworkRepository, opened: list[Path]) -> Expe
     )
 
 
-def test_the_expert_port_queries_the_network_the_task_names() -> None:
+def test_the_expert_port_queries_the_networks_of_the_task_scope() -> None:
     networks = InMemoryNetworkRepository()
     networks.store(sample_network())
     opened: list[Path] = []

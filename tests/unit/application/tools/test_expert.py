@@ -11,6 +11,7 @@ from dataclasses import replace
 from typing import Any
 
 import pytest
+from eval.fixed_network_query_loader import FixedNetworkQueryLoader
 
 from resto.adapters.persistence.memory import InMemoryResultRepository, InMemoryScenarioRepository
 from resto.adapters.sumo.netxml import SumolibNetworkQuery
@@ -92,11 +93,17 @@ def _tools(
     task = ExpertTask(
         question="which edges are congested?",
         mode=Mode.FORCED,
-        network_id="abc123",
+        network_ids=("abc123",),
         result_ids=result_ids,
         notes_allowed=notes_allowed,
     )
-    context = expert_context(task, query=query, results=results, scenarios=scenarios, notes=notes)
+    context = expert_context(
+        task,
+        loader=FixedNetworkQueryLoader(query),
+        results=results,
+        scenarios=scenarios,
+        notes=notes,
+    )
     tools = build_expert_tools(context, ledger)
     return tools, ledger, results
 
@@ -121,16 +128,19 @@ def test_network_tool_reaches_the_real_network_and_is_recorded(
     query: SumolibNetworkQuery,
 ) -> None:
     tools, ledger, _ = _tools(query)
-    response = call_tool(tools, "get_edges", edge_ids=["A0A1"])
+    response = call_tool(tools, "get_edges", network_id="abc123", edge_ids=["A0A1"])
     assert response == {"ref": "q1", "result": {"A0A1": query.get_edge("A0A1")}}
     entry = ledger.get("q1")
     assert entry is not None
-    assert (entry.tool, entry.arguments) == ("get_edges", {"edge_ids": ["A0A1"]})
+    assert (entry.tool, entry.arguments) == (
+        "get_edges",
+        {"network_id": "abc123", "edge_ids": ["A0A1"]},
+    )
 
 
 def test_topology_tools_batch_several_ids_in_one_call(query: SumolibNetworkQuery) -> None:
     tools, _, _ = _tools(query)
-    response = call_tool(tools, "get_neighbours", edge_ids=["A0A1", "A0B0"])
+    response = call_tool(tools, "get_neighbours", network_id="abc123", edge_ids=["A0A1", "A0B0"])
     assert response["result"] == {
         "A0A1": query.get_neighbours("A0A1"),
         "A0B0": query.get_neighbours("A0B0"),
@@ -141,7 +151,7 @@ def test_get_tls_answers_a_known_light_with_its_edges_and_programs(
     query: SumolibNetworkQuery,
 ) -> None:
     tools, _, _ = _tools(query)
-    response = call_tool(tools, "get_tls", tls_ids=["A2"])
+    response = call_tool(tools, "get_tls", network_id="abc123", tls_ids=["A2"])
     assert response["result"] == {"A2": query.get_tls("A2")}
 
 
@@ -149,7 +159,7 @@ def test_get_tls_says_a_light_does_not_exist_and_still_answers_the_others(
     query: SumolibNetworkQuery,
 ) -> None:
     tools, ledger, _ = _tools(query)
-    response = call_tool(tools, "get_tls", tls_ids=["A2", "NOPE"])
+    response = call_tool(tools, "get_tls", network_id="abc123", tls_ids=["A2", "NOPE"])
     result = response["result"]
     assert result["A2"] == query.get_tls("A2")
     assert result["NOPE"]["exists"] is False
@@ -159,7 +169,7 @@ def test_get_tls_says_a_light_does_not_exist_and_still_answers_the_others(
 
 def test_refs_increment_per_successful_call(query: SumolibNetworkQuery) -> None:
     tools, ledger, _ = _tools(query)
-    call_tool(tools, "get_neighbours", edge_ids=["A0A1"])
+    call_tool(tools, "get_neighbours", network_id="abc123", edge_ids=["A0A1"])
     response = call_tool(tools, "get_result", result_id="res1")
     assert response["ref"] == "q2"
     assert [e.ref for e in ledger.entries] == ["q1", "q2"]
@@ -168,14 +178,14 @@ def test_refs_increment_per_successful_call(query: SumolibNetworkQuery) -> None:
 def test_failed_calls_are_not_recorded(query: SumolibNetworkQuery) -> None:
     tools, ledger, _ = _tools(query)
     with pytest.raises(KeyError):
-        call_tool(tools, "get_edges", edge_ids=["nope"])
+        call_tool(tools, "get_edges", network_id="abc123", edge_ids=["nope"])
     assert ledger.entries == ()
 
 
 def test_topology_tools_reject_an_empty_id_list(query: SumolibNetworkQuery) -> None:
     tools, _, _ = _tools(query)
     with pytest.raises(ValueError, match="edge_id"):
-        call_tool(tools, "get_edges", edge_ids=[])
+        call_tool(tools, "get_edges", network_id="abc123", edge_ids=[])
 
 
 def test_get_result_returns_the_result_as_json(query: SumolibNetworkQuery) -> None:
@@ -256,7 +266,80 @@ def test_ledger_exposes_artifacts_returned_by_result_tools(query: SumolibNetwork
 def test_search_notes_is_scoped_to_the_task_network(query: SumolibNetworkQuery) -> None:
     notes = RecordingNoteRepository()
     tools, _, _ = _tools(query, notes_allowed=True, notes=notes)
-    response = call_tool(tools, "search_notes", query="E12 at peak")
+    response = call_tool(tools, "search_notes", network_id="abc123", query="E12 at peak")
     assert notes.searches == [("E12 at peak", "abc123", {}, 10)]
     assert response["result"][0]["score"] == 0.75
     assert response["result"][0]["note"]["note_id"] == "n-1"
+
+
+class ScopedLoader:
+    """Two networks in the scope: the base one and a derived one that adds edge NEW."""
+
+    def __init__(self, base: SumolibNetworkQuery) -> None:
+        self.loads: list[str] = []
+        self._queries = {"abc123": base, "derived": _WithEdge(base, "NEW")}
+
+    def load(self, network_id: str) -> Any:
+        self.loads.append(network_id)
+        return self._queries[network_id]
+
+
+class _WithEdge:
+    def __init__(self, base: SumolibNetworkQuery, edge_id: str) -> None:
+        self._base, self._edge = base, edge_id
+
+    def get_edge(self, edge_id: str) -> Mapping[str, Any]:
+        if edge_id == self._edge:
+            return {"id": edge_id}
+        return self._base.get_edge(edge_id)
+
+
+def _scoped_tools(query: SumolibNetworkQuery) -> tuple[tuple[Tool, ...], ScopedLoader]:
+    loader = ScopedLoader(query)
+    task = ExpertTask(
+        question="does the new edge help?",
+        mode=Mode.FORCED,
+        network_ids=("abc123", "derived"),
+        notes_allowed=True,
+    )
+    results, scenarios = _repositories()
+    context = expert_context(
+        task, loader=loader, results=results, scenarios=scenarios, notes=RecordingNoteRepository()
+    )
+    return build_expert_tools(context, EvidenceLedger()), loader
+
+
+def test_a_topology_tool_answers_from_the_network_it_is_given(query: SumolibNetworkQuery) -> None:
+    tools, _ = _scoped_tools(query)
+    derived = call_tool(tools, "get_edges", network_id="derived", edge_ids=["NEW"])
+    assert derived["result"] == {"NEW": {"id": "NEW"}}
+    with pytest.raises(KeyError):
+        call_tool(tools, "get_edges", network_id="abc123", edge_ids=["NEW"])
+
+
+def test_a_network_is_loaded_once_per_task(query: SumolibNetworkQuery) -> None:
+    tools, loader = _scoped_tools(query)
+    call_tool(tools, "get_edges", network_id="derived", edge_ids=["NEW"])
+    call_tool(tools, "get_edges", network_id="derived", edge_ids=["NEW"])
+    assert loader.loads == ["derived"]
+
+
+@pytest.mark.parametrize(
+    ("name", "arguments"),
+    [
+        ("get_edges", {"edge_ids": ["A0A1"]}),
+        ("get_neighbours", {"edge_ids": ["A0A1"]}),
+        ("capacity_estimate", {"edge_ids": ["A0A1"]}),
+        ("get_tls", {"tls_ids": ["A2"]}),
+        ("get_lanes", {"edge_id": "A0A1"}),
+        ("shortest_path", {"from_edge": "A0A1", "to_edge": "A0B0"}),
+        ("search_notes", {"query": "anything"}),
+    ],
+)
+def test_a_network_outside_the_scope_is_a_tool_error(
+    query: SumolibNetworkQuery, name: str, arguments: dict[str, Any]
+) -> None:
+    tools, loader = _scoped_tools(query)
+    with pytest.raises(NotAvailableError, match="stranger"):
+        call_tool(tools, name, network_id="stranger", **arguments)
+    assert loader.loads == []

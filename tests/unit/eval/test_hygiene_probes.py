@@ -26,7 +26,7 @@ PROBE = HygieneProbe(
 
 
 def _cite_the_note(task: AgentTask, tools: Sequence[Tool]) -> None:
-    call_tool(tools, "search_notes", query="occupancy")
+    call_tool(tools, "search_notes", network_id="n", query="occupancy")
 
 
 def _observed_answer(ref: str = "q1") -> ExpertAnswer:

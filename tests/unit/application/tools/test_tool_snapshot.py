@@ -61,13 +61,13 @@ def _expert(query: SumolibNetworkQuery, *, notes_allowed: bool) -> tuple[Tool, .
     task = ExpertTask(
         question="which edges are congested?",
         mode=Mode.FORCED,
-        network_id="abc123",
+        network_ids=("abc123",),
         result_ids=("res1",),
         notes_allowed=notes_allowed,
     )
     context = expert_context(
         task,
-        query=query,
+        loader=FixedNetworkQueryLoader(query),
         results=results,
         scenarios=InMemoryScenarioRepository(),
         notes=InMemoryNoteRepository(),

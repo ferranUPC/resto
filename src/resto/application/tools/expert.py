@@ -1,7 +1,7 @@
 """Tools of the Network Expert agent as typed Python functions (DoD §2.2; ADR-0011, ADR-0018).
 
-Facts reach the Expert only through these: topology via `get_lanes`/`shortest_path` (the
-NetworkMCP functions of `application/tools/network.py`, unchanged) plus `get_edges`,
+Facts reach the Expert only through these: topology via `get_lanes`/`shortest_path` (the NetworkMCP
+functions of `application/tools/network.py` with a network id in front) plus `get_edges`,
 `get_neighbours`, `capacity_estimate` and `get_tls`, Expert-only wrappers over the same
 `NetworkQuery` port that take a list of ids instead of one (v2: describing a neighbourhood of
 several edges was costing one tool call per edge per NetworkMCP's singular contract, which starved
@@ -9,6 +9,9 @@ several edges was costing one tool call per edge per NetworkMCP's singular contr
 docs/expert-tuning-log.md). Simulated data reaches it via the `ResultRepository`/
 `ScenarioRepository` ports (never by parsing an artifact file), and earlier interpretations via
 `search_notes`.
+
+Every topology tool and `search_notes` take a `network_id`, checked against the task's network scope
+(ADR-0032): an id outside it is a tool error the model sees.
 
 Two things are added on top of plain delegation, both bound in `build_expert_tools`:
 
@@ -26,7 +29,7 @@ from __future__ import annotations
 import statistics
 from collections.abc import Mapping, Sequence
 from collections.abc import Set as AbstractSet
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Annotated, Any
 
 from pydantic import Field
@@ -40,7 +43,6 @@ from resto.application.ports.repositories import (
 )
 from resto.application.schemas import adapter_for
 from resto.application.tools.declaration import tool
-from resto.application.tools.network import get_lanes, shortest_path
 from resto.domain.entities.expert_note import ExpertNote
 from resto.domain.entities.scenario import Scenario
 from resto.domain.entities.simulation_result import SimulationResult
@@ -123,24 +125,47 @@ def _require_available(available: AbstractSet[str], result_id: str) -> None:
 
 @dataclass(frozen=True, slots=True)
 class ExpertContext:
-    """What the Expert's tools are bound to for one task: the network, the repositories, the ids
-    this task may read and the network it asks about. The first parameter (`ctx`) of every tool
-    below; the model never sees it."""
+    """What the Expert's tools are bound to for one task: the network scope, the repositories and
+    the ids this task may read. The first parameter (`ctx`) of every tool below; the model never
+    sees it."""
 
-    query: NetworkQuery
+    loader: NetworkQueryLoader
     results: ResultRepository
     scenarios: ScenarioRepository
     notes: NoteRepository | None
-    network_id: str
+    network_ids: tuple[str, ...]
     available: frozenset[str]
     available_scenarios: frozenset[str]
     notes_allowed: bool
+    _queries: dict[str, NetworkQuery] = field(default_factory=dict, compare=False, repr=False)
+
+    def require_in_scope(self, network_id: str) -> None:
+        """Raises:
+        NotAvailableError: `network_id` is not in the task's network scope.
+        """
+        if network_id not in self.network_ids:
+            raise NotAvailableError(
+                f"network {network_id!r} is not one of this study's networks "
+                f"({', '.join(self.network_ids)})"
+            )
+
+    def query(self, network_id: str) -> NetworkQuery:
+        """The query of a network of the scope, loaded once per task.
+
+        Raises:
+            NotAvailableError: `network_id` is not in the task's network scope.
+            NetworkNotStored: the network is in the scope but no longer stored.
+        """
+        self.require_in_scope(network_id)
+        if network_id not in self._queries:
+            self._queries[network_id] = self.loader.load(network_id)
+        return self._queries[network_id]
 
 
 def expert_context(
     task: ExpertTask,
     *,
-    query: NetworkQuery,
+    loader: NetworkQueryLoader,
     results: ResultRepository,
     scenarios: ScenarioRepository,
     notes: NoteRepository | None,
@@ -155,11 +180,11 @@ def expert_context(
         raise ValueError("notes_allowed requires a NoteRepository")
     available = frozenset(task.result_ids)
     return ExpertContext(
-        query=query,
+        loader=loader,
         results=results,
         scenarios=scenarios,
         notes=notes,
-        network_id=task.network_id,
+        network_ids=task.network_ids,
         available=available,
         available_scenarios=frozenset(
             r.scenario_id for r in (results.get(rid) for rid in available) if r is not None
@@ -179,16 +204,25 @@ class ExpertCollaborators:
     scenarios: ScenarioRepository
     notes: NoteRepository | None
 
-    def context(self, task: ExpertTask, query: NetworkQuery) -> ExpertContext:
+    def context(self, task: ExpertTask) -> ExpertContext:
         """The tools' context for `task`, with the repositories bound here."""
         return expert_context(
-            task, query=query, results=self.results, scenarios=self.scenarios, notes=self.notes
+            task,
+            loader=self.network_query_loader,
+            results=self.results,
+            scenarios=self.scenarios,
+            notes=self.notes,
         )
 
 
 _EdgeIds = Annotated[
     Sequence[str], Field(min_length=1, description="Edge ids, e.g. ['A0A1', 'A1A2'].")
 ]
+_NetworkId = Annotated[
+    str,
+    Field(description="Id of one of the study's networks (`network_ids` in the input)."),
+]
+_EdgeId = Annotated[str, Field(description="Edge id, e.g. 'A0A1'.")]
 _TlsIds = Annotated[Sequence[str], Field(min_length=1, description="Traffic light ids.")]
 _ResultId = Annotated[str, Field(description="Id of an available simulation result.")]
 _ResultIds = Annotated[Sequence[str], Field(min_length=1)]
@@ -211,22 +245,63 @@ _Window = (
 
 
 @tool(
+    name="get_lanes",
+    description=(
+        "Per-lane attributes of one edge: index, length, speed, width, allowed vehicle classes."
+    ),
+)
+def get_lanes(ctx: ExpertContext, network_id: _NetworkId, edge_id: _EdgeId) -> Sequence[Any]:
+    """Per-lane attributes of one edge of one network of the study.
+
+    Raises:
+        NotAvailableError: `network_id` is not in the task's network scope.
+        KeyError: `edge_id` does not exist on that network.
+    """
+    return ctx.query(network_id).get_lanes(edge_id)
+
+
+@tool(
+    name="shortest_path",
+    description=(
+        "Ids of the edges on the shortest route from `from_edge` to `to_edge`, "
+        "empty if unreachable."
+    ),
+)
+def shortest_path(
+    ctx: ExpertContext,
+    network_id: _NetworkId,
+    from_edge: Annotated[str, Field(description="Origin edge id.")],
+    to_edge: Annotated[str, Field(description="Destination edge id.")],
+) -> Sequence[str]:
+    """Ids of the edges on the shortest route from `from_edge` to `to_edge` on one network of the
+    study, empty if unreachable.
+
+    Raises:
+        NotAvailableError: `network_id` is not in the task's network scope.
+        KeyError: `from_edge` or `to_edge` does not exist on that network.
+    """
+    return ctx.query(network_id).shortest_path(from_edge, to_edge)
+
+
+@tool(
     name="get_edges",
     description=(
         "Attributes of several edges in one call: endpoints (from_node, to_node), length, speed, "
         "lane count, priority, shape."
     ),
 )
-def get_edges(ctx: ExpertContext, edge_ids: _EdgeIds) -> Mapping[str, Any]:
+def get_edges(ctx: ExpertContext, network_id: _NetworkId, edge_ids: _EdgeIds) -> Mapping[str, Any]:
     """Attributes of several edges in one call: endpoints, length, speed, lane count, priority,
     shape.
 
     Raises:
-        KeyError: an edge_id does not exist on this network.
+        NotAvailableError: `network_id` is not in the task's network scope.
+        KeyError: an edge_id does not exist on that network.
     """
     if not edge_ids:
         raise ValueError("give at least one edge_id")
-    return {edge_id: ctx.query.get_edge(edge_id) for edge_id in edge_ids}
+    query = ctx.query(network_id)
+    return {edge_id: query.get_edge(edge_id) for edge_id in edge_ids}
 
 
 @tool(
@@ -236,16 +311,20 @@ def get_edges(ctx: ExpertContext, edge_ids: _EdgeIds) -> Mapping[str, Any]:
         "call for several edges."
     ),
 )
-def get_neighbours(ctx: ExpertContext, edge_ids: _EdgeIds) -> Mapping[str, Any]:
+def get_neighbours(
+    ctx: ExpertContext, network_id: _NetworkId, edge_ids: _EdgeIds
+) -> Mapping[str, Any]:
     """Ids of the edges reachable in one hop downstream of each edge (outgoing connections), one
     call for several edges.
 
     Raises:
-        KeyError: an edge_id does not exist on this network.
+        NotAvailableError: `network_id` is not in the task's network scope.
+        KeyError: an edge_id does not exist on that network.
     """
     if not edge_ids:
         raise ValueError("give at least one edge_id")
-    return {edge_id: ctx.query.get_neighbours(edge_id) for edge_id in edge_ids}
+    query = ctx.query(network_id)
+    return {edge_id: query.get_neighbours(edge_id) for edge_id in edge_ids}
 
 
 @tool(
@@ -255,16 +334,20 @@ def get_neighbours(ctx: ExpertContext, edge_ids: _EdgeIds) -> Mapping[str, Any]:
         "only, not a substitute for a simulated result), one call for several edges."
     ),
 )
-def capacity_estimate(ctx: ExpertContext, edge_ids: _EdgeIds) -> Mapping[str, Any]:
+def capacity_estimate(
+    ctx: ExpertContext, network_id: _NetworkId, edge_ids: _EdgeIds
+) -> Mapping[str, Any]:
     """Rough capacity of several edges in veh/h (Greenshields estimate — ADR-0015; order-of-
     magnitude only, not a substitute for a simulated result), one call for several edges.
 
     Raises:
-        KeyError: an edge_id does not exist on this network.
+        NotAvailableError: `network_id` is not in the task's network scope.
+        KeyError: an edge_id does not exist on that network.
     """
     if not edge_ids:
         raise ValueError("give at least one edge_id")
-    return {edge_id: ctx.query.capacity_estimate(edge_id) for edge_id in edge_ids}
+    query = ctx.query(network_id)
+    return {edge_id: query.capacity_estimate(edge_id) for edge_id in edge_ids}
 
 
 @tool(
@@ -276,12 +359,13 @@ def capacity_estimate(ctx: ExpertContext, edge_ids: _EdgeIds) -> Mapping[str, An
         "ids are answered as usual."
     ),
 )
-def get_tls(ctx: ExpertContext, tls_ids: _TlsIds) -> Mapping[str, Any]:
+def get_tls(ctx: ExpertContext, network_id: _NetworkId, tls_ids: _TlsIds) -> Mapping[str, Any]:
     """Controlled edges and signal programs of several traffic lights in one call. An id with no
     light is answered with `{"exists": False, "message": ...}` instead of failing the call."""
     if not tls_ids:
         raise ValueError("give at least one tls_id")
-    return {tls_id: _tls_or_absent(ctx.query, tls_id) for tls_id in tls_ids}
+    query = ctx.query(network_id)
+    return {tls_id: _tls_or_absent(query, tls_id) for tls_id in tls_ids}
 
 
 def _tls_or_absent(query: NetworkQuery, tls_id: str) -> Mapping[str, Any]:
@@ -590,11 +674,13 @@ def get_scenario(ctx: ExpertContext, scenario_id: str) -> Mapping[str, Any]:
 @tool(
     name="search_notes",
     description=(
-        "Earlier notes on this network ranked by relevance to `query`, each with its score."
+        "Earlier notes on one of the study's networks ranked by relevance to `query`, each "
+        "with its score."
     ),
 )
 def search_notes(
     ctx: ExpertContext,
+    network_id: _NetworkId,
     query: Annotated[str, Field(description="What you are looking for, in prose.")],
     filters: Annotated[
         Mapping[str, Any],
@@ -606,17 +692,18 @@ def search_notes(
     """Earlier notes on this network ranked by relevance to `query`, each with its score.
     Filters: status, basis, provenance, scenario_id, context_tags."""
     assert ctx.notes is not None, "search_notes is only offered with a NoteRepository"
+    ctx.require_in_scope(network_id)
     adapter = adapter_for(ExpertNote)
     return [
         {"note": adapter.dump_python(note, mode="json"), "score": score}
-        for note, score in ctx.notes.search(query, ctx.network_id, filters or {}, limit)
+        for note, score in ctx.notes.search(query, network_id, filters or {}, limit)
     ]
 
 
-# What the Expert is offered, in the order it is offered. The network tools are the NetworkMCP
-# declarations bound to `ctx.query`; the rest are bound to the whole context.
-_NETWORK_TOOLS = (get_lanes, shortest_path)
+# What the Expert is offered, in the order it is offered, all bound to the whole context.
 _EXPERT_TOOLS = (
+    get_lanes,
+    shortest_path,
     get_edges,
     get_neighbours,
     capacity_estimate,
@@ -650,8 +737,7 @@ def build_expert_tools(context: ExpertContext, ledger: EvidenceLedger) -> tuple[
 
     `search_notes` is offered only when the context allows notes.
     """
-    tools = [d.bind(context.query) for d in _NETWORK_TOOLS]
-    tools.extend(d.bind(context) for d in _EXPERT_TOOLS)
+    tools = [d.bind(context) for d in _EXPERT_TOOLS]
     if context.notes_allowed:
         tools.append(search_notes.bind(context))
     return tuple(_recorded(ledger, t) for t in tools)

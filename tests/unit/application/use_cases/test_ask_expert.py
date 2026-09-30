@@ -1,7 +1,7 @@
 """`ask_expert` promotion (E4.1; ADR-0001, ADR-0011, ADR-0019): an answer is accepted only if every
 evidence ref resolves to this run's tool calls, every edge in its typed values exists on the
-network the value names (which must be the task's), forced mode never abstains, and a proposed
-experiment stays on the task's network."""
+network the value names (which must be in the task's network scope), forced mode never abstains,
+and a proposed experiment stays inside the scope."""
 
 from __future__ import annotations
 
@@ -53,7 +53,10 @@ LOADER = FixedNetworkQueryLoader(StubNetworkQuery(edges=frozenset({"B2C2", "B1B0
 
 def _task(mode: Mode = Mode.FORCED) -> ExpertTask:
     return ExpertTask(
-        question="does delay on B2C2 increase?", mode=mode, network_id=NETWORK, result_ids=("r1",)
+        question="does delay on B2C2 increase?",
+        mode=mode,
+        network_ids=(NETWORK,),
+        result_ids=("r1",),
     )
 
 
@@ -181,7 +184,7 @@ def test_a_diagnosis_with_a_cause_per_known_edge_is_accepted() -> None:
         ),
     ],
 )
-def test_a_value_naming_a_network_other_than_the_tasks_is_rejected(value: AnswerValue) -> None:
+def test_a_value_naming_a_network_outside_the_scope_is_rejected(value: AnswerValue) -> None:
     with pytest.raises(ExpertAnswerRejected, match="other"):
         ask_expert(_task(), _run(_answer(values=(value,))), _ledger(), loader=LOADER)
 
@@ -217,7 +220,7 @@ def test_proposed_experiment_without_a_network_ref_is_accepted() -> None:
     assert round_.answer.proposed_experiment is not None
 
 
-def test_proposed_experiment_on_another_network_is_rejected() -> None:
+def test_proposed_experiment_outside_the_scope_is_rejected() -> None:
     with pytest.raises(ExpertAnswerRejected, match="network"):
         ask_expert(
             _task(Mode.FREE),
@@ -225,3 +228,54 @@ def test_proposed_experiment_on_another_network_is_rejected() -> None:
             EvidenceLedger(),
             loader=LOADER,
         )
+
+
+DERIVED = "derived1"
+
+
+class _TwoNetworks:
+    """B2C2 is on both networks; NEW1 only on the derived one."""
+
+    def load(self, network_id: str) -> StubNetworkQuery:
+        edges = {"B2C2", "NEW1"} if network_id == DERIVED else {"B2C2"}
+        return StubNetworkQuery(edges=frozenset(edges))
+
+
+def _scoped_task(mode: Mode = Mode.FORCED) -> ExpertTask:
+    return ExpertTask(
+        question="does the new edge help?",
+        mode=mode,
+        network_ids=(NETWORK, DERIVED),
+        result_ids=("r1",),
+    )
+
+
+def test_a_value_about_an_edge_only_the_derived_network_has_is_accepted() -> None:
+    value = Edges(edge_ids=("NEW1",), network_id=DERIVED)
+    answer = _answer(values=(value,))
+    round_ = ask_expert(_scoped_task(), _run(answer), _ledger(), loader=_TwoNetworks())
+    assert round_.answer.values == (value,)
+
+
+def test_an_edge_absent_from_its_named_network_is_rejected_even_if_another_network_has_it() -> None:
+    value = Edges(edge_ids=("NEW1",), network_id=NETWORK)
+    with pytest.raises(ExpertAnswerRejected, match="NEW1"):
+        ask_expert(
+            _scoped_task(), _run(_answer(values=(value,))), _ledger(), loader=_TwoNetworks()
+        )
+
+
+def test_a_network_the_study_never_had_is_rejected_even_when_it_would_load() -> None:
+    value = Edges(edge_ids=("B2C2",), network_id="never-derived")
+    with pytest.raises(ExpertAnswerRejected, match="never-derived"):
+        ask_expert(
+            _scoped_task(), _run(_answer(values=(value,))), _ledger(), loader=_TwoNetworks()
+        )
+
+
+def test_proposed_experiment_on_the_derived_network_is_accepted() -> None:
+    answer = _abstention(network_ref=DERIVED)
+    round_ = ask_expert(
+        _scoped_task(Mode.FREE), _run(answer), EvidenceLedger(), loader=_TwoNetworks()
+    )
+    assert round_.answer.proposed_experiment is not None

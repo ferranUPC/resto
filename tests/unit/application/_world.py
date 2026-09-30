@@ -83,6 +83,7 @@ UNKNOWN_LANE = Intervention(
 )
 NEW_EDGE = AddEdge("J7", "J9", lanes=2, speed=13.9, edge_id="J7J9")
 QUERY = StubNetworkQuery(edges={"E12"}, lanes={("E12", 1)})
+DERIVED_QUERY = StubNetworkQuery(edges={"E12", "J7J9"}, lanes={("E12", 1)})  # NEW_EDGE added
 REPORT = Report(summary="done", mode=Mode.FREE, basis=Basis.OBSERVED)
 KPIS = Kpis(mean_delay=24.4, mean_travel_time=85.4, teleports=0, departed=50, arrived=43)
 
@@ -341,7 +342,7 @@ class World:
 
     def _load_query(self, path: Path) -> StubNetworkQuery:
         self.query_loads.append(path)
-        return QUERY
+        return DERIVED_QUERY if path.name == "derived.net.xml" else QUERY
 
     def _promote_network(self, task: Any, run: Any) -> Network:
         network = derived_network(task, run)

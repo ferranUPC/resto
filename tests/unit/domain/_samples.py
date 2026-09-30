@@ -178,9 +178,7 @@ def study_plan() -> StudyPlan:
             ),
             RunSimulationStep(scenario_id=FromStep(0), depends_on=(0,)),
         ),
-        reused=(
-            ReusedExperiment("s0", "base", ExperimentRole.BASELINE, "without the closure"),
-        ),
+        reused=(ReusedExperiment("s0", "base", ExperimentRole.BASELINE, "without the closure"),),
     )
 
 
@@ -470,7 +468,7 @@ SAMPLES: dict[type, Callable[[], object]] = {
     ExpertTask: lambda: ExpertTask(
         question="where does delay concentrate?",
         mode=Mode.FREE,
-        network_id="abc123",
+        network_ids=("abc123",),
         result_ids=("res1",),
     ),
 }

@@ -11,8 +11,8 @@ Promotion order (ADR-0001):
                  abstaining, each value's own scope/sign rules).
   2. semantic  - forced mode never abstains; every evidence ref resolves to a tool call in the
                  ledger (query) or to an artifact a result tool call returned (artifact); every
-                 typed value that names an edge names a network of the task and the edge exists on
-                 it (ADR-0032); a proposed experiment targets the task's network.
+                 typed value that names an edge names a network of the task's scope and the edge
+                 exists on it (ADR-0032); a proposed experiment targets a network of the scope.
   3. construct - `ExpertRound(question, answer)`.
 Attaching the round to a `Study` and persisting it is the Executor's job (E5,
 `application/executor/`), not this module's.
@@ -73,17 +73,17 @@ def _check_evidence(answer: ExpertAnswer, ledger: EvidenceLedger) -> None:
 
 
 def _check_values(task: ExpertTask, answer: ExpertAnswer, loader: NetworkQueryLoader) -> None:
-    # Load the task's network first: one that is not stored fails here even when no value names an
-    # edge.
-    loader.load(task.network_id)
+    # Load every network of the scope first: one that is not stored fails here even when no value
+    # names an edge.
+    queries = {network_id: loader.load(network_id) for network_id in task.network_ids}
     for value in answer.values:
         for network_id, edge_id in value.edge_references:
-            if network_id != task.network_id:
+            if network_id not in queries:
                 raise ExpertAnswerRejected(
                     f"edge {edge_id!r} names network {network_id!r}, "
-                    f"which is not the task's network {task.network_id!r}"
+                    f"which is not in the study's networks {list(task.network_ids)}"
                 )
-            if not loader.load(network_id).has_edge(edge_id):
+            if not queries[network_id].has_edge(edge_id):
                 raise ExpertAnswerRejected(
                     f"edge {edge_id!r} in the answer is not on network {network_id!r}"
                 )
@@ -91,8 +91,8 @@ def _check_values(task: ExpertTask, answer: ExpertAnswer, loader: NetworkQueryLo
 
 def _check_proposed_experiment(task: ExpertTask, answer: ExpertAnswer) -> None:
     proposed = answer.proposed_experiment
-    if proposed is not None and proposed.network_ref not in (None, task.network_id):
+    if proposed is not None and proposed.network_ref not in (None, *task.network_ids):
         raise ExpertAnswerRejected(
             f"proposed experiment targets network {proposed.network_ref!r}, "
-            f"not {task.network_id!r}"
+            f"which is not in the study's networks {list(task.network_ids)}"
         )

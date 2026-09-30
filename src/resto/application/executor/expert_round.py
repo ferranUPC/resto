@@ -22,7 +22,6 @@ def ask_expert_round(
     recorder: StudyRecorder,
     spend: StudySpend,
     deps: StudyDeps,
-    network_id: str,
     *,
     max_rounds: int,
 ) -> tuple[ExpertRound, EvidenceLedger] | None:
@@ -30,13 +29,11 @@ def ask_expert_round(
     nothing, once the failure was recorded and the study is `failed`."""
     round_no = recorder.phase_index + 1
     question = recorder.study.question
-    # TODO(E5.3): one network per ExpertTask. Arms on a derived network have their results in
-    # `result_ids` (readable), but the Expert's topology tools and `ask_expert`'s edge check
-    # see only the study's network (docs/tfm-work-plan.md, E5.3).
+    # the scope as it stands now: a network derived in an earlier phase is in it (ADR-0032)
     task = ExpertTask(
         question=question.text,
         mode=mode_for(question, round_no, max_rounds),
-        network_id=network_id,
+        network_ids=recorder.study.network_ids,
         result_ids=recorder.result_ids(),
     )
     ledger = EvidenceLedger()

@@ -516,6 +516,20 @@ $0.99 (cap $1.30), no crashes. Report: `eval/expert_benchmark/reports/v2-e38-for
   tuning bank is not a reported result; EXP-01 in Validation 2 measures it. Cause accuracy is
   unchanged in kind (4 of 57 edges wrong, all `spillback` or `intervention` precedence).
 
+### v7: the Expert queries a network scope (refactor r4, ADR-0032)
+
+- **Configuration** (`EXPERT_VERSION = "v7"`; budget and model as v6). The input carries `network_ids`
+  (the study's base network and every network derived so far) instead of one `network_id`. Every
+  topology tool (`get_lanes`, `shortest_path`, `get_edges`, `get_neighbours`, `capacity_estimate`,
+  `get_tls`) and `search_notes` take a `network_id`, checked against that list; one outside it is a tool
+  error. The prompt says so and tells the model to name, in each value, the network its edge belongs to.
+- **Hypothesis.** With one network in the scope nothing changes in what the model can learn, so scores
+  should match v6. The extra `network_id` argument adds a few tokens per call.
+- **Sweep.** None. No model call was made for this version: the benchmark's tasks all have a single
+  network, and a measurement run waits for a validation pass. The first sweep on v7 should compare
+  against v6 before the version is trusted.
+- **Conclusion.** Kept for the structural change; the effect on answers is unmeasured.
+
 ### Diagnostic questions from v0 to v6
 
 The diagnostic family is the one that drove most of the tuning. Its history in one table (1

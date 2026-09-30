@@ -46,7 +46,7 @@ def _answer(edge_ids: tuple[str, ...], ref: str = "q1", confidence: float = 0.9)
 
 
 def _cite_one_call(task: AgentTask, tools: Sequence[Tool]) -> None:
-    call_tool(tools, "get_edges", edge_ids=["B1B0"])
+    call_tool(tools, "get_edges", network_id="n", edge_ids=["B1B0"])
 
 
 def _policy(price_per_job: float = 0.01, max_cost_usd: float = 1.0) -> CostPolicy:

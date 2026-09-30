@@ -121,13 +121,14 @@ def _run_once(
     cost_policy: CostPolicy,
 ) -> dict[str, Any]:
     task = ExpertTask(
-        question=probe.question, mode=Mode.FORCED, network_id=probe.network_id,
+        question=probe.question, mode=Mode.FORCED, network_ids=(probe.network_id,),
         result_ids=(), notes_allowed=True,
     )
     ledger = EvidenceLedger()
     started = time.monotonic()
+    loader = FixedNetworkQueryLoader(query)
     context = expert_context(
-        task, query=query, results=InMemoryResultRepository(),
+        task, loader=loader, results=InMemoryResultRepository(),
         scenarios=InMemoryScenarioRepository(), notes=_seeded_notes(probe),
     )
     run = run_expert(task, agent, budget, context, ledger)
@@ -135,7 +136,7 @@ def _run_once(
     rejection: str | None = None
     answer: ExpertAnswer | None = None
     try:
-        round_ = ask_expert(task, run, ledger, loader=FixedNetworkQueryLoader(query))
+        round_ = ask_expert(task, run, ledger, loader=loader)
         answer = round_.answer
     except (ExpertRunFailed, ExpertAnswerRejected) as exc:
         rejection = str(exc)

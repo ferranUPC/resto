@@ -123,14 +123,15 @@ def _run_once(
     task = question.to_task(mode=mode)
     ledger = EvidenceLedger()
     started = time.monotonic()
+    loader = FixedNetworkQueryLoader(env.query)
     context = expert_context(
-        task, query=env.query, results=env.results, scenarios=env.scenarios, notes=None
+        task, loader=loader, results=env.results, scenarios=env.scenarios, notes=None
     )
     run = run_expert(task, agent, budget, context, ledger)
     elapsed = time.monotonic() - started
     rejection: str | None = None
     try:
-        ask_expert(task, run, ledger, loader=FixedNetworkQueryLoader(env.query))
+        ask_expert(task, run, ledger, loader=loader)
     except (ExpertRunFailed, ExpertAnswerRejected) as exc:
         rejection = str(exc)
     return {

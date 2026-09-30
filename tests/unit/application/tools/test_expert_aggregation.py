@@ -10,7 +10,7 @@ from typing import Any, cast
 import pytest
 
 from resto.adapters.persistence.memory import InMemoryResultRepository, InMemoryScenarioRepository
-from resto.application.ports.network_query import NetworkQuery
+from resto.application.ports.network_query import NetworkQueryLoader
 from resto.application.tools.expert import (
     ExpertContext,
     NotAvailableError,
@@ -54,11 +54,11 @@ class CannedResults(InMemoryResultRepository):
 
 def _ctx(results: InMemoryResultRepository, available: frozenset[str]) -> ExpertContext:
     return ExpertContext(
-        query=cast(NetworkQuery, None),  # the aggregation tools never touch the network
+        loader=cast(NetworkQueryLoader, None),  # the aggregation tools never touch a network
         results=results,
         scenarios=InMemoryScenarioRepository(),
         notes=None,
-        network_id="abc123",
+        network_ids=("abc123",),
         available=available,
         available_scenarios=frozenset(),
         notes_allowed=False,

@@ -28,7 +28,7 @@ from resto.domain.value_objects.tasks import ExpertTask, NoteTask
 
 # Bump whenever the prompt, the tool set or the default budget changes in a way that can change
 # answers: every benchmark run records it, and docs/expert-tuning-log.md explains each version.
-EXPERT_VERSION = "v6"
+EXPERT_VERSION = "v7"
 
 _EDGE_MEASURES = ", ".join(f"{m.value} ({m.unit})" for m in Measure if not m.is_network_wide)
 _NETWORK_MEASURES = ", ".join(f"{m.value} ({m.unit})" for m in Measure if m.is_network_wide)
@@ -36,11 +36,14 @@ _NETWORK_MEASURES = ", ".join(f"{m.value} ({m.unit})" for m in Measure if m.is_n
 # The examples below use ids and values that exist neither on DEV-NET nor in any gold answer:
 # the prompt must never leak the question bank.
 SYSTEM_PROMPT = f"""\
-You are the Network Expert of a SUMO traffic-simulation framework. You answer one question about one
-road network from what has been simulated on it. You never run simulations yourself.
+You are the Network Expert of a SUMO traffic-simulation framework. You answer one question about a
+study's road networks from what has been simulated on them. You never run simulations yourself.
+`network_ids` in the input lists the study's networks: the base network and any network derived from
+it during the study. The same edge id can exist on more than one of them.
 
 Facts only through tools. Topology comes from get_edges, get_lanes, get_neighbours, shortest_path,
-capacity_estimate and get_tls. Simulated data:
+capacity_estimate and get_tls; each takes the `network_id` it queries, one of `network_ids`.
+Simulated data:
   - edge_stats, rank_edges, compare_edges, compare_kpis: already aggregated across the runs you pass
     (mean, std, runs). Use these first.
   - get_result and get_scenario: to tell baseline runs from treatment runs.
@@ -48,7 +51,8 @@ capacity_estimate and get_tls. Simulated data:
 Never state a number, an edge id or a result you did not get from a tool call in this conversation.
 Only the results listed in `result_ids` are available; if it is empty, no simulation data is
 available for this question. When `notes_allowed` is true you also have search_notes: earlier notes
-are interpretations, not facts - a note alone never makes an answer observed.
+are interpretations, not facts - a note alone never makes an answer observed. search_notes also
+takes a `network_id`.
 
 Every tool returns {{"ref": "q<N>", "result": ...}}. Cite what supports your answer in `evidence`:
   - {{"kind": "query", "ref": "q<N>", "excerpt": "<the value(s) you used>"}} for a tool call, or
@@ -73,7 +77,7 @@ Mode (`mode` in the input):
   - forced: you must answer. If the data does not cover the question, answer anyway with
     basis = extrapolated and a low confidence. needs_simulation must be false.
   - free: if the available data cannot support an answer, you may abstain: needs_simulation = true
-    and a proposed_experiment (a Question on this network) that would settle it.
+    and a proposed_experiment (a Question on one of the networks) that would settle it.
 
 The answer itself goes in `values`, a list of typed values; `answer` is your prose justification
 and must agree with them (the values are what counts). Use only these kinds:
@@ -95,8 +99,9 @@ and must agree with them (the values are what counts). Use only these kinds:
      {{"edge_id": "E12", "network_id": "<network_id>", "cause": "signal"}},
      {{"edge_id": "E07", "network_id": "<network_id>", "cause": "spillback"}}]}}
     why each edge of a bottleneck is congested: one cause per edge.
-Every value that names an edge also names its network in `network_id`: copy the `network_id`
-of your input. The same edge id can exist on more than one network, so it is never left out.
+Every value that names an edge also names its network in `network_id`: give the network
+the edge belongs to, one of `network_ids` of your input. The same edge id can exist on more than one
+network, so it is never left out.
 Measures per edge (edge_id and network_id required): {_EDGE_MEASURES}.
 time_loss is an edge's total delay and waiting_time its total halting time, both summed over all
 its vehicles (veh·s); divide by entered for a per-vehicle value.
@@ -133,7 +138,7 @@ def build_task(task: ExpertTask) -> AgentTask:
         input={
             "question": task.question,
             "mode": task.mode.value,
-            "network_id": task.network_id,
+            "network_ids": list(task.network_ids),
             "result_ids": list(task.result_ids),
             "notes_allowed": task.notes_allowed,
         },
@@ -214,7 +219,7 @@ def run_expert_note(task: NoteTask, agent: ToolAgent, budget: Budget) -> AgentRu
 @dataclass(frozen=True, slots=True)
 class ExpertPort:
     """`ExpertAgent` port (ADR-0025 §6) over `run_expert`, with the collaborators bound: the
-    Expert queries the network the task names."""
+    Expert queries the networks of the task's scope."""
 
     agent: ToolAgent
     budget: Budget
@@ -222,8 +227,7 @@ class ExpertPort:
 
     def answer(self, task: ExpertTask, ledger: EvidenceLedger) -> AgentRun[ExpertAnswer]:
         collaborators = self.collaborators
-        query = collaborators.network_query_loader.load(task.network_id)
-        context = collaborators.context(task, query)
+        context = collaborators.context(task)
         return run_expert(task, self.agent, self.budget, context, ledger)
 
 

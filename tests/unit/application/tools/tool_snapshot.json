@@ -7,9 +7,14 @@
           "edge_id": {
             "description": "Edge id, e.g. 'A0A1'.",
             "type": "string"
+          },
+          "network_id": {
+            "description": "Id of one of the study's networks (`network_ids` in the input).",
+            "type": "string"
           }
         },
         "required": [
+          "network_id",
           "edge_id"
         ],
         "type": "object"
@@ -24,12 +29,17 @@
             "description": "Origin edge id.",
             "type": "string"
           },
+          "network_id": {
+            "description": "Id of one of the study's networks (`network_ids` in the input).",
+            "type": "string"
+          },
           "to_edge": {
             "description": "Destination edge id.",
             "type": "string"
           }
         },
         "required": [
+          "network_id",
           "from_edge",
           "to_edge"
         ],
@@ -48,9 +58,14 @@
             },
             "minItems": 1,
             "type": "array"
+          },
+          "network_id": {
+            "description": "Id of one of the study's networks (`network_ids` in the input).",
+            "type": "string"
           }
         },
         "required": [
+          "network_id",
           "edge_ids"
         ],
         "type": "object"
@@ -68,9 +83,14 @@
             },
             "minItems": 1,
             "type": "array"
+          },
+          "network_id": {
+            "description": "Id of one of the study's networks (`network_ids` in the input).",
+            "type": "string"
           }
         },
         "required": [
+          "network_id",
           "edge_ids"
         ],
         "type": "object"
@@ -88,9 +108,14 @@
             },
             "minItems": 1,
             "type": "array"
+          },
+          "network_id": {
+            "description": "Id of one of the study's networks (`network_ids` in the input).",
+            "type": "string"
           }
         },
         "required": [
+          "network_id",
           "edge_ids"
         ],
         "type": "object"
@@ -101,6 +126,10 @@
       "description": "Controlled edges and signal programs of several traffic lights in one call. A light usually has the id of its junction. An id with no light on this network is answered with exists=false and a message, which means that junction has no signal; the other ids are answered as usual.",
       "input_schema": {
         "properties": {
+          "network_id": {
+            "description": "Id of one of the study's networks (`network_ids` in the input).",
+            "type": "string"
+          },
           "tls_ids": {
             "description": "Traffic light ids.",
             "items": {
@@ -111,6 +140,7 @@
           }
         },
         "required": [
+          "network_id",
           "tls_ids"
         ],
         "type": "object"
@@ -381,9 +411,14 @@
           "edge_id": {
             "description": "Edge id, e.g. 'A0A1'.",
             "type": "string"
+          },
+          "network_id": {
+            "description": "Id of one of the study's networks (`network_ids` in the input).",
+            "type": "string"
           }
         },
         "required": [
+          "network_id",
           "edge_id"
         ],
         "type": "object"
@@ -398,12 +433,17 @@
             "description": "Origin edge id.",
             "type": "string"
           },
+          "network_id": {
+            "description": "Id of one of the study's networks (`network_ids` in the input).",
+            "type": "string"
+          },
           "to_edge": {
             "description": "Destination edge id.",
             "type": "string"
           }
         },
         "required": [
+          "network_id",
           "from_edge",
           "to_edge"
         ],
@@ -422,9 +462,14 @@
             },
             "minItems": 1,
             "type": "array"
+          },
+          "network_id": {
+            "description": "Id of one of the study's networks (`network_ids` in the input).",
+            "type": "string"
           }
         },
         "required": [
+          "network_id",
           "edge_ids"
         ],
         "type": "object"
@@ -442,9 +487,14 @@
             },
             "minItems": 1,
             "type": "array"
+          },
+          "network_id": {
+            "description": "Id of one of the study's networks (`network_ids` in the input).",
+            "type": "string"
           }
         },
         "required": [
+          "network_id",
           "edge_ids"
         ],
         "type": "object"
@@ -462,9 +512,14 @@
             },
             "minItems": 1,
             "type": "array"
+          },
+          "network_id": {
+            "description": "Id of one of the study's networks (`network_ids` in the input).",
+            "type": "string"
           }
         },
         "required": [
+          "network_id",
           "edge_ids"
         ],
         "type": "object"
@@ -475,6 +530,10 @@
       "description": "Controlled edges and signal programs of several traffic lights in one call. A light usually has the id of its junction. An id with no light on this network is answered with exists=false and a message, which means that junction has no signal; the other ids are answered as usual.",
       "input_schema": {
         "properties": {
+          "network_id": {
+            "description": "Id of one of the study's networks (`network_ids` in the input).",
+            "type": "string"
+          },
           "tls_ids": {
             "description": "Traffic light ids.",
             "items": {
@@ -485,6 +544,7 @@
           }
         },
         "required": [
+          "network_id",
           "tls_ids"
         ],
         "type": "object"
@@ -747,7 +807,7 @@
       "name": "get_scenario"
     },
     {
-      "description": "Earlier notes on this network ranked by relevance to `query`, each with its score.",
+      "description": "Earlier notes on one of the study's networks ranked by relevance to `query`, each with its score.",
       "input_schema": {
         "properties": {
           "filters": {
@@ -758,12 +818,17 @@
             "minimum": 1,
             "type": "integer"
           },
+          "network_id": {
+            "description": "Id of one of the study's networks (`network_ids` in the input).",
+            "type": "string"
+          },
           "query": {
             "description": "What you are looking for, in prose.",
             "type": "string"
           }
         },
         "required": [
+          "network_id",
           "query"
         ],
         "type": "object"
