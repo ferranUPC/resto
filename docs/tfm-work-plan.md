@@ -38,9 +38,9 @@ estimates for E4.11 and E5.9–E5.12) are absorbed into the task rows; the old t
 | Christmas break | **24 Dec → 2 Jan, zero work** (21–23 Dec are working days) |
 | Planning rate | 40 pts/week nominal → **38.5 pts/week** after supervisor meetings (DLR + FIB, ~3 h every two weeks): ≈ 34.5 build + ≈ 4 writing |
 | Capacity to 18 Feb | ≈ **745 pts** |
-| Remaining work | ≈ **584 pts**: 395 build (incl. E3.8, E3.11 and E5.13) + ≈ 50 measurement-only + ≈ 120 writing + 12 E7.6 + 7 (E3.9, E3.10) |
-| Slack | ≈ **+160 pts** (v0.2: −95 h; +170 before E3.11). Conservative: it still counts the writing that sits in the M8 window (second half of E8.7, E8.8, ≈ 18 pts) |
-| Plan total (every row of §1) | 964 pts: v0.2's 935 + E3.8 (10) + E3.9 (5) + E3.10 (2) + E3.11 (10) + E5.13 (2) |
+| Remaining work | ≈ **586 pts**: 397 build (incl. E3.8, E3.11 and E5.13) + ≈ 50 measurement-only + ≈ 120 writing + 12 E7.6 + 7 (E3.9, E3.10) |
+| Slack | ≈ **+158 pts** (v0.2: −95 h; +170 before E3.11). Conservative: it still counts the writing that sits in the M8 window (second half of E8.7, E8.8, ≈ 18 pts) |
+| Plan total (every row of §1) | 966 pts: v0.2's 935 + E3.8 (10) + E3.9 (5) + E3.10 (2) + E3.11 (12) + E5.13 (2) |
 | After 18 Feb | ~7 h/week from about March (the maintainer likely has a job), reserved for revisions, the thesis and the defense: M8 window, not planned here |
 
 The slack is not a licence for Stretch work: it is the January buffer (§3) and the first step of the
@@ -156,7 +156,7 @@ measurement suite is left (built; ⏳ once the tracker syncs) · `F` final stret
 | E3.8 | *(new 2026-09-24)* ADR-0028 migration to clock time: the three DEV-NET demands move from `[0, 3600)` to `[28800, 32400)` (08:00–09:00; `low`/`peak`/`incident` are intensity labels, not times) — `eval/dev-net/demand/` (`generate_demand.sh`, trips/routes, `control_counts.json`, verification notebook re-run over 9 sim seeds, README); `eval/scenario_matrix/` windows `[0, 300)` → `[28800, 29100)`, `matrix.db`, report; `eval/question_bank/` (`DEFAULT_WINDOW`, question text in clock time, `question-bank.json`, report); `verify/` tests; the expert benchmark's bank loader; `evaluating-resto.md` citations. Not touched: synthetic unit tests, the request bank, old expert runs (history). DoD: rebuilt assets pass the checks they already passed (`peak` congestion 10–20 %, `incident` teleport-free over 9 seeds, every matrix row's §4.5 effect check, ≥ 60 questions, `verify/` green). No paid runs | demands + matrix + question bank | 10 | 1a | 23 Oct |
 | E3.9 | *(new 2026-09-24)* Evaluation budget document for the supervisors (FIB/DLR): short, in English, one row per measurement suite (what it measures, which threshold, which pass, full vs minimum size, cost measured vs proxy), totals against the $30 cap; takes over `evaluating-resto.md` §7.2's table. First version with whatever is known, **before the funding request (~24 Oct)**; each suite's row is refined when its benchmark is designed | document | 5 | 1b | 23 Oct |
 | E3.10 | *(new 2026-09-24)* Trim `evaluating-resto.md`'s Decisions log (§5) to one line per decision, linking the tuning logs | doc edit | 2 | 1b | 11 Dec |
-| E3.11 | *(new 2026-09-30)* ADR-0035 described demand, found while triaging E3.7: `Demand.description` + free `labels` (domain, schemas, both `Database` backends, DatabaseMCP demand record); DEV-NET's three demands described; request bank (E3.4): concepts that need a demand name it, a few stay without one on purpose, + 2–3 network-only `describe` concepts, + 3 concepts on networks not in the DB (the REAL-NET city, another city, a grid), variants regenerated and reviewed, split by the existing stratified rule; module docstring's "peak hour" rule updated; Parser (E5.1) development pass on dev, logged as a bank change. DoD: bank rebuilt and verified, Parser dev thresholds still met, tests green. Development runs only (≈ $0.30) | domain + DEV-NET demands + request bank | 10 | 1b | 13 Nov |
+| E3.11 | *(new 2026-09-30, widened by its grilling the same day)* ADR-0035 described demand, found while triaging E3.7: `Demand.description` (required) + free `labels` (domain, `DemandDraft`, schemas, both `Database` backends, DatabaseMCP demand record; `matrix.db` rebuilt); DEV-NET's three demands described; `Question.network_only` marked by the Parser; `time_window` is the period the user asks about for every `intent`; `demand_ref` becomes a short English phrase, scored by presence; DatabaseMCP contract and GP-10 ask instead of falling back to random demand; request bank (E3.4): concepts that need a demand name it (some with the demand spread across the text), a few stay without one on purpose, + 3 network-only `describe` concepts and one traffic counterexample, + 3 concepts on networks not in the DB (Berlin-Mitte, the Eixample, a 4x4 grid), variants regenerated and reviewed, new concepts placed by the frozen split rule (`concepts.py`); module docstring's "peak hour" rule updated; Parser (E5.1) development pass on dev, logged as one contract change (bank + the `demand_ref`/`time_window`/`network_only` prompt rules). DoD: bank rebuilt and verified, Parser dev thresholds still met, tests green. Development runs only (≈ $0.30) | domain + DEV-NET demands + request bank | 12 | 1b | 13 Nov |
 
 ### E4 — Network Expert (166) · DoD §4.7 · **research focus**
 
@@ -267,11 +267,11 @@ by the DAG (§4), not by the week.
 | Wave | Weeks | Content (in order) | Cum. pts | Target | Deadline |
 |---|---|---|---|---|---|
 | 1a | 24 Sep → 9 Oct | E3.8 → E5.13 (accept/change ADR-0027) → E4.2–E4.4 development sweep and tuning | 68 | **M2: Fri 9 Oct** | 13 Nov |
-| 1b | 12 → 23 Oct | E3.11 → E3.7 → E5.2 → E5.3 → E5.4 → E7.1; E6.3 (REAL-NET) in the gaps; E3.9 evaluation budget (before ~24 Oct); E3.10 Decisions-log trim | 143 | Fri 23 Oct | — |
-| 2 | 26 Oct → 6 Nov | E2.5 → E2.6 → E7.2 → E2.7 | 201 | **M3: Fri 6 Nov** | 11 Dec |
-| 3 | 9 → 27 Nov | E6.1, E6.2 → E6.4, E6.5, E6.6, E3.5, E6.7 (E6.3 here if it missed 1b) | 299 | **M4: Fri 27 Nov** | 15 Jan |
-| 4 | 30 Nov → 4 Dec | E3.6 → E4.8; E4.9 (DEV-NET) | 347 | **M5: Fri 4 Dec** | 29 Jan |
-| 5 | 7 → 11 Dec | E5.5, E5.6, E5.7 (checker), E7.3 | 395 | **M6 = all built: Fri 11 Dec** | 29 Jan |
+| 1b | 12 → 23 Oct | E3.11 → E3.7 → E5.2 → E5.3 → E5.4 → E7.1; E6.3 (REAL-NET) in the gaps; E3.9 evaluation budget (before ~24 Oct); E3.10 Decisions-log trim | 145 | Fri 23 Oct | — |
+| 2 | 26 Oct → 6 Nov | E2.5 → E2.6 → E7.2 → E2.7 | 203 | **M3: Fri 6 Nov** | 11 Dec |
+| 3 | 9 → 27 Nov | E6.1, E6.2 → E6.4, E6.5, E6.6, E3.5, E6.7 (E6.3 here if it missed 1b) | 301 | **M4: Fri 27 Nov** | 15 Jan |
+| 4 | 30 Nov → 4 Dec | E3.6 → E4.8; E4.9 (DEV-NET) | 349 | **M5: Fri 4 Dec** | 29 Jan |
+| 5 | 7 → 11 Dec | E5.5, E5.6, E5.7 (checker), E7.3 | 397 | **M6 = all built: Fri 11 Dec** | 29 Jan |
 | V1 | 14 → 18 Dec | Validation 1 | — | Fri 18 Dec | 18 Dec |
 | — | 21 → 23 Dec | Margin (working days) | — | — | — |
 | — | **24 Dec → 2 Jan** | **Break, zero work** | — | — | — |
@@ -301,8 +301,8 @@ by the DAG (§4), not by the week.
 
 ## 4. Dependencies
 
-The plan is **limited by capacity, not by dependencies**: the longest chain of pending build work is 81
-of 395 points (≈ 21 %), so the order within a wave is mostly free. Two DAGs: what must be **built**
+The plan is **limited by capacity, not by dependencies**: the longest chain of pending build work is 83
+of 397 points (≈ 21 %), so the order within a wave is mostly free. Two DAGs: what must be **built**
 before V2, and which **measurement suites** turn ⏳ into ✅.
 
 ### 4.1 Build DAG
@@ -331,7 +331,7 @@ flowchart LR
   end
 
   subgraph SPINE["Coordinator spine"]
-    E311["E3.11 described demand (ADR-0035) · 10"]:::frontier
+    E311["E3.11 described demand (ADR-0035) · 12"]:::frontier
     E37["E3.7 plan bank · 7"]:::pending
     E52["E5.2 Coordinator Min · 12"]:::pending
     E53["E5.3 loop closure · 14"]:::pending
@@ -468,10 +468,10 @@ flowchart LR
 | Target | Points | Chain |
 |---|---|---|
 | M2 (build) | 34 | E3.8 → E4.4 |
-| M3 (build) | 69 | E3.8 → E3.11 → E3.7 → E5.2 → E5.3 → E7.1 → E7.2 |
-| M4 (build) | 71 | E3.8 → E3.11 → E3.7 → E5.2 → E5.3 → E7.1 → E6.7 |
+| M3 (build) | 71 | E3.8 → E3.11 → E3.7 → E5.2 → E5.3 → E7.1 → E7.2 |
+| M4 (build) | 73 | E3.8 → E3.11 → E3.7 → E5.2 → E5.3 → E7.1 → E6.7 |
 | M5 (build) | 60 | E6.3 → E6.6 → E3.5 → E3.6 → E4.8 (E4.9: E3.8 → E4.4 → E4.9 = 52) |
-| M6 (build) = all built | **81** | E3.8 → E3.11 → E3.7 → E5.2 → E5.3 → E7.1 → E6.7 → E7.3 |
+| M6 (build) = all built | **83** | E3.8 → E3.11 → E3.7 → E5.2 → E5.3 → E7.1 → E6.7 → E7.3 |
 | Tail after V2 | 68 + V2 runs | E4.10 → E8.5 → E8.6 → E8.7 → (E8.8 in M8) |
 
 ### 4.4 What to watch
