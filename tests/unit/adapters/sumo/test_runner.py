@@ -111,7 +111,8 @@ def test_a_scenario_without_a_rerouter_does_not_get_ignore_route_errors(
 
     SubprocessSumoRunner().run_batch(scenario_cfg, seed=1, out_dir=tmp_path / "r")
 
-    assert seen_commands and "--ignore-route-errors" not in seen_commands[0]
+    sumo_runs = [c for c in seen_commands if "-c" in c]  # not the one-off `sumo --version`
+    assert sumo_runs and "--ignore-route-errors" not in sumo_runs[0]
 
 
 def test_batch_run_succeeds_with_kpis_and_the_five_output_artifacts(
@@ -244,3 +245,7 @@ def test_a_different_seed_changes_the_edgedata(scenario_cfg: ArtifactRef, tmp_pa
     assert (
         _kinds(a.artifacts)["edgedata"].content_hash != _kinds(b.artifacts)["edgedata"].content_hash
     )
+
+
+def test_the_runner_reports_the_checked_sumo_version() -> None:
+    assert SubprocessSumoRunner().sumo_version() == "1.27.1"

@@ -1,7 +1,7 @@
 """Tools of the Network Expert agent as typed Python functions (DoD §2.2; ADR-0011, ADR-0018).
 
-Facts reach the Expert only through these: topology via `get_lanes`/`shortest_path` (the
-NetworkMCP functions of `application/tools/network.py`, unchanged) plus `get_edges`,
+Facts reach the Expert only through these: topology via `get_lanes`/`shortest_path` (the NetworkMCP
+functions of `application/tools/network.py` with a network id in front) plus `get_edges`,
 `get_neighbours`, `capacity_estimate` and `get_tls`, Expert-only wrappers over the same
 `NetworkQuery` port that take a list of ids instead of one (v2: describing a neighbourhood of
 several edges was costing one tool call per edge per NetworkMCP's singular contract, which starved
@@ -9,6 +9,9 @@ several edges was costing one tool call per edge per NetworkMCP's singular contr
 docs/expert-tuning-log.md). Simulated data reaches it via the `ResultRepository`/
 `ScenarioRepository` ports (never by parsing an artifact file), and earlier interpretations via
 `search_notes`.
+
+Every topology tool and `search_notes` take a `network_id`, checked against the task's network scope
+(ADR-0032): an id outside it is a tool error the model sees.
 
 Two things are added on top of plain delegation, both bound in `build_expert_tools`:
 
@@ -24,13 +27,15 @@ Two things are added on top of plain delegation, both bound in `build_expert_too
 from __future__ import annotations
 
 import statistics
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from collections.abc import Set as AbstractSet
-from dataclasses import dataclass
-from typing import Any
+from dataclasses import dataclass, field
+from typing import Annotated, Any
+
+from pydantic import Field
 
 from resto.application.ports.llm import Tool
-from resto.application.ports.network_query import NetworkQuery
+from resto.application.ports.network_query import NetworkQuery, NetworkQueryLoader
 from resto.application.ports.repositories import (
     NoteRepository,
     ResultRepository,
@@ -38,33 +43,13 @@ from resto.application.ports.repositories import (
 )
 from resto.application.promotion import DraftRejected
 from resto.application.schemas import adapter_for
-from resto.application.tools.network import build_network_tools
+from resto.application.tools.declaration import tool
 from resto.domain.entities.expert_note import ExpertNote
 from resto.domain.entities.scenario import Scenario
 from resto.domain.entities.simulation_result import SimulationResult
 from resto.domain.value_objects.expert_answer import Evidence, EvidenceKind
 from resto.domain.value_objects.tasks import ExpertTask
 
-EXPERT_NETWORK_TOOLS = (
-    "get_lanes",
-    "shortest_path",
-)
-EXPERT_TOPOLOGY_TOOLS = (
-    "get_edges",
-    "get_neighbours",
-    "capacity_estimate",
-    "get_tls",
-)
-RESULT_TOOLS = (
-    "edge_stats",
-    "rank_edges",
-    "compare_edges",
-    "compare_kpis",
-    "get_result",
-    "list_results",
-    "query_edgedata",
-    "get_scenario",
-)
 # per-vehicle means: undefined in a run where no vehicle was on the edge (ADR-0021)
 _PER_VEHICLE = frozenset({"travel_time", "speed", "time_loss_per_vehicle"})
 EDGE_MEASURES = (
@@ -154,78 +139,294 @@ def _require_available(available: AbstractSet[str], result_id: str) -> None:
         )
 
 
-def get_edges(query: NetworkQuery, edge_ids: Sequence[str]) -> Mapping[str, Any]:
+@dataclass(frozen=True, slots=True)
+class ExpertContext:
+    """What the Expert's tools are bound to for one task: the network scope, the repositories and
+    the ids this task may read. The first parameter (`ctx`) of every tool below; the model never
+    sees it."""
+
+    loader: NetworkQueryLoader
+    results: ResultRepository
+    scenarios: ScenarioRepository
+    notes: NoteRepository | None
+    network_ids: tuple[str, ...]
+    available: frozenset[str]
+    available_scenarios: frozenset[str]
+    notes_allowed: bool
+    _queries: dict[str, NetworkQuery] = field(default_factory=dict, compare=False, repr=False)
+
+    def require_in_scope(self, network_id: str) -> None:
+        """Raises:
+        NotAvailableError: `network_id` is not in the task's network scope.
+        """
+        if network_id not in self.network_ids:
+            raise NotAvailableError(
+                f"network {network_id!r} is not one of this study's networks "
+                f"({', '.join(self.network_ids)})"
+            )
+
+    def query(self, network_id: str) -> NetworkQuery:
+        """The query of a network of the scope, loaded once per task.
+
+        Raises:
+            NotAvailableError: `network_id` is not in the task's network scope.
+            NetworkNotStored: the network is in the scope but no longer stored.
+        """
+        self.require_in_scope(network_id)
+        if network_id not in self._queries:
+            self._queries[network_id] = self.loader.load(network_id)
+        return self._queries[network_id]
+
+
+def expert_context(
+    task: ExpertTask,
+    *,
+    loader: NetworkQueryLoader,
+    results: ResultRepository,
+    scenarios: ScenarioRepository,
+    notes: NoteRepository | None,
+) -> ExpertContext:
+    """The context of one task: `task.result_ids` is the allow-list, and the scenarios available
+    are the ones those results belong to.
+
+    Raises:
+        ValueError: `task.notes_allowed` but no `notes` repository was given.
+    """
+    if task.notes_allowed and notes is None:
+        raise ValueError("notes_allowed requires a NoteRepository")
+    available = frozenset(task.result_ids)
+    return ExpertContext(
+        loader=loader,
+        results=results,
+        scenarios=scenarios,
+        notes=notes,
+        network_ids=task.network_ids,
+        available=available,
+        available_scenarios=frozenset(
+            r.scenario_id for r in (results.get(rid) for rid in available) if r is not None
+        ),
+        notes_allowed=task.notes_allowed,
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class ExpertCollaborators:
+    """Everything the Expert needs that does not depend on the task: the network query
+    loader and the repositories. Built once in the composition root; a new collaborator is one
+    more field."""
+
+    network_query_loader: NetworkQueryLoader
+    results: ResultRepository
+    scenarios: ScenarioRepository
+    notes: NoteRepository | None
+
+    def context(self, task: ExpertTask) -> ExpertContext:
+        """The tools' context for `task`, with the repositories bound here."""
+        return expert_context(
+            task,
+            loader=self.network_query_loader,
+            results=self.results,
+            scenarios=self.scenarios,
+            notes=self.notes,
+        )
+
+
+_EdgeIds = Annotated[
+    Sequence[str], Field(min_length=1, description="Edge ids, e.g. ['A0A1', 'A1A2'].")
+]
+_NetworkId = Annotated[
+    str,
+    Field(description="Id of one of the study's networks (`network_ids` in the input)."),
+]
+_EdgeId = Annotated[str, Field(description="Edge id, e.g. 'A0A1'.")]
+_TlsIds = Annotated[Sequence[str], Field(min_length=1, description="Traffic light ids.")]
+_ResultId = Annotated[str, Field(description="Id of an available simulation result.")]
+_ResultIds = Annotated[Sequence[str], Field(min_length=1)]
+_Measure = Annotated[str, Field(json_schema_extra={"enum": list(EDGE_MEASURES)})]
+_TopK = Annotated[int, Field(ge=1)]
+_Window = (
+    Annotated[
+        Sequence[float],
+        Field(
+            min_length=2,
+            max_length=2,
+            description=(
+                "[start, end) as time of day in seconds since midnight (08:00-08:05 is "
+                "[28800, 29100]); omit for the whole run."
+            ),
+        ),
+    ]
+    | None
+)
+
+
+@tool(
+    name="get_lanes",
+    description=(
+        "Per-lane attributes of one edge: index, length, speed, width, allowed vehicle classes."
+    ),
+)
+def get_lanes(ctx: ExpertContext, network_id: _NetworkId, edge_id: _EdgeId) -> Sequence[Any]:
+    """Per-lane attributes of one edge of one network of the study.
+
+    Raises:
+        NotAvailableError: `network_id` is not in the task's network scope.
+        KeyError: `edge_id` does not exist on that network.
+    """
+    return ctx.query(network_id).get_lanes(edge_id)
+
+
+@tool(
+    name="shortest_path",
+    description=(
+        "Ids of the edges on the shortest route from `from_edge` to `to_edge`, "
+        "empty if unreachable."
+    ),
+)
+def shortest_path(
+    ctx: ExpertContext,
+    network_id: _NetworkId,
+    from_edge: Annotated[str, Field(description="Origin edge id.")],
+    to_edge: Annotated[str, Field(description="Destination edge id.")],
+) -> Sequence[str]:
+    """Ids of the edges on the shortest route from `from_edge` to `to_edge` on one network of the
+    study, empty if unreachable.
+
+    Raises:
+        NotAvailableError: `network_id` is not in the task's network scope.
+        KeyError: `from_edge` or `to_edge` does not exist on that network.
+    """
+    return ctx.query(network_id).shortest_path(from_edge, to_edge)
+
+
+@tool(
+    name="get_edges",
+    description=(
+        "Attributes of several edges in one call: endpoints (from_node, to_node), length, speed, "
+        "lane count, priority, shape."
+    ),
+)
+def get_edges(ctx: ExpertContext, network_id: _NetworkId, edge_ids: _EdgeIds) -> Mapping[str, Any]:
     """Attributes of several edges in one call: endpoints, length, speed, lane count, priority,
     shape.
 
     Raises:
-        KeyError: an edge_id does not exist on this network.
+        NotAvailableError: `network_id` is not in the task's network scope.
+        KeyError: an edge_id does not exist on that network.
     """
     if not edge_ids:
         raise ValueError("give at least one edge_id")
+    query = ctx.query(network_id)
     return {edge_id: query.get_edge(edge_id) for edge_id in edge_ids}
 
 
-def get_neighbours(query: NetworkQuery, edge_ids: Sequence[str]) -> Mapping[str, Any]:
+@tool(
+    name="get_neighbours",
+    description=(
+        "Ids of the edges reachable in one hop downstream of each edge (outgoing connections), one "
+        "call for several edges."
+    ),
+)
+def get_neighbours(
+    ctx: ExpertContext, network_id: _NetworkId, edge_ids: _EdgeIds
+) -> Mapping[str, Any]:
     """Ids of the edges reachable in one hop downstream of each edge (outgoing connections), one
     call for several edges.
 
     Raises:
-        KeyError: an edge_id does not exist on this network.
+        NotAvailableError: `network_id` is not in the task's network scope.
+        KeyError: an edge_id does not exist on that network.
     """
     if not edge_ids:
         raise ValueError("give at least one edge_id")
+    query = ctx.query(network_id)
     return {edge_id: query.get_neighbours(edge_id) for edge_id in edge_ids}
 
 
-def capacity_estimate(query: NetworkQuery, edge_ids: Sequence[str]) -> Mapping[str, Any]:
+@tool(
+    name="capacity_estimate",
+    description=(
+        "Rough capacity of several edges in veh/h (Greenshields estimate; order-of-magnitude "
+        "only, not a substitute for a simulated result), one call for several edges."
+    ),
+)
+def capacity_estimate(
+    ctx: ExpertContext, network_id: _NetworkId, edge_ids: _EdgeIds
+) -> Mapping[str, Any]:
     """Rough capacity of several edges in veh/h (Greenshields estimate — ADR-0015; order-of-
     magnitude only, not a substitute for a simulated result), one call for several edges.
 
     Raises:
-        KeyError: an edge_id does not exist on this network.
+        NotAvailableError: `network_id` is not in the task's network scope.
+        KeyError: an edge_id does not exist on that network.
     """
     if not edge_ids:
         raise ValueError("give at least one edge_id")
+    query = ctx.query(network_id)
     return {edge_id: query.capacity_estimate(edge_id) for edge_id in edge_ids}
 
 
-def get_tls(query: NetworkQuery, tls_ids: Sequence[str]) -> Mapping[str, Any]:
-    """Controlled edges and signal programs of several traffic lights in one call.
-
-    Raises:
-        KeyError: a tls_id does not exist on this network.
-    """
+@tool(
+    name="get_tls",
+    description=(
+        "Controlled edges and signal programs of several traffic lights in one call. A light "
+        "usually has the id of its junction. An id with no light on that network is answered "
+        "with exists=false and a message, which means that junction has no signal; the other "
+        "ids are answered as usual."
+    ),
+)
+def get_tls(ctx: ExpertContext, network_id: _NetworkId, tls_ids: _TlsIds) -> Mapping[str, Any]:
+    """Controlled edges and signal programs of several traffic lights in one call. An id with no
+    light is answered with `{"exists": False, "message": ...}` instead of failing the call."""
     if not tls_ids:
         raise ValueError("give at least one tls_id")
-    return {tls_id: query.get_tls(tls_id) for tls_id in tls_ids}
+    query = ctx.query(network_id)
+    return {tls_id: _tls_or_absent(query, tls_id) for tls_id in tls_ids}
 
 
-def get_result(
-    results: ResultRepository, available: AbstractSet[str], result_id: str
-) -> Mapping[str, Any]:
+def _tls_or_absent(query: NetworkQuery, tls_id: str) -> Mapping[str, Any]:
+    if not query.has_tls(tls_id):
+        return {
+            "exists": False,
+            "message": f"no traffic light with id {tls_id!r} on this network; nothing to report",
+        }
+    return query.get_tls(tls_id)
+
+
+@tool(
+    name="get_result",
+    description=(
+        "One simulation result: scenario_id, seed, status, KPIs and artifact references. Its "
+        "scenario_id is what get_scenario takes."
+    ),
+)
+def get_result(ctx: ExpertContext, result_id: _ResultId) -> Mapping[str, Any]:
     """One simulation result: scenario_id, seed, status, KPIs and artifact references.
 
     Raises:
         NotAvailableError: `result_id` is not available to this question.
         KeyError: no stored result has that id.
     """
-    _require_available(available, result_id)
-    result = results.get(result_id)
+    _require_available(ctx.available, result_id)
+    result = ctx.results.get(result_id)
     if result is None:
         raise KeyError(f"result {result_id!r} not found")
     return adapter_for(SimulationResult).dump_python(result, mode="json")
 
 
-def list_results(
-    results: ResultRepository, available: AbstractSet[str], scenario_id: str
-) -> list[Mapping[str, Any]]:
+@tool(
+    name="list_results",
+    description=(
+        "The available results of one scenario (one per seed), empty if none is available."
+    ),
+)
+def list_results(ctx: ExpertContext, scenario_id: str) -> list[Mapping[str, Any]]:
     """The available results of one scenario (one per seed), empty if none is available."""
     adapter = adapter_for(SimulationResult)
     return [
         adapter.dump_python(r, mode="json")
-        for r in results.list(scenario_id)
-        if r.result_id in available
+        for r in ctx.results.list(scenario_id)
+        if r.result_id in ctx.available
     ]
 
 
@@ -254,9 +455,16 @@ def _summary(values: Sequence[float | None]) -> dict[str, float | int] | None:
     }
 
 
+def _bounds(window: Sequence[float] | None) -> tuple[float, float] | None:
+    if window is None:
+        return None
+    if len(window) != 2:
+        raise ValueError("window must be [start, end] in seconds since midnight")
+    return float(window[0]), float(window[1])
+
+
 def _per_run(
-    results: ResultRepository,
-    available: AbstractSet[str],
+    ctx: ExpertContext,
     result_ids: Sequence[str],
     edge_ids: Sequence[str],
     window: Sequence[float] | None,
@@ -264,11 +472,9 @@ def _per_run(
     if not result_ids:
         raise ValueError("give at least one result_id")
     for result_id in result_ids:
-        _require_available(available, result_id)
-    if window is not None and len(window) != 2:
-        raise ValueError("window must be [start, end] in seconds since midnight")
-    bounds = None if window is None else (float(window[0]), float(window[1]))
-    return [results.query_edgedata(rid, list(edge_ids), bounds) for rid in result_ids]
+        _require_available(ctx.available, result_id)
+    bounds = _bounds(window)
+    return [ctx.results.query_edgedata(rid, list(edge_ids), bounds) for rid in result_ids]
 
 
 def _edge_summary(
@@ -277,12 +483,17 @@ def _edge_summary(
     return _summary([_run_value(run[edge_id], measure) for run in runs if edge_id in run])
 
 
+@tool(
+    name="edge_stats",
+    description=(
+        "Mean, std and run count of every measure on the given edges, across the given runs."
+    ),
+)
 def edge_stats(
-    results: ResultRepository,
-    available: AbstractSet[str],
-    result_ids: Sequence[str],
-    edge_ids: Sequence[str],
-    window: Sequence[float] | None = None,
+    ctx: ExpertContext,
+    result_ids: _ResultIds,
+    edge_ids: Annotated[Sequence[str], Field(min_length=1)],
+    window: _Window = None,
 ) -> Mapping[str, Any]:
     """Mean, std and run count of every measure on the given edges, across the given runs.
 
@@ -294,7 +505,7 @@ def edge_stats(
     """
     if not edge_ids:
         raise ValueError("name the edges; use rank_edges to search the whole network")
-    runs = _per_run(results, available, result_ids, edge_ids, window)
+    runs = _per_run(ctx, result_ids, edge_ids, window)
     return {
         edge_id: {measure: _edge_summary(runs, edge_id, measure) for measure in EDGE_MEASURES}
         for edge_id in edge_ids
@@ -302,13 +513,18 @@ def edge_stats(
     }
 
 
+@tool(
+    name="rank_edges",
+    description=(
+        "Edges of the whole network ranked by the mean of one measure across the given runs."
+    ),
+)
 def rank_edges(
-    results: ResultRepository,
-    available: AbstractSet[str],
-    result_ids: Sequence[str],
-    measure: str,
-    window: Sequence[float] | None = None,
-    top_k: int = 10,
+    ctx: ExpertContext,
+    result_ids: _ResultIds,
+    measure: _Measure,
+    window: _Window = None,
+    top_k: _TopK = 10,
     min_value: float | None = None,
     ascending: bool = False,
 ) -> list[dict[str, Any]]:
@@ -318,7 +534,7 @@ def rank_edges(
     in every run are left out.
     """
     _check_measure(measure)
-    runs = _per_run(results, available, result_ids, (), window)
+    runs = _per_run(ctx, result_ids, (), window)
     rows: list[dict[str, Any]] = []
     for edge_id in runs[0]:
         summary = _edge_summary(runs, edge_id, measure)
@@ -329,22 +545,28 @@ def rank_edges(
     return rows[:top_k]
 
 
+@tool(
+    name="compare_edges",
+    description=(
+        "Per edge, the mean of one measure in baseline and treatment runs, the difference and the "
+        "relative change."
+    ),
+)
 def compare_edges(
-    results: ResultRepository,
-    available: AbstractSet[str],
-    baseline_result_ids: Sequence[str],
-    treatment_result_ids: Sequence[str],
-    measure: str,
-    window: Sequence[float] | None = None,
+    ctx: ExpertContext,
+    baseline_result_ids: _ResultIds,
+    treatment_result_ids: _ResultIds,
+    measure: _Measure,
+    window: _Window = None,
     edge_ids: Sequence[str] = (),
-    top_k: int = 10,
+    top_k: _TopK = 10,
 ) -> list[dict[str, Any]]:
     """Per edge, the mean of one measure in baseline and treatment runs, the difference and the
     relative change in percent. With `edge_ids`, exactly those edges; otherwise the `top_k` edges
     with the largest absolute difference."""
     _check_measure(measure)
-    baseline = _per_run(results, available, baseline_result_ids, edge_ids, window)
-    treatment = _per_run(results, available, treatment_result_ids, edge_ids, window)
+    baseline = _per_run(ctx, baseline_result_ids, edge_ids, window)
+    treatment = _per_run(ctx, treatment_result_ids, edge_ids, window)
     rows: list[dict[str, Any]] = []
     for edge_id in edge_ids or list(treatment[0]):
         before = _edge_summary(baseline, edge_id, measure)
@@ -368,11 +590,15 @@ def compare_edges(
     return ranked[:top_k]
 
 
+@tool(
+    name="compare_kpis",
+    description=(
+        "Network-wide KPIs (mean_delay, mean_travel_time, teleports, departed, arrived): mean "
+        "across baseline and treatment runs, the difference and the relative change in percent."
+    ),
+)
 def compare_kpis(
-    results: ResultRepository,
-    available: AbstractSet[str],
-    baseline_result_ids: Sequence[str],
-    treatment_result_ids: Sequence[str],
+    ctx: ExpertContext, baseline_result_ids: _ResultIds, treatment_result_ids: _ResultIds
 ) -> Mapping[str, Any]:
     """Network-wide KPIs (mean_delay, mean_travel_time, teleports, departed, arrived): mean across
     baseline and treatment runs, the difference and the relative change in percent."""
@@ -382,8 +608,8 @@ def compare_kpis(
             raise ValueError("give at least one result_id per side")
         values: dict[str, list[float | None]] = {name: [] for name in KPI_NAMES}
         for result_id in result_ids:
-            _require_available(available, result_id)
-            result = results.get(result_id)
+            _require_available(ctx.available, result_id)
+            result = ctx.results.get(result_id)
             if result is None or result.kpis is None:
                 raise KeyError(f"result {result_id!r} has no KPIs")
             for name in KPI_NAMES:
@@ -401,12 +627,21 @@ def compare_kpis(
     return out
 
 
+@tool(
+    name="query_edgedata",
+    description=(
+        "EXPENSIVE raw per-run data of every edge (~17,000 characters per result), very large. "
+        "A last resort: prefer edge_stats, rank_edges or compare_edges, and use this only when "
+        "they cannot express what you need."
+    ),
+)
 def query_edgedata(
-    results: ResultRepository,
-    available: AbstractSet[str],
-    result_id: str,
-    edge_ids: Sequence[str] = (),
-    window: Sequence[float] | None = None,
+    ctx: ExpertContext,
+    result_id: _ResultId,
+    edge_ids: Annotated[
+        Sequence[str], Field(description="Edge ids to return; empty or omitted for every edge.")
+    ] = (),
+    window: _Window = None,
 ) -> Mapping[str, Any]:
     """EXPENSIVE raw per-run data of every edge (~17,000 characters per result): prefer edge_stats,
     rank_edges or compare_edges, and use this only when they cannot express what you need.
@@ -421,16 +656,20 @@ def query_edgedata(
         NotAvailableError: `result_id` is not available to this question.
         ValueError: `window` is not a `[start, end]` pair.
     """
-    _require_available(available, result_id)
-    if window is not None and len(window) != 2:
-        raise ValueError("window must be [start, end] in seconds since midnight")
-    bounds = None if window is None else (float(window[0]), float(window[1]))
-    return results.query_edgedata(result_id, list(edge_ids), bounds)
+    _require_available(ctx.available, result_id)
+    bounds = _bounds(window)
+    return ctx.results.query_edgedata(result_id, list(edge_ids), bounds)
 
 
-def get_scenario(
-    scenarios: ScenarioRepository, available_scenarios: AbstractSet[str], scenario_id: str
-) -> Mapping[str, Any]:
+@tool(
+    name="get_scenario",
+    description=(
+        "The scenario an available result was run on: its interventions and context tags, to "
+        "tell a baseline result from an intervention one. Pass the scenario_id from get_result, "
+        "never a result id."
+    ),
+)
+def get_scenario(ctx: ExpertContext, scenario_id: str) -> Mapping[str, Any]:
     """The scenario an available result was run on: its interventions and context tags - how
     to tell a baseline result from an intervention one.
 
@@ -438,307 +677,84 @@ def get_scenario(
         NotAvailableError: no available result belongs to `scenario_id`.
         KeyError: no stored scenario has that id.
     """
-    if scenario_id not in available_scenarios:
+    if scenario_id not in ctx.available_scenarios:
         raise NotAvailableError(
             f"scenario {scenario_id!r} has no result available to this question"
         )
-    scenario = scenarios.get(scenario_id)
+    scenario = ctx.scenarios.get(scenario_id)
     if scenario is None:
         raise KeyError(f"scenario {scenario_id!r} not found")
     return adapter_for(Scenario).dump_python(scenario, mode="json")
 
 
+@tool(
+    name="search_notes",
+    description=(
+        "Earlier notes on one of the study's networks ranked by relevance to `query`, each "
+        "with its score."
+    ),
+)
 def search_notes(
-    notes: NoteRepository,
-    network_id: str,
-    query: str,
-    filters: Mapping[str, Any] | None = None,
-    limit: int = 10,
+    ctx: ExpertContext,
+    network_id: _NetworkId,
+    query: Annotated[str, Field(description="What you are looking for, in prose.")],
+    filters: Annotated[
+        Mapping[str, Any],
+        Field(description="Optional: status, basis, provenance, scenario_id, context_tags."),
+    ]
+    | None = None,
+    limit: _TopK = 10,
 ) -> list[Mapping[str, Any]]:
-    """Earlier notes on this network ranked by relevance to `query`, each with its score.
+    """Earlier notes on one of the study's networks ranked by relevance to `query`, each with its
+    score.
     Filters: status, basis, provenance, scenario_id, context_tags."""
+    assert ctx.notes is not None, "search_notes is only offered with a NoteRepository"
+    ctx.require_in_scope(network_id)
     adapter = adapter_for(ExpertNote)
     return [
         {"note": adapter.dump_python(note, mode="json"), "score": score}
-        for note, score in notes.search(query, network_id, filters or {}, limit)
+        for note, score in ctx.notes.search(query, network_id, filters or {}, limit)
     ]
 
 
-_RESULT_ID = {"type": "string", "description": "Id of an available simulation result."}
-_RESULT_IDS = {"type": "array", "items": {"type": "string"}, "minItems": 1}
-_WINDOW = {
-    "type": "array",
-    "items": {"type": "number"},
-    "minItems": 2,
-    "maxItems": 2,
-    "description": (
-        "[start, end) as time of day in seconds since midnight (08:00-08:05 is "
-        "[28800, 29100]); omit for the whole run."
-    ),
-}
-_MEASURE = {"type": "string", "enum": list(EDGE_MEASURES)}
-_EDGE_IDS = {
-    "type": "array",
-    "items": {"type": "string"},
-    "minItems": 1,
-    "description": "Edge ids, e.g. ['A0A1', 'A1A2'].",
-}
-_TLS_IDS = {
-    "type": "array",
-    "items": {"type": "string"},
-    "minItems": 1,
-    "description": "Traffic light ids.",
-}
-_SCHEMAS: dict[str, Mapping[str, Any]] = {
-    "get_edges": {
-        "type": "object",
-        "properties": {"edge_ids": _EDGE_IDS},
-        "required": ["edge_ids"],
-    },
-    "get_neighbours": {
-        "type": "object",
-        "properties": {"edge_ids": _EDGE_IDS},
-        "required": ["edge_ids"],
-    },
-    "capacity_estimate": {
-        "type": "object",
-        "properties": {"edge_ids": _EDGE_IDS},
-        "required": ["edge_ids"],
-    },
-    "get_tls": {"type": "object", "properties": {"tls_ids": _TLS_IDS}, "required": ["tls_ids"]},
-    "edge_stats": {
-        "type": "object",
-        "properties": {
-            "result_ids": _RESULT_IDS,
-            "edge_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1},
-            "window": _WINDOW,
-        },
-        "required": ["result_ids", "edge_ids"],
-    },
-    "rank_edges": {
-        "type": "object",
-        "properties": {
-            "result_ids": _RESULT_IDS,
-            "measure": _MEASURE,
-            "window": _WINDOW,
-            "top_k": {"type": "integer", "minimum": 1},
-            "min_value": {"type": "number"},
-            "ascending": {"type": "boolean"},
-        },
-        "required": ["result_ids", "measure"],
-    },
-    "compare_edges": {
-        "type": "object",
-        "properties": {
-            "baseline_result_ids": _RESULT_IDS,
-            "treatment_result_ids": _RESULT_IDS,
-            "measure": _MEASURE,
-            "window": _WINDOW,
-            "edge_ids": {"type": "array", "items": {"type": "string"}},
-            "top_k": {"type": "integer", "minimum": 1},
-        },
-        "required": ["baseline_result_ids", "treatment_result_ids", "measure"],
-    },
-    "compare_kpis": {
-        "type": "object",
-        "properties": {"baseline_result_ids": _RESULT_IDS, "treatment_result_ids": _RESULT_IDS},
-        "required": ["baseline_result_ids", "treatment_result_ids"],
-    },
-    "get_result": {
-        "type": "object",
-        "properties": {"result_id": _RESULT_ID},
-        "required": ["result_id"],
-    },
-    "list_results": {
-        "type": "object",
-        "properties": {"scenario_id": {"type": "string"}},
-        "required": ["scenario_id"],
-    },
-    "query_edgedata": {
-        "type": "object",
-        "properties": {
-            "result_id": _RESULT_ID,
-            "edge_ids": {
-                "type": "array",
-                "items": {"type": "string"},
-                "description": "Edge ids to return; empty or omitted for every edge.",
-            },
-            "window": {
-                "type": "array",
-                "items": {"type": "number"},
-                "minItems": 2,
-                "maxItems": 2,
-                "description": (
-                    "[start, end) as time of day in seconds since midnight (08:00-08:05 is "
-                    "[28800, 29100]); omit for the whole run."
-                ),
-            },
-        },
-        "required": ["result_id"],
-    },
-    "get_scenario": {
-        "type": "object",
-        "properties": {"scenario_id": {"type": "string"}},
-        "required": ["scenario_id"],
-    },
-    "search_notes": {
-        "type": "object",
-        "properties": {
-            "query": {"type": "string", "description": "What you are looking for, in prose."},
-            "filters": {
-                "type": "object",
-                "description": "Optional: status, basis, provenance, scenario_id, context_tags.",
-            },
-            "limit": {"type": "integer", "minimum": 1},
-        },
-        "required": ["query"],
-    },
-}
+# What the Expert is offered, in the order it is offered, all bound to the whole context.
+_EXPERT_TOOLS = (
+    get_lanes,
+    shortest_path,
+    get_edges,
+    get_neighbours,
+    capacity_estimate,
+    get_tls,
+    edge_stats,
+    rank_edges,
+    compare_edges,
+    compare_kpis,
+    get_result,
+    list_results,
+    query_edgedata,
+    get_scenario,
+)
 
 
-def _recorded(ledger: EvidenceLedger, name: str, fn: Callable[..., Any]) -> Callable[..., Any]:
+def _recorded(ledger: EvidenceLedger, bound: Tool) -> Tool:
     def call(**kwargs: Any) -> Mapping[str, Any]:
-        result = fn(**kwargs)
-        return {"ref": ledger.record(name, kwargs, result), "result": result}
+        result = bound.fn(**kwargs)
+        return {"ref": ledger.record(bound.name, kwargs, result), "result": result}
 
-    return call
+    return Tool(
+        name=bound.name,
+        description=bound.description,
+        fn=call,
+        input_schema=bound.input_schema,
+    )
 
 
-def _first_line(fn: Callable[..., Any]) -> str:
-    return (fn.__doc__ or "").strip().splitlines()[0]
-
-
-def build_expert_tools(
-    *,
-    task: ExpertTask,
-    query: NetworkQuery,
-    results: ResultRepository,
-    scenarios: ScenarioRepository,
-    notes: NoteRepository | None,
-    ledger: EvidenceLedger,
-) -> tuple[Tool, ...]:
+def build_expert_tools(context: ExpertContext, ledger: EvidenceLedger) -> tuple[Tool, ...]:
     """The Expert's tool set for one task, every call recorded in `ledger`.
 
-    `search_notes` is offered only when `task.notes_allowed`.
-
-    Raises:
-        ValueError: `task.notes_allowed` but no `notes` repository was given.
+    `search_notes` is offered only when the context allows notes.
     """
-    if task.notes_allowed and notes is None:
-        raise ValueError("notes_allowed requires a NoteRepository")
-
-    available = frozenset(task.result_ids)
-    available_scenarios = frozenset(
-        r.scenario_id for r in (results.get(rid) for rid in available) if r is not None
-    )
-
-    tools = [
-        Tool(
-            name=t.name,
-            description=t.description,
-            fn=_recorded(ledger, t.name, t.fn),
-            input_schema=t.input_schema,
-        )
-        for t in build_network_tools(query)
-        if t.name in EXPERT_NETWORK_TOOLS
-    ]
-
-    bound: list[tuple[str, Callable[..., Any], Callable[..., Any]]] = [
-        (
-            "get_edges",
-            get_edges,
-            lambda edge_ids: get_edges(query, edge_ids),
-        ),
-        (
-            "get_neighbours",
-            get_neighbours,
-            lambda edge_ids: get_neighbours(query, edge_ids),
-        ),
-        (
-            "capacity_estimate",
-            capacity_estimate,
-            lambda edge_ids: capacity_estimate(query, edge_ids),
-        ),
-        (
-            "get_tls",
-            get_tls,
-            lambda tls_ids: get_tls(query, tls_ids),
-        ),
-        (
-            "edge_stats",
-            edge_stats,
-            lambda result_ids, edge_ids, window=None: edge_stats(
-                results, available, result_ids, edge_ids, window
-            ),
-        ),
-        (
-            "rank_edges",
-            rank_edges,
-            lambda result_ids, measure, window=None, top_k=10, min_value=None, ascending=False: (
-                rank_edges(
-                    results, available, result_ids, measure, window, top_k, min_value, ascending
-                )
-            ),
-        ),
-        (
-            "compare_edges",
-            compare_edges,
-            lambda baseline_result_ids, treatment_result_ids, measure, window=None, edge_ids=(),
-            top_k=10: compare_edges(
-                results, available, baseline_result_ids, treatment_result_ids, measure, window,
-                edge_ids, top_k,
-            ),
-        ),
-        (
-            "compare_kpis",
-            compare_kpis,
-            lambda baseline_result_ids, treatment_result_ids: compare_kpis(
-                results, available, baseline_result_ids, treatment_result_ids
-            ),
-        ),
-        (
-            "get_result",
-            get_result,
-            lambda result_id: get_result(results, available, result_id),
-        ),
-        (
-            "list_results",
-            list_results,
-            lambda scenario_id: list_results(results, available, scenario_id),
-        ),
-        (
-            "query_edgedata",
-            query_edgedata,
-            lambda result_id, edge_ids=(), window=None: query_edgedata(
-                results, available, result_id, edge_ids, window
-            ),
-        ),
-        (
-            "get_scenario",
-            get_scenario,
-            lambda scenario_id: get_scenario(scenarios, available_scenarios, scenario_id),
-        ),
-    ]
-    if task.notes_allowed:
-        assert notes is not None
-        note_repo = notes
-        bound.append(
-            (
-                "search_notes",
-                search_notes,
-                lambda query, filters=None, limit=10: search_notes(
-                    note_repo, task.network_id, query, filters, limit
-                ),
-            )
-        )
-
-    tools.extend(
-        Tool(
-            name=name,
-            description=_first_line(documented),
-            fn=_recorded(ledger, name, fn),
-            input_schema=_SCHEMAS[name],
-        )
-        for name, documented, fn in bound
-    )
-    return tuple(tools)
+    tools = [d.bind(context) for d in _EXPERT_TOOLS]
+    if context.notes_allowed:
+        tools.append(search_notes.bind(context))
+    return tuple(_recorded(ledger, t) for t in tools)

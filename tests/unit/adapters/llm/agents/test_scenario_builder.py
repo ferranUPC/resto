@@ -6,6 +6,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from eval.fixed_network_query_loader import FixedNetworkQueryLoader
 
 from resto.adapters.llm.agents.scenario_builder import (
     ScenarioBuilderPort,
@@ -15,6 +16,7 @@ from resto.adapters.llm.agents.scenario_builder import (
 from resto.adapters.persistence.memory import InMemoryDemandRepository, InMemoryNetworkRepository
 from resto.adapters.sumo.netxml import SumolibNetworkQuery
 from resto.application.ports.llm import Budget, StopReason
+from resto.application.tools.scenario_builder import BuilderCollaborators
 from resto.domain.services.ids import scenario_id_for
 from resto.domain.value_objects.drafts import ScenarioDraft
 from resto.domain.value_objects.intervention import Intervention, InterventionType
@@ -22,11 +24,10 @@ from resto.domain.value_objects.intervention_target import LaneTarget
 from resto.domain.value_objects.mechanism import StaticFileMechanism
 from resto.domain.value_objects.tasks import ScenarioTask
 from resto.domain.value_objects.time_window import TimeWindow
+from tests.unit._paths import DEV_NET
 from tests.unit.adapters.llm._fakes import FakeToolAgent, call_tool
-from tests.unit.application.tools.test_scenario_builder import (
-    DEV_NET,
+from tests.unit.application.tools._recorders import (
     RecordingAdditionalFileWriter,
-    RecordingDemandRepository,
     RecordingDemandScaler,
     RecordingDuarouter,
     RecordingWriter,
@@ -39,6 +40,7 @@ CLOSURE = Intervention(type=InterventionType.LANE_CLOSURE, target=LANE, window=T
 TASK = ScenarioTask(
     network_id="n1", demand_id="d1", interventions=(CLOSURE,), context_tags=frozenset({"peak"})
 )
+PORT_TASK = ScenarioTask(network_id="abc123", demand_id="t1", interventions=(CLOSURE,))
 BUDGET = Budget(max_steps=6, max_tokens=2048, max_seconds=60.0)
 
 
@@ -53,27 +55,29 @@ def canned_draft() -> ScenarioDraft:
     )
 
 
-def run(agent, tmp_path: Path, task: ScenarioTask = TASK):  # noqa: ANN001, ANN201
-    return run_scenario_builder(
-        task,
-        agent,
-        BUDGET,
-        query=SumolibNetworkQuery(DEV_NET),
-        net_file=Path("net.xml"),
-        route_files=(Path("routes.rou.xml"),),
-        begin=0.0,
-        end=3600.0,
-        rerouter_writer=RecordingAdditionalFileWriter(),
-        vss_writer=RecordingAdditionalFileWriter(),
-        tls_program_writer=RecordingAdditionalFileWriter(),
-        sumocfg_writer=RecordingWriter(),
-        demand=sample_demand(),
-        network=sample_network(),
-        demand_scaler=RecordingDemandScaler(),
-        duarouter=RecordingDuarouter(),
-        demands=RecordingDemandRepository(),
-        out_dir=tmp_path,
-    )
+def collaborators(tmp_path: Path, **overrides: object) -> BuilderCollaborators:
+    networks = InMemoryNetworkRepository()
+    networks.store(sample_network())
+    demands = InMemoryDemandRepository()
+    demands.store(sample_demand())
+    fields: dict[str, object] = {
+        "networks": networks,
+        "demands": demands,
+        "network_query_loader": FixedNetworkQueryLoader(SumolibNetworkQuery(DEV_NET)),
+        "rerouter_writer": RecordingAdditionalFileWriter(),
+        "vss_writer": RecordingAdditionalFileWriter(),
+        "tls_program_writer": RecordingAdditionalFileWriter(),
+        "sumocfg_writer": RecordingWriter(),
+        "demand_scaler": RecordingDemandScaler(),
+        "duarouter": RecordingDuarouter(),
+        "out_dir": tmp_path,
+    }
+    fields.update(overrides)
+    return BuilderCollaborators(**fields)  # type: ignore[arg-type]
+
+
+def run(agent, tmp_path: Path, task: ScenarioTask = PORT_TASK):  # noqa: ANN001, ANN201
+    return run_scenario_builder(task, agent, BUDGET, collaborators(tmp_path))
 
 
 def test_build_task_carries_the_scenario_task_as_plain_data() -> None:
@@ -125,27 +129,11 @@ def test_the_offered_tools_are_actually_wired_up(tmp_path: Path) -> None:
 
     agent = FakeToolAgent(output=canned_draft(), interact=interact)
     run_scenario_builder(
-        TASK,
-        agent,
-        BUDGET,
-        query=SumolibNetworkQuery(DEV_NET),
-        net_file=Path("net.xml"),
-        route_files=(Path("routes.rou.xml"),),
-        begin=0.0,
-        end=3600.0,
-        rerouter_writer=rerouter_writer,
-        vss_writer=RecordingAdditionalFileWriter(),
-        tls_program_writer=RecordingAdditionalFileWriter(),
-        sumocfg_writer=RecordingWriter(),
-        demand=sample_demand(),
-        network=sample_network(),
-        demand_scaler=RecordingDemandScaler(),
-        duarouter=RecordingDuarouter(),
-        demands=RecordingDemandRepository(),
-        out_dir=tmp_path,
+        PORT_TASK, agent, BUDGET, collaborators(tmp_path, rerouter_writer=rerouter_writer)
     )
 
-    assert rerouter_writer.calls == [(CLOSURE, tmp_path)]
+    requested = scenario_id_for("abc123", "t1", (CLOSURE,), frozenset())
+    assert rerouter_writer.calls == [(CLOSURE, tmp_path / requested)]
 
 
 def test_budget_exhaustion_surfaces_as_no_output(tmp_path: Path) -> None:
@@ -165,27 +153,14 @@ def test_budget_exhaustion_surfaces_as_no_output(tmp_path: Path) -> None:
 
 
 def builder_port(tmp_path: Path, agent: FakeToolAgent, **writers: object) -> ScenarioBuilderPort:
-    networks = InMemoryNetworkRepository()
-    networks.store(sample_network())
-    demands = InMemoryDemandRepository()
-    demands.store(sample_demand())
+    overrides: dict[str, object] = {}
+    if "rerouter" in writers:
+        overrides["rerouter_writer"] = writers["rerouter"]
+    if "sumocfg" in writers:
+        overrides["sumocfg_writer"] = writers["sumocfg"]
     return ScenarioBuilderPort(
-        agent=agent,
-        budget=BUDGET,
-        networks=networks,
-        demands=demands,
-        network_query_factory=lambda path: SumolibNetworkQuery(DEV_NET),
-        rerouter_writer=writers.get("rerouter", RecordingAdditionalFileWriter()),  # type: ignore[arg-type]
-        vss_writer=RecordingAdditionalFileWriter(),
-        tls_program_writer=RecordingAdditionalFileWriter(),
-        sumocfg_writer=writers.get("sumocfg", RecordingWriter()),  # type: ignore[arg-type]
-        demand_scaler=RecordingDemandScaler(),
-        duarouter=RecordingDuarouter(),
-        out_dir=tmp_path,
+        agent=agent, budget=BUDGET, collaborators=collaborators(tmp_path, **overrides)
     )
-
-
-PORT_TASK = ScenarioTask(network_id="abc123", demand_id="t1", interventions=(CLOSURE,))
 
 
 def test_the_builder_port_writes_into_the_requested_scenarios_directory(tmp_path: Path) -> None:
@@ -208,7 +183,7 @@ def test_the_builder_port_writes_into_the_requested_scenarios_directory(tmp_path
     requested = scenario_id_for("abc123", "t1", (CLOSURE,), frozenset())
     assert run_result.output == canned_draft()
     assert rerouter_writer.calls == [(CLOSURE, tmp_path / requested)]
-    (settings, _, _), = sumocfg_writer.calls
+    ((settings, _, _),) = sumocfg_writer.calls
     window = sample_demand().spec.window
     assert (settings.begin, settings.end) == (window.start, window.end)
 

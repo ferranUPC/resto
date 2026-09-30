@@ -15,33 +15,38 @@ what the contract actually promises.
 from __future__ import annotations
 
 from collections.abc import Callable, Iterator
-from typing import Any
 
 import pytest
 from mcp.client._memory import InMemoryTransport
 from mcp.server.mcpserver import MCPServer
 
 from resto.adapters.persistence.mcp_client import McpClientDatabase
+from resto.adapters.persistence.memory import InMemoryDatabase
 from resto.adapters.persistence.sqlite.repositories import SqliteDatabase
 from resto.interface.mcp.database_server import build_server
 
 
-def _sqlite_reference() -> tuple[Any, MCPServer]:
+def _sqlite() -> tuple[MCPServer, Callable[[], None]]:
     backend = SqliteDatabase(":memory:")
-    return backend, build_server(backend)
+    return build_server(backend), backend.close
 
 
-_BACKENDS: dict[str, Callable[[], tuple[Any, MCPServer]]] = {
-    "sqlite-reference": _sqlite_reference,
+def _memory() -> tuple[MCPServer, Callable[[], None]]:
+    return build_server(InMemoryDatabase()), lambda: None
+
+
+_BACKENDS: dict[str, Callable[[], tuple[MCPServer, Callable[[], None]]]] = {
+    "memory": _memory,
+    "sqlite": _sqlite,
 }
 
 
 @pytest.fixture(params=sorted(_BACKENDS), ids=sorted(_BACKENDS))
 def db(request: pytest.FixtureRequest) -> Iterator[McpClientDatabase]:
-    backend, server = _BACKENDS[request.param]()
+    server, release = _BACKENDS[request.param]()
     client = McpClientDatabase(lambda: InMemoryTransport(server))
     try:
         yield client
     finally:
         client.close()
-        backend.close()
+        release()

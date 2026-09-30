@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any
 
 from eval.expert_benchmark.bank import BenchmarkQuestion
+from eval.fixed_network_query_loader import FixedNetworkQueryLoader
 from eval.paid_runs import ESTIMATED_COST_KEY, REAL_COST_KEY, CostPolicy, RunOutcome, run_paid_jobs
 from resto.adapters.llm.agents.expert import EXPERT_VERSION, run_expert
 from resto.application.ports.llm import Budget, ToolAgent
@@ -27,7 +28,7 @@ from resto.application.ports.network_query import NetworkQuery
 from resto.application.ports.repositories import ResultRepository, ScenarioRepository
 from resto.application.promotion import DraftRejected, RunWithoutDraft
 from resto.application.schemas import adapter_for
-from resto.application.tools.expert import EvidenceLedger
+from resto.application.tools.expert import EvidenceLedger, expert_context
 from resto.application.use_cases.ask_expert import ask_expert
 from resto.domain.value_objects.expert_answer import ExpertAnswer
 from resto.domain.value_objects.question import Mode
@@ -119,20 +120,15 @@ def _run_once(
     task = question.to_task(mode=mode)
     ledger = EvidenceLedger()
     started = time.monotonic()
-    run = run_expert(
-        task,
-        agent,
-        budget,
-        query=env.query,
-        results=env.results,
-        scenarios=env.scenarios,
-        notes=None,
-        ledger=ledger,
+    loader = FixedNetworkQueryLoader(env.query)
+    context = expert_context(
+        task, loader=loader, results=env.results, scenarios=env.scenarios, notes=None
     )
+    run = run_expert(task, agent, budget, context, ledger)
     elapsed = time.monotonic() - started
     rejection: str | None = None
     try:
-        ask_expert(task, run, ledger, query=env.query)
+        ask_expert(task, run, ledger, loader=loader)
     except (RunWithoutDraft, DraftRejected) as exc:
         rejection = str(exc)
     return {

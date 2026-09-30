@@ -6,17 +6,22 @@ construct a real `openai.OpenAI` client or need `OPENROUTER_API_KEY`, per CLAUDE
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping
 from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Any
 
 import pytest
+from eval.fixed_network_query_loader import FixedNetworkQueryLoader
 
 from resto.adapters.llm.anthropic_client import OpenRouterToolAgent
 from resto.adapters.llm.config import LlmConfig
 from resto.adapters.llm.pricing import UnknownModelError
+from resto.adapters.persistence.memory import InMemoryResultRepository, InMemoryScenarioRepository
 from resto.application.ports.llm import AgentTask, Budget, StopReason, Tool
+from resto.application.tools.expert import EvidenceLedger, build_expert_tools, expert_context
+from resto.domain.value_objects.question import Mode
+from resto.domain.value_objects.tasks import ExpertTask
+from tests.unit.application._doubles import StubNetworkQuery
 
 CONFIG = LlmConfig(api_key="test-key", default_model="deepseek/deepseek-v4.1-flash")
 
@@ -64,14 +69,6 @@ class ScriptedCompletions:
     def __call__(self, **kwargs: Any) -> SimpleNamespace:
         self.calls.append(kwargs)
         return self._responses.pop(0)
-
-
-class RecordingTracer:
-    def __init__(self) -> None:
-        self.events: list[tuple[str, str, dict[str, Any]]] = []
-
-    def emit(self, study_id: str, event: str, payload: Mapping[str, Any]) -> None:
-        self.events.append((study_id, event, dict(payload)))
 
 
 DUMMY_BUDGET = Budget(max_steps=5, max_tokens=256, max_seconds=30.0)
@@ -251,8 +248,7 @@ def test_exceeding_max_seconds_stops_on_budget_without_calling_the_api() -> None
     assert complete.calls == []
 
 
-def test_traces_tokens_estimated_and_real_cost_but_never_the_key() -> None:
-    tracer = RecordingTracer()
+def test_run_usage_carries_tokens_and_the_provider_cost() -> None:
     complete = ScriptedCompletions(
         completion(
             tool_calls=(tool_call("c1", "submit_output", {"text": "ok"}),),
@@ -261,20 +257,13 @@ def test_traces_tokens_estimated_and_real_cost_but_never_the_key() -> None:
             cost=0.005,
         )
     )
-    agent = OpenRouterToolAgent(CONFIG, complete=complete, tracer=tracer, trace_id="run-1")
+    agent = OpenRouterToolAgent(CONFIG, complete=complete)
 
-    agent.run(DUMMY_TASK, tools=(), output=Answer, budget=DUMMY_BUDGET)
+    run = agent.run(DUMMY_TASK, tools=(), output=Answer, budget=DUMMY_BUDGET)
 
-    assert len(tracer.events) == 1
-    study_id, event, payload = tracer.events[0]
-    assert (study_id, event) == ("run-1", "llm_call")
-    assert payload["input_tokens"] == 100
-    assert payload["output_tokens"] == 20
-    assert payload["model"] == "deepseek/deepseek-v4.1-flash"
-    assert payload["cost_usd"] == pytest.approx(0.005)
-    assert "estimated_cost_usd" in payload
-    assert "api_key" not in payload
-    assert CONFIG.api_key not in json.dumps(payload)
+    assert run.usage.input_tokens == 100
+    assert run.usage.output_tokens == 20
+    assert run.usage.cost_usd == pytest.approx(0.005)
 
 
 def test_asks_openrouter_to_include_real_usage_cost() -> None:
@@ -339,3 +328,31 @@ def test_repr_of_the_config_never_leaks_into_a_trace_payload() -> None:
     # dedicated repr test) - this just re-asserts the invariant from the client's point of view.
     assert CONFIG.api_key not in repr(CONFIG)
     assert CONFIG.api_key not in str(CONFIG)
+
+
+def test_an_expert_tool_called_with_a_network_outside_the_scope_is_fed_back_as_an_error() -> None:
+    results, scenarios = InMemoryResultRepository(), InMemoryScenarioRepository()
+    task = ExpertTask(question="q", mode=Mode.FORCED, network_ids=("base",), notes_allowed=False)
+    context = expert_context(
+        task,
+        loader=FixedNetworkQueryLoader(StubNetworkQuery()),
+        results=results,
+        scenarios=scenarios,
+        notes=None,
+    )
+    tools = build_expert_tools(context, EvidenceLedger())
+    complete = ScriptedCompletions(
+        completion(
+            tool_calls=(
+                tool_call("c1", "get_edges", {"network_id": "stranger", "edge_ids": ["E1"]}),
+            )
+        ),
+        completion(tool_calls=(tool_call("c2", "submit_output", {"text": "recovered"}),)),
+    )
+    agent = OpenRouterToolAgent(CONFIG, complete=complete)
+
+    run = agent.run(DUMMY_TASK, tools=tools, output=Answer, budget=DUMMY_BUDGET)
+
+    assert run.stop_reason is StopReason.OUTPUT
+    assert "error:" in run.tool_calls[0].result_summary
+    assert "stranger" in run.tool_calls[0].result_summary

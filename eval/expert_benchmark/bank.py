@@ -43,7 +43,7 @@ class BenchmarkQuestion:
         return ExpertTask(
             question=self.text,
             mode=mode,
-            network_id=self.network_id,
+            network_ids=(self.network_id,),
             result_ids=self.result_ids,
             notes_allowed=False,
         )

@@ -24,7 +24,7 @@ from resto.adapters.persistence.memory import InMemoryStudyRepository
 from resto.adapters.persistence.sqlite.repositories import SqliteDatabase
 from resto.adapters.sumo.demand import SumoDemandTools
 from resto.adapters.sumo.demand_scaling import SumoDemandScaler
-from resto.adapters.sumo.netxml import SumolibNetworkQuery
+from resto.adapters.sumo.network_query_loader import StoredNetworkQueryLoader
 from resto.adapters.sumo.run_directories import FilesystemRunDirectories
 from resto.adapters.sumo.runner import SubprocessSumoRunner
 from resto.adapters.sumo.writers.rerouter import RerouterWriter
@@ -32,9 +32,11 @@ from resto.adapters.sumo.writers.sumocfg import SumocfgFileWriter
 from resto.adapters.sumo.writers.tls_program import TlsProgramWriter
 from resto.adapters.sumo.writers.vss import VssWriter
 from resto.adapters.tracing.jsonl import JsonlTracer
-from resto.application.executor import StudyAgents, StudyDeps, StudyPromotions
+from resto.application.executor import StudyAgents, StudyDeps, StudyPromotions, StudySettings
 from resto.application.ports.llm import Budget, ToolAgent
 from resto.application.ports.tracing import Tracer
+from resto.application.tools.expert import ExpertCollaborators
+from resto.application.tools.scenario_builder import BuilderCollaborators
 from resto.application.use_cases.run_study import ParserFailed, run_study
 from resto.domain.entities.study import StudyStatus
 from resto.domain.value_objects.question import Mode
@@ -61,7 +63,9 @@ def build_deps(
 ) -> StudyDeps:
     """Studies are kept in memory: there is no persistent `StudyRepository` yet, and the SQLite
     database is the DatabaseMCP reference backend, which does not hold them (ADR-0002).
+    `out_dir` here is only the Builder's; the study's own settings are `StudySettings`.
     `has_historical_demand` stays false until capability negotiation is wired (E5.6)."""
+    network_query_loader = StoredNetworkQueryLoader(db.networks)
     return StudyDeps(
         agents=StudyAgents(
             parser=InputParserPort(agent=agent, budget=budget),
@@ -71,25 +75,28 @@ def build_deps(
             scenario_builder=ScenarioBuilderPort(
                 agent=agent,
                 budget=budget,
-                networks=db.networks,
-                demands=db.demands,
-                network_query_factory=SumolibNetworkQuery,
-                rerouter_writer=RerouterWriter(),
-                vss_writer=VssWriter(),
-                tls_program_writer=TlsProgramWriter(),
-                sumocfg_writer=SumocfgFileWriter(),
-                demand_scaler=SumoDemandScaler(),
-                duarouter=SumoDemandTools(),
-                out_dir=out_dir / "builder",
+                collaborators=BuilderCollaborators(
+                    networks=db.networks,
+                    demands=db.demands,
+                    network_query_loader=network_query_loader,
+                    rerouter_writer=RerouterWriter(),
+                    vss_writer=VssWriter(),
+                    tls_program_writer=TlsProgramWriter(),
+                    sumocfg_writer=SumocfgFileWriter(),
+                    demand_scaler=SumoDemandScaler(),
+                    duarouter=SumoDemandTools(),
+                    out_dir=out_dir / "builder",
+                ),
             ),
             expert=ExpertPort(
                 agent=agent,
                 budget=budget,
-                networks=db.networks,
-                results=db.results,
-                scenarios=db.scenarios,
-                notes=db.notes,
-                network_query_factory=SumolibNetworkQuery,
+                collaborators=ExpertCollaborators(
+                    network_query_loader=network_query_loader,
+                    results=db.results,
+                    scenarios=db.scenarios,
+                    notes=db.notes,
+                ),
             ),
             note_writer=NoteWriterPort(agent=agent, budget=budget),
             composer=_Pending("Output Composer", "E5.4"),
@@ -108,14 +115,18 @@ def build_deps(
         studies=InMemoryStudyRepository(),
         runner=SubprocessSumoRunner(),
         run_dirs=FilesystemRunDirectories(),
-        network_query_factory=SumolibNetworkQuery,
+        network_query_loader=network_query_loader,
         tracer=tracer,
-        out_dir=out_dir,
     )
 
 
-def main(argv: Sequence[str] | None = None, *, deps: StudyDeps | None = None) -> int:
-    """`deps` replaces the real wiring (tests)."""
+def main(
+    argv: Sequence[str] | None = None,
+    *,
+    deps: StudyDeps | None = None,
+    settings: StudySettings | None = None,
+) -> int:
+    """`deps` and `settings` replace the real wiring (tests)."""
     parser = argparse.ArgumentParser(prog="resto", description="Run one RESTO study.")
     parser.add_argument("text", help="the question, in natural language")
     parser.add_argument("--mode", choices=[m.value for m in Mode], default=None)
@@ -137,10 +148,11 @@ def main(argv: Sequence[str] | None = None, *, deps: StudyDeps | None = None) ->
         db = SqliteDatabase(args.db)
         budget = Budget(config.max_steps, config.max_output_tokens, AGENT_SECONDS)
         tracer = JsonlTracer(args.out / "traces")
-        agent = OpenRouterToolAgent(config, tracer=tracer)
+        agent = OpenRouterToolAgent(config)
         deps = build_deps(db=db, agent=agent, budget=budget, tracer=tracer, out_dir=args.out)
+    settings = settings or StudySettings(out_dir=args.out)
     try:
-        study = run_study(args.text, deps, mode=mode)
+        study = run_study(args.text, deps, settings, mode=mode)
     except ParserFailed as e:
         print(f"error: no study was created: {e}", file=sys.stderr)
         return 1

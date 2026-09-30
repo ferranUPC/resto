@@ -25,14 +25,15 @@ Online mode (SUMO under TraCI with a sandboxed script) is E2.5.
 
 from __future__ import annotations
 
-import subprocess
 import xml.etree.ElementTree as ET
 from collections.abc import Sequence
+from dataclasses import dataclass
 from pathlib import Path
 from time import perf_counter
 
 from resto.adapters.persistence.filesystem import artifact_ref
 from resto.adapters.sumo.outputs import output_artifact, parse_kpis
+from resto.adapters.sumo.sumo_process import checked_version, launch
 from resto.adapters.sumo.writers.sumocfg import (
     parse_settings,
     render_sumocfg,
@@ -69,73 +70,102 @@ _EDGEDATA_FILE = "edgedata.xml"
 _REPORT = {"duration-log.statistics": "true", "no-step-log": "true"}
 
 
+@dataclass(frozen=True)
+class PreparedRun:
+    """What `prepare_run` derived: the `sumo` arguments and the input artifacts of the run."""
+
+    args: tuple[str, ...]
+    inputs: tuple[ArtifactRef, ...]
+
+
+class InvalidScenarioCfg(ValueError):
+    """The scenario's sumocfg could not be read."""
+
+
+def prepare_run(sumocfg: ArtifactRef, seed: int, out_dir: Path) -> PreparedRun:
+    """Derives the run configuration from the scenario cfg and writes it into `out_dir`.
+
+    Shared by the batch and online runners, so both derive the same configuration.
+
+    Raises:
+        InvalidScenarioCfg: `sumocfg` cannot be parsed.
+    """
+    try:
+        settings = parse_settings(sumocfg.path)
+    except (ValueError, OSError, SyntaxError) as exc:
+        raise InvalidScenarioCfg(f"invalid scenario cfg: {exc}") from exc
+    edgedata_add = write_edgedata_additional(out_dir, EDGEDATA_PERIOD_S, _EDGEDATA_FILE)
+    run_cfg = out_dir / RUN_CFG_NAME
+    run_cfg.write_text(
+        render_sumocfg(
+            with_additional(settings, edgedata_add),
+            out_dir,
+            seed=seed,
+            outputs={option: name for option, (name, _) in _OUTPUTS.items()},
+            report=_REPORT,
+        ),
+        encoding="utf-8",
+    )
+    args = ["-c", str(run_cfg)]
+    if _has_rerouter(settings.additional_files):
+        args.extend(IGNORE_ROUTE_ERRORS_ARGS)
+    return PreparedRun(
+        args=tuple(args),
+        inputs=(artifact_ref(run_cfg, "sumocfg"), artifact_ref(edgedata_add, "additional")),
+    )
+
+
+def collect_outputs(prepared: PreparedRun, out_dir: Path, wall_clock_s: float) -> RunOutput:
+    """Checks the expected output files exist, refs them and parses the KPIs."""
+    expected = [(out_dir / _EDGEDATA_FILE, "edgedata")] + [
+        (out_dir / name, kind) for name, kind in _OUTPUTS.values()
+    ]
+    missing = [p.name for p, _ in expected if not p.exists()]
+    if missing:
+        return RunOutput(
+            ok=False,
+            error=f"sumo exited normally but did not write {', '.join(missing)}",
+            artifacts=prepared.inputs,
+            wall_clock_s=wall_clock_s,
+        )
+    outputs = tuple(output_artifact(p, kind) for p, kind in expected)
+    return RunOutput(
+        ok=True,
+        error=None,
+        artifacts=prepared.inputs + outputs,
+        wall_clock_s=wall_clock_s,
+        kpis=parse_kpis(out_dir / _OUTPUTS["statistic-output"][0]),
+    )
+
+
 class SubprocessSumoRunner:
     def __init__(self, sumo_binary: str = "sumo") -> None:
         self._sumo = sumo_binary
 
+    def sumo_version(self) -> str:
+        """The `sumo` binary's version; raises if it is not the pinned one."""
+        return checked_version(self._sumo)
+
     def run_batch(self, sumocfg: ArtifactRef, seed: int, out_dir: Path) -> RunOutput:
         out_dir.mkdir(parents=True, exist_ok=True)
         try:
-            settings = parse_settings(sumocfg.path)
-        except (ValueError, OSError, SyntaxError) as exc:
-            return RunOutput(
-                ok=False, error=f"invalid scenario cfg: {exc}", artifacts=(), wall_clock_s=0.0
-            )
-        edgedata_add = write_edgedata_additional(out_dir, EDGEDATA_PERIOD_S, _EDGEDATA_FILE)
-        run_cfg = out_dir / RUN_CFG_NAME
-        run_cfg.write_text(
-            render_sumocfg(
-                with_additional(settings, edgedata_add),
-                out_dir,
-                seed=seed,
-                outputs={option: name for option, (name, _) in _OUTPUTS.items()},
-                report=_REPORT,
-            ),
-            encoding="utf-8",
-        )
-        inputs = (artifact_ref(run_cfg, "sumocfg"), artifact_ref(edgedata_add, "additional"))
-        command = [self._sumo, "-c", str(run_cfg)]
-        if _has_rerouter(settings.additional_files):
-            command.extend(IGNORE_ROUTE_ERRORS_ARGS)
+            prepared = prepare_run(sumocfg, seed, out_dir)
+        except InvalidScenarioCfg as exc:
+            return RunOutput(ok=False, error=str(exc), artifacts=(), wall_clock_s=0.0)
 
         started = perf_counter()
-        try:
-            proc = subprocess.run(command, capture_output=True, text=True, cwd=out_dir)
-        except OSError as exc:
-            return RunOutput(ok=False, error=str(exc), artifacts=inputs, wall_clock_s=0.0)
+        launched = launch(self._sumo, prepared.args, out_dir, seed)
         wall_clock_s = perf_counter() - started
-
-        if proc.returncode != 0:
-            message = _sumo_message(proc.stderr) or f"sumo exited with code {proc.returncode}"
-            return RunOutput(ok=False, error=message, artifacts=inputs, wall_clock_s=wall_clock_s)
-
-        expected = [(out_dir / _EDGEDATA_FILE, "edgedata")] + [
-            (out_dir / name, kind) for name, kind in _OUTPUTS.values()
-        ]
-        missing = [p.name for p, _ in expected if not p.exists()]
-        if missing:
+        if not launched.ok:
             return RunOutput(
                 ok=False,
-                error=f"sumo exited normally but did not write {', '.join(missing)}",
-                artifacts=inputs,
+                error=launched.message,
+                artifacts=prepared.inputs,
                 wall_clock_s=wall_clock_s,
             )
-        outputs = tuple(output_artifact(p, kind) for p, kind in expected)
-        return RunOutput(
-            ok=True,
-            error=None,
-            artifacts=inputs + outputs,
-            wall_clock_s=wall_clock_s,
-            kpis=parse_kpis(out_dir / _OUTPUTS["statistic-output"][0]),
-        )
+        return collect_outputs(prepared, out_dir, wall_clock_s)
 
     def run_online(
         self, sumocfg: ArtifactRef, script: ArtifactRef, seed: int, out_dir: Path
     ) -> RunOutput:
         raise NotImplementedError("online mode is work-plan E2.5")
-
-
-def _sumo_message(stderr: str) -> str:
-    """SUMO's own error lines, without the warnings that precede them."""
-    errors = [line for line in stderr.splitlines() if line.startswith("Error")]
-    return "\n".join(errors) if errors else stderr.strip()

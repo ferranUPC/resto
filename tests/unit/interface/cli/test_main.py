@@ -8,13 +8,17 @@ from pathlib import Path
 import pytest
 
 from resto.adapters.persistence.sqlite.repositories import SqliteDatabase
+from resto.adapters.tracing.jsonl import JsonlTracer, read_run
 from resto.application.ports.llm import Budget
+from resto.application.ports.tracing import ModelCall, TraceEvent
+from resto.domain.value_objects.step_record import Usage
 from resto.interface.cli.main import build_deps, main
 from tests.unit.adapters.llm._fakes import FakeToolAgent
+from tests.unit.application._world import DESCRIBE
 
 
 class NullTracer:
-    def emit(self, study_id: str, event: str, payload: object) -> None:
+    def emit(self, study_id: str, event: TraceEvent) -> None:
         raise AssertionError("no study, no trace")
 
 
@@ -40,12 +44,33 @@ def test_without_a_question_no_study_is_created(
 
 
 def test_a_failed_study_is_rendered(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    from tests.unit.application.use_cases.test_run_study import BASELINE_PLAN, World
+    from tests.unit.application._world import BASELINE_PLAN, World
 
     world = World(tmp_path, plans=(BASELINE_PLAN,), expert=(ConnectionError("503"),))
 
-    code = main(["how congested is the peak?"], deps=world.deps)
+    code = main(["how congested is the peak?"], deps=world.deps, settings=world.settings)
 
     out = capsys.readouterr().out
     assert code == 1
     assert "Step `ask_expert` of phase 0 (the question as asked) failed (infrastructure)" in out
+
+
+def test_the_parsers_model_call_reaches_the_jsonl_trace(tmp_path: Path) -> None:
+    db = SqliteDatabase(tmp_path / "resto.sqlite")
+    usage = Usage(input_tokens=12, output_tokens=3, cost_usd=0.001)
+    agent = FakeToolAgent(output=DESCRIBE, usage=usage)
+    traces = tmp_path / "traces"
+    deps = build_deps(
+        db=db,
+        agent=agent,
+        budget=Budget(max_steps=1, max_tokens=1, max_seconds=1.0),
+        tracer=JsonlTracer(traces),
+        out_dir=tmp_path,
+    )
+
+    main(["how congested is the peak?"], deps=deps)
+
+    db.close()
+    (trace,) = traces.glob("*.jsonl")
+    events = read_run(traces, trace.stem)
+    assert ModelCall(usage) in events

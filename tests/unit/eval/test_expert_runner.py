@@ -18,8 +18,8 @@ from resto.application.ports.llm import AgentTask, Budget, Tool
 from resto.domain.value_objects.answer_value import Edges
 from resto.domain.value_objects.expert_answer import Basis, Evidence, EvidenceKind, ExpertAnswer
 from resto.domain.value_objects.question import Mode
+from tests.unit._paths import DEV_NET
 from tests.unit.adapters.llm._fakes import FakeToolAgent, call_tool
-from tests.unit.application.tools.test_expert import DEV_NET
 
 BUDGET = Budget(max_steps=6, max_tokens=2048, max_seconds=60.0)
 QUESTIONS = [
@@ -29,7 +29,7 @@ QUESTIONS = [
         text=f"which edges exceed 3.5% occupancy? ({i})",
         network_id="n",
         result_ids=(),
-        gold={"edges_above_threshold": ["B1B0"]},
+        gold={"network_id": "n", "edges_above_threshold": ["B1B0"]},
     )
     for i in range(2)
 ]
@@ -41,12 +41,12 @@ def _answer(edge_ids: tuple[str, ...], ref: str = "q1", confidence: float = 0.9)
         basis=Basis.OBSERVED,
         confidence=confidence,
         evidence=(Evidence(kind=EvidenceKind.QUERY, ref=ref),),
-        values=(Edges(edge_ids=edge_ids),),
+        values=(Edges(edge_ids=edge_ids, network_id="n"),),
     )
 
 
 def _cite_one_call(task: AgentTask, tools: Sequence[Tool]) -> None:
-    call_tool(tools, "get_edges", edge_ids=["B1B0"])
+    call_tool(tools, "get_edges", network_id="n", edge_ids=["B1B0"])
 
 
 def _policy(price_per_job: float = 0.01, max_cost_usd: float = 1.0) -> CostPolicy:

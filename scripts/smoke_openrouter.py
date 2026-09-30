@@ -5,12 +5,11 @@ real API). Run it by hand, from the `resto` conda env, when you want to confirm 
 in `RESTO_LLM_DEFAULT_MODEL` actually drives the `OpenRouterToolAgent` loop end to end — picks
 tools, reads their results, and finishes with a valid `submit_output` call:
 
-    python scripts/smoke_openrouter.py            # one run, prints the trace and the result
+    python scripts/smoke_openrouter.py            # one run, prints the usage and the result
     python scripts/smoke_openrouter.py --dry-run  # only shows config + what would be sent
 
 Costs real money (a fraction of a cent on the flash tier at the budget below). Reads the key via
-`load_llm_config()` and never prints it — `LlmConfig.__repr__` is redacted, and the tracer only
-receives token counts, model name and estimated cost.
+`load_llm_config()` and never prints it — `LlmConfig.__repr__` is redacted.
 """
 
 from __future__ import annotations
@@ -18,9 +17,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any
 
 from resto.adapters.llm.anthropic_client import OpenRouterToolAgent
 from resto.adapters.llm.config import MissingApiKeyError, load_llm_config
@@ -96,22 +93,6 @@ EXPECTED_TOTAL = 7 * _UNIT_PRICES_EUR["gadget"]
 BUDGET = Budget(max_steps=4, max_tokens=256, max_seconds=60.0)
 
 
-class PrintingTracer:
-    """Prints each `llm_call` event as it happens and accumulates the estimated cost."""
-
-    def __init__(self) -> None:
-        self.total_cost_usd = 0.0
-        self.cost_known = True
-
-    def emit(self, study_id: str, event: str, payload: Mapping[str, Any]) -> None:
-        print(f"[trace] {event}: {json.dumps(dict(payload), default=str)}")
-        cost = payload.get("estimated_cost_usd")
-        if cost is None:
-            self.cost_known = False
-        else:
-            self.total_cost_usd += float(cost)
-
-
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--dry-run", action="store_true", help="show config, make no API call")
@@ -136,15 +117,16 @@ def main(argv: list[str] | None = None) -> int:
         print("dry run: no API call made")
         return 0
 
-    tracer = PrintingTracer()
-    agent = OpenRouterToolAgent(config, tracer=tracer, trace_id="smoke")
+    agent = OpenRouterToolAgent(config)
     run = agent.run(TASK, tools=TOOLS, output=Quote, budget=BUDGET)
 
     print()
     print(f"stop_reason: {run.stop_reason}")
     print(f"usage:       {run.usage}")
-    cost = f"${tracer.total_cost_usd:.6f}" if tracer.cost_known else "unknown"
-    print(f"est. cost:   {cost}")
+    estimated = estimate_cost_usd(
+        config.default_model, run.usage.input_tokens, run.usage.output_tokens
+    )
+    print(f"est. cost:   ${estimated:.6f}")
     print("tool_calls:")
     for call in run.tool_calls:
         print(f"  - {call.name}({json.dumps(dict(call.arguments))}) -> {call.result_summary}")

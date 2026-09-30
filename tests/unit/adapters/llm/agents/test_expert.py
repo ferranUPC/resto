@@ -8,8 +8,10 @@ from collections.abc import Sequence
 from pathlib import Path
 
 import pytest
+from eval.fixed_network_query_loader import FixedNetworkQueryLoader
 
 from resto.adapters.llm.agents.expert import (
+    NOTE_SYSTEM_PROMPT,
     ExpertPort,
     NoteWriterPort,
     build_note_task,
@@ -22,14 +24,14 @@ from resto.adapters.persistence.memory import (
     InMemoryResultRepository,
     InMemoryScenarioRepository,
 )
+from resto.adapters.sumo.network_query_loader import StoredNetworkQueryLoader
 from resto.adapters.sumo.netxml import SumolibNetworkQuery
 from resto.application.ports.llm import AgentTask, Budget, Tool
 from resto.application.schemas import adapter_for
 from resto.application.tools.expert import (
-    EXPERT_NETWORK_TOOLS,
-    EXPERT_TOPOLOGY_TOOLS,
-    RESULT_TOOLS,
     EvidenceLedger,
+    ExpertCollaborators,
+    expert_context,
 )
 from resto.domain.value_objects.drafts import ExpertNoteDraft, ExpertNoteDrafts
 from resto.domain.value_objects.experiment import ExperimentRole
@@ -37,8 +39,9 @@ from resto.domain.value_objects.expert_answer import Basis, ExpertAnswer
 from resto.domain.value_objects.expert_round import ExpertRound
 from resto.domain.value_objects.question import Mode
 from resto.domain.value_objects.tasks import ExpertTask, NoteScenario, NoteTask
+from tests.unit._paths import DEV_NET
 from tests.unit.adapters.llm._fakes import FakeToolAgent, call_tool
-from tests.unit.application.tools.test_expert import DEV_NET
+from tests.unit.application.tools._expert_names import EXPERT_TOOL_NAMES
 from tests.unit.domain._samples import expert_answer
 from tests.unit.domain._samples import network as sample_network
 from tests.unit.domain._samples import simulation_result as sample_result
@@ -46,7 +49,7 @@ from tests.unit.domain._samples import simulation_result as sample_result
 TASK = ExpertTask(
     question="Which edges exceed 3.5% occupancy between 0s and 300s?",
     mode=Mode.FORCED,
-    network_id="abc123",
+    network_ids=("abc123",),
     result_ids=("res1",),
     notes_allowed=False,
 )
@@ -58,7 +61,7 @@ def test_build_task_carries_the_expert_task_as_plain_data() -> None:
     assert task.input == {
         "question": TASK.question,
         "mode": "forced",
-        "network_id": "abc123",
+        "network_ids": ["abc123"],
         "result_ids": ["res1"],
         "notes_allowed": False,
     }
@@ -67,6 +70,14 @@ def test_build_task_carries_the_expert_task_as_plain_data() -> None:
     kinds = ('"edges"', '"quantity"', '"change"', '"no_value"', "travel_time (s)", "rank_edges")
     for kind in kinds:
         assert kind in task.system_prompt
+
+
+def test_every_prompt_example_of_an_edge_value_names_its_network() -> None:
+    prompt = build_task(TASK).system_prompt
+    for kind in ("edges", "quantity", "change", "no_value", "causes"):
+        example = prompt.split(f'"kind": "{kind}"')[1].split("\n  - ")[0]
+        assert '"network_id"' in example, kind
+    assert "network_id" in build_note_task(NOTE_TASK).system_prompt
 
 
 def test_prompt_examples_never_use_dev_net_edge_ids() -> None:
@@ -90,24 +101,37 @@ def test_run_expert_offers_the_expert_tools_and_returns_the_agent_run() -> None:
         TASK,
         agent,
         BUDGET,
-        query=SumolibNetworkQuery(DEV_NET),
-        results=results,
-        scenarios=InMemoryScenarioRepository(),
-        notes=None,
-        ledger=ledger,
+        expert_context(
+            TASK,
+            loader=FixedNetworkQueryLoader(SumolibNetworkQuery(DEV_NET)),
+            results=results,
+            scenarios=InMemoryScenarioRepository(),
+            notes=None,
+        ),
+        ledger,
     )
 
     assert run.output == expert_answer()
     assert seen["input"] == build_task(TASK).input
-    assert seen["tools"] == [*EXPERT_NETWORK_TOOLS, *EXPERT_TOPOLOGY_TOOLS, *RESULT_TOOLS]
+    assert seen["tools"] == EXPERT_TOOL_NAMES
     assert [e.tool for e in ledger.entries] == ["get_result"]
 
 
 NOTE_TASK = NoteTask(
     round=ExpertRound(question=TASK.question, answer=expert_answer()),
+    base_network_id="abc123",
     scenarios=(
-        NoteScenario("s1", "base", ExperimentRole.BASELINE, "as it is", simulated=True),
-        NoteScenario("s2", "treatment", ExperimentRole.TREATMENT, "closure", simulated=False),
+        NoteScenario(
+            "s1", "base", ExperimentRole.BASELINE, "as it is", simulated=True, network_id="abc123"
+        ),
+        NoteScenario(
+            "s2",
+            "treatment",
+            ExperimentRole.TREATMENT,
+            "closure",
+            simulated=False,
+            network_id="abc123",
+        ),
     ),
 )
 
@@ -162,23 +186,28 @@ def test_run_expert_note_offers_no_tools_and_returns_the_agent_run() -> None:
     assert seen["tools"] == []
 
 
+def _reads_the_network(task: AgentTask, tools: Sequence[Tool]) -> None:
+    call_tool(tools, "get_edges", network_id="abc123", edge_ids=["A0A1"])
+
+
 def expert_port(networks: InMemoryNetworkRepository, opened: list[Path]) -> ExpertPort:
     def query_for(path: Path) -> SumolibNetworkQuery:
         opened.append(path)
         return SumolibNetworkQuery(DEV_NET)
 
     return ExpertPort(
-        agent=FakeToolAgent(output=expert_answer()),
+        agent=FakeToolAgent(output=expert_answer(), interact=_reads_the_network),
         budget=BUDGET,
-        networks=networks,
-        results=InMemoryResultRepository(),
-        scenarios=InMemoryScenarioRepository(),
-        notes=None,
-        network_query_factory=query_for,
+        collaborators=ExpertCollaborators(
+            network_query_loader=StoredNetworkQueryLoader(networks, query_for),
+            results=InMemoryResultRepository(),
+            scenarios=InMemoryScenarioRepository(),
+            notes=None,
+        ),
     )
 
 
-def test_the_expert_port_queries_the_network_the_task_names() -> None:
+def test_the_expert_port_queries_the_networks_of_the_task_scope() -> None:
     networks = InMemoryNetworkRepository()
     networks.store(sample_network())
     opened: list[Path] = []
@@ -198,3 +227,8 @@ def test_the_note_writer_port_runs_the_note_writer() -> None:
     port = NoteWriterPort(agent=FakeToolAgent(output=ExpertNoteDrafts()), budget=BUDGET)
 
     assert port.write(NOTE_TASK).output == ExpertNoteDrafts()
+
+
+def test_the_note_prompt_asks_for_one_note_per_scenario_when_networks_are_contrasted() -> None:
+    prompt = " ".join(NOTE_SYSTEM_PROMPT.split())
+    assert "contrasts two networks is written as two notes, one per scenario" in prompt

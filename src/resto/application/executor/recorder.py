@@ -12,8 +12,24 @@ from typing import Any
 
 from resto.application.executor.failures import StepFailed
 from resto.application.ports.repositories import StudyRepository
-from resto.application.ports.tracing import Tracer
+from resto.application.ports.tracing import (
+    ClarificationAsked,
+    ExpertRoundHeld,
+    ModelCall,
+    NetworksAdded,
+    NoteStatusChanged,
+    NotesWritten,
+    NoteWriterFailed,
+    PhaseStarted,
+    PlanMade,
+    ReportComposed,
+    StepTraced,
+    StudyCreated,
+    TraceEvent,
+    Tracer,
+)
 from resto.application.schemas import adapter_for
+from resto.domain.entities.expert_note import NoteStatus
 from resto.domain.entities.study import Phase, Study, StudyStatus
 from resto.domain.services.ids import new_id
 from resto.domain.value_objects.experiment import Experiment
@@ -21,11 +37,11 @@ from resto.domain.value_objects.expert_round import ExpertRound
 from resto.domain.value_objects.question import Question
 from resto.domain.value_objects.report import Report
 from resto.domain.value_objects.step_record import StepRecord, StepStatus, Usage
-from resto.domain.value_objects.study_plan import PlanStep
+from resto.domain.value_objects.study_plan import PlanStep, StudyPlan
 
 
 def data(value: Any) -> Mapping[str, Any]:
-    """`value` as the JSON-ready mapping stored in a `StepRecord` or a trace payload."""
+    """`value` as the JSON-ready mapping stored in a `StepRecord`."""
     dumped: Mapping[str, Any] = adapter_for(type(value)).dump_python(value, mode="json")
     return dumped
 
@@ -41,13 +57,15 @@ class StudyRecorder:
         tracer: Tracer,
     ) -> None:
         """Opens the `Study` on phase 0 (`awaiting_user` if the question is ambiguous), stores it
-        and traces it as `study_created`."""
+        and traces it as `StudyCreated`, then `PhaseStarted` for phase 0."""
         status = StudyStatus.AWAITING_USER if question.is_ambiguous else StudyStatus.PLANNING
         self._study = Study(new_id(), status, (Phase(question),), max_rounds=max_rounds)
         self._studies = studies
         self._tracer = tracer
         self._studies.store(self._study)
-        self.trace("study_created", {"question": data(question), "parse_usage": parse_usage})
+        self._emit(StudyCreated(question, parse_usage))
+        self._emit(PhaseStarted(0))
+        self.model_call(parse_usage)
 
     # -- reading ------------------------------------------------------------------------------
 
@@ -114,6 +132,13 @@ class StudyRecorder:
     def open_phase(self, question: Question) -> None:
         """Starts the next phase, on the experiment the Expert proposed."""
         self._set(phases=(*self._study.phases, Phase(question)))
+        self._emit(PhaseStarted(self.phase_index))
+
+    def plan_made(self, plan: StudyPlan, record: StepRecord) -> None:
+        """Stores the valid plan and its `plan` step in the current phase and starts running."""
+        phase = replace(self.phase, plan=plan, steps=(record,))
+        self._set_phase(phase, status=StudyStatus.RUNNING)
+        self._emit(PlanMade(self.phase_index, plan))
 
     def add_networks(self, *network_ids: str) -> None:
         """Adds the networks the study has not used yet; stores and traces only if one is new."""
@@ -122,14 +147,31 @@ class StudyRecorder:
             return
         added = merged[len(self._study.network_ids) :]
         self._set(network_ids=merged)
-        self.trace("networks_added", {"network_ids": list(added)})
+        self._emit(NetworksAdded(added))
 
     def set_note_ids(self, note_ids: tuple[str, ...]) -> None:
         self._set(note_ids=note_ids)
-        self.trace("notes_written", {"note_ids": list(note_ids)})
+        self._emit(NotesWritten(note_ids))
 
-    def trace(self, event: str, payload: Mapping[str, Any]) -> None:
-        self._tracer.emit(self._study.study_id, event, payload)
+    def model_call(self, usage: Usage) -> None:
+        """One agent call ended (ok or not): its tokens and cost."""
+        self._emit(ModelCall(usage))
+
+    def expert_round_held(self, round_no: int) -> None:
+        """The Expert round of the current phase was recorded; `round_no` counts from 1."""
+        self._emit(ExpertRoundHeld(self.phase_index, round_no))
+
+    def report_composed(self) -> None:
+        self._emit(ReportComposed())
+
+    def clarification_asked(self, reason: str) -> None:
+        self._emit(ClarificationAsked(reason))
+
+    def note_status_changed(self, note_id: str, result_id: str, status: NoteStatus) -> None:
+        self._emit(NoteStatusChanged(note_id, result_id, status))
+
+    def note_writer_failed(self, error: str) -> None:
+        self._emit(NoteWriterFailed(error))
 
     # -- internals ----------------------------------------------------------------------------
 
@@ -146,15 +188,17 @@ class StudyRecorder:
         self._study = replace(self._study, **changes)
         self._studies.store(self._study)
 
+    def _emit(self, event: TraceEvent) -> None:
+        self._tracer.emit(self._study.study_id, event)
+
     def _trace_step(self, record: StepRecord) -> None:
-        self.trace(
-            "step",
-            {
-                "phase": self.phase_index,
-                "tool": record.tool,
-                "status": record.status,
-                "produced_ids": list(record.produced_ids),
-                "usage": record.usage,
-                "error": record.error,
-            },
+        self._emit(
+            StepTraced(
+                phase=self.phase_index,
+                tool=record.tool,
+                status=record.status,
+                produced_ids=record.produced_ids,
+                usage=record.usage,
+                error=record.error,
+            )
         )

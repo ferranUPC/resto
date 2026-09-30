@@ -1,9 +1,9 @@
 """DatabaseMCP server: the five required capability groups of DATABASE_MCP_CONTRACT.md over MCP,
-wrapping one `SqliteDatabase` (E1.3). `historical_demand` is not implemented here - it is optional
+wrapping any `Database` (E1.3). `historical_demand` is not implemented here - it is optional
 (§1), and its shape is deliberately unpinned until E6.5 picks a data source (contract §10 point 3).
 
 Thin driving adapter (ADR-0009): each tool function only (de)serialises through
-`application.schemas.ADAPTERS` and calls straight into a `SqliteDatabase` repository - no logic
+`application.schemas.ADAPTERS` and calls straight into a `Database` repository - no logic
 beyond that and error-code translation lives here.
 
 Error codes (§7): this MCP SDK's tool-error model carries a message but no structured `code`
@@ -16,14 +16,13 @@ for review once the conformance suite (E1.5) needs to assert on codes programmat
 
 from __future__ import annotations
 
-import sys
 from typing import Any
 
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 
-from resto.adapters.persistence.sqlite.repositories import SqliteDatabase
 from resto.application.ports.errors import ConflictError, InvalidArgumentError, NotFoundError
+from resto.application.ports.repositories import Database
 from resto.application.schemas import ADAPTERS, adapter_for
 from resto.domain.entities.expert_note import NoteStatus
 from resto.domain.value_objects.intervention import Intervention
@@ -42,7 +41,7 @@ def _as_tool_error(exc: Exception) -> ToolError:
     return ToolError(f"INTERNAL: {exc}")
 
 
-def build_server(db: SqliteDatabase, name: str = "DatabaseMCP") -> MCPServer:
+def build_server(db: Database, name: str = "DatabaseMCP") -> MCPServer:
     server = MCPServer(name)
     network = ADAPTERS["Network"]
     demand = ADAPTERS["Demand"]
@@ -201,16 +200,3 @@ def build_server(db: SqliteDatabase, name: str = "DatabaseMCP") -> MCPServer:
         server.add_tool(fn, name=tool_name, description=description)
 
     return server
-
-
-def main() -> None:
-    db_path = sys.argv[1] if len(sys.argv) > 1 else "resto.db"
-    db = SqliteDatabase(db_path)
-    try:
-        build_server(db).run()
-    finally:
-        db.close()
-
-
-if __name__ == "__main__":
-    main()

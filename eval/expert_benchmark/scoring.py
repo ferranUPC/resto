@@ -3,12 +3,16 @@
 A question is incorrect when there is no answer, when promotion rejected it, or when the expected
 typed value is missing; otherwise the family's rule decides. A diagnostic score also counts the
 Bottleneck causes (ADR-0029) over the edges the answer shares with the gold top-3.
+
+An edge is a (network id, edge id) pair: the gold names its network in `gold["network_id"]` and each
+answer value names its own (ADR-0032), so the right edge on the wrong network scores as wrong.
 """
 
 from __future__ import annotations
 
-from collections.abc import Collection
+from collections.abc import Collection, Hashable
 from dataclasses import dataclass
+from typing import Any
 
 from eval.expert_benchmark.bank import BenchmarkQuestion, Family
 from eval.question_bank.gold import magnitude_band
@@ -44,7 +48,7 @@ class Score:
     correct_causes: int = 0
 
 
-def jaccard(a: Collection[str], b: Collection[str]) -> float:
+def jaccard(a: Collection[Hashable], b: Collection[Hashable]) -> float:
     """Set overlap in [0, 1]; two empty sets are identical (1.0)."""
     sa, sb = set(a), set(b)
     if not sa and not sb:
@@ -62,15 +66,28 @@ def score_answer(
     return _SCORERS[question.family](question, answer.values)
 
 
+EdgeRef = tuple[str, str]
+
+
+def _gold_refs(question: BenchmarkQuestion, edge_ids: Collection[str]) -> list[EdgeRef]:
+    network_id = question.gold["network_id"]
+    return [(network_id, edge_id) for edge_id in edge_ids]
+
+
 def _first_edges(values: tuple[AnswerValue, ...]) -> Edges | None:
     return next((v for v in values if isinstance(v, Edges)), None)
 
 
 def _find_change(
-    values: tuple[AnswerValue, ...], measure: Measure, edge_id: str | None
+    values: tuple[AnswerValue, ...], measure: Measure, edge: EdgeRef | None
 ) -> Change | None:
+    """The change of `measure` on `edge`, or (edge None) on the whole network."""
     for value in values:
-        if isinstance(value, Change) and (value.measure, value.edge_id) == (measure, edge_id):
+        if (
+            isinstance(value, Change)
+            and value.measure is measure
+            and value.edge_references == (() if edge is None else (edge,))
+        ):
             return value
     return None
 
@@ -79,15 +96,27 @@ def _score_desc_occ(question: BenchmarkQuestion, values: tuple[AnswerValue, ...]
     edges = _first_edges(values)
     if edges is None:
         return Score(False, "missing edges value")
-    gold = set(question.gold["edges_above_threshold"])
-    predicted = set(edges.edge_ids)
-    return Score(predicted == gold, f"predicted {sorted(predicted)}, gold {sorted(gold)}")
+    gold = set(_gold_refs(question, question.gold["edges_above_threshold"]))
+    predicted = set(edges.edge_references)
+    return Score(
+        predicted == gold,
+        f"predicted {_listed(predicted)}, gold {_listed(gold)}",
+    )
+
+
+def _listed(refs: Collection[EdgeRef]) -> list[str]:
+    """Edge ids for a score detail, each prefixed by its network when the refs span several."""
+    networks = {network_id for network_id, _ in refs}
+    if len(networks) > 1:
+        return sorted(f"{network_id[:8]}:{edge_id}" for network_id, edge_id in refs)
+    return sorted(edge_id for _, edge_id in refs)
 
 
 def _score_desc_tt(question: BenchmarkQuestion, values: tuple[AnswerValue, ...]) -> Score:
     edge_id = question.gold["edge_id"]
+    edge: EdgeRef = (question.gold["network_id"], edge_id)
     said_no_value = any(
-        isinstance(v, NoValue) and (v.measure, v.edge_id) == (Measure.TRAVEL_TIME, edge_id)
+        isinstance(v, NoValue) and v.measure is Measure.TRAVEL_TIME and v.edge_references == (edge,)
         for v in values
     )
     if "no_value" in question.gold:
@@ -100,7 +129,8 @@ def _score_desc_tt(question: BenchmarkQuestion, values: tuple[AnswerValue, ...])
             v
             for v in values
             if isinstance(v, Quantity)
-            and (v.measure, v.edge_id) == (Measure.TRAVEL_TIME, edge_id)
+            and v.measure is Measure.TRAVEL_TIME
+            and v.edge_references == (edge,)
         ),
         None,
     )
@@ -111,14 +141,15 @@ def _score_desc_tt(question: BenchmarkQuestion, values: tuple[AnswerValue, ...])
     return Score(within_tolerance(quantity.value, gold), detail)
 
 
-def _score_edge_ranking(gold_ids: list[str], values: tuple[AnswerValue, ...]) -> Score:
+def _score_edge_ranking(gold_refs: list[EdgeRef], values: tuple[AnswerValue, ...]) -> Score:
     edges = _first_edges(values)
     if edges is None:
         return Score(False, "missing edges value")
-    overlap = jaccard(edges.edge_ids, gold_ids)
+    overlap = jaccard(edges.edge_references, gold_refs)
     return Score(
         overlap >= JACCARD_CORRECT,
-        f"predicted {list(edges.edge_ids)}, gold {gold_ids}, jaccard {overlap:.2f}",
+        f"predicted {_listed(edges.edge_references)}, gold {_listed(gold_refs)}, "
+        f"jaccard {overlap:.2f}",
         jaccard=overlap,
     )
 
@@ -127,16 +158,21 @@ def _score_diag(question: BenchmarkQuestion, values: tuple[AnswerValue, ...]) ->
     """Jaccard decides `correct`; the causes are graded on the shared edges only, so a wrong edge
     costs once (in the Jaccard). A missing cause value scores every shared edge wrong."""
     gold_ids = list(question.gold["top_3"])
-    ranking = _score_edge_ranking(gold_ids, values)
+    gold_refs = _gold_refs(question, gold_ids)
+    ranking = _score_edge_ranking(gold_refs, values)
     edges = _first_edges(values)
     if edges is None:
         return ranking
     cause_value = next((v for v in values if isinstance(v, BottleneckCauses)), None)
-    predicted = {} if cause_value is None else {c.edge_id: c.cause for c in cause_value.causes}
+    predicted: dict[EdgeRef, Any] = {}
+    if cause_value is not None:
+        predicted = {(c.network_id, c.edge_id): c.cause for c in cause_value.causes}
     gold_causes = question.gold["causes"]
-    shared = [e for e in edges.edge_ids if e in gold_ids]
-    correct = sum(predicted.get(e) == gold_causes[e] for e in shared)
-    pairs = ", ".join(f"{e} {predicted.get(e, 'missing')}/{gold_causes[e]}" for e in shared)
+    shared = [ref for ref in edges.edge_references if ref in gold_refs]
+    correct = sum(predicted.get(ref) == gold_causes[ref[1]] for ref in shared)
+    pairs = ", ".join(
+        f"{ref[1]} {predicted.get(ref, 'missing')}/{gold_causes[ref[1]]}" for ref in shared
+    )
     return Score(
         ranking.correct,
         f"{ranking.detail}; causes (predicted/gold) {correct}/{len(shared)}: {pairs or 'none'}",
@@ -147,12 +183,13 @@ def _score_diag(question: BenchmarkQuestion, values: tuple[AnswerValue, ...]) ->
 
 
 def _score_cf_topk(question: BenchmarkQuestion, values: tuple[AnswerValue, ...]) -> Score:
-    return _score_edge_ranking([e for e, _ in question.gold["top_k_by_delay_change"]], values)
+    gold_ids = [e for e, _ in question.gold["top_k_by_delay_change"]]
+    return _score_edge_ranking(_gold_refs(question, gold_ids), values)
 
 
 def _score_cf_dir(question: BenchmarkQuestion, values: tuple[AnswerValue, ...]) -> Score:
     edge_id = question.gold["edge_id"]
-    change = _find_change(values, Measure.TIME_LOSS, edge_id)
+    change = _find_change(values, Measure.TIME_LOSS, (question.gold["network_id"], edge_id))
     if change is None:
         return Score(False, f"missing time_loss change on {edge_id}")
     gold = _GOLD_DIRECTION[question.gold["direction"]]

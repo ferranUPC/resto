@@ -157,6 +157,7 @@ def expert_answer() -> ExpertAnswer:
                 direction=ChangeDirection.INCREASE,
                 relative_change_pct=12.0,
                 edge_id="E12",
+                network_id="abc123",
             ),
         ),
     )
@@ -177,9 +178,7 @@ def study_plan() -> StudyPlan:
             ),
             RunSimulationStep(scenario_id=FromStep(0), depends_on=(0,)),
         ),
-        reused=(
-            ReusedExperiment("s0", "base", ExperimentRole.BASELINE, "without the closure"),
-        ),
+        reused=(ReusedExperiment("s0", "base", ExperimentRole.BASELINE, "without the closure"),),
     )
 
 
@@ -371,16 +370,18 @@ SAMPLES: dict[type, Callable[[], object]] = {
     ExpertRound: lambda: ExpertRound(question="why?", answer=expert_answer(), forced_by_limit=True),
     ExpertAnswer: expert_answer,
     Evidence: lambda: Evidence(kind=EvidenceKind.ARTIFACT, ref="edgedata.xml", excerpt="E12"),
-    Edges: lambda: Edges(edge_ids=("E12", "E07"), ranked=True),
-    NoValue: lambda: NoValue(measure=Measure.TRAVEL_TIME, edge_id="E12"),
-    EdgeCause: lambda: EdgeCause(edge_id="E12", cause=BottleneckCause.SIGNAL),
+    Edges: lambda: Edges(edge_ids=("E12", "E07"), network_id="abc123", ranked=True),
+    NoValue: lambda: NoValue(measure=Measure.TRAVEL_TIME, edge_id="E12", network_id="abc123"),
+    EdgeCause: lambda: EdgeCause(edge_id="E12", network_id="abc123", cause=BottleneckCause.SIGNAL),
     BottleneckCauses: lambda: BottleneckCauses(
         causes=(
-            EdgeCause(edge_id="E12", cause=BottleneckCause.INTERVENTION),
-            EdgeCause(edge_id="E07", cause=BottleneckCause.SPILLBACK),
+            EdgeCause(edge_id="E12", network_id="abc123", cause=BottleneckCause.INTERVENTION),
+            EdgeCause(edge_id="E07", network_id="abc123", cause=BottleneckCause.SPILLBACK),
         )
     ),
-    Quantity: lambda: Quantity(measure=Measure.TRAVEL_TIME, value=23.4, edge_id="E12"),
+    Quantity: lambda: Quantity(
+        measure=Measure.TRAVEL_TIME, value=23.4, edge_id="E12", network_id="abc123"
+    ),
     Change: lambda: Change(
         measure=Measure.MEAN_DELAY, direction=ChangeDirection.INCREASE, relative_change_pct=7.6
     ),
@@ -455,19 +456,39 @@ SAMPLES: dict[type, Callable[[], object]] = {
         context_tags=frozenset({"peak"}),
     ),
     NoteScenario: lambda: NoteScenario(
-        "s1", "treatment", ExperimentRole.TREATMENT, "measure the closure", simulated=True
+        "s1",
+        "treatment",
+        ExperimentRole.TREATMENT,
+        "measure the closure",
+        simulated=True,
+        network_id="abc123",
     ),
     NoteTask: lambda: NoteTask(
         round=ExpertRound(question="how bad is it?", answer=expert_answer()),
+        base_network_id="abc123",
         scenarios=(
-            NoteScenario("s1", "treatment", ExperimentRole.TREATMENT, "closure", simulated=True),
-            NoteScenario("s9", "retime", ExperimentRole.TREATMENT, "predicted", simulated=False),
+            NoteScenario(
+                "s1",
+                "treatment",
+                ExperimentRole.TREATMENT,
+                "closure",
+                simulated=True,
+                network_id="abc123",
+            ),
+            NoteScenario(
+                "s9",
+                "retime",
+                ExperimentRole.TREATMENT,
+                "predicted",
+                simulated=False,
+                network_id="abc123",
+            ),
         ),
     ),
     ExpertTask: lambda: ExpertTask(
         question="where does delay concentrate?",
         mode=Mode.FREE,
-        network_id="abc123",
+        network_ids=("abc123",),
         result_ids=("res1",),
     ),
 }

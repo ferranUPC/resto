@@ -24,7 +24,7 @@ def _question(qid: str) -> BenchmarkQuestion:
         text="which edges exceed 3.5% occupancy?",
         network_id="n",
         result_ids=("r1",),
-        gold={"edges_above_threshold": [GOLD_EDGE]},
+        gold={"network_id": "n", "edges_above_threshold": [GOLD_EDGE]},
     )
 
 
@@ -34,7 +34,7 @@ def _answer(edge_ids: tuple[str, ...]) -> ExpertAnswer:
         basis=Basis.OBSERVED,
         confidence=0.8,
         evidence=(Evidence(kind=EvidenceKind.QUERY, ref="q1"),),
-        values=(Edges(edge_ids=edge_ids),),
+        values=(Edges(edge_ids=edge_ids, network_id="n"),),
     )
 
 

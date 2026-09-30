@@ -16,6 +16,7 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any
 
+from eval.fixed_network_query_loader import FixedNetworkQueryLoader
 from eval.hygiene_probes.probes import HygieneProbe
 from eval.paid_runs import ESTIMATED_COST_KEY, REAL_COST_KEY, CostPolicy, RunOutcome, run_paid_jobs
 from resto.adapters.llm.agents.expert import EXPERT_VERSION, run_expert
@@ -28,7 +29,7 @@ from resto.application.ports.llm import Budget, ToolAgent
 from resto.application.ports.network_query import NetworkQuery
 from resto.application.promotion import DraftRejected, RunWithoutDraft
 from resto.application.schemas import adapter_for
-from resto.application.tools.expert import EvidenceLedger
+from resto.application.tools.expert import EvidenceLedger, expert_context
 from resto.application.use_cases.ask_expert import ask_expert
 from resto.domain.entities.expert_note import ExpertNote, NoteStatus, Provenance
 from resto.domain.value_objects.expert_answer import Basis, ExpertAnswer
@@ -117,20 +118,22 @@ def _run_once(
     cost_policy: CostPolicy,
 ) -> dict[str, Any]:
     task = ExpertTask(
-        question=probe.question, mode=Mode.FORCED, network_id=probe.network_id,
+        question=probe.question, mode=Mode.FORCED, network_ids=(probe.network_id,),
         result_ids=(), notes_allowed=True,
     )
     ledger = EvidenceLedger()
     started = time.monotonic()
-    run = run_expert(
-        task, agent, budget, query=query, results=InMemoryResultRepository(),
-        scenarios=InMemoryScenarioRepository(), notes=_seeded_notes(probe), ledger=ledger,
+    loader = FixedNetworkQueryLoader(query)
+    context = expert_context(
+        task, loader=loader, results=InMemoryResultRepository(),
+        scenarios=InMemoryScenarioRepository(), notes=_seeded_notes(probe),
     )
+    run = run_expert(task, agent, budget, context, ledger)
     elapsed = time.monotonic() - started
     rejection: str | None = None
     answer: ExpertAnswer | None = None
     try:
-        round_ = ask_expert(task, run, ledger, query=query)
+        round_ = ask_expert(task, run, ledger, loader=loader)
         answer = round_.answer
     except (RunWithoutDraft, DraftRejected) as exc:
         rejection = str(exc)

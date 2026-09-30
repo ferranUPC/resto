@@ -9,13 +9,17 @@
       "type": "string"
     }
   },
+  "description": "One Expert round. `network_ids` is the study's network scope (`CONTEXT.md`) as it stood\nwhen the round started (ADR-0032).",
   "properties": {
     "mode": {
       "$ref": "#/$defs/Mode"
     },
-    "network_id": {
-      "title": "Network Id",
-      "type": "string"
+    "network_ids": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Network Ids",
+      "type": "array"
     },
     "notes_allowed": {
       "default": true,
@@ -38,7 +42,7 @@
   "required": [
     "question",
     "mode",
-    "network_id"
+    "network_ids"
   ],
   "title": "ExpertTask",
   "type": "object"

@@ -46,7 +46,7 @@ from eval.scenario_matrix.rows import BEGIN_S, END_S, ROWS, MatrixRow, build_dra
 from resto.adapters.persistence.filesystem import artifact_ref
 from resto.adapters.persistence.mcp_client import McpClientDatabase
 from resto.adapters.persistence.sqlite.repositories import SqliteDatabase
-from resto.adapters.sumo.netxml import SumolibNetworkQuery
+from resto.adapters.sumo.network_query_loader import StoredNetworkQueryLoader
 from resto.adapters.sumo.outputs import parse_edgedata
 from resto.adapters.sumo.run_directories import FilesystemRunDirectories
 from resto.adapters.sumo.runner import SubprocessSumoRunner
@@ -168,7 +168,7 @@ def build_matrix() -> list[dict[str, object]]:
             scenario = build_scenario(
                 task, run,
                 networks=db.networks, demands=db.demands, scenarios=db.scenarios,
-                network_query_factory=lambda p: SumolibNetworkQuery(p),
+                network_query_loader=StoredNetworkQueryLoader(db.networks),
                 runner=runner, out_dir=row_dir / "load_check",
             )
 

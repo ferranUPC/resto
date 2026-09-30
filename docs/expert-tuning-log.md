@@ -49,13 +49,15 @@ agent optimisation; they make the baseline measurable and correct.
 | v2 | 2026-09-25 | Batched topology tools; **E3.8 (clock-time) bank** | `v2-e38-forced-1rep` (117 × 1) | 1.00 | 0.80 | 0.00 ¹ | 1.00 | 1.00 | 0.03 | 0.97 | 0.99 |
 | v3 | 2026-09-25 | Bottleneck cause per edge (ADR-0029) | `v3-diag-1rep` (20 `-diag` × 1) | — ² | 0.10 | 1.00 (6 edges) | — | — | — | 0.10 | 0.32 |
 | v4 | 2026-09-25 | Cause lookups in two steps; two-value diagnosis | `v4-diag-1rep` (20 `-diag` × 1) | — ² | 0.60 | 0.89 (36 edges) | — | — | — | 0.60 | 0.28 |
+| v5 | 2026-09-30 | Per-tool guidance moved into the tool descriptions (ADR-0033) | `v5-diag-1rep` (20 `-diag` × 1) | — ² | 0.55 | 0.94 | — | — | — | 0.55 | 0.24 |
+| v6 | 2026-09-30 | `get_tls` answers an unknown id instead of failing the call | `v6-diag-1rep` (20 `-diag` × 1) | — ² | 0.95 | 0.93 | — | — | — | 0.95 | 0.24 |
 
 DoD thresholds (DEV-NET): descriptive ≥ 0.90, diagnostic Jaccard ≥ 0.60, diagnostic cause (the "why",
 ADR-0029) ≥ 0.70, CF direction ≥ 0.75, CF band ≥ 0.50, Brier ≤ 0.25, accepted = 1.00.
 
 ¹ Re-scored after ADR-0029: v2 has no cause value, so every shared edge counts as wrong.
 ² Diagnostic-only sweeps: the other families were not run, and Brier and accepted cover the 20
-diagnostic questions only. v3 and v4 changed only the diagnostic part of the prompt.
+diagnostic questions only. v3 and v4 changed only the diagnostic part of the prompt; v5 and v6 changed tool descriptions and one tool.
 
 ### v0 — baseline
 
@@ -438,10 +440,100 @@ $0.99 (cap $1.30), no crashes. Report: `eval/expert_benchmark/reports/v2-e38-for
     result, not re-tuned. Levers 1–2 are cheap enough (≈ $0.35 including their sweep) to try before
     Validation 1 if the calendar allows.
 
-### Diagnostic questions from v0 to v4
+### v5: per-tool guidance moved into the descriptions (refactor r3, ADR-0033 part 2)
+
+- **Configuration** (`EXPERT_VERSION = "v5"`; tools, budget, model and answer schema as v4). Advice that
+  concerns one tool left the system prompt and went into that tool's description:
+  - `query_edgedata` says it is very large and a last resort (the prompt keeps "raw data, only when the
+    aggregated tools cannot express what you need");
+  - `get_scenario` says to pass the `scenario_id` from `get_result`, never a result id, and `get_result`
+    says its `scenario_id` is what `get_scenario` takes;
+  - `get_tls` says to give one id per call, that an unknown id only means there is no light, and that a
+    light usually has the id of its junction (removed from the diagnosis paragraph).
+  The cross-tool rules stay in the prompt: facts only through tools, aggregated tools first, evidence
+  format, basis and mode. The descriptions of `get_edges`, `get_neighbours`, `capacity_estimate`,
+  `compare_edges` and `compare_kpis` also stopped mid-sentence since the r3 migration; they are now the
+  full sentence of their docstring.
+- **Hypothesis.** Same information in a different place, so accuracy should not move. Any change would
+  be noise from a single repetition.
+- **Sweep.** `v5-diag-1rep`: the same 20 `-diag` questions as v4 × 1, forced, 6 workers, estimated
+  $0.24, real $0.145 as billed (estimated before the run: $0.30, cap $0.40). A development run, no
+  held-out split. Report: `eval/expert_benchmark/reports/v5-diag-1rep.md`.
+- **Results.**
+
+  | | v4 | v5 |
+  |---|---|---|
+  | Answered (all with Jaccard 1.00) | 12 / 20 | 11 / 20 |
+  | Diagnostic Jaccard | 0.60 | 0.55 |
+  | Cause accuracy | 0.89 (32 / 36) | 0.94 |
+  | Budget stops | 8 | 9 |
+  | Steps | 113 | 101 |
+  | Text-only steps cut at 2,048 tokens | 11 | 12 |
+  | Tool calls | 238 | 226 |
+  | `get_tls` calls | 40 | 53 |
+  | `query_edgedata` calls | 0 | 0 |
+  | Output tokens | 104.7 k | 81.4 k |
+  | Cost (USD, estimated) | 0.28 | 0.24 |
+
+- **Conclusion.** Kept. The one-answer difference (11 against 12) is within what one repetition can
+  show, and every remaining stop is the reasoning cut at the 2,048-token limit, as in v4. Cause
+  accuracy and tool use are unchanged in kind. Jaccard 0.55 is under the 0.60 bar on this
+  1-repetition development sweep; v4 sat exactly on it with no margin, and the decision of
+  2026-09-25 (no re-tuning for it before Validation 1) still applies. Nothing was rerun.
+
+### v6: `get_tls` reports an unknown id instead of failing (refactor r3 follow-up)
+
+- **Configuration** (`EXPERT_VERSION = "v6"`; prompt, budget and model as v5). `get_tls` keeps its list
+  of ids, but an id with no light on the network now gets `{"exists": false, "message": "no traffic
+  light with id 'X' on this network; nothing to report"}` and the other ids are answered as usual.
+  Before, the first unknown id raised `KeyError` and failed the whole batch. The description says so
+  and no longer asks for one id per call, which contradicted the plural parameter (found in the v5
+  code review). The check uses `NetworkQuery.has_tls`, so no exception is caught.
+- **Hypothesis.** Most of v3's and v4's wasted steps were failed `get_tls` calls (v4: 10 of 40 failed,
+  each one costing a step). A miss is an answer ("no light"), not an error, so it should stop costing
+  a step, and the Expert should stop splitting the lookups into single-id calls.
+- **Sweep.** `v6-diag-1rep`: the same 20 `-diag` questions × 1, forced, 6 workers, estimated $0.24,
+  real $0.156 (estimated before the run: about $0.2, cap $0.40). A development run, no held-out split.
+  Report: `eval/expert_benchmark/reports/v6-diag-1rep.md`.
+- **Results.**
+
+  | | v4 | v5 | v6 |
+  |---|---|---|---|
+  | Answered | 12 / 20 | 11 / 20 | 19 / 20 |
+  | Diagnostic Jaccard (all answers 1.00) | 0.60 | 0.55 | 0.95 |
+  | Cause accuracy | 0.89 | 0.94 | 0.93 |
+  | Budget stops | 8 | 9 | 1 |
+  | Steps | 113 | 101 | 96 |
+  | Text-only steps cut at 2,048 tokens | 11 | 12 | 5 |
+  | Tool calls | 238 | 226 | 213 |
+  | `get_tls` calls | 40 | 53 | 21 |
+  | Output tokens | 104.7 k | 81.4 k | 87.8 k |
+  | Cost (USD, estimated) | 0.28 | 0.24 | 0.24 |
+
+- **Conclusion.** Kept. This is the largest gain since v2 and it came from a tool contract, not from the
+  prompt: `get_tls` calls fell from 53 to 21 because the Expert batches again, and stops from 9 to 1.
+  The 2,048-token cut still exists (5 steps) but rarely takes the last step. One repetition on the
+  tuning bank is not a reported result; EXP-01 in Validation 2 measures it. Cause accuracy is
+  unchanged in kind (4 of 57 edges wrong, all `spillback` or `intervention` precedence).
+
+### v7: the Expert queries a network scope (refactor r4, ADR-0032)
+
+- **Configuration** (`EXPERT_VERSION = "v7"`; budget and model as v6). The input carries `network_ids`
+  (the study's base network and every network derived so far) instead of one `network_id`. Every
+  topology tool (`get_lanes`, `shortest_path`, `get_edges`, `get_neighbours`, `capacity_estimate`,
+  `get_tls`) and `search_notes` take a `network_id`, checked against that list; one outside it is a tool
+  error. The prompt says so and tells the model to name, in each value, the network its edge belongs to.
+- **Hypothesis.** With one network in the scope nothing changes in what the model can learn, so scores
+  should match v6. The extra `network_id` argument adds a few tokens per call.
+- **Sweep.** None. No model call was made for this version: the benchmark's tasks all have a single
+  network, and a measurement run waits for a validation pass. The first sweep on v7 should compare
+  against v6 before the version is trusted.
+- **Conclusion.** Kept for the structural change; the effect on answers is unmeasured.
+
+### Diagnostic questions from v0 to v6
 
 The diagnostic family is the one that drove most of the tuning. Its history in one table (1
-repetition each, 20 questions; v0–v1 on the old bank, v2–v4 on the E3.8 bank):
+repetition each, 20 questions; v0–v1 on the old bank, v2–v6 on the E3.8 bank):
 
 | Version | What changed for the diagnosis | Answered | Jaccard | Cause acc. | Budget stops | Main failure |
 |---|---|---|---|---|---|---|
@@ -450,6 +542,8 @@ repetition each, 20 questions; v0–v1 on the old bank, v2–v4 on the E3.8 bank
 | v2 | Batched topology tools | 16 | 0.80 | not asked | 4 | Text or tool arguments cut at 2,048 tokens |
 | v3 | Typed cause per edge (ADR-0029) | 2 | 0.10 | 1.00 (6 edges) | 18 | Guessing light ids, hunting lane drops, deliberation cut |
 | v4 | Cause lookups spelled out; a diagnosis with two values | 12 | 0.60 | 0.89 (36 edges) | 8 | Reasoning cut at 2,048 tokens |
+| v5 | Per-tool guidance moved into the tool descriptions | 11 | 0.55 | 0.94 | 9 | Reasoning cut at 2,048 tokens |
+| v6 | `get_tls` answers an unknown id instead of failing | 19 | 0.95 | 0.93 | 1 | Reasoning cut at 2,048 tokens (5 steps) |
 
 The same pattern holds in every version: when the Expert answers, it names the right edges, and what
 changes is whether it answers within 6 steps of 2,048 output tokens. The versions changed this as
@@ -458,12 +552,16 @@ follows:
 - v3 asked for more, a typed cause per edge, and left the Expert to find the facts on its own, which
   spent its budget on searching;
 - v4 told the Expert which fields answer each cause and which calls fetch them. That recovered most
-  of the loss, with 0.89 cause accuracy.
+  of the loss, with 0.89 cause accuracy;
+- v5 changed no information, only where the per-tool advice lives. The result (11 answers against 12) is
+  within what one repetition can show;
+- v6 made an unknown traffic-light id an answer instead of an error. The batch stopped failing, the
+  Expert stopped splitting it, and answers went from 11 to 19.
 
 The limit left at the end is the one first seen in v0: the output-token budget per step.
 
-Spent on Expert runs so far: **$4.47** (v0 $1.54, v1 $0.98, v2 retry $0.10, smokes $0.27,
-`v2-e38-forced-1rep` $0.99, `v3-diag-1rep` $0.32, `v4-diag-1rep` $0.28). E4.3's share is $0.60.
+Spent on Expert runs so far (sum of the runs' estimated costs; v5 and v6 billed $0.30 of their $0.48): **$4.95** (v0 $1.54, v1 $0.98, v2 retry $0.10, smokes $0.27,
+`v2-e38-forced-1rep` $0.99, `v3-diag-1rep` $0.32, `v4-diag-1rep` $0.28, `v5-diag-1rep` $0.24 estimated, $0.145 billed, `v6-diag-1rep` $0.24 estimated, $0.156 billed). E4.3's share is $0.60.
 
 ## 4. Entry template
 

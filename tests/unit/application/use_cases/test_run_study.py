@@ -1,41 +1,36 @@
-"""`run_study` (E5.10; ADR-0023, ADR-0025, ADR-0026, ADR-0027) with scripted agent ports, fake
-promotions, in-memory repositories and a fake SUMO runner: golden-path shapes, one failure per
+"""`run_study` (E5.10; ADR-0023, ADR-0025, ADR-0026, ADR-0027): golden-path shapes, one failure per
 `StepError.kind`, dedup, notes, and a Study persisted after every step. No network."""
 
-from __future__ import annotations
-
-from collections.abc import Callable, Mapping
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
 import pytest
 
-from resto.adapters.persistence.memory import (
-    InMemoryDemandRepository,
-    InMemoryNetworkRepository,
-    InMemoryNoteRepository,
-    InMemoryResultRepository,
-    InMemoryScenarioRepository,
-    InMemoryStudyRepository,
+from resto.application.executor import (
+    StudyBudget,
 )
-from resto.adapters.sumo.run_directories import FilesystemRunDirectories
-from resto.application.executor import StudyAgents, StudyBudget, StudyDeps, StudyPromotions
-from resto.application.ports.agents.coordinator import PlanningContext
-from resto.application.ports.llm import AgentRun, StopReason
-from resto.application.ports.sumo import RunOutput
-from resto.application.tools.expert import EvidenceLedger
-from resto.application.use_cases.run_study import ParserFailed, run_study
+from resto.application.ports.llm import StopReason
+from resto.application.ports.network_query import NetworkNotStored
+from resto.application.ports.tracing import (
+    ExpertRoundHeld,
+    ModelCall,
+    NoteStatusChanged,
+    NoteWriterFailed,
+    PhaseStarted,
+    PlanMade,
+    ReportComposed,
+    StepTraced,
+    StudyCreated,
+)
+from resto.application.use_cases.run_study import ParserFailed
 from resto.domain.constants import DEFAULT_SEEDS
-from resto.domain.entities.demand import Demand
 from resto.domain.entities.expert_note import ExpertNote, NoteStatus, Provenance
-from resto.domain.entities.network import Network
-from resto.domain.entities.scenario import Scenario
-from resto.domain.entities.simulation_result import RunMode, RunStatus, SimulationResult
+from resto.domain.entities.simulation_result import RunMode
 from resto.domain.entities.study import Study, StudyStatus
-from resto.domain.services.ids import result_id_for, scenario_id_for
+from resto.domain.services.ids import result_id_for
 from resto.domain.value_objects.answer_value import Edges, Measure, Quantity
-from resto.domain.value_objects.arm import BASE_ARM, Arm
+from resto.domain.value_objects.arm import BASE_ARM, Arm, Contrast
 from resto.domain.value_objects.drafts import (
     ExpertNoteDraft,
     ExpertNoteDrafts,
@@ -43,14 +38,9 @@ from resto.domain.value_objects.drafts import (
     ScenarioDraft,
 )
 from resto.domain.value_objects.experiment import Experiment, ExperimentRole
-from resto.domain.value_objects.expert_answer import Basis, Evidence, EvidenceKind, ExpertAnswer
-from resto.domain.value_objects.intervention import Intervention, InterventionType
-from resto.domain.value_objects.intervention_target import LaneTarget
-from resto.domain.value_objects.kpis import Kpis
-from resto.domain.value_objects.mechanism import ScriptMechanism, StaticFileMechanism
-from resto.domain.value_objects.network_recipe import NetworkRecipe
+from resto.domain.value_objects.expert_answer import Basis, Evidence, EvidenceKind
+from resto.domain.value_objects.intervention import Intervention
 from resto.domain.value_objects.question import Intent, Mode, Question
-from resto.domain.value_objects.report import Report
 from resto.domain.value_objects.step_record import StepErrorKind, StepStatus, Usage
 from resto.domain.value_objects.study_plan import (
     ClarificationRequest,
@@ -58,367 +48,39 @@ from resto.domain.value_objects.study_plan import (
     FromStep,
     RerouteDemandStep,
     ReusedExperiment,
-    StudyPlan,
 )
-from resto.domain.value_objects.tasks import ExpertTask, NoteTask
-from resto.domain.value_objects.time_window import TimeWindow
-from resto.domain.value_objects.topology_modification import AddEdge
-from tests.unit.application.use_cases._doubles import FakeRunner, StubNetworkQuery
+from tests.unit.application._doubles import FakeRunner
+from tests.unit.application._world import (
+    BASE_SID,
+    BASELINE_PLAN,
+    CLOSURE,
+    CLOSURE_SID,
+    DESCRIBE,
+    KPIS,
+    NEW_EDGE,
+    PROPOSED,
+    TREATMENT_PLAN,
+    UNKNOWN_LANE,
+    WHAT_IF,
+    World,
+    abstains,
+    answers,
+    echo_draft,
+    failed_kind,
+    failed_output,
+    ok_output,
+    plan,
+    run_of,
+    tools,
+)
 from tests.unit.domain._fixtures import (
     DEMAND,
     NET,
     artifact,
     build_step,
-    demand_draft,
     dynamic_intervention,
-    good_sanity,
-    network_draft,
     run_step,
-    runnable_script,
-    static_intervention,
 )
-from tests.unit.domain._samples import demand as sample_demand
-from tests.unit.domain._samples import network as sample_network
-
-CLOSURE = static_intervention()  # lane 1 of E12, fixed window
-UNKNOWN_LANE = Intervention(
-    type=InterventionType.LANE_CLOSURE,
-    target=LaneTarget(edge_id="E99", lane_index=0),
-    window=TimeWindow(7 * 3600, 10 * 3600),
-)
-NEW_EDGE = AddEdge("J7", "J9", lanes=2, speed=13.9, edge_id="J7J9")
-QUERY = StubNetworkQuery(edges={"E12"}, lanes={("E12", 1)})
-REPORT = Report(summary="done", mode=Mode.FREE, basis=Basis.OBSERVED)
-KPIS = Kpis(mean_delay=24.4, mean_travel_time=85.4, teleports=0, departed=50, arrived=43)
-
-DESCRIBE = Question(text="how congested is the peak?", intent=Intent.DESCRIBE)
-WHAT_IF = Question(
-    text="what if we close lane 1 of E12?", intent=Intent.COUNTERFACTUAL, interventions=(CLOSURE,)
-)
-PROPOSED = Question(text="close lane 1 of E12", intent=Intent.RUN, interventions=(CLOSURE,))
-
-BASE_SID = scenario_id_for(NET, DEMAND, (), frozenset())
-CLOSURE_SID = scenario_id_for(NET, DEMAND, (CLOSURE,), frozenset())
-
-
-# -- doubles ------------------------------------------------------------------------------------
-
-
-def run_of(output: Any, stop: StopReason = StopReason.OUTPUT, tokens: int = 0) -> AgentRun[Any]:
-    usage = Usage(input_tokens=tokens)
-    return AgentRun(output=output, tool_calls=(), usage=usage, stop_reason=stop)
-
-
-class Scripted:
-    """Answers each call with the next scripted item: an `AgentRun`, an exception to raise, or a
-    callable given the call's arguments. `default` answers once the script runs out."""
-
-    def __init__(self, *items: Any, default: Callable[..., Any] | None = None) -> None:
-        self.items = list(items)
-        self.default = default
-        self.calls: list[tuple[Any, ...]] = []
-
-    def _next(self, *args: Any) -> Any:
-        self.calls.append(args)
-        if not self.items:
-            if self.default is None:
-                raise AssertionError(f"unexpected call {type(self).__name__}{args}")
-            return self.default(*args)
-        item = self.items.pop(0)
-        if isinstance(item, BaseException):
-            raise item
-        return item(*args) if callable(item) else item
-
-
-class FakeParser(Scripted):
-    def parse(self, text: str) -> AgentRun[Question]:
-        return self._next(text)  # type: ignore[no-any-return]
-
-
-class FakeCoordinator(Scripted):
-    def plan(self, question: Question, context: PlanningContext) -> AgentRun[Any]:
-        return self._next(question, context)  # type: ignore[no-any-return]
-
-
-class FakeAuthor(Scripted):
-    def author(self, task: Any) -> AgentRun[Any]:
-        return self._next(task)  # type: ignore[no-any-return]
-
-
-class FakeGenerator(Scripted):
-    def generate(self, task: Any) -> AgentRun[Any]:
-        return self._next(task)  # type: ignore[no-any-return]
-
-
-class FakeBuilder(Scripted):
-    def build(self, task: Any) -> AgentRun[ScenarioDraft]:
-        return self._next(task)  # type: ignore[no-any-return]
-
-
-class FakeExpert(Scripted):
-    def answer(self, task: ExpertTask, ledger: EvidenceLedger) -> AgentRun[ExpertAnswer]:
-        return self._next(task, ledger)  # type: ignore[no-any-return]
-
-
-class FakeNoteWriter(Scripted):
-    def write(self, task: NoteTask) -> AgentRun[ExpertNoteDrafts]:
-        return self._next(task)  # type: ignore[no-any-return]
-
-
-class FakeComposer(Scripted):
-    def compose(self, study: Study) -> AgentRun[Report]:
-        return self._next(study)  # type: ignore[no-any-return]
-
-
-class RecordingStudies(InMemoryStudyRepository):
-    def __init__(self) -> None:
-        super().__init__()
-        self.states: list[Study] = []
-
-    def store(self, study: Study) -> None:
-        self.states.append(study)
-        super().store(study)
-
-
-class RecordingTracer:
-    def __init__(self) -> None:
-        self.events: list[tuple[str, Mapping[str, Any]]] = []
-
-    def emit(self, study_id: str, event: str, payload: Mapping[str, Any]) -> None:
-        self.events.append((event, payload))
-
-
-def echo_draft(task: Any) -> AgentRun[ScenarioDraft]:
-    """A Builder that implements exactly what it was asked, with a static file each."""
-    mechanisms = tuple(
-        ScriptMechanism()
-        if i.condition is not None
-        else StaticFileMechanism(file_kind="rerouter", path=Path(f"{n}.add.xml"))
-        for n, i in enumerate(task.interventions)
-    )
-    script = runnable_script() if any(i.condition for i in task.interventions) else None
-    draft = ScenarioDraft(
-        interventions=task.interventions,
-        mechanisms=mechanisms,
-        sumocfg=artifact("s.sumocfg", "c1", "sumocfg"),
-        rationale="implemented as asked",
-        script=script,
-    )
-    return run_of(draft, tokens=100)
-
-
-def answers(*values: Any) -> Callable[[ExpertTask, EvidenceLedger], AgentRun[ExpertAnswer]]:
-    def answer(task: ExpertTask, ledger: EvidenceLedger) -> AgentRun[ExpertAnswer]:
-        ref = ledger.record("compare_kpis", {"result_ids": list(task.result_ids)}, {"ok": True})
-        return run_of(
-            ExpertAnswer(
-                answer="mean delay is about 24 s",
-                basis=Basis.OBSERVED,
-                confidence=0.8,
-                evidence=(Evidence(kind=EvidenceKind.QUERY, ref=ref),),
-                values=values or (Quantity(measure=Measure.MEAN_DELAY, value=24.4),),
-            ),
-            tokens=200,
-        )
-
-    return answer
-
-
-def abstains(proposed: Question) -> AgentRun[ExpertAnswer]:
-    return run_of(
-        ExpertAnswer(
-            answer="the closure has never been simulated",
-            basis=Basis.INFERRED,
-            confidence=0.2,
-            needs_simulation=True,
-            proposed_experiment=proposed,
-        )
-    )
-
-
-def ok_output() -> RunOutput:
-    return RunOutput(
-        ok=True,
-        error=None,
-        artifacts=(artifact("run.sumocfg", "cfg1", "sumocfg"), artifact("e.xml", "ed", "edgedata")),
-        wall_clock_s=0.5,
-        kpis=KPIS,
-    )
-
-
-def failed_output() -> RunOutput:
-    return RunOutput(ok=False, error="Error: SUMO crashed", artifacts=(), wall_clock_s=0.1)
-
-
-def derived_network(task: Any, run: Any) -> Network:
-    return Network(
-        network_id="derived-1",
-        net_xml=artifact("derived.net.xml", "derived-1", "net"),
-        recipe=NetworkRecipe(base_network_id=task.base_network_id, plain_edits=task.modifications),
-        sanity_report=good_sanity(),
-        derived_from=task.base_network_id,
-    )
-
-
-def _report(study: Study, run: AgentRun[Report]) -> Report:
-    assert run.output is not None
-    return run.output
-
-
-class World:
-    """Everything `run_study` needs, with the scripted agents reachable for assertions."""
-
-    def __init__(
-        self,
-        tmp_path: Path,
-        *,
-        question: Question | AgentRun[Question] | BaseException = DESCRIBE,
-        plans: tuple[Any, ...] = (),
-        expert: tuple[Any, ...] = (),
-        builder: tuple[Any, ...] = (),
-        note_writer: tuple[Any, ...] = (),
-        composer: tuple[Any, ...] = (),
-        runner: FakeRunner | None = None,
-        budget: StudyBudget | None = None,
-        has_historical_demand: bool = False,
-    ) -> None:
-        parsed = question if not isinstance(question, Question) else run_of(question, tokens=50)
-        self.parser = FakeParser(parsed)
-        self.coordinator = FakeCoordinator(*plans)
-        self.author = FakeAuthor(default=lambda task: run_of(network_draft(), tokens=100))
-        self.generator = FakeGenerator(default=lambda task: run_of(demand_draft(), tokens=100))
-        self.builder = FakeBuilder(*builder, default=echo_draft)
-        self.expert = FakeExpert(*expert)
-        self.note_writer = FakeNoteWriter(
-            *note_writer, default=lambda task: run_of(ExpertNoteDrafts())
-        )
-        self.composer = FakeComposer(
-            *composer,
-            default=lambda study: run_of(REPORT),
-        )
-        self.networks = InMemoryNetworkRepository()
-        self.networks.store(sample_network())
-        self.demands = InMemoryDemandRepository()
-        self.demands.store(sample_demand())
-        self.scenarios = InMemoryScenarioRepository()
-        self.results = InMemoryResultRepository()
-        self.notes = InMemoryNoteRepository()
-        self.studies = RecordingStudies()
-        self.runner = runner or FakeRunner([], default=ok_output())
-        self.tracer = RecordingTracer()
-        self.promoted_networks: list[Any] = []
-        self.deps = StudyDeps(
-            agents=StudyAgents(
-                parser=self.parser,
-                coordinator=self.coordinator,
-                network_author=self.author,
-                demand_generator=self.generator,
-                scenario_builder=self.builder,
-                expert=self.expert,
-                note_writer=self.note_writer,
-                composer=self.composer,
-            ),
-            promotions=StudyPromotions(
-                network=self._promote_network,
-                demand=lambda task, run: sample_demand(),
-                reroute=self._reroute,
-                report=_report,
-            ),
-            networks=self.networks,
-            demands=self.demands,
-            scenarios=self.scenarios,
-            results=self.results,
-            notes=self.notes,
-            studies=self.studies,
-            runner=self.runner,
-            run_dirs=FilesystemRunDirectories(),
-            network_query_factory=lambda path: QUERY,
-            tracer=self.tracer,
-            out_dir=tmp_path,
-            has_historical_demand=has_historical_demand,
-            budget=budget or StudyBudget(),
-        )
-
-    def _promote_network(self, task: Any, run: Any) -> Network:
-        network = derived_network(task, run)
-        self.promoted_networks.append(task)
-        self.networks.store(network)
-        return network
-
-    def _reroute(self, demand: Demand, network: Network) -> Demand:
-        rerouted = Demand(
-            demand_id=f"{demand.demand_id}-on-{network.network_id}",
-            network_id=network.network_id,
-            spec=demand.spec,
-            trips=artifact("trips2.xml", f"{demand.demand_id}-on-{network.network_id}", "trips"),
-            routes=artifact("routes2.xml", "r2", "routes"),
-            derived_from=demand.demand_id,
-        )
-        self.demands.store(rerouted)
-        return rerouted
-
-    def run(self, **kwargs: Any) -> Study:
-        return run_study("the user's text", self.deps, **kwargs)
-
-    def store_scenario(
-        self, interventions: tuple[Intervention, ...] = (), seeds: tuple[int, ...] = DEFAULT_SEEDS
-    ) -> tuple[str, tuple[str, ...]]:
-        """A stored scenario on the study network with ok results for `seeds`."""
-        sid = scenario_id_for(NET, DEMAND, interventions, frozenset())
-        self.scenarios.store(
-            Scenario(
-                scenario_id=sid,
-                network_id=NET,
-                demand_id=DEMAND,
-                interventions=interventions,
-                mechanisms=tuple(
-                    StaticFileMechanism(file_kind="rerouter", path=Path(f"{n}.add.xml"))
-                    for n, _ in enumerate(interventions)
-                ),
-                sumocfg=artifact("stored.sumocfg", "c0", "sumocfg"),
-                content_hash="c0",
-            )
-        )
-        ids = []
-        for seed in seeds:
-            rid = result_id_for(sid, seed, RunMode.BATCH.value)
-            self.results.store(
-                SimulationResult(
-                    result_id=rid,
-                    scenario_id=sid,
-                    seed=seed,
-                    mode=RunMode.BATCH,
-                    status=RunStatus.OK,
-                    content_hash="h",
-                    kpis=KPIS,
-                )
-            )
-            ids.append(rid)
-        return sid, tuple(ids)
-
-
-# -- plans ----------------------------------------------------------------------------------------
-
-
-def plan(*steps: Any, reused: tuple[ReusedExperiment, ...] = (), network: Any = NET) -> Any:
-    return run_of(StudyPlan(network_id=network, rationale="as needed", steps=steps, reused=reused))
-
-
-BASELINE_PLAN = plan(build_step(), run_step(0))
-TREATMENT_PLAN = plan(
-    build_step("treatment", (CLOSURE,), role=ExperimentRole.TREATMENT), run_step(0)
-)
-
-
-def tools(study: Study, phase: int = 0) -> list[tuple[str, StepStatus]]:
-    return [(s.tool, s.status) for s in study.phases[phase].steps]
-
-
-def failed_kind(study: Study) -> StepErrorKind:
-    step = study.phases[-1].failed_step
-    assert step is not None and step.error is not None
-    return step.error.kind
-
 
 # -- golden paths ---------------------------------------------------------------------------------
 
@@ -444,7 +106,7 @@ def test_gp1_a_zero_step_plan_answers_from_reused_results(tmp_path: Path) -> Non
     )
     assert world.runner.calls == [] and world.builder.calls == []
     task = world.expert.calls[0][0]
-    assert task.result_ids == ids and task.mode is Mode.FREE and task.network_id == NET
+    assert task.result_ids == ids and task.mode is Mode.FREE and task.network_ids == (NET,)
     assert study.network_ids == (NET,)
 
 
@@ -575,8 +237,107 @@ def test_combined_topology_and_intervention_arms_share_one_derivation(tmp_path: 
     assert all(len(e.result_ids) == 3 for e in experiments)
     assert world.scenarios.get(experiments[2].scenario_id).network_id == "derived-1"  # type: ignore[union-attr]
     assert study.network_ids == ("derived-1", NET)
-    # TODO(E5.3): the Expert still sees only the study network
-    assert world.expert.calls[0][0].network_id == NET
+    assert world.expert.calls[0][0].network_ids == ("derived-1", NET)
+
+
+def _derive_plan() -> Any:
+    derived, rerouted = FromStep(0), FromStep(1)
+    return plan(
+        DeriveNetworkStep(base_network_id=NET, modifications=(NEW_EDGE,)),
+        RerouteDemandStep(demand_id=DEMAND, network_id=derived, depends_on=(0,)),
+        build_step(),
+        run_step(2),
+        build_step("edge", network=derived, demand=rerouted, depends_on=(0, 1)),
+        run_step(4),
+    )
+
+
+def _edge_question() -> Question:
+    return Question(
+        text="does the new J7-J9 edge relieve E12?",
+        intent=Intent.RUN,
+        arms=(Arm("edge", topology_changes=(NEW_EDGE,)),),
+    )
+
+
+def test_an_answer_about_an_edge_only_the_derived_network_has_is_accepted(tmp_path: Path) -> None:
+    about_new_edge = answers(Edges(edge_ids=("J7J9",), network_id="derived-1"))
+    world = World(
+        tmp_path, question=_edge_question(), plans=(_derive_plan(),), expert=(about_new_edge,)
+    )
+
+    study = world.run()
+
+    assert study.status is StudyStatus.COMPLETED
+    assert study.rounds[0].answer.values == (Edges(edge_ids=("J7J9",), network_id="derived-1"),)
+
+
+def test_the_derived_edge_is_rejected_when_the_answer_names_the_base_network(
+    tmp_path: Path,
+) -> None:
+    on_base = answers(Edges(edge_ids=("J7J9",), network_id=NET))
+    world = World(tmp_path, question=_edge_question(), plans=(_derive_plan(),), expert=(on_base,))
+
+    study = world.run()
+
+    assert_failed_at(study, "ask_expert", StepErrorKind.AGENT, skipped=0)
+
+
+def test_an_answer_naming_a_network_the_study_never_had_is_rejected(tmp_path: Path) -> None:
+    stranger = answers(Edges(edge_ids=("E12",), network_id="never-derived"))
+    world = World(tmp_path, plans=(BASELINE_PLAN,), expert=(stranger,))
+
+    study = world.run()
+
+    assert_failed_at(study, "ask_expert", StepErrorKind.AGENT, skipped=0)
+
+
+def test_a_proposed_experiment_may_name_the_derived_network_but_not_a_stranger(
+    tmp_path: Path,
+) -> None:
+    on_derived = abstains(replace(PROPOSED, network_ref="derived-1"))
+    world = World(
+        tmp_path,
+        question=_edge_question(),
+        plans=(_derive_plan(), TREATMENT_PLAN),
+        expert=(on_derived, answers()),
+    )
+    accepted = world.run()
+    assert accepted.status is StudyStatus.COMPLETED and len(accepted.phases) == 2
+
+    on_stranger = abstains(replace(PROPOSED, network_ref="never-derived"))
+    rejecting = World(
+        tmp_path / "second",
+        question=_edge_question(),
+        plans=(_derive_plan(),),
+        expert=(on_stranger,),
+    )
+    assert_failed_at(rejecting.run(), "ask_expert", StepErrorKind.AGENT, skipped=0)
+
+
+def test_a_network_derived_after_the_first_round_is_in_the_scope_of_the_second(
+    tmp_path: Path,
+) -> None:
+    proposed = replace(_edge_question(), text="does the new J7-J9 edge relieve E12?")
+    about_new_edge = answers(Edges(edge_ids=("J7J9",), network_id="derived-1"))
+    derive_only = plan(
+        DeriveNetworkStep(base_network_id=NET, modifications=(NEW_EDGE,)),
+        RerouteDemandStep(demand_id=DEMAND, network_id=FromStep(0), depends_on=(0,)),
+        build_step("edge", network=FromStep(0), demand=FromStep(1), depends_on=(0, 1)),
+        run_step(2),
+    )
+    world = World(
+        tmp_path,
+        plans=(BASELINE_PLAN, derive_only),
+        expert=(abstains(proposed), about_new_edge),
+    )
+
+    study = world.run()
+
+    assert study.status is StudyStatus.COMPLETED
+    first, second = (call[0] for call in world.expert.calls)
+    assert first.network_ids == (NET,)
+    assert set(second.network_ids) == {NET, "derived-1"}
 
 
 def test_an_ambiguous_question_awaits_the_user_without_planning(tmp_path: Path) -> None:
@@ -723,8 +484,47 @@ def test_an_online_scenario_is_infrastructure_until_e2_5(tmp_path: Path) -> None
     assert_failed_at(study, "run_simulation", StepErrorKind.INFRASTRUCTURE, skipped=0)
 
 
+def test_an_expert_round_on_a_network_that_is_not_stored_is_infrastructure(tmp_path: Path) -> None:
+    world = World(tmp_path, plans=(BASELINE_PLAN,))
+    loader = world.deps.network_query_loader
+    gone = False
+
+    class VanishingLoader:
+        def load(self, network_id: str) -> Any:
+            if gone:
+                raise NetworkNotStored(f"network {network_id!r} is not stored")
+            return loader.load(network_id)
+
+    def answer_after_the_network_vanishes(task: Any, ledger: Any) -> Any:
+        nonlocal gone
+        gone = True
+        return answers()(task, ledger)
+
+    world.deps = replace(world.deps, network_query_loader=VanishingLoader())
+    world.expert.items.append(answer_after_the_network_vanishes)
+
+    study = world.run()
+
+    assert_failed_at(study, "ask_expert", StepErrorKind.INFRASTRUCTURE, skipped=0)
+    error = study.phases[0].failed_step.error  # type: ignore[union-attr]
+    assert error is not None and "is not stored" in error.message
+    assert study.phases[0].round is None
+
+
+def test_an_expert_round_loads_the_study_network_once(tmp_path: Path) -> None:
+    world = World(tmp_path, plans=(BASELINE_PLAN,), expert=(answers(),))
+
+    world.run()
+
+    assert len(world.query_loads) == 1
+
+
 def test_a_rejected_expert_answer_is_the_agents(tmp_path: Path) -> None:
-    world = World(tmp_path, plans=(BASELINE_PLAN,), expert=(answers(Edges(edge_ids=("E99",))),))
+    world = World(
+        tmp_path,
+        plans=(BASELINE_PLAN,),
+        expert=(answers(Edges(edge_ids=("E99",), network_id=NET)),),
+    )
 
     study = world.run()
 
@@ -793,7 +593,7 @@ def test_stored_results_are_not_rerun_and_verify_no_note(tmp_path: Path) -> None
     assert world.builder.calls == [] and world.runner.calls == []
     assert study.phases[0].steps[1].usage == Usage()
     assert study.phases[0].steps[2].usage == Usage(simulations=0)
-    (hit, _), = world.notes.search("", NET, {"scenario_id": BASE_SID})
+    ((hit, _),) = world.notes.search("", NET, {"scenario_id": BASE_SID})
     assert hit.status is NoteStatus.UNVERIFIED
 
 
@@ -803,9 +603,9 @@ def test_a_new_result_settles_the_unverified_notes_of_its_scenario(tmp_path: Pat
 
     world.run()
 
-    (hit, _), = world.notes.search("", NET, {"scenario_id": BASE_SID})
+    ((hit, _),) = world.notes.search("", NET, {"scenario_id": BASE_SID})
     assert hit.status is NoteStatus.CONFIRMED
-    assert any(event == "note_status" for event, _ in world.tracer.events)
+    assert any(isinstance(e, NoteStatusChanged) for e in world.tracer.events)
 
 
 def test_only_missing_seeds_are_run(tmp_path: Path) -> None:
@@ -840,9 +640,142 @@ def test_notes_are_written_after_the_final_round_with_its_ledger(tmp_path: Path)
 
     assert study.status is StudyStatus.COMPLETED
     (note_id,) = study.note_ids
-    (hit, _), = world.notes.search("", NET, {"scenario_id": BASE_SID})
+    ((hit, _),) = world.notes.search("", NET, {"scenario_id": BASE_SID})
     assert hit.note_id == note_id and hit.provenance is Provenance.SIMULATION
     assert hit.study_id == study.study_id
+
+
+def _note(scenario_ref: str | None, basis: Basis = Basis.INFERRED) -> ExpertNoteDraft:
+    return ExpertNoteDraft(text="a note", basis=basis, scenario_ref=scenario_ref)
+
+
+def test_a_note_about_a_derived_scenario_is_stored_where_its_verification_looks(
+    tmp_path: Path,
+) -> None:
+    derived_sid = ""
+
+    def write(task: Any) -> Any:
+        nonlocal derived_sid
+        derived_sid = next(s.scenario_id for s in task.scenarios if s.arm == "edge")
+        return run_of(ExpertNoteDrafts(notes=(_note(derived_sid),)))
+
+    world = World(
+        tmp_path,
+        question=_edge_question(),
+        plans=(_derive_plan(),),
+        expert=(answers(),),
+        note_writer=(write,),
+    )
+    study = world.run()
+
+    (note_id,) = study.note_ids
+    lookup = {"scenario_id": derived_sid, "status": [NoteStatus.UNVERIFIED.value]}
+    ((hit, _),) = world.notes.search("", "derived-1", lookup)
+    assert hit.note_id == note_id and hit.network_id == "derived-1"
+
+
+def test_a_note_without_a_scenario_goes_under_the_base_network_when_a_derived_one_exists(
+    tmp_path: Path,
+) -> None:
+    world = World(
+        tmp_path,
+        question=_edge_question(),
+        plans=(_derive_plan(),),
+        expert=(answers(),),
+        note_writer=(run_of(ExpertNoteDrafts(notes=(_note(None),))),),
+    )
+
+    world.run()
+
+    assert [n.network_id for n, _ in world.notes.search("a note", NET, {})] == [NET]
+    assert world.notes.search("a note", "derived-1", {}) == []
+
+
+def test_a_note_about_a_predicted_scenario_goes_under_the_base_scenarios_network(
+    tmp_path: Path,
+) -> None:
+    world = World(
+        tmp_path,
+        question=replace(WHAT_IF, mode=Mode.FORCED),
+        plans=(BASELINE_PLAN,),
+        expert=(answers(),),
+        note_writer=(run_of(ExpertNoteDrafts(notes=(_note(CLOSURE_SID, Basis.EXTRAPOLATED),))),),
+    )
+
+    world.run()
+
+    ((hit, _),) = world.notes.search("a note", NET, {"scenario_id": CLOSURE_SID})
+    assert hit.network_id == NET
+
+
+def test_a_note_about_a_derived_scenario_is_settled_by_a_later_result(tmp_path: Path) -> None:
+    claim = Quantity(measure=Measure.MEAN_DELAY, value=KPIS.mean_delay)
+    derived_sid = ""
+
+    def write(task: Any) -> Any:
+        nonlocal derived_sid
+        derived_sid = next(s.scenario_id for s in task.scenarios if s.arm == "edge")
+        draft = ExpertNoteDraft(
+            text="the new edge keeps the mean delay",
+            basis=Basis.INFERRED,
+            values=(claim,),
+            scenario_ref=derived_sid,
+        )
+        return run_of(ExpertNoteDrafts(notes=(draft,)))
+
+    world = World(
+        tmp_path,
+        question=_edge_question(),
+        plans=(_derive_plan(),),
+        expert=(answers(),),
+        note_writer=(write,),
+    )
+    world.run()
+    ((before, _),) = world.notes.search("", "derived-1", {"scenario_id": derived_sid})
+    assert before.status is NoteStatus.UNVERIFIED
+
+    # A second study meets the same scenario again with no stored results, so it simulates it.
+    world.results._results.clear()
+    world.parser.items.append(run_of(_edge_question(), tokens=50))
+    world.coordinator.items.append(_derive_plan())
+    world.expert.items.append(answers())
+    world.run()
+
+    ((after, _),) = world.notes.search("", "derived-1", {"scenario_id": derived_sid})
+    assert after.status is NoteStatus.CONFIRMED
+
+
+def test_a_prediction_keeps_the_base_network_when_a_derived_network_exists(
+    tmp_path: Path,
+) -> None:
+    question = Question(
+        text="does the new J7-J9 edge relieve E12, and what if lane 1 closes?",
+        intent=Intent.COUNTERFACTUAL,
+        mode=Mode.FORCED,
+        arms=(
+            Arm("edge", topology_changes=(NEW_EDGE,)),
+            Arm("closure", interventions=(CLOSURE,)),
+        ),
+        contrasts=(Contrast("edge"), Contrast("closure", "edge")),
+    )
+    draft = ExpertNoteDraft(
+        text="closing lane 1 would add delay", basis=Basis.EXTRAPOLATED, scenario_ref=CLOSURE_SID
+    )
+    world = World(
+        tmp_path,
+        question=question,
+        plans=(_derive_plan(),),
+        expert=(answers(),),
+        note_writer=(run_of(ExpertNoteDrafts(notes=(draft,))),),
+    )
+
+    study = world.run()
+
+    assert study.status is StudyStatus.COMPLETED, study.phases[0].steps[-1]
+    assert "derived-1" in study.network_ids
+    ((hit, _),) = world.notes.search("", NET, {"scenario_id": CLOSURE_SID})
+    assert hit.network_id == NET
+    assert world.notes.search("", "derived-1", {"scenario_id": CLOSURE_SID}) == []
 
 
 def test_a_failing_note_writer_is_traced_and_the_study_completes(tmp_path: Path) -> None:
@@ -857,8 +790,113 @@ def test_a_failing_note_writer_is_traced_and_the_study_completes(tmp_path: Path)
 
     assert study.status is StudyStatus.COMPLETED
     assert study.note_ids == ()
-    assert any(event == "note_writer_failed" for event, _ in world.tracer.events)
+    assert any(isinstance(e, NoteWriterFailed) for e in world.tracer.events)
     assert "note_writer" not in [s.tool for s in study.phases[0].steps]
+
+
+def test_the_model_calls_of_a_study_sum_to_its_steps_and_the_parsers_tokens(
+    tmp_path: Path,
+) -> None:
+    world = World(tmp_path, plans=(BASELINE_PLAN,), expert=(answers(),))
+
+    study = world.run()
+
+    calls = [e for e in world.tracer.events if isinstance(e, ModelCall)]
+    steps = [s for p in study.phases for s in p.steps]
+    assert study.status is StudyStatus.COMPLETED
+    assert sum(c.usage.input_tokens for c in calls) == 50 + sum(s.usage.input_tokens for s in steps)
+    agent_steps = [s for s in steps if s.tool != "run_simulation"]
+    assert len(calls) == 1 + len(agent_steps) + 1  # the Parser, the steps, the note writer
+
+
+def test_a_failed_agent_call_still_emits_its_model_call(tmp_path: Path) -> None:
+    world = World(
+        tmp_path,
+        plans=(BASELINE_PLAN,),
+        expert=(run_of(None, StopReason.BUDGET, tokens=7),),
+    )
+
+    study = world.run()
+
+    calls = [e for e in world.tracer.events if isinstance(e, ModelCall)]
+    assert study.status is StudyStatus.FAILED
+    assert calls[-1].usage.input_tokens == 7
+
+
+def _flow(world: World) -> list[object]:
+    """The phase, plan, step, round and report events of a trace, as comparable tuples."""
+    flow: list[object] = []
+    for e in world.tracer.events:
+        if isinstance(e, PhaseStarted):
+            flow.append(("phase", e.phase))
+        elif isinstance(e, PlanMade):
+            flow.append(("plan", e.phase))
+        elif isinstance(e, StepTraced):
+            flow.append(("step", e.phase, e.tool))
+        elif isinstance(e, ExpertRoundHeld):
+            flow.append(("round", e.phase, e.round))
+        elif isinstance(e, ReportComposed):
+            flow.append("report")
+    return flow
+
+
+def test_a_multi_phase_study_traces_phases_plans_steps_rounds_and_the_report(
+    tmp_path: Path,
+) -> None:
+    world = World(
+        tmp_path,
+        question=WHAT_IF,
+        plans=(BASELINE_PLAN, TREATMENT_PLAN),
+        expert=(abstains(PROPOSED), answers()),
+    )
+
+    study = world.run()
+
+    flow = _flow(world)
+    assert study.status is StudyStatus.COMPLETED
+    assert flow[:3] == [("phase", 0), ("plan", 0), ("step", 0, "build_scenario")]
+    assert flow.index(("round", 0, 1)) < flow.index(("phase", 1)) < flow.index(("plan", 1))
+    assert [f for f in flow if isinstance(f, tuple) and f[0] == "round"] == [
+        ("round", 0, 1),
+        ("round", 1, 2),
+    ]
+    assert flow[-3:] == [("round", 1, 2), ("step", 1, "compose_report"), "report"]
+    assert flow[-1] == "report"
+    assert flow.count("report") == 1
+    plan_event = next(e for e in world.tracer.events if isinstance(e, PlanMade))
+    assert plan_event.plan == study.phases[0].plan
+    assert isinstance(world.tracer.events[0], StudyCreated)
+
+
+def test_a_clarification_in_phase_0_traces_no_plan(tmp_path: Path) -> None:
+    world = World(tmp_path, plans=(run_of(ClarificationRequest("which network?")),))
+
+    world.run()
+
+    assert _flow(world) == [("phase", 0)]
+
+
+def test_a_failed_plan_traces_no_plan(tmp_path: Path) -> None:
+    world = World(tmp_path, plans=(plan(build_step(), run_step(0), network="nope"),))
+
+    world.run()
+
+    assert not any(isinstance(e, PlanMade) for e in world.tracer.events)
+
+
+def test_a_failed_report_traces_no_report(tmp_path: Path) -> None:
+    world = World(
+        tmp_path,
+        plans=(BASELINE_PLAN,),
+        expert=(answers(),),
+        composer=(run_of(None, StopReason.BUDGET),),
+    )
+
+    world.run()
+
+    flow = _flow(world)
+    assert ("round", 0, 1) in flow
+    assert "report" not in flow
 
 
 # -- persistence and helpers ----------------------------------------------------------------------
@@ -875,4 +913,3 @@ def test_the_study_is_persisted_after_every_step(tmp_path: Path) -> None:
     step_counts = [len(s.phases[0].steps) for s in states]
     assert step_counts == sorted(step_counts)
     assert set(range(len(study.phases[0].steps) + 1)) <= set(step_counts)
-

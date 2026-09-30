@@ -67,6 +67,23 @@ class NoteRepository(Protocol):
     def update_status(self, note_id: str, status: NoteStatus) -> None: ...
 
 
+class Database(Protocol):
+    """The five DatabaseMCP repositories, grouped by composition: a database has them, none of
+    them derives from it. `StudyRepository` is framework-only and stays out. A backend with the
+    optional `historical_demand` capability offers `HistoricalDemandSource` on top of this."""
+
+    @property
+    def networks(self) -> NetworkRepository: ...
+    @property
+    def demands(self) -> DemandRepository: ...
+    @property
+    def scenarios(self) -> ScenarioRepository: ...
+    @property
+    def results(self) -> ResultRepository: ...
+    @property
+    def notes(self) -> NoteRepository: ...
+
+
 class HistoricalDemandSource(Protocol):
     """Optional DatabaseMCP capability."""
 

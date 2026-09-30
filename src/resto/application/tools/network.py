@@ -7,179 +7,168 @@ in-process to a `ToolAgent` or wrapped by `interface/mcp/network_server.py`). Ev
 edge/lane/TLS id that does not exist on the loaded network — callers check first with
 `has_edge`/`has_lane`/`has_tls` if a missing id is an expected, non-exceptional case.
 
-`build_network_tools(query)` binds one loaded network to all seven functions and returns them as
-`Tool`s ready to hand to a `ToolAgent` or to an MCP server.
+Each function is declared once with `@tool` (ADR-0033): name, explicit description and typed
+parameters. The first parameter, `ctx`, is the loaded network and never reaches the model's schema.
+`build_network_tools(query)` binds one loaded network to all seven and returns them as `Tool`s
+ready to hand to a `ToolAgent` or to an MCP server.
 """
 
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from functools import partial
-from typing import Any
+from typing import Annotated, Any
+
+from pydantic import Field
 
 from resto.application.ports.llm import Tool
 from resto.application.ports.network_query import NetworkQuery
+from resto.application.tools.declaration import tool
+
+_EdgeId = Annotated[str, Field(description="Edge id, e.g. 'A0A1'.")]
 
 
-def get_edge(query: NetworkQuery, edge_id: str) -> Mapping[str, Any]:
+@tool(
+    name="get_edge",
+    description="Attributes of one edge: endpoints, length, speed, lane count, priority, shape.",
+)
+def get_edge(ctx: NetworkQuery, edge_id: _EdgeId) -> Mapping[str, Any]:
     """Attributes of one edge: endpoints, length, speed, lane count, priority, shape.
 
-    Example: get_edge(query, "A0A1") ->
+    Example: get_edge(ctx, "A0A1") ->
         {"id": "A0A1", "from_node": "A0", "to_node": "A1", "length": 189.6, "speed": 13.89,
          "lane_count": 1, "priority": -1, "type": "", "allows": [...], "shape": [...]}
 
     Raises:
         KeyError: `edge_id` does not exist on this network.
     """
-    return query.get_edge(edge_id)
+    return ctx.get_edge(edge_id)
 
 
-def get_lanes(query: NetworkQuery, edge_id: str) -> Sequence[Mapping[str, Any]]:
+@tool(
+    name="get_lanes",
+    description=(
+        "Per-lane attributes of one edge: index, length, speed, width, allowed vehicle classes."
+    ),
+)
+def get_lanes(ctx: NetworkQuery, edge_id: _EdgeId) -> Sequence[Mapping[str, Any]]:
     """Per-lane attributes of one edge: index, length, speed, width, allowed vehicle classes.
 
-    Example: get_lanes(query, "A0A1") ->
+    Example: get_lanes(ctx, "A0A1") ->
         [{"id": "A0A1_0", "index": 0, "length": 189.6, "speed": 13.89, "width": 3.2,
           "allows": [...]}]
 
     Raises:
         KeyError: `edge_id` does not exist on this network.
     """
-    return query.get_lanes(edge_id)
+    return ctx.get_lanes(edge_id)
 
 
-def get_neighbours(query: NetworkQuery, edge_id: str) -> Sequence[str]:
+@tool(
+    name="get_neighbours",
+    description=(
+        "Ids of the edges reachable in one hop downstream of `edge_id` (outgoing connections)."
+    ),
+)
+def get_neighbours(ctx: NetworkQuery, edge_id: _EdgeId) -> Sequence[str]:
     """Ids of the edges reachable in one hop downstream of `edge_id` (outgoing connections).
 
-    Example: get_neighbours(query, "A0A1") -> ["A1A2", "A1B1"]
+    Example: get_neighbours(ctx, "A0A1") -> ["A1A2", "A1B1"]
 
     Raises:
         KeyError: `edge_id` does not exist on this network.
     """
-    return query.get_neighbours(edge_id)
+    return ctx.get_neighbours(edge_id)
 
 
-def shortest_path(query: NetworkQuery, from_edge: str, to_edge: str) -> Sequence[str]:
+@tool(
+    name="shortest_path",
+    description=(
+        "Ids of the edges on the shortest route from `from_edge` to `to_edge`, "
+        "empty if unreachable."
+    ),
+)
+def shortest_path(
+    ctx: NetworkQuery,
+    from_edge: Annotated[str, Field(description="Origin edge id.")],
+    to_edge: Annotated[str, Field(description="Destination edge id.")],
+) -> Sequence[str]:
     """Ids of the edges on the shortest route from `from_edge` to `to_edge`, empty if unreachable.
 
-    Example: shortest_path(query, "A0A1", "B0B1") ->
+    Example: shortest_path(ctx, "A0A1", "B0B1") ->
         ["A0A1", "A1B1", "B1C1", "C1C0", "C0B0", "B0B1"]
 
     Raises:
         KeyError: `from_edge` or `to_edge` does not exist on this network.
     """
-    return query.shortest_path(from_edge, to_edge)
+    return ctx.shortest_path(from_edge, to_edge)
 
 
+@tool(
+    name="edges_in_bbox",
+    description=(
+        "Ids of the edges whose bounding box overlaps `(xmin, ymin, xmax, ymax)` (net coordinates)."
+    ),
+)
 def edges_in_bbox(
-    query: NetworkQuery, xmin: float, ymin: float, xmax: float, ymax: float
+    ctx: NetworkQuery, xmin: float, ymin: float, xmax: float, ymax: float
 ) -> Sequence[str]:
     """Ids of the edges whose bounding box overlaps `(xmin, ymin, xmax, ymax)` (net coordinates).
 
-    Example: edges_in_bbox(query, 0, 0, 50, 50) -> ["A0A1", "A0B0", "A1A0", "B0A0"]
+    Example: edges_in_bbox(ctx, 0, 0, 50, 50) -> ["A0A1", "A0B0", "A1A0", "B0A0"]
     """
-    return query.edges_in_bbox((xmin, ymin, xmax, ymax))
+    return ctx.edges_in_bbox((xmin, ymin, xmax, ymax))
 
 
-def capacity_estimate(query: NetworkQuery, edge_id: str) -> float:
+@tool(
+    name="capacity_estimate",
+    description=(
+        "Rough capacity of `edge_id` in veh/h (Greenshields estimate — see ADR-0015; order-of-"
+    ),
+)
+def capacity_estimate(ctx: NetworkQuery, edge_id: _EdgeId) -> float:
     """Rough capacity of `edge_id` in veh/h (Greenshields estimate — see ADR-0015; order-of-
     magnitude only, not a substitute for a simulated result).
 
-    Example: capacity_estimate(query, "A0A1") -> 1666.8
+    Example: capacity_estimate(ctx, "A0A1") -> 1666.8
 
     Raises:
         KeyError: `edge_id` does not exist on this network.
     """
-    return query.capacity_estimate(edge_id)
+    return ctx.capacity_estimate(edge_id)
 
 
-def get_tls(query: NetworkQuery, tls_id: str) -> Mapping[str, Any]:
+@tool(
+    name="get_tls",
+    description=(
+        "Controlled edges and signal programs (phase state/duration pairs) of one traffic light."
+    ),
+)
+def get_tls(
+    ctx: NetworkQuery, tls_id: Annotated[str, Field(description="Traffic light id.")]
+) -> Mapping[str, Any]:
     """Controlled edges and signal programs (phase state/duration pairs) of one traffic light.
 
-    Example: get_tls(query, "A2") ->
+    Example: get_tls(ctx, "A2") ->
         {"id": "A2", "controlled_edges": ["A1A2", "A3A2", "B2A2"],
          "programs": {"0": [("GgrrGG", 42), ("yyrrGy", 3), ("rrGGGr", 42), ("rryyGr", 3)]}}
 
     Raises:
         KeyError: `tls_id` does not exist on this network.
     """
-    return query.get_tls(tls_id)
-
-
-_SCHEMAS: dict[str, Mapping[str, Any]] = {
-    "get_edge": {
-        "type": "object",
-        "properties": {"edge_id": {"type": "string", "description": "Edge id, e.g. 'A0A1'."}},
-        "required": ["edge_id"],
-    },
-    "get_lanes": {
-        "type": "object",
-        "properties": {"edge_id": {"type": "string", "description": "Edge id, e.g. 'A0A1'."}},
-        "required": ["edge_id"],
-    },
-    "get_neighbours": {
-        "type": "object",
-        "properties": {"edge_id": {"type": "string", "description": "Edge id, e.g. 'A0A1'."}},
-        "required": ["edge_id"],
-    },
-    "shortest_path": {
-        "type": "object",
-        "properties": {
-            "from_edge": {"type": "string", "description": "Origin edge id."},
-            "to_edge": {"type": "string", "description": "Destination edge id."},
-        },
-        "required": ["from_edge", "to_edge"],
-    },
-    "edges_in_bbox": {
-        "type": "object",
-        "properties": {
-            "xmin": {"type": "number"},
-            "ymin": {"type": "number"},
-            "xmax": {"type": "number"},
-            "ymax": {"type": "number"},
-        },
-        "required": ["xmin", "ymin", "xmax", "ymax"],
-    },
-    "capacity_estimate": {
-        "type": "object",
-        "properties": {"edge_id": {"type": "string", "description": "Edge id, e.g. 'A0A1'."}},
-        "required": ["edge_id"],
-    },
-    "get_tls": {
-        "type": "object",
-        "properties": {"tls_id": {"type": "string", "description": "Traffic light id."}},
-        "required": ["tls_id"],
-    },
-}
-
-_FUNCTIONS = (
-    get_edge,
-    get_lanes,
-    get_neighbours,
-    shortest_path,
-    edges_in_bbox,
-    capacity_estimate,
-    get_tls,
-)
+    return ctx.get_tls(tls_id)
 
 
 def build_network_tools(query: NetworkQuery) -> tuple[Tool, ...]:
-    """The seven NetworkMCP tools, bound to one loaded network.
-
-    Each `Tool.fn` is `functools.partial(fn, query)` with `__name__`/`__doc__` copied from `fn` —
-    `mcp.server.mcpserver`'s schema introspection needs both, and `inspect.signature` already
-    drops the bound `query` argument from a `partial`, leaving exactly the LLM-facing parameters.
-    """
-    tools = []
-    for fn in _FUNCTIONS:
-        bound = partial(fn, query)
-        bound.__name__ = fn.__name__  # type: ignore[attr-defined, union-attr]
-        bound.__doc__ = fn.__doc__
-        tools.append(
-            Tool(
-                name=fn.__name__,
-                description=(fn.__doc__ or "").strip().splitlines()[0],
-                fn=bound,
-                input_schema=_SCHEMAS[fn.__name__],
-            )
+    """The seven NetworkMCP tools, bound to one loaded network."""
+    return tuple(
+        declared.bind(query)
+        for declared in (
+            get_edge,
+            get_lanes,
+            get_neighbours,
+            shortest_path,
+            edges_in_bbox,
+            capacity_estimate,
+            get_tls,
         )
-    return tuple(tools)
+    )

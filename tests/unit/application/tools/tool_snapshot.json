@@ -1,0 +1,1080 @@
+{
+  "expert": [
+    {
+      "description": "Per-lane attributes of one edge: index, length, speed, width, allowed vehicle classes.",
+      "input_schema": {
+        "properties": {
+          "edge_id": {
+            "description": "Edge id, e.g. 'A0A1'.",
+            "type": "string"
+          },
+          "network_id": {
+            "description": "Id of one of the study's networks (`network_ids` in the input).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "network_id",
+          "edge_id"
+        ],
+        "type": "object"
+      },
+      "name": "get_lanes"
+    },
+    {
+      "description": "Ids of the edges on the shortest route from `from_edge` to `to_edge`, empty if unreachable.",
+      "input_schema": {
+        "properties": {
+          "from_edge": {
+            "description": "Origin edge id.",
+            "type": "string"
+          },
+          "network_id": {
+            "description": "Id of one of the study's networks (`network_ids` in the input).",
+            "type": "string"
+          },
+          "to_edge": {
+            "description": "Destination edge id.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "network_id",
+          "from_edge",
+          "to_edge"
+        ],
+        "type": "object"
+      },
+      "name": "shortest_path"
+    },
+    {
+      "description": "Attributes of several edges in one call: endpoints (from_node, to_node), length, speed, lane count, priority, shape.",
+      "input_schema": {
+        "properties": {
+          "edge_ids": {
+            "description": "Edge ids, e.g. ['A0A1', 'A1A2'].",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "network_id": {
+            "description": "Id of one of the study's networks (`network_ids` in the input).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "network_id",
+          "edge_ids"
+        ],
+        "type": "object"
+      },
+      "name": "get_edges"
+    },
+    {
+      "description": "Ids of the edges reachable in one hop downstream of each edge (outgoing connections), one call for several edges.",
+      "input_schema": {
+        "properties": {
+          "edge_ids": {
+            "description": "Edge ids, e.g. ['A0A1', 'A1A2'].",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "network_id": {
+            "description": "Id of one of the study's networks (`network_ids` in the input).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "network_id",
+          "edge_ids"
+        ],
+        "type": "object"
+      },
+      "name": "get_neighbours"
+    },
+    {
+      "description": "Rough capacity of several edges in veh/h (Greenshields estimate; order-of-magnitude only, not a substitute for a simulated result), one call for several edges.",
+      "input_schema": {
+        "properties": {
+          "edge_ids": {
+            "description": "Edge ids, e.g. ['A0A1', 'A1A2'].",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "network_id": {
+            "description": "Id of one of the study's networks (`network_ids` in the input).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "network_id",
+          "edge_ids"
+        ],
+        "type": "object"
+      },
+      "name": "capacity_estimate"
+    },
+    {
+      "description": "Controlled edges and signal programs of several traffic lights in one call. A light usually has the id of its junction. An id with no light on that network is answered with exists=false and a message, which means that junction has no signal; the other ids are answered as usual.",
+      "input_schema": {
+        "properties": {
+          "network_id": {
+            "description": "Id of one of the study's networks (`network_ids` in the input).",
+            "type": "string"
+          },
+          "tls_ids": {
+            "description": "Traffic light ids.",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "network_id",
+          "tls_ids"
+        ],
+        "type": "object"
+      },
+      "name": "get_tls"
+    },
+    {
+      "description": "Mean, std and run count of every measure on the given edges, across the given runs.",
+      "input_schema": {
+        "properties": {
+          "edge_ids": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "result_ids": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "window": {
+            "description": "[start, end) as time of day in seconds since midnight (08:00-08:05 is [28800, 29100]); omit for the whole run.",
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          }
+        },
+        "required": [
+          "result_ids",
+          "edge_ids"
+        ],
+        "type": "object"
+      },
+      "name": "edge_stats"
+    },
+    {
+      "description": "Edges of the whole network ranked by the mean of one measure across the given runs.",
+      "input_schema": {
+        "properties": {
+          "ascending": {
+            "type": "boolean"
+          },
+          "measure": {
+            "enum": [
+              "travel_time",
+              "speed",
+              "occupancy",
+              "density",
+              "time_loss",
+              "waiting_time",
+              "entered",
+              "left",
+              "time_loss_per_vehicle"
+            ],
+            "type": "string"
+          },
+          "min_value": {
+            "type": "number"
+          },
+          "result_ids": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "top_k": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "window": {
+            "description": "[start, end) as time of day in seconds since midnight (08:00-08:05 is [28800, 29100]); omit for the whole run.",
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          }
+        },
+        "required": [
+          "result_ids",
+          "measure"
+        ],
+        "type": "object"
+      },
+      "name": "rank_edges"
+    },
+    {
+      "description": "Per edge, the mean of one measure in baseline and treatment runs, the difference and the relative change.",
+      "input_schema": {
+        "properties": {
+          "baseline_result_ids": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "edge_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "measure": {
+            "enum": [
+              "travel_time",
+              "speed",
+              "occupancy",
+              "density",
+              "time_loss",
+              "waiting_time",
+              "entered",
+              "left",
+              "time_loss_per_vehicle"
+            ],
+            "type": "string"
+          },
+          "top_k": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "treatment_result_ids": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "window": {
+            "description": "[start, end) as time of day in seconds since midnight (08:00-08:05 is [28800, 29100]); omit for the whole run.",
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          }
+        },
+        "required": [
+          "baseline_result_ids",
+          "treatment_result_ids",
+          "measure"
+        ],
+        "type": "object"
+      },
+      "name": "compare_edges"
+    },
+    {
+      "description": "Network-wide KPIs (mean_delay, mean_travel_time, teleports, departed, arrived): mean across baseline and treatment runs, the difference and the relative change in percent.",
+      "input_schema": {
+        "properties": {
+          "baseline_result_ids": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "treatment_result_ids": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "baseline_result_ids",
+          "treatment_result_ids"
+        ],
+        "type": "object"
+      },
+      "name": "compare_kpis"
+    },
+    {
+      "description": "One simulation result: scenario_id, seed, status, KPIs and artifact references. Its scenario_id is what get_scenario takes.",
+      "input_schema": {
+        "properties": {
+          "result_id": {
+            "description": "Id of an available simulation result.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "result_id"
+        ],
+        "type": "object"
+      },
+      "name": "get_result"
+    },
+    {
+      "description": "The available results of one scenario (one per seed), empty if none is available.",
+      "input_schema": {
+        "properties": {
+          "scenario_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "scenario_id"
+        ],
+        "type": "object"
+      },
+      "name": "list_results"
+    },
+    {
+      "description": "EXPENSIVE raw per-run data of every edge (~17,000 characters per result), very large. A last resort: prefer edge_stats, rank_edges or compare_edges, and use this only when they cannot express what you need.",
+      "input_schema": {
+        "properties": {
+          "edge_ids": {
+            "description": "Edge ids to return; empty or omitted for every edge.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "result_id": {
+            "description": "Id of an available simulation result.",
+            "type": "string"
+          },
+          "window": {
+            "description": "[start, end) as time of day in seconds since midnight (08:00-08:05 is [28800, 29100]); omit for the whole run.",
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          }
+        },
+        "required": [
+          "result_id"
+        ],
+        "type": "object"
+      },
+      "name": "query_edgedata"
+    },
+    {
+      "description": "The scenario an available result was run on: its interventions and context tags, to tell a baseline result from an intervention one. Pass the scenario_id from get_result, never a result id.",
+      "input_schema": {
+        "properties": {
+          "scenario_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "scenario_id"
+        ],
+        "type": "object"
+      },
+      "name": "get_scenario"
+    }
+  ],
+  "expert_with_notes": [
+    {
+      "description": "Per-lane attributes of one edge: index, length, speed, width, allowed vehicle classes.",
+      "input_schema": {
+        "properties": {
+          "edge_id": {
+            "description": "Edge id, e.g. 'A0A1'.",
+            "type": "string"
+          },
+          "network_id": {
+            "description": "Id of one of the study's networks (`network_ids` in the input).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "network_id",
+          "edge_id"
+        ],
+        "type": "object"
+      },
+      "name": "get_lanes"
+    },
+    {
+      "description": "Ids of the edges on the shortest route from `from_edge` to `to_edge`, empty if unreachable.",
+      "input_schema": {
+        "properties": {
+          "from_edge": {
+            "description": "Origin edge id.",
+            "type": "string"
+          },
+          "network_id": {
+            "description": "Id of one of the study's networks (`network_ids` in the input).",
+            "type": "string"
+          },
+          "to_edge": {
+            "description": "Destination edge id.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "network_id",
+          "from_edge",
+          "to_edge"
+        ],
+        "type": "object"
+      },
+      "name": "shortest_path"
+    },
+    {
+      "description": "Attributes of several edges in one call: endpoints (from_node, to_node), length, speed, lane count, priority, shape.",
+      "input_schema": {
+        "properties": {
+          "edge_ids": {
+            "description": "Edge ids, e.g. ['A0A1', 'A1A2'].",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "network_id": {
+            "description": "Id of one of the study's networks (`network_ids` in the input).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "network_id",
+          "edge_ids"
+        ],
+        "type": "object"
+      },
+      "name": "get_edges"
+    },
+    {
+      "description": "Ids of the edges reachable in one hop downstream of each edge (outgoing connections), one call for several edges.",
+      "input_schema": {
+        "properties": {
+          "edge_ids": {
+            "description": "Edge ids, e.g. ['A0A1', 'A1A2'].",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "network_id": {
+            "description": "Id of one of the study's networks (`network_ids` in the input).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "network_id",
+          "edge_ids"
+        ],
+        "type": "object"
+      },
+      "name": "get_neighbours"
+    },
+    {
+      "description": "Rough capacity of several edges in veh/h (Greenshields estimate; order-of-magnitude only, not a substitute for a simulated result), one call for several edges.",
+      "input_schema": {
+        "properties": {
+          "edge_ids": {
+            "description": "Edge ids, e.g. ['A0A1', 'A1A2'].",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "network_id": {
+            "description": "Id of one of the study's networks (`network_ids` in the input).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "network_id",
+          "edge_ids"
+        ],
+        "type": "object"
+      },
+      "name": "capacity_estimate"
+    },
+    {
+      "description": "Controlled edges and signal programs of several traffic lights in one call. A light usually has the id of its junction. An id with no light on that network is answered with exists=false and a message, which means that junction has no signal; the other ids are answered as usual.",
+      "input_schema": {
+        "properties": {
+          "network_id": {
+            "description": "Id of one of the study's networks (`network_ids` in the input).",
+            "type": "string"
+          },
+          "tls_ids": {
+            "description": "Traffic light ids.",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "network_id",
+          "tls_ids"
+        ],
+        "type": "object"
+      },
+      "name": "get_tls"
+    },
+    {
+      "description": "Mean, std and run count of every measure on the given edges, across the given runs.",
+      "input_schema": {
+        "properties": {
+          "edge_ids": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "result_ids": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "window": {
+            "description": "[start, end) as time of day in seconds since midnight (08:00-08:05 is [28800, 29100]); omit for the whole run.",
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          }
+        },
+        "required": [
+          "result_ids",
+          "edge_ids"
+        ],
+        "type": "object"
+      },
+      "name": "edge_stats"
+    },
+    {
+      "description": "Edges of the whole network ranked by the mean of one measure across the given runs.",
+      "input_schema": {
+        "properties": {
+          "ascending": {
+            "type": "boolean"
+          },
+          "measure": {
+            "enum": [
+              "travel_time",
+              "speed",
+              "occupancy",
+              "density",
+              "time_loss",
+              "waiting_time",
+              "entered",
+              "left",
+              "time_loss_per_vehicle"
+            ],
+            "type": "string"
+          },
+          "min_value": {
+            "type": "number"
+          },
+          "result_ids": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "top_k": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "window": {
+            "description": "[start, end) as time of day in seconds since midnight (08:00-08:05 is [28800, 29100]); omit for the whole run.",
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          }
+        },
+        "required": [
+          "result_ids",
+          "measure"
+        ],
+        "type": "object"
+      },
+      "name": "rank_edges"
+    },
+    {
+      "description": "Per edge, the mean of one measure in baseline and treatment runs, the difference and the relative change.",
+      "input_schema": {
+        "properties": {
+          "baseline_result_ids": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "edge_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "measure": {
+            "enum": [
+              "travel_time",
+              "speed",
+              "occupancy",
+              "density",
+              "time_loss",
+              "waiting_time",
+              "entered",
+              "left",
+              "time_loss_per_vehicle"
+            ],
+            "type": "string"
+          },
+          "top_k": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "treatment_result_ids": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "window": {
+            "description": "[start, end) as time of day in seconds since midnight (08:00-08:05 is [28800, 29100]); omit for the whole run.",
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          }
+        },
+        "required": [
+          "baseline_result_ids",
+          "treatment_result_ids",
+          "measure"
+        ],
+        "type": "object"
+      },
+      "name": "compare_edges"
+    },
+    {
+      "description": "Network-wide KPIs (mean_delay, mean_travel_time, teleports, departed, arrived): mean across baseline and treatment runs, the difference and the relative change in percent.",
+      "input_schema": {
+        "properties": {
+          "baseline_result_ids": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "treatment_result_ids": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "baseline_result_ids",
+          "treatment_result_ids"
+        ],
+        "type": "object"
+      },
+      "name": "compare_kpis"
+    },
+    {
+      "description": "One simulation result: scenario_id, seed, status, KPIs and artifact references. Its scenario_id is what get_scenario takes.",
+      "input_schema": {
+        "properties": {
+          "result_id": {
+            "description": "Id of an available simulation result.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "result_id"
+        ],
+        "type": "object"
+      },
+      "name": "get_result"
+    },
+    {
+      "description": "The available results of one scenario (one per seed), empty if none is available.",
+      "input_schema": {
+        "properties": {
+          "scenario_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "scenario_id"
+        ],
+        "type": "object"
+      },
+      "name": "list_results"
+    },
+    {
+      "description": "EXPENSIVE raw per-run data of every edge (~17,000 characters per result), very large. A last resort: prefer edge_stats, rank_edges or compare_edges, and use this only when they cannot express what you need.",
+      "input_schema": {
+        "properties": {
+          "edge_ids": {
+            "description": "Edge ids to return; empty or omitted for every edge.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "result_id": {
+            "description": "Id of an available simulation result.",
+            "type": "string"
+          },
+          "window": {
+            "description": "[start, end) as time of day in seconds since midnight (08:00-08:05 is [28800, 29100]); omit for the whole run.",
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          }
+        },
+        "required": [
+          "result_id"
+        ],
+        "type": "object"
+      },
+      "name": "query_edgedata"
+    },
+    {
+      "description": "The scenario an available result was run on: its interventions and context tags, to tell a baseline result from an intervention one. Pass the scenario_id from get_result, never a result id.",
+      "input_schema": {
+        "properties": {
+          "scenario_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "scenario_id"
+        ],
+        "type": "object"
+      },
+      "name": "get_scenario"
+    },
+    {
+      "description": "Earlier notes on one of the study's networks ranked by relevance to `query`, each with its score.",
+      "input_schema": {
+        "properties": {
+          "filters": {
+            "description": "Optional: status, basis, provenance, scenario_id, context_tags.",
+            "type": "object"
+          },
+          "limit": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "network_id": {
+            "description": "Id of one of the study's networks (`network_ids` in the input).",
+            "type": "string"
+          },
+          "query": {
+            "description": "What you are looking for, in prose.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "network_id",
+          "query"
+        ],
+        "type": "object"
+      },
+      "name": "search_notes"
+    }
+  ],
+  "network": [
+    {
+      "description": "Attributes of one edge: endpoints, length, speed, lane count, priority, shape.",
+      "input_schema": {
+        "properties": {
+          "edge_id": {
+            "description": "Edge id, e.g. 'A0A1'.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "edge_id"
+        ],
+        "type": "object"
+      },
+      "name": "get_edge"
+    },
+    {
+      "description": "Per-lane attributes of one edge: index, length, speed, width, allowed vehicle classes.",
+      "input_schema": {
+        "properties": {
+          "edge_id": {
+            "description": "Edge id, e.g. 'A0A1'.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "edge_id"
+        ],
+        "type": "object"
+      },
+      "name": "get_lanes"
+    },
+    {
+      "description": "Ids of the edges reachable in one hop downstream of `edge_id` (outgoing connections).",
+      "input_schema": {
+        "properties": {
+          "edge_id": {
+            "description": "Edge id, e.g. 'A0A1'.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "edge_id"
+        ],
+        "type": "object"
+      },
+      "name": "get_neighbours"
+    },
+    {
+      "description": "Ids of the edges on the shortest route from `from_edge` to `to_edge`, empty if unreachable.",
+      "input_schema": {
+        "properties": {
+          "from_edge": {
+            "description": "Origin edge id.",
+            "type": "string"
+          },
+          "to_edge": {
+            "description": "Destination edge id.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "from_edge",
+          "to_edge"
+        ],
+        "type": "object"
+      },
+      "name": "shortest_path"
+    },
+    {
+      "description": "Ids of the edges whose bounding box overlaps `(xmin, ymin, xmax, ymax)` (net coordinates).",
+      "input_schema": {
+        "properties": {
+          "xmax": {
+            "type": "number"
+          },
+          "xmin": {
+            "type": "number"
+          },
+          "ymax": {
+            "type": "number"
+          },
+          "ymin": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "xmin",
+          "ymin",
+          "xmax",
+          "ymax"
+        ],
+        "type": "object"
+      },
+      "name": "edges_in_bbox"
+    },
+    {
+      "description": "Rough capacity of `edge_id` in veh/h (Greenshields estimate \u2014 see ADR-0015; order-of-",
+      "input_schema": {
+        "properties": {
+          "edge_id": {
+            "description": "Edge id, e.g. 'A0A1'.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "edge_id"
+        ],
+        "type": "object"
+      },
+      "name": "capacity_estimate"
+    },
+    {
+      "description": "Controlled edges and signal programs (phase state/duration pairs) of one traffic light.",
+      "input_schema": {
+        "properties": {
+          "tls_id": {
+            "description": "Traffic light id.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tls_id"
+        ],
+        "type": "object"
+      },
+      "name": "get_tls"
+    }
+  ],
+  "scenario_builder": [
+    {
+      "description": "Whether `edge_id` exists on the scenario's network.",
+      "input_schema": {
+        "properties": {
+          "edge_id": {
+            "description": "Edge id, e.g. 'A0A1'.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "edge_id"
+        ],
+        "type": "object"
+      },
+      "name": "edge_exists"
+    },
+    {
+      "description": "Whether lane `lane_index` of `edge_id` exists on the scenario's network.",
+      "input_schema": {
+        "properties": {
+          "edge_id": {
+            "description": "Edge id, e.g. 'A0A1'.",
+            "type": "string"
+          },
+          "lane_index": {
+            "description": "0-based lane index on that edge.",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "edge_id",
+          "lane_index"
+        ],
+        "type": "object"
+      },
+      "name": "lane_exists"
+    },
+    {
+      "description": "Writes the rerouter `.add.xml` for a static `lane_closure` intervention.",
+      "input_schema": {
+        "properties": {
+          "intervention_index": {
+            "description": "Index into this task's interventions list (0-based).",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "intervention_index"
+        ],
+        "type": "object"
+      },
+      "name": "write_rerouter"
+    },
+    {
+      "description": "Writes the `variableSpeedSign` `.add.xml` for a static `speed_limit` intervention.",
+      "input_schema": {
+        "properties": {
+          "intervention_index": {
+            "description": "Index into this task's interventions list (0-based).",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "intervention_index"
+        ],
+        "type": "object"
+      },
+      "name": "write_vss"
+    },
+    {
+      "description": "Writes the WAUT program-switch `.add.xml` for a static `signal_program` intervention.",
+      "input_schema": {
+        "properties": {
+          "intervention_index": {
+            "description": "Index into this task's interventions list (0-based).",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "intervention_index"
+        ],
+        "type": "object"
+      },
+      "name": "write_tls_program"
+    },
+    {
+      "description": "Regenerates `demand` at `factor` times its current volume, routed over `network`.",
+      "input_schema": {
+        "properties": {
+          "intervention_index": {
+            "description": "Index into this task's interventions list (0-based); must be a demand_scale intervention, whose params['scale'] is the multiplicative factor to apply.",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "intervention_index"
+        ],
+        "type": "object"
+      },
+      "name": "scale_demand"
+    },
+    {
+      "description": "Write the scenario's sumocfg once every intervention has been handled.",
+      "input_schema": {
+        "properties": {},
+        "type": "object"
+      },
+      "name": "write_sumocfg"
+    }
+  ]
+}

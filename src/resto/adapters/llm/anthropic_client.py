@@ -14,9 +14,8 @@ to the model as that tool's result, so it gets another turn to fix it — still 
 the port" lives. Running out of `max_steps`/`max_seconds` without a valid `submit_output` call
 ends the run with `StopReason.BUDGET`, never a partially-guessed output.
 
-Never logs, prints, or traces `LlmConfig.api_key` — the OpenAI SDK client holds it in memory only,
-and everything this module sends to `Tracer.emit` is limited to token counts, model name, tool
-names, and the estimated and real cost.
+Never logs or prints `LlmConfig.api_key` — the OpenAI SDK client holds it in memory only. The
+adapter does not write to the study trace; the run's `usage` carries what the recorder needs.
 
 Every call asks OpenRouter for `usage.cost` (`extra_body={"usage": {"include": True}}`) and sums
 it into the returned `Usage.cost_usd`; a step whose response doesn't carry it makes the whole run's
@@ -34,7 +33,7 @@ from openai import OpenAI
 from pydantic import ValidationError
 
 from resto.adapters.llm.config import LlmConfig
-from resto.adapters.llm.pricing import estimate_cost_usd, price_of
+from resto.adapters.llm.pricing import price_of
 from resto.application.ports.llm import (
     AgentRun,
     AgentTask,
@@ -44,7 +43,6 @@ from resto.application.ports.llm import (
     Tool,
     ToolCall,
 )
-from resto.application.ports.tracing import Tracer
 from resto.application.schemas import adapter_for
 from resto.domain.value_objects.step_record import Usage
 
@@ -71,15 +69,11 @@ class OpenRouterToolAgent:
         config: LlmConfig,
         *,
         model: str | None = None,
-        tracer: Tracer | None = None,
-        trace_id: str | None = None,
         complete: CompletionFn | None = None,
     ) -> None:
         self._config = config
         self._model = model or config.default_model
         price_of(self._model)  # raises UnknownModelError; result unused, this is just the gate
-        self._tracer = tracer
-        self._trace_id = trace_id
         self._complete: CompletionFn = complete or OpenAI(
             api_key=config.api_key, base_url=config.base_url
         ).chat.completions.create
@@ -100,7 +94,7 @@ class OpenRouterToolAgent:
         cost_usd: float | None = 0.0
         started = time.monotonic()
 
-        for step in range(budget.max_steps):
+        for _ in range(budget.max_steps):
             if time.monotonic() - started > budget.max_seconds:
                 break
 
@@ -119,7 +113,6 @@ class OpenRouterToolAgent:
             input_tokens += step_input
             output_tokens += step_output
             cost_usd = None if cost_usd is None or step_cost is None else cost_usd + step_cost
-            self._trace(step, step_input, step_output, step_cost)
 
             choice = response.choices[0]
             message = choice.message
@@ -191,24 +184,6 @@ class OpenRouterToolAgent:
             usage=Usage(input_tokens=input_tokens, output_tokens=output_tokens, cost_usd=cost_usd),
             stop_reason=StopReason.BUDGET,
             steps=tuple(steps),
-        )
-
-    def _trace(
-        self, step: int, input_tokens: int, output_tokens: int, cost_usd: float | None
-    ) -> None:
-        if self._tracer is None or self._trace_id is None:
-            return
-        self._tracer.emit(
-            self._trace_id,
-            "llm_call",
-            {
-                "step": step,
-                "model": self._model,
-                "input_tokens": input_tokens,
-                "output_tokens": output_tokens,
-                "estimated_cost_usd": estimate_cost_usd(self._model, input_tokens, output_tokens),
-                "cost_usd": cost_usd,
-            },
         )
 
 

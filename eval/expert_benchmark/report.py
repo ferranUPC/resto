@@ -54,6 +54,26 @@ class ScoredRun:
     record: Mapping[str, Any]
 
 
+def with_network(answer: Mapping[str, Any], network_id: str) -> dict[str, Any]:
+    """A stored answer as today's schema reads it. Runs stored before ADR-0032 name edges without
+    a network; every such edge is taken to be on `network_id`, the network of the question that run
+    answered (its `network_ref`). A value that already names its network is left as it is."""
+
+    def named(value: Mapping[str, Any]) -> dict[str, Any]:
+        if value.get("edge_id") is not None and value.get("network_id") is None:
+            return {**value, "network_id": network_id}
+        return dict(value)
+
+    def value_with_network(value: Mapping[str, Any]) -> dict[str, Any]:
+        if value["kind"] == "edges":
+            return {**value, "network_id": value.get("network_id") or network_id}
+        if value["kind"] == "causes":
+            return {**value, "causes": [named(cause) for cause in value["causes"]]}
+        return named(value)
+
+    return {**answer, "values": [value_with_network(v) for v in answer.get("values", ())]}
+
+
 def score_records(
     records: Iterable[Mapping[str, Any]], questions: Sequence[BenchmarkQuestion]
 ) -> list[ScoredRun]:
@@ -64,7 +84,11 @@ def score_records(
         question = by_id.get(record["question_id"])
         if question is None:
             continue
-        answer = None if record["answer"] is None else adapter.validate_python(record["answer"])
+        answer = (
+            None
+            if record["answer"] is None
+            else adapter.validate_python(with_network(record["answer"], question.network_id))
+        )
         score = score_answer(question, answer, rejection=record["rejection"])
         scored.append(ScoredRun(question, record["repetition"], score, answer, record))
     return scored

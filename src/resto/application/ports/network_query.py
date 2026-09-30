@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping, Sequence
-from pathlib import Path
+from collections.abc import Mapping, Sequence
 from typing import Any, Protocol
 
 
@@ -20,5 +19,16 @@ class NetworkQuery(Protocol):
     def get_tls(self, tls_id: str) -> Mapping[str, Any]: ...
 
 
-NetworkQueryFactory = Callable[[Path], NetworkQuery]
-"""Opens a `NetworkQuery` over the `.net.xml` at a path."""
+class NetworkNotStored(LookupError):
+    """The network id names no stored network. The Executor records it as `infrastructure`."""
+
+
+class NetworkQueryLoader(Protocol):
+    """Which `NetworkQuery` belongs to a network id (ADR-0032, "One loader"). Callers ask this
+    port instead of reading the network repository and building the query themselves."""
+
+    def load(self, network_id: str) -> NetworkQuery:
+        """Raises:
+        NetworkNotStored: no network is stored under `network_id`.
+        """
+        ...

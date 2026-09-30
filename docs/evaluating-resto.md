@@ -235,6 +235,13 @@ expected one (e.g. supporting quantities) are ignored.
 
 - Descriptive accuracy is reported over both descriptive families together, as the DoD states one threshold.
 - The predicted edge set is scored as given, never truncated to 3 or 5: extra edges lower the Jaccard.
+- An edge is a (network id, edge id) pair (ADR-0032). Every gold answer that names an edge carries
+  `network_id`, the question's `network_ref`; `-cf-band` names none. The right edge on the wrong network
+  scores as wrong, and the Jaccard and the cause count run over pairs.
+- **Re-scoring runs stored before ADR-0032** (`--report-only`). Those answers name edges without a
+  network. They are read, not refused: each edge is taken to be on the question's `network_ref`, which is
+  the only network the Expert saw in those runs. A value that already names its network is left as it is.
+  Re-scored figures of old runs do not change.
 - Mean Jaccard counts a missing or rejected answer as 0.
 - Cause accuracy counts only the edges in both the predicted top-3 and the gold's, so a wrong edge costs
   once (in the Jaccard). An answer without a `BottleneckCauses` value scores every shared edge wrong; a
@@ -388,6 +395,7 @@ the note's content as observed without citing it is not detected; the typed `val
 | 2026-09-24 | **DEV-NET assets in clock time** (E3.8, ADR-0028): the three demands cover 08:00–09:00 (`[28800, 32400)`, every `depart` shifted by exactly 28800 s, same trips and routes); the matrix and the question bank are rebuilt on it, with every id changed. Gold answers are unchanged except on the four `signal_program` rows, whose windows moved to whole minutes (08:02–08:05, …, 08:11–08:14; 18 gold answers). The Expert's `window` argument is described as seconds since midnight. Expert sweeps before this (v0–v2) ran on the old bank and are not compared with later ones as if on the same bank. |
 | 2026-09-24 | **ADR-0027 accepted (E5.13), nested contrasts oriented by code.** Of two nested arms the contained one is the reference, whatever the direction written (`Question.effective_contrasts`); this generalises the 2026-09-23 rule that `base` is always the reference. The arm-structure metric is unchanged (unordered pairs, now equivalent to ordered on nested pairs; alternatives in `compare` stay unordered) and re-scoring every stored Parser run and the annotation changed no score. |
 | 2026-09-25 | **Diagnostic "why" graded as a typed cause per edge** (ADR-0029; resolves the §6 open question and the 2026-09-17 row). The Expert states one `BottleneckCause` (`intervention` > `merge` > `spillback` > `signal` > `demand`) per bottleneck edge in a `BottleneckCauses` value; the gold computes the same cause per top-3 edge from the network's traffic-light control, its known lane drops and the scenario's interventions. `diag_cause_accuracy` (DoD "why" ≥ 70 %) is scored over the edges shared by answer and gold, micro-averaged per repetition; `correct` stays Jaccard ≥ 0.6. No rubric and no judge model. Runs from before Expert v3 carry no cause value and score 0 on it (e.g. `v2-e38-forced-1rep` re-scored: 0.00). |
+| 2026-09-30 | **Gold answers and the scorer name the network** (refactor r4, ticket 03, ADR-0032). The bank is rebuilt by `eval.question_bank.build`: 98 of the 117 gold answers that name an edge gain `network_id` (the question's `network_ref`); the 19 `band` answers are unchanged, and so is every other gold value. The scorer compares (network, edge) pairs. `--report-only` on a run stored before ADR-0032 reads it, taking the network from the question (§4.4). No model was called. |
 
 ## 6. Open questions
 

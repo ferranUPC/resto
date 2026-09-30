@@ -86,8 +86,10 @@ def test_an_already_resolved_note_is_left_alone() -> None:
 @pytest.mark.parametrize(
     "value",
     [
-        Edges(edge_ids=("E12",)),
-        BottleneckCauses(causes=(EdgeCause(edge_id="E12", cause=BottleneckCause.SIGNAL),)),
+        Edges(edge_ids=("E12",), network_id="abc123"),
+        BottleneckCauses(
+            causes=(EdgeCause(edge_id="E12", network_id="abc123", cause=BottleneckCause.SIGNAL),)
+        ),
     ],
 )
 def test_a_note_with_no_checkable_claim_stays_unverified(value: AnswerValue) -> None:
@@ -96,7 +98,9 @@ def test_a_note_with_no_checkable_claim_stays_unverified(value: AnswerValue) -> 
 
 
 def test_a_per_edge_quantity_claim_is_not_checked_by_this_first_version() -> None:
-    claim = Quantity(measure=Measure.TRAVEL_TIME, value=20.0, edge_id="E12")
+    claim = Quantity(
+        measure=Measure.TRAVEL_TIME, value=20.0, edge_id="E12", network_id="abc123"
+    )
     status = update_note_status(_note(values=(claim,)), _result(), notes=InMemoryNoteRepository())
     assert status is None
 

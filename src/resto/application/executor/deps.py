@@ -1,5 +1,5 @@
 """What the composition root builds to run a `Study`: the agents, the promotions not
-implemented yet, the repositories and adapters, and the study's budget."""
+implemented yet, and the repositories and adapters. The study's settings are `StudySettings`."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from resto.application.ports.agents.network_author import NetworkAuthorAgent
 from resto.application.ports.agents.note_writer import NoteWriterAgent
 from resto.application.ports.agents.scenario_builder import ScenarioBuilderAgent
 from resto.application.ports.llm import AgentRun
-from resto.application.ports.network_query import NetworkQueryFactory
+from resto.application.ports.network_query import NetworkQueryLoader
 from resto.application.ports.repositories import (
     DemandRepository,
     NetworkRepository,
@@ -49,6 +49,15 @@ class StudyBudget:
     max_tokens: int = DEFAULT_STUDY_MAX_TOKENS
     max_simulations: int = DEFAULT_STUDY_MAX_SIMULATIONS
     max_agent_calls: int = DEFAULT_STUDY_MAX_AGENT_CALLS
+
+
+@dataclass(frozen=True, slots=True)
+class StudySettings:
+    """What varies per study run and is not a collaborator (ADR-0030 follow-up)."""
+
+    out_dir: Path
+    budget: StudyBudget = field(default_factory=StudyBudget)
+    has_historical_demand: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,8 +100,5 @@ class StudyDeps:
     studies: StudyRepository
     runner: SumoRunner
     run_dirs: RunDirectories
-    network_query_factory: NetworkQueryFactory
+    network_query_loader: NetworkQueryLoader
     tracer: Tracer
-    out_dir: Path
-    has_historical_demand: bool = False
-    budget: StudyBudget = field(default_factory=StudyBudget)

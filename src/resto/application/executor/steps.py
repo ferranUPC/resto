@@ -8,7 +8,7 @@ from collections.abc import Mapping
 from dataclasses import replace
 from typing import Any, assert_never, cast
 
-from resto.application.executor.deps import StudyDeps
+from resto.application.executor.deps import StudyDeps, StudySettings
 from resto.application.executor.failures import StepFailed, crash, draft_of, fail, promote
 from resto.application.executor.plan_validation import ok_results
 from resto.application.executor.recorder import StudyRecorder, data
@@ -39,7 +39,11 @@ from resto.domain.value_objects.tasks import DemandTask, NetworkTask, ScenarioTa
 
 
 def execute_plan(
-    plan: StudyPlan, recorder: StudyRecorder, spend: StudySpend, deps: StudyDeps
+    plan: StudyPlan,
+    recorder: StudyRecorder,
+    spend: StudySpend,
+    deps: StudyDeps,
+    settings: StudySettings,
 ) -> str | None:
     """Runs `plan` in the current phase and returns the study's network id; or nothing, once a
     step failed and the study was recorded as `failed` with the pending steps skipped."""
@@ -64,7 +68,7 @@ def execute_plan(
         task = data(resolved)
         pending = plan.steps[i + 1 :]
         try:
-            record, experiment = _run_step(resolved, task, recorder, spend, deps)
+            record, experiment = _run_step(resolved, task, recorder, spend, deps, settings)
         except StepFailed as failed:
             recorder.record_failure(resolved.kind, task, failed, pending=pending)
             return None
@@ -118,6 +122,7 @@ def _run_step(
     recorder: StudyRecorder,
     spend: StudySpend,
     deps: StudyDeps,
+    settings: StudySettings,
 ) -> tuple[StepRecord, Experiment | None]:
     match step:
         case GenerateNetworkStep() | DeriveNetworkStep():
@@ -127,9 +132,9 @@ def _run_step(
         case RerouteDemandStep():
             return _reroute(step, task, deps), None
         case BuildScenarioStep():
-            return _build_scenario(step, task, spend, deps)
+            return _build_scenario(step, task, spend, deps, settings)
         case RunSimulationStep():
-            return _run_simulations(step, task, recorder, spend, deps), None
+            return _run_simulations(step, task, recorder, spend, deps, settings), None
         case _:
             assert_never(step)
 
@@ -197,7 +202,11 @@ def _reroute(step: RerouteDemandStep, task: Mapping[str, Any], deps: StudyDeps) 
 
 
 def _build_scenario(
-    step: BuildScenarioStep, task: Mapping[str, Any], spend: StudySpend, deps: StudyDeps
+    step: BuildScenarioStep,
+    task: Mapping[str, Any],
+    spend: StudySpend,
+    deps: StudyDeps,
+    settings: StudySettings,
 ) -> tuple[StepRecord, Experiment]:
     scenario_task = ScenarioTask(
         network_id=_id(step.network_id),
@@ -234,9 +243,9 @@ def _build_scenario(
                 networks=deps.networks,
                 demands=deps.demands,
                 scenarios=deps.scenarios,
-                network_query_factory=deps.network_query_factory,
+                network_query_loader=deps.network_query_loader,
                 runner=deps.runner,
-                out_dir=deps.out_dir / "scenarios",
+                out_dir=settings.out_dir / "scenarios",
             ),
             usage,
         )
@@ -251,6 +260,7 @@ def _run_simulations(
     recorder: StudyRecorder,
     spend: StudySpend,
     deps: StudyDeps,
+    settings: StudySettings,
 ) -> StepRecord:
     scenario = deps.scenarios.get(_id(step.scenario_id))
     if scenario is None:
@@ -265,7 +275,7 @@ def _run_simulations(
     existing = {s: _existing_ok(deps, scenario.scenario_id, s) for s in seeds}
     new_seeds = [s for s, result in existing.items() if result is None]
     spend.reserve_simulations(len(new_seeds))
-    results_dir = deps.out_dir / "results"
+    results_dir = settings.out_dir / "results"
     attempt = recorder.study.study_id
     result_ids: list[str] = []
     ran = 0
@@ -316,7 +326,4 @@ def _verify_notes(
     for note, _ in hits:
         status = update_note_status(note, result, notes=deps.notes)
         if status is not None:
-            recorder.trace(
-                "note_status",
-                {"note_id": note.note_id, "result_id": result.result_id, "status": status},
-            )
+            recorder.note_status_changed(note.note_id, result.result_id, status)

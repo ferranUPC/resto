@@ -46,7 +46,7 @@ from eval.scenario_matrix.build import DB_PATH as MATRIX_DB_PATH
 from eval.scenario_matrix.rows import ROWS, MatrixRow, build_draft
 from resto.adapters.persistence.mcp_client import McpClientDatabase
 from resto.adapters.persistence.sqlite.repositories import SqliteDatabase
-from resto.adapters.sumo.netxml import SumolibNetworkQuery
+from resto.adapters.sumo.network_query_loader import StoredNetworkQueryLoader
 from resto.adapters.sumo.run_directories import FilesystemRunDirectories
 from resto.adapters.sumo.runner import SubprocessSumoRunner
 from resto.application.ports.llm import AgentRun, StopReason
@@ -124,7 +124,7 @@ def _rebuild_row(
     )
     scenario = build_scenario(
         task, run, networks=db.networks, demands=db.demands, scenarios=db.scenarios,
-        network_query_factory=lambda p: SumolibNetworkQuery(p), runner=runner,
+        network_query_loader=StoredNetworkQueryLoader(db.networks), runner=runner,
         out_dir=REBUILD_DIR / row.id / "load_check",
     )
     results: dict[int, SimulationResult] = {}

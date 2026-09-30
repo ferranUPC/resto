@@ -10,20 +10,16 @@ edges in typed values exist, forced mode never abstains) in
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from dataclasses import dataclass
-from pathlib import Path
 
 from resto.application.ports.llm import AgentRun, AgentTask, Budget, ToolAgent
-from resto.application.ports.network_query import NetworkQuery
-from resto.application.ports.repositories import (
-    NetworkRepository,
-    NoteRepository,
-    ResultRepository,
-    ScenarioRepository,
-)
 from resto.application.schemas import adapter_for
-from resto.application.tools.expert import EvidenceLedger, build_expert_tools
+from resto.application.tools.expert import (
+    EvidenceLedger,
+    ExpertCollaborators,
+    ExpertContext,
+    build_expert_tools,
+)
 from resto.domain.constants import MAX_NOTES_PER_STUDY
 from resto.domain.value_objects.answer_value import Measure
 from resto.domain.value_objects.drafts import ExpertNoteDrafts
@@ -32,7 +28,7 @@ from resto.domain.value_objects.tasks import ExpertTask, NoteTask
 
 # Bump whenever the prompt, the tool set or the default budget changes in a way that can change
 # answers: every benchmark run records it, and docs/expert-tuning-log.md explains each version.
-EXPERT_VERSION = "v4"
+EXPERT_VERSION = "v7"
 
 _EDGE_MEASURES = ", ".join(f"{m.value} ({m.unit})" for m in Measure if not m.is_network_wide)
 _NETWORK_MEASURES = ", ".join(f"{m.value} ({m.unit})" for m in Measure if m.is_network_wide)
@@ -40,21 +36,23 @@ _NETWORK_MEASURES = ", ".join(f"{m.value} ({m.unit})" for m in Measure if m.is_n
 # The examples below use ids and values that exist neither on DEV-NET nor in any gold answer:
 # the prompt must never leak the question bank.
 SYSTEM_PROMPT = f"""\
-You are the Network Expert of a SUMO traffic-simulation framework. You answer one question about one
-road network from what has been simulated on it. You never run simulations yourself.
+You are the Network Expert of a SUMO traffic-simulation framework. You answer one question about a
+study's road networks from what has been simulated on them. You never run simulations yourself.
+`network_ids` in the input lists the study's networks: the base network and any network derived from
+it during the study. The same edge id can exist on more than one of them.
 
 Facts only through tools. Topology comes from get_edges, get_lanes, get_neighbours, shortest_path,
-capacity_estimate and get_tls. Simulated data:
+capacity_estimate and get_tls; each takes the `network_id` it queries, one of `network_ids`.
+Simulated data:
   - edge_stats, rank_edges, compare_edges, compare_kpis: already aggregated across the runs you pass
     (mean, std, runs). Use these first.
-  - get_result (a run's KPIs and its scenario_id) and get_scenario (a scenario's interventions; pass
-    the scenario_id from get_result, never a result id): to tell baseline runs from treatment runs.
-  - query_edgedata: raw data of every edge for one run, very large. Only when the others cannot
-    express what you need.
+  - get_result and get_scenario: to tell baseline runs from treatment runs.
+  - query_edgedata: raw data, only when the others cannot express what you need.
 Never state a number, an edge id or a result you did not get from a tool call in this conversation.
 Only the results listed in `result_ids` are available; if it is empty, no simulation data is
 available for this question. When `notes_allowed` is true you also have search_notes: earlier notes
-are interpretations, not facts - a note alone never makes an answer observed.
+are interpretations, not facts - a note alone never makes an answer observed. search_notes also
+takes a `network_id`.
 
 Every tool returns {{"ref": "q<N>", "result": ...}}. Cite what supports your answer in `evidence`:
   - {{"kind": "query", "ref": "q<N>", "excerpt": "<the value(s) you used>"}} for a tool call, or
@@ -79,28 +77,35 @@ Mode (`mode` in the input):
   - forced: you must answer. If the data does not cover the question, answer anyway with
     basis = extrapolated and a low confidence. needs_simulation must be false.
   - free: if the available data cannot support an answer, you may abstain: needs_simulation = true
-    and a proposed_experiment (a Question on this network) that would settle it.
+    and a proposed_experiment (a Question on one of the networks) that would settle it.
 
 The answer itself goes in `values`, a list of typed values; `answer` is your prose justification
 and must agree with them (the values are what counts). Use only these kinds:
-  - {{"kind": "edges", "edge_ids": ["E12", "E07"], "ranked": false}}
+  - {{"kind": "edges", "edge_ids": ["E12", "E07"], "network_id": "<network_id>",
+     "ranked": false}}
     a set of edges; ranked = true when order matters (most relevant first, e.g. a top-3). An empty
     list is a valid answer ("no edge does").
-  - {{"kind": "quantity", "measure": "speed", "value": 8.5, "edge_id": "E12"}}
+  - {{"kind": "quantity", "measure": "speed", "value": 8.5, "edge_id": "E12",
+     "network_id": "<network_id>"}}
     one number, always in the measure's unit.
   - {{"kind": "change", "measure": "time_loss", "direction": "decrease",
-     "relative_change_pct": -30.0, "edge_id": "E12"}}
+     "relative_change_pct": -30.0, "edge_id": "E12", "network_id": "<network_id>"}}
     how a measure changes relative to the reference (usually the baseline): direction is increase,
     decrease or unchanged; relative_change_pct is optional, in percent, with the same sign.
-  - {{"kind": "no_value", "measure": "travel_time", "edge_id": "E12", "reason": "no_traffic"}}
+  - {{"kind": "no_value", "measure": "travel_time", "edge_id": "E12", "network_id": "<network_id>",
+     "reason": "no_traffic"}}
     a per-vehicle measure (travel_time, speed) undefined because no vehicle crossed the edge.
-  - {{"kind": "causes", "causes": [{{"edge_id": "E12", "cause": "signal"}},
-     {{"edge_id": "E07", "cause": "spillback"}}]}}
+  - {{"kind": "causes", "causes": [
+     {{"edge_id": "E12", "network_id": "<network_id>", "cause": "signal"}},
+     {{"edge_id": "E07", "network_id": "<network_id>", "cause": "spillback"}}]}}
     why each edge of a bottleneck is congested: one cause per edge.
-Measures per edge (edge_id required): {_EDGE_MEASURES}.
+Every value that names an edge also names its network in `network_id`: give the network
+the edge belongs to, one of `network_ids` of your input. The same edge id can exist on more than one
+network, so it is never left out.
+Measures per edge (edge_id and network_id required): {_EDGE_MEASURES}.
 time_loss is an edge's total delay and waiting_time its total halting time, both summed over all
 its vehicles (veh·s); divide by entered for a per-vehicle value.
-Measures for the whole network (edge_id null): {_NETWORK_MEASURES}.
+Measures for the whole network (edge_id and network_id null): {_NETWORK_MEASURES}.
 Put every part of the question these kinds can express in `values`.
 
 A bottleneck diagnosis ("which edges form the bottleneck, and why") carries exactly two values: a
@@ -119,8 +124,7 @@ The causes need only these lookups, in two steps once the edges are ranked:
   1. get_scenario (the target), get_edges and get_neighbours on your edges (from_node, to_node,
      lane_count; the edges they continue into);
   2. get_edges on the target and the edges they continue into, and get_tls on each of your edges'
-     to_node (or the target light), one get_tls call per id: a traffic light usually has the id of
-     its junction, and an unknown id means no light there.
+     to_node (or the target light).
 Then submit; look no further. Any other "why" stays in `answer`.
 
 Submit your ExpertAnswer with submit_output: answer, basis, confidence, evidence, values,
@@ -134,7 +138,7 @@ def build_task(task: ExpertTask) -> AgentTask:
         input={
             "question": task.question,
             "mode": task.mode.value,
-            "network_id": task.network_id,
+            "network_ids": list(task.network_ids),
             "result_ids": list(task.result_ids),
             "notes_allowed": task.notes_allowed,
         },
@@ -145,18 +149,12 @@ def run_expert(
     task: ExpertTask,
     agent: ToolAgent,
     budget: Budget,
-    *,
-    query: NetworkQuery,
-    results: ResultRepository,
-    scenarios: ScenarioRepository,
-    notes: NoteRepository | None,
+    context: ExpertContext,
     ledger: EvidenceLedger,
 ) -> AgentRun[ExpertAnswer]:
     """Runs the Expert on `task`; every tool call lands in `ledger`. The returned answer is
     unchecked - hand the run and the same ledger to `ask_expert` to promote it."""
-    tools = build_expert_tools(
-        task=task, query=query, results=results, scenarios=scenarios, notes=notes, ledger=ledger
-    )
+    tools = build_expert_tools(context, ledger)
     return agent.run(build_task(task), tools, ExpertAnswer, budget)
 
 
@@ -176,7 +174,9 @@ For each note:
 `text`: a short, self-contained summary in prose — a future reader will not see the original
 question, so restate what it was about.
 `scenario_ref`: the `scenario_id` of the one scenario the note is about, copied from `scenarios`, or
-null when it is about the network in general. Never invent an id.
+null when it is about the network in general. Never invent an id. A note belongs to the network of
+its scenario, which code sets. A note that contrasts two networks is written as two notes, one per
+scenario.
 `basis`: same meaning as when you answered (observed / inferred / extrapolated). A note about a
 scenario that was not simulated cannot be observed. An observed note must carry `evidence` pointing
 at what was observed, using only refs you were actually given below — you have no tools here, so
@@ -184,7 +184,8 @@ you cannot make a new query.
 `context_tags`: a few short topical tags a later search would use to find this note.
 `values`: any measurement worth checking again later against a fresh simulation of that scenario,
 using the same typed kinds as before (edges / quantity / change / no_value). Leave empty if nothing
-is worth tracking as a precise, re-checkable number — most notes will.
+is worth tracking as a precise, re-checkable number — most notes will. A value that names an edge
+also names its network in `network_id`, exactly as in your answer.
 
 Submit {{"notes": [...]}} with submit_output.
 """
@@ -219,31 +220,17 @@ def run_expert_note(task: NoteTask, agent: ToolAgent, budget: Budget) -> AgentRu
 
 @dataclass(frozen=True, slots=True)
 class ExpertPort:
-    """`ExpertAgent` port (ADR-0025 §6) over `run_expert`, with the infrastructure bound: the
-    Expert queries the network the task names."""
+    """`ExpertAgent` port (ADR-0025 §6) over `run_expert`, with the collaborators bound: the
+    Expert queries the networks of the task's scope."""
 
     agent: ToolAgent
     budget: Budget
-    networks: NetworkRepository
-    results: ResultRepository
-    scenarios: ScenarioRepository
-    notes: NoteRepository | None
-    network_query_factory: Callable[[Path], NetworkQuery]
+    collaborators: ExpertCollaborators
 
     def answer(self, task: ExpertTask, ledger: EvidenceLedger) -> AgentRun[ExpertAnswer]:
-        network = self.networks.get(task.network_id)
-        if network is None:
-            raise LookupError(f"network {task.network_id!r} is not stored")
-        return run_expert(
-            task,
-            self.agent,
-            self.budget,
-            query=self.network_query_factory(network.net_xml.path),
-            results=self.results,
-            scenarios=self.scenarios,
-            notes=self.notes,
-            ledger=ledger,
-        )
+        collaborators = self.collaborators
+        context = collaborators.context(task)
+        return run_expert(task, self.agent, self.budget, context, ledger)
 
 
 @dataclass(frozen=True, slots=True)

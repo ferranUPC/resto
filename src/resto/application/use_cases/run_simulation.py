@@ -29,7 +29,6 @@ from pathlib import Path
 from resto.application.ports.repositories import ResultRepository
 from resto.application.ports.run_directories import RunDirectories
 from resto.application.ports.sumo import RunOutput, SumoRunner
-from resto.domain.constants import SUMO_VERSION
 from resto.domain.entities.scenario import Scenario
 from resto.domain.entities.simulation_result import RunMode, RunStatus, SimulationResult
 from resto.domain.services.ids import result_id_for
@@ -60,7 +59,8 @@ def run_simulation(
     if scenario.is_online:
         raise NotImplementedError("online scenarios need the E2.5 runner")
     mode = RunMode.BATCH
-    result_id = result_id_for(scenario.scenario_id, seed, mode.value, SUMO_VERSION)
+    sumo_version = runner.sumo_version()
+    result_id = result_id_for(scenario.scenario_id, seed, mode.value, sumo_version)
     existing = results.get(result_id)
     if existing is not None and existing.status is RunStatus.OK:
         return existing
@@ -71,11 +71,20 @@ def run_simulation(
 
     if not output.ok:
         return _build_result(
-            result_id, scenario, seed, mode, RunStatus.FAILED, output, output.artifacts
+            result_id,
+            scenario,
+            seed,
+            mode,
+            RunStatus.FAILED,
+            output,
+            output.artifacts,
+            sumo_version,
         )
 
     artifacts = run_dirs.promote(staging_dir, out_dir / result_id, output.artifacts)
-    result = _build_result(result_id, scenario, seed, mode, RunStatus.OK, output, artifacts)
+    result = _build_result(
+        result_id, scenario, seed, mode, RunStatus.OK, output, artifacts, sumo_version
+    )
     results.store(result)
     return result
 
@@ -88,6 +97,7 @@ def _build_result(
     status: RunStatus,
     output: RunOutput,
     artifacts: tuple[ArtifactRef, ...],
+    sumo_version: str,
 ) -> SimulationResult:
     """The one place a `SimulationResult` is built from a run. KPIs are recorded only for an ok run;
     `SimulationResult` itself enforces which status needs which fields."""
@@ -102,6 +112,7 @@ def _build_result(
         kpis=output.kpis if status is RunStatus.OK else None,
         error=output.error,
         wall_clock_s=output.wall_clock_s,
+        sumo_version=sumo_version,
     )
 
 

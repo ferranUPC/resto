@@ -6,6 +6,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from eval.fixed_network_query_loader import FixedNetworkQueryLoader
 
 from resto.adapters.persistence.memory import (
     InMemoryDemandRepository,
@@ -22,7 +23,7 @@ from resto.domain.value_objects.mechanism import RegenerateDemandMechanism, Stat
 from resto.domain.value_objects.step_record import Usage
 from resto.domain.value_objects.tasks import ScenarioTask
 from resto.domain.value_objects.time_window import TimeWindow
-from tests.unit.application.use_cases._doubles import FakeRunner, StubNetworkQuery
+from tests.unit.application._doubles import FakeRunner, StubNetworkQuery
 from tests.unit.domain._fixtures import artifact, scenario_draft, static_intervention
 from tests.unit.domain._samples import demand as sample_demand
 from tests.unit.domain._samples import network as sample_network
@@ -70,7 +71,7 @@ def env(*, runner_outputs=None, networks=None, demands=None, scenarios=None, que
         networks=networks if networks is not None else _networks_with(sample_network()),
         demands=demands if demands is not None else _demands_with(sample_demand()),
         scenarios=scenarios if scenarios is not None else InMemoryScenarioRepository(),
-        network_query_factory=lambda path: query or LANE_QUERY,  # noqa: ARG005
+        network_query_loader=FixedNetworkQueryLoader(query or LANE_QUERY),
         runner=FakeRunner(runner_outputs if runner_outputs is not None else [ok_output()]),
         out_dir=Path("/tmp/resto-test-build-scenario"),
     )

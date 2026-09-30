@@ -15,8 +15,8 @@ from resto.adapters.sumo.netxml import SumolibNetworkQuery
 from resto.application.ports.llm import AgentTask, Budget, Tool
 from resto.domain.value_objects.answer_value import Edges
 from resto.domain.value_objects.expert_answer import Basis, Evidence, EvidenceKind, ExpertAnswer
+from tests.unit._paths import DEV_NET as DEV_NET_XML
 from tests.unit.adapters.llm._fakes import FakeToolAgent, call_tool
-from tests.unit.application.tools.test_expert import DEV_NET as DEV_NET_XML
 
 BUDGET = Budget(max_steps=6, max_tokens=2048, max_seconds=60.0)
 PROBE = HygieneProbe(
@@ -26,7 +26,7 @@ PROBE = HygieneProbe(
 
 
 def _cite_the_note(task: AgentTask, tools: Sequence[Tool]) -> None:
-    call_tool(tools, "search_notes", query="occupancy")
+    call_tool(tools, "search_notes", network_id="n", query="occupancy")
 
 
 def _observed_answer(ref: str = "q1") -> ExpertAnswer:
@@ -35,7 +35,7 @@ def _observed_answer(ref: str = "q1") -> ExpertAnswer:
         basis=Basis.OBSERVED,
         confidence=0.9,
         evidence=(Evidence(kind=EvidenceKind.QUERY, ref=ref),),
-        values=(Edges(edge_ids=("B1B0",)),),
+        values=(Edges(edge_ids=("B1B0",), network_id="n"),),
     )
 
 
@@ -45,7 +45,7 @@ def _extrapolated_answer(ref: str = "q1") -> ExpertAnswer:
         basis=Basis.EXTRAPOLATED,
         confidence=0.3,
         evidence=(Evidence(kind=EvidenceKind.QUERY, ref=ref),),
-        values=(Edges(edge_ids=("B1B0",)),),
+        values=(Edges(edge_ids=("B1B0",), network_id="n"),),
     )
 
 

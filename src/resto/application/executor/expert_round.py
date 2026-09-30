@@ -6,7 +6,7 @@ from __future__ import annotations
 from dataclasses import replace
 
 from resto.application.executor.deps import StudyDeps
-from resto.application.executor.failures import StepFailed, crash, draft_of, fail, promote
+from resto.application.executor.failures import StepFailed, crash, draft_of, promote
 from resto.application.executor.recorder import StudyRecorder, data
 from resto.application.executor.spend import StudySpend
 from resto.application.tools.expert import EvidenceLedger
@@ -14,7 +14,7 @@ from resto.application.use_cases.ask_expert import ask_expert
 from resto.domain.services.experiment_design import mode_for
 from resto.domain.value_objects.expert_round import ExpertRound
 from resto.domain.value_objects.question import Mode
-from resto.domain.value_objects.step_record import StepErrorKind, StepRecord, StepStatus
+from resto.domain.value_objects.step_record import StepRecord, StepStatus
 from resto.domain.value_objects.tasks import ExpertTask
 
 
@@ -22,7 +22,6 @@ def ask_expert_round(
     recorder: StudyRecorder,
     spend: StudySpend,
     deps: StudyDeps,
-    network_id: str,
     *,
     max_rounds: int,
 ) -> tuple[ExpertRound, EvidenceLedger] | None:
@@ -30,24 +29,20 @@ def ask_expert_round(
     nothing, once the failure was recorded and the study is `failed`."""
     round_no = recorder.phase_index + 1
     question = recorder.study.question
-    # TODO(E5.3): one network per ExpertTask. Arms on a derived network have their results in
-    # `result_ids` (readable), but the Expert's topology tools and `ask_expert`'s edge check
-    # see only the study's network (docs/tfm-work-plan.md, E5.3).
+    # the scope as it stands now: a network derived in an earlier phase is in it (ADR-0032)
     task = ExpertTask(
         question=question.text,
         mode=mode_for(question, round_no, max_rounds),
-        network_id=network_id,
+        network_ids=recorder.study.network_ids,
         result_ids=recorder.result_ids(),
     )
     ledger = EvidenceLedger()
     try:
         run = spend.agent_call(lambda: deps.agents.expert.answer(task, ledger))
         draft_of(run, "expert")
-        network = deps.networks.get(task.network_id)
-        if network is None:
-            fail(StepErrorKind.INFRASTRUCTURE, f"network {task.network_id!r} disappeared")
-        query = deps.network_query_factory(network.net_xml.path)
-        round_ = promote(lambda: ask_expert(task, run, ledger, query=query), run.usage)
+        round_ = promote(
+            lambda: ask_expert(task, run, ledger, loader=deps.network_query_loader), run.usage
+        )
     except StepFailed as failed:
         recorder.record_failure("ask_expert", data(task), failed)
         return None
@@ -58,4 +53,5 @@ def ask_expert_round(
     round_ = replace(round_, forced_by_limit=forced_by_limit)
     record = StepRecord("ask_expert", StepStatus.OK, data(task), usage=run.usage)
     recorder.record(record, round_=round_)
+    recorder.expert_round_held(round_no)
     return round_, ledger

@@ -37,7 +37,7 @@ def _answer() -> ExpertAnswer:
         basis=Basis.OBSERVED,
         confidence=0.9,
         evidence=EVIDENCE,
-        values=(Edges(edge_ids=("E12",)),),
+        values=(Edges(edge_ids=("E12",), network_id="abc123"),),
     )
 
 
@@ -252,7 +252,7 @@ def test_answer_without_evidence_must_abstain() -> None:
             answer="E12 is congested",
             basis=Basis.OBSERVED,
             confidence=0.9,
-            values=(Edges(edge_ids=("E12",)),),
+            values=(Edges(edge_ids=("E12",), network_id="abc123"),),
         )
 
 
