@@ -53,6 +53,16 @@ def test_the_question_keeps_the_users_own_text() -> None:
     assert run.output is not None and run.output.text == "¿Qué tal va N4N5?"
 
 
+def test_network_only_parses_from_the_agents_output() -> None:
+    from pydantic import TypeAdapter
+
+    raw = {"text": "x", "intent": "describe", "network_only": True}
+    question = TypeAdapter(Question).validate_python(raw)
+    agent = RecordingAgent(question)
+    run = InputParserPort(agent, BUDGET).parse("How many lanes has B0C0?")
+    assert run.output is not None and run.output.network_only is True
+
+
 def test_a_run_without_a_question_is_passed_through() -> None:
     agent = RecordingAgent(None, stop_reason=StopReason.BUDGET)
     run = InputParserPort(agent, BUDGET).parse("asdf")

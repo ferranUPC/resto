@@ -35,7 +35,14 @@ GRADED = (
     "ambiguity_detection",
     "arm_structure",
 )
-REPORTED = ("intent_strict", "spurious_ambiguity", "network_ref", "demand_ref", "time_window")
+REPORTED = (
+    "intent_strict",
+    "spurious_ambiguity",
+    "network_ref",
+    "demand_ref",
+    "network_only",
+    "time_window",
+)
 
 
 @dataclass(frozen=True, slots=True)

@@ -14,6 +14,9 @@
   nested arms (ADR-0027 §1), so for those this is an ordered match; only alternatives stay
   unordered, where the order means nothing.
 
+- `demand_ref` is free English, so it is graded by presence (both null or both not null); it and
+  `network_only` are reported without a threshold, and `done` reads neither (ADR-0035).
+
 A prediction that is `None` failed schema validation (after the Parser's retry); it scores False on
 every graded field.
 """
@@ -229,6 +232,8 @@ class RequestScore:
     used_shorthand: bool | None = None
     network_ref: bool | None = None
     demand_ref: bool | None = None
+    """Presence: gold and prediction both null or both not null, whatever the wording."""
+    network_only: bool | None = None
     time_window: bool | None = None
 
 
@@ -292,7 +297,8 @@ def score_request(
         required_arms=required,
         used_shorthand=not pred.arms if len(gold.effective_arms) == 1 else None,
         network_ref=_same_ref(gold.network_ref, pred.network_ref),
-        demand_ref=_same_ref(gold.demand_ref, pred.demand_ref),
+        demand_ref=(gold.demand_ref is None) == (pred.demand_ref is None),
+        network_only=gold.network_only == pred.network_only,
         time_window=gold.time_window == pred.time_window,
     )
 
@@ -332,6 +338,7 @@ def summarize(scores: Sequence[RequestScore]) -> dict[str, Rate]:
         "used_shorthand": _rate(s.used_shorthand for s in scores),
         "network_ref": _rate(s.network_ref for s in scores),
         "demand_ref": _rate(s.demand_ref for s in scores),
+        "network_only": _rate(s.network_only for s in scores),
         "time_window": _rate(s.time_window for s in scores),
     }
 

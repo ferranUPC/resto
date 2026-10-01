@@ -508,6 +508,11 @@
       "$ref": "#/$defs/Mode",
       "default": "free"
     },
+    "network_only": {
+      "default": false,
+      "title": "Network Only",
+      "type": "boolean"
+    },
     "network_ref": {
       "anyOf": [
         {

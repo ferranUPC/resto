@@ -238,6 +238,29 @@ def test_summary_rates_and_done() -> None:
     assert verdict["ambiguity_detection"] is False
 
 
+def test_demand_ref_is_graded_by_presence_whatever_the_wording() -> None:
+    gold = _question(demand_ref="rush-hour traffic")
+    assert score_request(gold, _question(demand_ref="peak")).demand_ref is True
+    assert score_request(gold, _question()).demand_ref is False
+    assert score_request(_question(), _question(demand_ref="peak")).demand_ref is False
+    assert score_request(_question(), _question()).demand_ref is True
+
+
+def test_network_only_is_reported_and_compared_on_equality() -> None:
+    gold = _question(intent=Intent.DESCRIBE, network_only=True)
+    assert score_request(gold, gold).network_only is True
+    assert score_request(gold, _question(intent=Intent.DESCRIBE)).network_only is False
+    assert score_request(_question(), _question()).network_only is True
+
+
+def test_summary_reports_network_only_and_done_ignores_it_and_demand_ref() -> None:
+    gold = _question(intent=Intent.DESCRIBE, network_only=True)
+    summary = summarize([score_request(gold, gold), score_request(gold, None)])
+    assert summary["network_only"] == Rate(1, 1)
+    assert summary["demand_ref"] == Rate(1, 1)
+    assert "network_only" not in done(summary) and "demand_ref" not in done(summary)
+
+
 def _request(request_id: str, concept_id: str, lang: str = "en", **rest: object) -> BankRequest:
     fields: dict[str, object] = {
         "category": Category.MULTI_ARM, "split": "dev", "style": None, "vague": None,

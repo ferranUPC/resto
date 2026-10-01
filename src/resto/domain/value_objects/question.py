@@ -49,10 +49,28 @@ class Question:
     ambiguities: tuple[str, ...] = ()
     arms: tuple[Arm, ...] = ()
     contrasts: tuple[Contrast, ...] = ()
+    network_only: bool = False
+    """The question is about the network alone (lanes, speed limits, signalised junctions), so
+    planning it needs neither a demand nor a simulation (ADR-0035)."""
 
     def __post_init__(self) -> None:
         if not self.text.strip():
             raise ValueError("a Question requires text")
+        if self.network_only:
+            if self.intent is not Intent.DESCRIBE:
+                raise ValueError("network_only is only valid for the describe intent")
+            if (
+                self.demand_ref is not None
+                or self.time_window is not None
+                or self.metrics_of_interest
+                or self.interventions
+                or self.topology_changes
+                or self.arms
+            ):
+                raise ValueError(
+                    "network_only excludes demand_ref, time_window, metrics_of_interest, "
+                    "interventions, topology_changes and arms"
+                )
         if self.arms and (self.interventions or self.topology_changes):
             raise ValueError("use arms or the flat interventions/topology_changes, not both")
         if self.contrasts and not self.arms:
