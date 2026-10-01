@@ -884,7 +884,11 @@ async function showTicket(taskId, ticketId) {
     if (d.question) { text("h3", "Question", detail); text("div", d.question, detail).className = "notes"; }
   } catch (err) { detail.textContent = "Could not load the ticket: " + err; }
 }
-document.getElementById("close").addEventListener("click", () => document.body.classList.remove("open"));
+// Closing the panel also drops the selection, or the canvas stays dimmed around a task nobody is reading.
+document.getElementById("close").addEventListener("click", () => {
+  document.body.classList.remove("open");
+  selected = null; highlight(null);
+});
 
 makeArrows();
 // The page reads the files on every load, so the frontier moves when a spec does and the button is pressed.
