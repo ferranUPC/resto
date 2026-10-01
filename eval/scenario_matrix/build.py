@@ -95,23 +95,42 @@ def _dev_net_network() -> Network:
     )
 
 
-def _peak_demand(network_id: str) -> Demand:
-    trips_ref = artifact_ref(DEV_NET_DIR / "demand" / "peak.trips.xml", "trips")
-    routes_ref = artifact_ref(DEV_NET_DIR / "demand" / "peak.rou.xml", "routes")
+_DEV_NET_DESCRIPTIONS = {
+    DemandProfile.LOW: (
+        "Random trips spread over the whole network, low intensity (300 veh/h), 08:00–09:00.",
+        300.0,
+    ),
+    DemandProfile.PEAK: (
+        "Random trips spread over the whole network, peak intensity (1200 veh/h), 08:00–09:00.",
+        1200.0,
+    ),
+    DemandProfile.INCIDENT: (
+        "Random trips all routed through B0C0, as if an incident elsewhere diverted "
+        "through-traffic onto that corridor (950 veh/h), 08:00–09:00.",
+        950.0,
+    ),
+}
+
+
+def dev_net_demand(profile: DemandProfile, network_id: str) -> Demand:
+    """One of DEV-NET's three described demands (`low`, `peak`, `incident`), labelled with its
+    profile. `matrix.db` stores only `peak`; E3.7 imports this for the other two."""
+    if profile not in _DEV_NET_DESCRIPTIONS:
+        raise ValueError(f"DEV-NET has no {profile.value!r} demand")
+    description, rate = _DEV_NET_DESCRIPTIONS[profile]
+    name = profile.value
+    trips_ref = artifact_ref(DEV_NET_DIR / "demand" / f"{name}.trips.xml", "trips")
+    routes_ref = artifact_ref(DEV_NET_DIR / "demand" / f"{name}.rou.xml", "routes")
     return Demand(
         demand_id=trips_ref.content_hash,
         network_id=network_id,
         spec=DemandSpec(
-            profile=DemandProfile.PEAK, window=TimeWindow(BEGIN_S, END_S), seed=1,
-            vehicles_per_hour=1200.0,
+            profile=profile, window=TimeWindow(BEGIN_S, END_S), seed=1, vehicles_per_hour=rate
         ),
         trips=trips_ref,
         routes=routes_ref,
-        description=(
-            "Random trips spread over the whole network, peak intensity (1200 veh/h), "
-            "08:00–09:00."
-        ),
-        labels=frozenset({"peak"}),
+        description=description,
+        labels=frozenset({name}),
     )
 
 
@@ -145,7 +164,7 @@ def _verify_effect(row: MatrixRow, seed1: SimulationResult, peak_trips: Path) ->
 
 def build_matrix() -> list[dict[str, object]]:
     network = _dev_net_network()
-    demand = _peak_demand(network.network_id)
+    demand = dev_net_demand(DemandProfile.PEAK, network.network_id)
     net_ref = network.net_xml
     peak_routes_ref = demand.routes
 

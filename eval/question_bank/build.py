@@ -40,7 +40,7 @@ from eval.scenario_matrix.build import (
     DEV_NET_DIR,
     SEEDS,
     _dev_net_network,
-    _peak_demand,
+    dev_net_demand,
 )
 from eval.scenario_matrix.build import DB_PATH as MATRIX_DB_PATH
 from eval.scenario_matrix.rows import ROWS, MatrixRow, build_draft
@@ -57,6 +57,7 @@ from resto.domain.entities.demand import Demand
 from resto.domain.entities.network import Network
 from resto.domain.entities.scenario import Scenario
 from resto.domain.entities.simulation_result import RunStatus, SimulationResult
+from resto.domain.value_objects.demand_spec import DemandProfile
 from resto.domain.value_objects.question import Question
 from resto.domain.value_objects.step_record import Usage
 from resto.domain.value_objects.tasks import ScenarioTask
@@ -160,7 +161,7 @@ def _mean_edgedata_at(
 
 def generate_question_bank() -> list[QuestionBankItem]:
     network = _dev_net_network()
-    demand = _peak_demand(network.network_id)
+    demand = dev_net_demand(DemandProfile.PEAK, network.network_id)
     net_ref = network.net_xml
     peak_routes_ref = demand.routes
 
