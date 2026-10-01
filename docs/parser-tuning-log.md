@@ -51,7 +51,10 @@ called `submit_output`), intent 99.5 %, interventions, topology and metrics 100 
 presence 93.3 %, `time_window` 84.1 %, `network_ref` 98.2 %, consistency 85.2 %. Cost $0.194 real
 ($0.305 estimated), development run.
 
-What the pass shows, not acted on (separate entry below):
+Spent by E3.11 on Parser runs: $0.194 (this pass only).
+
+**v7 findings, not acted on.** A separate entry from the contract change above. No prompt edit goes
+with them until the maintainer decides:
 
 - `time_window` (26 misses on 12 concepts) is one pattern: gold is null and the Parser fills in the
   window of the change ("close C0D0 08:00-08:30", "limited between 8 and 9") or the demand's
