@@ -8,6 +8,9 @@ Status: **v1.0, frozen** together with the architecture document (E0.8, 2026-09-
 is authoritative for tool names, payloads, semantics and error codes; the architecture document
 is authoritative for *why* the model looks like this.
 
+*Amended by [ADR-0036](adr/0036-raw-demand-data-aggregate.md): the optional `historical_demand` group (§5.6, §10
+point 3, the GP-10 row of §2) is replaced by `raw_demand_data`. The body below is not edited until E6.8.*
+
 Scope:
 
 - **In**: the five required capability groups (`networks`, `demands`, `scenarios`, `results`,

@@ -3,7 +3,9 @@
 - Status: Accepted (2026-09-30, E3.7 triage); amended the same day by the E3.11 grilling (points 1, 3, 5
   and 7, consequences). Replaces ADR-0028 decision 4 and the Coordinator half of its decision 3; adds a row
   to ADR-0025 §2; replaces the "`historical_demand` is missing" fallback of the DatabaseMCP contract and
-  GP-10. Built by E3.11
+  GP-10. Built by E3.11. Point 3's line "historical data only with the `historical_demand` capability" and the
+  "left to a separate task" entry on a user sending demand data are superseded by
+  [ADR-0036](0036-raw-demand-data-aggregate.md)
 - Architecture reference: [`tfm-architecture-and-dod.md`](../tfm-architecture-and-dod.md) §2.3 (`Demand`,
   `Question`), §4.2; [ADR-0023](0023-coordinator-split-deterministic-executor.md),
   [ADR-0025](0025-executor-plan-shape-intent-rules-and-failures.md),

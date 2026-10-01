@@ -1,6 +1,7 @@
 # ADR-0006: `Demand` as an aggregate with a calibration loop against control-edge counts
 
-- Status: Accepted
+- Status: Accepted. Its mention of `historical_demand` as a demand source is superseded by
+  [ADR-0036](0036-raw-demand-data-aggregate.md); the calibration loop is unchanged
 - Date: 2026-09-11
 - Architecture reference: [`tfm-architecture-and-dod.md`](../tfm-architecture-and-dod.md) §2.3, §2.4 (Demand Generator)
 
