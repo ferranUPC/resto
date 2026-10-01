@@ -50,7 +50,7 @@
     border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.6); }
   #results.open { display: block; }
   #results div { display: flex; gap: 8px; align-items: baseline; padding: 5px 12px; cursor: pointer; }
-  #results div.on, #results div:hover { background: rgba(176,141,87,.25); }
+  #results div.on, #results div:not(.none):hover { background: rgba(176,141,87,.25); }
   #results .rid { font-weight: 700; color: var(--milestone); white-space: nowrap; }
   #results .rname { color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #results .rmeta { margin-left: auto; color: var(--dim); font-size: 12px; white-space: nowrap; }
@@ -1054,7 +1054,7 @@ function searchTree(query) {
     for (const t of n.tickets)
       entries.push({ id: t.id, name: t.name, task: n.id, ticket: t.id, meta: `ticket · ${t.stage}` });
   }
-  const first = normalize(query).trim();
+  const first = words.join(" ");
   return entries
     .filter(e => { const hay = normalize(`${e.id} ${e.name}`); return words.every(w => hay.includes(w)); })
     .sort((a, b) => (normalize(b.id).startsWith(first) - normalize(a.id).startsWith(first))
@@ -1064,8 +1064,9 @@ function searchTree(query) {
 
 function renderResults() {
   resultsEl.innerHTML = "";
+  hits = []; activeHit = 0;
   if (!searchInput.value.trim()) { resultsEl.classList.remove("open"); return; }
-  hits = searchTree(searchInput.value); activeHit = 0;
+  hits = searchTree(searchInput.value);
   if (!hits.length) text("div", "No matches", resultsEl).className = "none";
   hits.forEach((h, i) => {
     const row = text("div", "", resultsEl);
@@ -1094,19 +1095,20 @@ function goTo(hit) {
   let redraw = false;
   const doneBox = document.getElementById("show-done");
   if (FINISHED.includes(node.stage) && !doneBox.checked) { doneBox.checked = true; redraw = true; }
-  if (node.rail != null && tree.rails[node.rail] && isFolded(tree.rails[node.rail])) {
-    flippedRails.has(tree.rails[node.rail].id) ? flippedRails.delete(tree.rails[node.rail].id)
-      : flippedRails.add(tree.rails[node.rail].id);
+  const rail = tree.rails[node.rail];
+  if (rail && isFolded(rail)) {
+    flippedRails.has(rail.id) ? flippedRails.delete(rail.id) : flippedRails.add(rail.id);
     redraw = true;
   }
   if (redraw) draw();
-  if (isDag(node)) { selected = null; highlight(node.id); } else select(node.id);
-  if (hit.ticket) showTicket(node.id, hit.ticket);
+  if (isDag(node)) { selected = null; highlight(node.id); }
+  else if (hit.ticket) { selected = node.id; highlight(node.id); showTicket(node.id, hit.ticket); }
+  else select(node.id);
   const p = view.pos[node.id];
   if (p) {
-    const w = canvas.clientWidth;
+    // The panel narrows the canvas itself (body.open), so its own width is already the visible one.
     scale = Math.max(scale, 0.8);
-    tx = w / (document.body.classList.contains("open") ? 3 : 2) - (p.x + W / 2) * scale;
+    tx = canvas.clientWidth / 2 - (p.x + p.w / 2) * scale;
     ty = canvas.clientHeight / 2 - (p.y + p.h / 2) * scale;
     apply();
   }
@@ -1123,7 +1125,8 @@ searchInput.addEventListener("keydown", ev => {
   else if (ev.key === "Escape") { searchInput.value = ""; searchInput.blur(); }
 });
 document.addEventListener("keydown", ev => {
-  if (ev.key === "/" && !/^(INPUT|TEXTAREA)$/.test(document.activeElement?.tagName)) {
+  if (ev.key === "/" && !ev.metaKey && !ev.ctrlKey && !document.body.classList.contains("md-open")
+      && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName)) {
     ev.preventDefault(); searchInput.focus();
   }
 });
