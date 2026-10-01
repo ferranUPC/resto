@@ -2,6 +2,10 @@
 
 A short summary of what happened on each working day. The most recent entry comes first, and days with no activity have no entry. `progress-review` adds the new entries.
 
+## 30.09.2026
+
+The Expert now sees a scope of networks instead of one fixed id, so it can answer about an edge a derivation added, and a note's network is derived from its scenario instead of chosen by hand (ADR-0032). A tool contract change, treating an unknown traffic-light id as an answer instead of a failure, lifts diagnostic Jaccard from 0.60 to 0.95 in a one-repetition sweep. Opening the plan bank (E3.7) surfaced a missing rule for choosing between demands on the same network. A demand now carries a required description and labels, and the Coordinator asks instead of defaulting to random traffic when none fits (ADR-0035). SUMO and `duarouter` launches move behind one shared module, and the Scenario Builder's tools join the Network and Expert tools under a single declaration.
+
 ## 29.09.2026
 
 Work focused on refactors and design decisions. A failed SUMO run can now be retried without a conflict, and only an ok result is stored (ADR-0031). The in-memory repositories now answer like SQLite, checked by one shared contract suite. The DatabaseMCP server starts on either backend, in-memory or SQLite (ADR-0034), and the trace has typed events that only the study recorder emits. The Expert's network scope (ADR-0032) and the single declaration of tools (ADR-0033) are recorded, and the network, Scenario Builder and Expert tools are now declared with a decorator.
