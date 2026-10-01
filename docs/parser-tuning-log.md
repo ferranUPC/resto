@@ -34,6 +34,33 @@ All runs: `deepseek/deepseek-v4.1-flash`, 1 repetition, estimated cost at the co
 | v4 | Five general rules from v3's failures: an imperative that sets up changes and asks for a result is `run` even if ambiguous; a bare list of changes is ambiguous even when a combined run looks likely; no contrasts without arms; a combination compared with one of its parts has that part as reference; "or something else" without alternatives is ambiguous. | `v4-dev`, 212 (bank fixes of §3 applied) | validity, intent, interventions, topology, metrics 100 %; ambiguity 98.9 %; arm structure 95.3 %; no spurious ambiguity; consistency 91.1 % | $0.227 |
 | v5 | Intent by meaning, not by the verb (evaluating-resto.md §5, 2026-09-24): `run` = the figures of a given setup with nothing to compare against; `counterfactual` = the effect of changes against today or another named setup ("try X and see", "with and without X"); `compare` = a choice between alternatives, with or without the word. The old "form of the question decides" rule removed. | `v5-dev`, 212 (gold of R035 now `counterfactual`) | every threshold met: validity, interventions, topology, metrics 100 %; intent 96.2 %; ambiguity 98.9 %; arm structure 97.7 %; no spurious ambiguity | $0.241 |
 | v6 | Intent is what the user wants, never what it takes to answer: "run/simulate X and report Y" is `counterfactual`; `run` is kept for an action wanted as an end in itself ("add an edge from J7 to J9"), with no question about its effect; the prompt says whether to simulate is decided later. | `v6-dev`, 212 (the ten `run` concepts now `counterfactual`); +20 requests of the new `run` concepts R066/R067/R070/R071, all correct ($0.020) | every threshold met: validity, interventions, topology, metrics 100 %; intent 99.4 %; ambiguity 97.7 %; arm structure 95.3 %; no spurious ambiguity; consistency 88.9 % | $0.244 |
+| v7 | Contract change (ADR-0035): `demand_ref` as a short English phrase, `time_window` as the period asked about whatever the intent, new `network_only` rule, `network_ref` takes a described network. No other edit. | `v7-dev`, 255 (new bank) | every threshold met: validity 99.6 %, intent 99.5 %, interventions, topology, metrics 100 %, ambiguity 95.6 %, arm structure 100 %; `network_only` 100 %, `demand_ref` 93.3 %, `time_window` 84.1 % (not graded) | $0.194 |
+
+**v7: contract change (ADR-0035), not tuning.** The request bank was rewritten for ADR-0035 (E3.11
+tickets 04 and 05: concepts name a demand or spread it across the text, 3 network-only `describe`
+concepts and one traffic counterexample, 3 concepts on networks outside the database, variants
+regenerated; dev is now 255 requests, it was 212) and the scorer reads `demand_ref` by presence and
+reports `network_only`. The prompt gets four rules and no other edit: `demand_ref` is one short English
+phrase put together from every part of the request that mentions the traffic, never a profile name;
+`time_window` is the period the user asks about, whatever the intent, and a change's time stays on the
+change; a new `network_only` rule that mirrors the `Question` invariants; `network_ref` takes a network
+described rather than named as that short description. Run: `v7-dev`, 255 dev requests, default model,
+held-out not read. Every E5.1 dev threshold is met: validity 99.6 % (the one miss is a run that never
+called `submit_output`), intent 99.5 %, interventions, topology and metrics 100 %, ambiguity detection
+95.6 %, arm structure 100 %. Reported without threshold: `network_only` 100 % (164/164), `demand_ref`
+presence 93.3 %, `time_window` 84.1 %, `network_ref` 98.2 %, consistency 85.2 %. Cost $0.194 real
+($0.305 estimated), development run.
+
+What the pass shows, not acted on (separate entry below):
+
+- `time_window` (26 misses on 12 concepts) is one pattern: gold is null and the Parser fills in the
+  window of the change ("close C0D0 08:00-08:30", "limited between 8 and 9") or the demand's
+  usual period (08:00-09:00 for "rush hour"). The new "whatever the intent" wording is read as "always
+  fill it". Whether those concepts' gold or the rule needs the fix is for the maintainer to decide.
+- `demand_ref` presence misses sit on R002, R008, R077 and R078 (11 requests).
+- Remaining failures on the graded metrics: 5. Four miss ambiguity detection on bare lists of changes
+  (R020.de-vague_grouping, R024.es-vague_grouping, R041.en-messy, R044.zh, the last one also a run
+  without `submit_output`) and R026.en-telegraphic reads the wrong intent. Same families as v6.
 
 Remaining v6 failures on dev (5): R035.zh read as `compare` (its text says "compare the current
 network with a version…", an effect with nothing to choose); R020.de-vague_grouping and R044.zh

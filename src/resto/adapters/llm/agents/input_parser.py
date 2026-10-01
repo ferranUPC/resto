@@ -23,7 +23,7 @@ from resto.domain.value_objects.question import Question
 
 # Bump whenever the prompt or the budget changes in a way that can change parses: every benchmark
 # run records it (eval/parser_benchmark).
-PARSER_VERSION = "v6"
+PARSER_VERSION = "v7"
 
 PARSER_MAX_STEPS = 2
 PARSER_MAX_OUTPUT_TOKENS = 4096
@@ -60,12 +60,17 @@ FIELDS
     ambiguous.
 - mode: "free", unless the user explicitly asks for an answer from existing results only, without
   running any new simulation: then "forced".
-- network_ref: the network the user names, verbatim (e.g. "RIVERSIDE"); null if none.
-- demand_ref: "peak" when the user refers to the peak hour, rush hour or peak demand (in any
-  language); "low" for low demand; otherwise null. The peak is a demand, not a time.
-- time_window: only for describe/diagnose questions about a clock period: {{"start": s, "end": s}}
-  in seconds since midnight (06:00 = 21600, 17:30 = 63000). Otherwise null; the time of a change
-  goes on the change itself.
+- network_ref: the network the user names, verbatim (e.g. "RIVERSIDE"); null if none. A network
+  described rather than named ("a 4x4 grid") goes as that short description.
+- demand_ref: what the request says about the traffic, as one short English phrase put together
+  from every part of the request that mentions it ("a typical Monday", "rush-hour traffic",
+  "random traffic"); never a profile name; null if the request says nothing about the traffic.
+- time_window: the period the user asks about, whatever the intent: {{"start": s, "end": s}} in
+  seconds since midnight (06:00 = 21600, 17:30 = 63000). Null if the user names no period. The
+  time of a change stays on the change itself, not here.
+- network_only: true only for a describe question about the network alone ("how many lanes has
+  X?") that has no demand_ref, no time_window, no metrics, no changes and no arms. A question
+  about traffic ("is X usually congested?") is false, as is every other intent. Default false.
 - metrics_of_interest: the measures the user asks for, with these names only.
   Per edge: {_EDGE_MEASURES}. Network-wide: {_NETWORK_MEASURES}.
   The network's mean delay -> mean_delay; delay on an edge -> time_loss; waiting time ->

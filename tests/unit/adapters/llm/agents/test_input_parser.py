@@ -72,3 +72,10 @@ def test_a_run_without_a_question_is_passed_through() -> None:
 def test_the_prompt_names_every_measure_and_intervention_type() -> None:
     for name in (*(m.value for m in Measure), *(t.value for t in InterventionType)):
         assert name in SYSTEM_PROMPT
+
+
+def test_the_prompt_states_the_adr_0035_rules_and_no_profile_name() -> None:
+    assert "- network_only:" in SYSTEM_PROMPT
+    assert "one short English phrase" in SYSTEM_PROMPT
+    assert "whatever the intent" in SYSTEM_PROMPT
+    assert '"peak" when' not in SYSTEM_PROMPT
