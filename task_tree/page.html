@@ -40,6 +40,21 @@
   #toolbar button { background: rgba(0,0,0,.2); border: 1px solid var(--line); border-radius: 5px;
     padding: 2px 10px; }
   #toolbar button:hover, #toolbar label:hover { color: var(--fg); border-color: var(--brass); }
+  #search-box { position: relative; }
+  #search { width: 230px; background: rgba(0,0,0,.25); color: var(--fg); border: 1px solid var(--line);
+    border-radius: 5px; padding: 3px 9px; font: 14px var(--text); }
+  #search:focus { outline: none; border-color: var(--milestone); }
+  #search::placeholder { color: var(--dim); }
+  #results { position: absolute; top: calc(100% + 8px); left: 0; width: 420px; max-height: 60vh;
+    overflow-y: auto; display: none; background-color: #2b1d13; border: 1px solid var(--line);
+    border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.6); }
+  #results.open { display: block; }
+  #results div { display: flex; gap: 8px; align-items: baseline; padding: 5px 12px; cursor: pointer; }
+  #results div.on, #results div:hover { background: rgba(176,141,87,.25); }
+  #results .rid { font-weight: 700; color: var(--milestone); white-space: nowrap; }
+  #results .rname { color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #results .rmeta { margin-left: auto; color: var(--dim); font-size: 12px; white-space: nowrap; }
+  #results .none { color: var(--muted); cursor: default; }
   #legend { position: fixed; bottom: 12px; left: 12px; z-index: 2; display: flex; gap: 12px;
     flex-wrap: wrap; padding: 7px 14px; background-color: #2b1d13;
     border: 1px solid var(--line); border-radius: 8px; font-size: 13px; color: var(--muted); }
@@ -188,6 +203,10 @@
   <h1>RESTO Tech Tree</h1>
   <label><input type="checkbox" id="show-done" checked> Completed</label>
   <label><input type="checkbox" id="all-edges"> All edges</label>
+  <div id="search-box">
+    <input id="search" type="search" placeholder="Search by ID or name  ( / )" autocomplete="off" spellcheck="false">
+    <div id="results"></div>
+  </div>
   <button id="fit">Fit</button>
   <button id="refresh" title="Re-read the specs and the tracker">Refresh</button>
 </div>
@@ -1017,6 +1036,96 @@ async function showTicket(taskId, ticketId) {
 document.getElementById("close").addEventListener("click", () => {
   document.body.classList.remove("open");
   selected = null; highlight(null);
+});
+
+/* ---------- search ---------- */
+
+const searchInput = document.getElementById("search"), resultsEl = document.getElementById("results");
+let hits = [], activeHit = 0;
+const normalize = t => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+// Every task and ticket whose ID or name contains all the typed words. An ID prefix ranks first.
+function searchTree(query) {
+  const words = normalize(query).split(/\s+/).filter(Boolean);
+  if (!tree || !words.length) return [];
+  const entries = [];
+  for (const n of tree.nodes) {
+    entries.push({ id: n.id, name: n.name, task: n.id, meta: isDag(n) ? n.kind : n.stage });
+    for (const t of n.tickets)
+      entries.push({ id: t.id, name: t.name, task: n.id, ticket: t.id, meta: `ticket · ${t.stage}` });
+  }
+  const first = normalize(query).trim();
+  return entries
+    .filter(e => { const hay = normalize(`${e.id} ${e.name}`); return words.every(w => hay.includes(w)); })
+    .sort((a, b) => (normalize(b.id).startsWith(first) - normalize(a.id).startsWith(first))
+      || (!!a.ticket - !!b.ticket))
+    .slice(0, 30);
+}
+
+function renderResults() {
+  resultsEl.innerHTML = "";
+  if (!searchInput.value.trim()) { resultsEl.classList.remove("open"); return; }
+  hits = searchTree(searchInput.value); activeHit = 0;
+  if (!hits.length) text("div", "No matches", resultsEl).className = "none";
+  hits.forEach((h, i) => {
+    const row = text("div", "", resultsEl);
+    if (!i) row.className = "on";
+    text("span", h.id, row).className = "rid";
+    text("span", h.name, row).className = "rname";
+    text("span", h.meta, row).className = "rmeta";
+    row.addEventListener("mousedown", ev => { ev.preventDefault(); goTo(h); });
+  });
+  resultsEl.classList.add("open");
+}
+
+function moveHit(delta) {
+  if (!hits.length) return;
+  const rows = resultsEl.children;
+  rows[activeHit].classList.remove("on");
+  activeHit = (activeHit + delta + hits.length) % hits.length;
+  rows[activeHit].classList.add("on");
+  rows[activeHit].scrollIntoView({ block: "nearest" });
+}
+
+// Unfold the task's rail and show finished tasks if they are hidden, then select it and centre on it.
+function goTo(hit) {
+  const node = tree.nodes.find(n => n.id === hit.task);
+  if (!node) return;
+  let redraw = false;
+  const doneBox = document.getElementById("show-done");
+  if (FINISHED.includes(node.stage) && !doneBox.checked) { doneBox.checked = true; redraw = true; }
+  if (node.rail != null && tree.rails[node.rail] && isFolded(tree.rails[node.rail])) {
+    flippedRails.has(tree.rails[node.rail].id) ? flippedRails.delete(tree.rails[node.rail].id)
+      : flippedRails.add(tree.rails[node.rail].id);
+    redraw = true;
+  }
+  if (redraw) draw();
+  if (isDag(node)) { selected = null; highlight(node.id); } else select(node.id);
+  if (hit.ticket) showTicket(node.id, hit.ticket);
+  const p = view.pos[node.id];
+  if (p) {
+    const w = canvas.clientWidth;
+    scale = Math.max(scale, 0.8);
+    tx = w / (document.body.classList.contains("open") ? 3 : 2) - (p.x + W / 2) * scale;
+    ty = canvas.clientHeight / 2 - (p.y + p.h / 2) * scale;
+    apply();
+  }
+  searchInput.value = ""; resultsEl.classList.remove("open"); searchInput.blur();
+}
+
+searchInput.addEventListener("input", renderResults);
+searchInput.addEventListener("focus", renderResults);
+searchInput.addEventListener("blur", () => resultsEl.classList.remove("open"));
+searchInput.addEventListener("keydown", ev => {
+  if (ev.key === "ArrowDown") { ev.preventDefault(); moveHit(1); }
+  else if (ev.key === "ArrowUp") { ev.preventDefault(); moveHit(-1); }
+  else if (ev.key === "Enter" && hits[activeHit]) goTo(hits[activeHit]);
+  else if (ev.key === "Escape") { searchInput.value = ""; searchInput.blur(); }
+});
+document.addEventListener("keydown", ev => {
+  if (ev.key === "/" && !/^(INPUT|TEXTAREA)$/.test(document.activeElement?.tagName)) {
+    ev.preventDefault(); searchInput.focus();
+  }
 });
 
 makeArrows();
