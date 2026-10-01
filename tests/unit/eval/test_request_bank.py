@@ -314,3 +314,93 @@ def test_review_lists_failures() -> None:
     record = generate_variant(concept, spec, FakeChat(verdict='{"same_meaning": false}'), MODELS)
     review = render_review({record.id: record})
     assert f"`{record.id}` — FAIL" in review
+
+
+def test_network_only_concepts_ask_about_the_network_alone() -> None:
+    network_only = [
+        c for c in CONCEPTS if isinstance(c.gold, Question) and c.gold.network_only
+    ]
+    assert [c.id for c in network_only] == ["R074", "R075", "R076"]
+    assert {c.gold.intent for c in network_only} == {Intent.DESCRIBE}
+
+
+def test_the_usually_congested_counterexample_is_a_traffic_question() -> None:
+    gold = concept_by_id("R077").gold
+    assert isinstance(gold, Question)
+    assert gold.intent is Intent.DESCRIBE
+    assert not gold.network_only
+    assert gold.demand_ref is not None
+
+
+def test_networks_not_in_the_database_are_named_verbatim() -> None:
+    refs = {}
+    for cid in ("R078", "R079", "R080"):
+        gold = concept_by_id(cid).gold
+        assert isinstance(gold, Question)
+        refs[cid] = gold.network_ref
+    assert refs == {"R078": "Berlin-Mitte", "R079": "Eixample", "R080": "4x4 grid"}
+
+
+def test_new_concepts_are_placed_by_hand_in_held_out() -> None:
+    new = [f"R0{n}" for n in range(74, 81)]
+    assert {cid for cid in new if SPLITS[cid] == "held_out"} == {"R075", "R079"}
+
+
+# Left without a demand on purpose, one or two per intent (ADR-0035).
+_NO_DEMAND_ON_PURPOSE = {"R006", "R009", "R013", "R021", "R071"}
+# Edits to the network alone: no traffic content, so nothing to name.
+_NETWORK_EDITS_ONLY = {"R066", "R068", "R070"}
+
+
+def test_every_traffic_question_names_a_demand_except_the_ones_left_out_on_purpose() -> None:
+    unnamed = {
+        c.id for c in CONCEPTS
+        if isinstance(c.gold, Question) and not c.gold.network_only and c.gold.demand_ref is None
+    }
+    assert unnamed == _NO_DEMAND_ON_PURPOSE | _NETWORK_EDITS_ONLY
+
+
+def test_the_concepts_that_already_named_a_demand_keep_their_phrase() -> None:
+    kept = {
+        "R002": "peak", "R007": "peak", "R008": "peak", "R015": "peak", "R019": "low",
+        "R020": "peak", "R031": "peak", "R036": "peak", "R067": "peak", "R069": "low",
+        "R073": "peak",
+    }
+    refs = {}
+    for cid in kept:
+        gold = concept_by_id(cid).gold
+        assert isinstance(gold, Question)
+        refs[cid] = gold.demand_ref
+    assert refs == kept
+
+
+def test_some_concepts_name_a_demand_dev_net_cannot_serve_without_historical_demand() -> None:
+    historical = {
+        c.id for c in CONCEPTS
+        if isinstance(c.gold, Question)
+        and c.gold.demand_ref
+        and ("typical Monday" in c.gold.demand_ref or "Saturday" in c.gold.demand_ref)
+    }
+    assert historical == {"R001", "R010", "R012", "R018", "R024", "R072"}
+
+
+def test_the_concepts_flagged_as_spread_carry_their_demand_in_pieces() -> None:
+    spread = {c.id for c in CONCEPTS if c.spread_demand}
+    assert spread == {"R004", "R016", "R033", "R035"}
+    for cid in spread:
+        gold = concept_by_id(cid).gold
+        assert isinstance(gold, Question)
+        assert gold.demand_ref is not None
+        assert gold.demand_ref not in gold.text
+
+
+def test_only_a_concept_with_a_demand_can_be_flagged_as_spread() -> None:
+    with pytest.raises(ValueError):
+        _concept(spread_demand=True)
+
+
+def test_a_spread_concept_does_not_carry_its_demand_phrase_whole() -> None:
+    text = "Close lane 1 of B0C0 for peak traffic."
+    gold = Question(text=text, intent=Intent.COUNTERFACTUAL, demand_ref="peak traffic")
+    with pytest.raises(ValueError):
+        _concept(text=text, gold=gold, spread_demand=True)
