@@ -142,6 +142,43 @@
   #launch-status { font-size: 12px; color: var(--muted); }
   #close { position: absolute; top: 12px; right: 14px; background: none; border: 0;
     color: var(--muted); font-size: 20px; cursor: pointer; }
+
+  #md-backdrop { position: fixed; inset: 0; z-index: 5; display: none; align-items: center;
+    justify-content: center; background: rgba(8,5,2,.72); }
+  body.md-open #md-backdrop { display: flex; }
+  #md-modal { position: relative; width: min(1100px, 94vw); height: 92vh; display: flex; flex-direction: column;
+    background-color: #22170f; border: 2px solid var(--line); border-radius: 10px;
+    background-image: linear-gradient(180deg, rgba(255,225,170,.06), rgba(0,0,0,.18));
+    box-shadow: inset 0 1px 0 rgba(255,225,170,.14), 0 12px 48px rgba(0,0,0,.7); }
+  #md-bar { display: flex; align-items: center; gap: 10px; padding: 12px 18px;
+    border-bottom: 1px solid rgba(176,141,87,.3); }
+  #md-title { flex: 1; margin: 0; font: 600 18px/1.25 var(--serif); font-variation-settings: "SOFT" 100, "WONK" 1;
+    color: var(--milestone); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #md-bar button { background: rgba(0,0,0,.2); color: var(--muted); border: 1px solid var(--line);
+    border-radius: 5px; padding: 2px 10px; font: 14px var(--text); cursor: pointer; }
+  #md-bar button:hover, #md-bar button.on { color: var(--fg); border-color: var(--brass); }
+  #md-bar button.on { background: rgba(176,141,87,.25); }
+  #md-body { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 32px 32px; font-size: 16px; line-height: 1.55; }
+  #md-body h1, #md-body h2, #md-body h3, #md-body h4 { font-family: var(--serif); color: var(--brass);
+    font-variation-settings: "SOFT" 100, "WONK" 1; line-height: 1.25; }
+  #md-body h1 { color: var(--milestone); font-size: 26px; margin: 18px 0 10px; }
+  #md-body h2 { font-size: 20px; margin: 26px 0 8px; border-bottom: 1px solid rgba(176,141,87,.3); padding-bottom: 3px; }
+  #md-body h3 { font-size: 17px; margin: 20px 0 6px; }
+  #md-body h4 { font-size: 15px; margin: 16px 0 4px; }
+  #md-body p { margin: 8px 0; }
+  #md-body ul, #md-body ol { margin: 6px 0; padding-left: 24px; }
+  #md-body a { color: #e3b96f; }
+  #md-body code { font: 13.5px ui-monospace, Menlo, monospace; background: rgba(0,0,0,.3);
+    padding: 1px 5px; border-radius: 4px; }
+  #md-body pre { background: rgba(0,0,0,.35); border: 1px solid rgba(176,141,87,.2); border-radius: 6px;
+    padding: 10px 14px; overflow-x: auto; }
+  #md-body pre code { background: none; padding: 0; }
+  #md-body blockquote { margin: 8px 0; padding: 2px 14px; border-left: 3px solid var(--brass); color: var(--muted); }
+  #md-body table { border-collapse: collapse; margin: 10px 0; font-size: 14.5px; }
+  #md-body th, #md-body td { border: 1px solid rgba(176,141,87,.3); padding: 4px 10px; vertical-align: top; }
+  #md-body th { background: rgba(0,0,0,.25); text-align: left; }
+  #md-body hr { border: 0; border-top: 1px solid rgba(176,141,87,.3); margin: 18px 0; }
+  #md-body.raw { white-space: pre-wrap; font: 13.5px/1.5 ui-monospace, Menlo, monospace; }
   #warning { position: fixed; bottom: 56px; left: 12px; right: 12px; color: #fbbf24; }
   #error { position: fixed; bottom: 8px; left: 12px; color: #f87171; }
 </style>
@@ -182,6 +219,12 @@
   <g id="viewport"></g>
 </svg>
 <div id="panel"><button id="close" title="Close">×</button><div id="detail"></div></div>
+<div id="md-backdrop"><div id="md-modal">
+  <div id="md-bar"><h2 id="md-title"></h2>
+    <button id="md-rendered" class="on">Rendered</button><button id="md-raw">Raw</button>
+    <button id="md-close" title="Close (Esc)">×</button></div>
+  <div id="md-body"></div>
+</div></div>
 <div id="warning"></div>
 <div id="error"></div>
 <script>
@@ -797,6 +840,89 @@ document.getElementById("fit").addEventListener("click", fit);
 document.getElementById("show-done").addEventListener("change", () => { draw(); fit(); });
 document.getElementById("all-edges").addEventListener("change", () => view && applyEdgeMode());
 
+/* ---------- markdown viewer ---------- */
+
+const escapeHtml = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+function inlineMd(raw) {
+  // Code spans and links are stashed first so emphasis markers inside them (snake_case URLs) stay literal.
+  const stash = [];
+  const keep = html => { stash.push(html); return `\u0000${stash.length - 1}\u0000`; };
+  let s = escapeHtml(raw).replace(/`([^`]+)`/g, (_, c) => keep(`<code>${c}</code>`));
+  s = s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_, label, url) =>
+    /^(https?:|mailto:|#)/.test(url) ? keep(`<a href="${url}" target="_blank" rel="noopener">`) + label + keep("</a>") : label);
+  s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/(^|[^\w])__([^_]+)__(?!\w)/g, "$1<strong>$2</strong>")
+    .replace(/~~([^~]+)~~/g, "<del>$1</del>")
+    .replace(/(^|[^*\w])\*([^*\s][^*]*)\*(?!\w)/g, "$1<em>$2</em>")
+    .replace(/(^|[^_\w])_([^_\s][^_]*)_(?!\w)/g, "$1<em>$2</em>");
+  return s.replace(/\u0000(\d+)\u0000/g, (_, i) => stash[i]);
+}
+function renderMarkdown(src) {
+  const lines = src.replace(/\r\n/g, "\n").split("\n"), out = [];
+  const cells = l => l.trim().replace(/^\||\|$/g, "").split("|").map(c => c.trim());
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    let m;
+    if ((m = line.match(/^(\s*)(`{3,}|~{3,})/))) {
+      const fence = m[2], buf = []; i++;
+      while (i < lines.length && !lines[i].trim().startsWith(fence)) buf.push(lines[i++]);
+      i++; out.push(`<pre><code>${escapeHtml(buf.join("\n"))}</code></pre>`);
+    } else if (!line.trim()) { i++;
+    } else if ((m = line.match(/^(#{1,4})\s+(.*)$/))) {
+      out.push(`<h${m[1].length}>${inlineMd(m[2])}</h${m[1].length}>`); i++;
+    } else if (/^\s*([-*_])(\s*\1){2,}\s*$/.test(line)) { out.push("<hr>"); i++;
+    } else if (/^\s*>/.test(line)) {
+      const buf = [];
+      while (i < lines.length && /^\s*>/.test(lines[i])) buf.push(lines[i++].replace(/^\s*>\s?/, ""));
+      out.push(`<blockquote>${renderMarkdown(buf.join("\n"))}</blockquote>`);
+    } else if (line.includes("|") && i + 1 < lines.length && /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/.test(lines[i + 1])) {
+      const head = cells(line); i += 2; const rows = [];
+      while (i < lines.length && lines[i].includes("|") && lines[i].trim()) rows.push(cells(lines[i++]));
+      out.push("<table><thead><tr>" + head.map(c => `<th>${inlineMd(c)}</th>`).join("") + "</tr></thead><tbody>"
+        + rows.map(r => "<tr>" + r.map(c => `<td>${inlineMd(c)}</td>`).join("") + "</tr>").join("") + "</tbody></table>");
+    } else if (/^\s*([-*+]|\d+\.)\s+/.test(line)) {
+      const ordered = /^\s*\d+\./.test(line), items = [];
+      while (i < lines.length && (/^\s*([-*+]|\d+\.)\s+/.test(lines[i]) || (/^\s+\S/.test(lines[i]) && items.length))) {
+        const li = lines[i++].match(/^\s*([-*+]|\d+\.)\s+(.*)$/);
+        if (li) items.push(li[2]); else items[items.length - 1] += " " + lines[i - 1].trim();
+      }
+      const tag = ordered ? "ol" : "ul";
+      out.push(`<${tag}>` + items.map(t => `<li>${inlineMd(t.replace(/^\[( |x)\]\s/i, (_, c) => c === " " ? "\u2610 " : "\u2611 "))}</li>`).join("") + `</${tag}>`);
+    } else {
+      const buf = [];
+      while (i < lines.length && lines[i].trim() && !/^(#{1,4}\s|\s*>|\s*(`{3,}|~{3,})|\s*([-*+]|\d+\.)\s)/.test(lines[i])) buf.push(lines[i++]);
+      if (!buf.length) buf.push(lines[i++]);
+      out.push(`<p>${inlineMd(buf.join(" "))}</p>`);
+    }
+  }
+  return out.join("\n");
+}
+const mdBody = document.getElementById("md-body");
+let mdSource = "";
+function setMdMode(raw) {
+  mdBody.className = raw ? "raw" : "";
+  if (raw) mdBody.textContent = mdSource; else mdBody.innerHTML = renderMarkdown(mdSource);
+  document.getElementById("md-rendered").classList.toggle("on", !raw);
+  document.getElementById("md-raw").classList.toggle("on", raw);
+  mdBody.scrollTop = 0;
+}
+function openMarkdown(title, source) {
+  mdSource = source; document.getElementById("md-title").textContent = title;
+  setMdMode(false); document.body.classList.add("md-open");
+}
+function closeMarkdown() { document.body.classList.remove("md-open"); }
+document.getElementById("md-rendered").addEventListener("click", () => setMdMode(false));
+document.getElementById("md-raw").addEventListener("click", () => setMdMode(true));
+document.getElementById("md-close").addEventListener("click", closeMarkdown);
+document.getElementById("md-backdrop").addEventListener("click", ev => { if (ev.target.id === "md-backdrop") closeMarkdown(); });
+document.addEventListener("keydown", ev => { if (ev.key === "Escape") closeMarkdown(); });
+function markdownButton(label, title, source, parent, small) {
+  const b = document.createElement("button"); parent.insertBefore(b, parent.querySelector("#launch-status"));
+  b.textContent = label; b.className = "launch" + (small ? " small" : "");
+  b.addEventListener("click", ev => { ev.stopPropagation(); openMarkdown(title, source); }); return b;
+}
+
 /* ---------- side panel ---------- */
 
 const detail = document.getElementById("detail");
@@ -856,6 +982,7 @@ async function showTask(id) {
     if (d.has_spec && NEXT_LABELS[d.stage] && (d.stage !== "ticketed" || takeable))
       launchButton(NEXT_LABELS[d.stage], { id: d.id, action: "next" }, actions);
     if (d.stage !== "done" && d.has_spec) launchButton("Grill", { id: d.id, action: "grill" }, actions);
+    if (d.markdown) markdownButton("View spec", `${d.id} ${d.name} · spec.md`, d.markdown, actions);
     if (d.plan_excerpt) { text("h3", "Work plan", detail); text("div", d.plan_excerpt, detail); }
     if (d.tickets.length) {
       text("h3", "Tickets", detail);
@@ -880,7 +1007,9 @@ async function showTicket(taskId, ticketId) {
     const dl = document.createElement("dl"); detail.appendChild(dl);
     field(dl, "Status", d.stage + (d.blocked ? " (blocked)" : ""));
     field(dl, "Blocked by", d.blocked_by);
-    launchButton("Implement", { id: d.task_id, action: "ticket", ticket: d.id }, actionsBar());
+    const bar = actionsBar();
+    launchButton("Implement", { id: d.task_id, action: "ticket", ticket: d.id }, bar);
+    if (d.markdown) markdownButton("View ticket", `${d.task_id} · ${d.id} - ${d.name}`, d.markdown, bar);
     if (d.question) { text("h3", "Question", detail); text("div", d.question, detail).className = "notes"; }
   } catch (err) { detail.textContent = "Could not load the ticket: " + err; }
 }

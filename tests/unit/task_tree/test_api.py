@@ -392,6 +392,7 @@ def test_a_task_detail_carries_its_stage_spec_header_and_tickets(base_url):
     assert (detail["points"], detail["latest_due"]) == ("12", "11 Dec")
     assert detail["measured_in"] == "V2 · EXP-01"
     assert [t["id"] for t in detail["tickets"]] == ["01", "02"]
+    assert detail["markdown"].startswith("# ")
 
 
 def test_a_done_task_absent_from_scratch_still_shows_what_the_plan_and_tracker_hold(base_url):
@@ -407,6 +408,7 @@ def test_a_ticket_detail_carries_its_question_status_and_blockers(base_url):
     status, detail = _get(base_url, "/api/task/E2.4/ticket/02")
     assert status == 200 and detail is not None
     assert detail["question"] == "Do the second thing."
+    assert "Do the second thing." in detail["markdown"]
     assert (detail["stage"], detail["blocked_by"], detail["task_id"]) == ("ready", ["01"], "E2.4")
 
 

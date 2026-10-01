@@ -634,6 +634,7 @@ def task_detail(scratch: Path, tracker: Path, plan: Path, task_id: str) -> dict[
         ),
         "tickets": task.tickets,
         "warnings": task.warnings,
+        "markdown": spec_text or None,
     }
 
 
@@ -662,4 +663,5 @@ def ticket_detail(
         "blocked": ticket["blocked"],
         "blocked_by": ticket["blocked_by"],
         "question": question.group(1).strip() if question else None,
+        "markdown": text,
     }
