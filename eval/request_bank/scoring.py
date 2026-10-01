@@ -231,8 +231,8 @@ class RequestScore:
     required_arms: bool | None = None
     used_shorthand: bool | None = None
     network_ref: bool | None = None
+    # Presence: gold and prediction both null or both not null, whatever the wording.
     demand_ref: bool | None = None
-    """Presence: gold and prediction both null or both not null, whatever the wording."""
     network_only: bool | None = None
     time_window: bool | None = None
 
@@ -247,6 +247,10 @@ def _union_changes(question: Question) -> list[TopologyModification]:
 
 def _same_ref(a: str | None, b: str | None) -> bool:
     return (a or "").strip().lower() == (b or "").strip().lower()
+
+
+def _same_presence(a: str | None, b: str | None) -> bool:
+    return (a is None) == (b is None)
 
 
 def score_request(
@@ -297,7 +301,7 @@ def score_request(
         required_arms=required,
         used_shorthand=not pred.arms if len(gold.effective_arms) == 1 else None,
         network_ref=_same_ref(gold.network_ref, pred.network_ref),
-        demand_ref=(gold.demand_ref is None) == (pred.demand_ref is None),
+        demand_ref=_same_presence(gold.demand_ref, pred.demand_ref),
         network_only=gold.network_only == pred.network_only,
         time_window=gold.time_window == pred.time_window,
     )
