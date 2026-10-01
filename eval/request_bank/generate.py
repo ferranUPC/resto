@@ -149,6 +149,12 @@ def _gold_summary(concept: Concept) -> str:
     return "\n".join(describe_question(gold))
 
 
+def _spread_mark(record: VariantRecord) -> str:
+    if record.demand_still_spread is None:
+        return "not checked (set `demand_still_spread` to true or false in `variants.json`)"
+    return "yes" if record.demand_still_spread else "no, merged (kept in the bank, marked)"
+
+
 def render_review(records: dict[str, VariantRecord]) -> str:
     rng = random.Random(0)
     lines = ["# Request bank — variant review", ""]
@@ -159,7 +165,7 @@ def render_review(records: dict[str, VariantRecord]) -> str:
         f"verification, total cost ${sum(r.cost_usd for r in records.values()):.4f}.",
         "",
         "Review every **FAIL** and every **SAMPLE**; fix a variant by editing its `text` in "
-        "`variants.json`.",
+        "`variants.json`. For a spread-demand concept, also record `demand_still_spread`.",
         "",
     ]
     for concept in CONCEPTS:
@@ -185,6 +191,8 @@ def render_review(records: dict[str, VariantRecord]) -> str:
             lines.append(f"### `{r.id}` — {tag}")
             lines.append("")
             lines.append(f"- text: {r.text}")
+            if concept.spread_demand:
+                lines.append(f"- demand still spread: {_spread_mark(r)}")
             if r.back_translation:
                 lines.append(f"- back-translation: {r.back_translation}")
             for d in r.differences:

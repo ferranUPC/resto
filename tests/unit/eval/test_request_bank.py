@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import Counter
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 import pytest
@@ -22,7 +22,13 @@ from eval.request_bank.concepts import (
 )
 from eval.request_bank.generate import load_variants, pending, render_review, run, save_variants
 from eval.request_bank.noise import add_typos, strip_accents
-from eval.request_bank.pipeline import Models, Reply, generate_variant, parse_verdict
+from eval.request_bank.pipeline import (
+    Models,
+    Reply,
+    generate_variant,
+    parse_verdict,
+    rewrite_prompt,
+)
 
 from resto.application.schemas import adapter_for
 from resto.domain.value_objects.question import Intent, Question
@@ -404,3 +410,59 @@ def test_a_spread_concept_does_not_carry_its_demand_phrase_whole() -> None:
     gold = Question(text=text, intent=Intent.COUNTERFACTUAL, demand_ref="peak traffic")
     with pytest.raises(ValueError):
         _concept(text=text, gold=gold, spread_demand=True)
+
+
+def _spread_concept() -> Concept:
+    text = "At peak hours, close lane 1 of B0C0 on DEV-NET. The traffic is the random kind."
+    gold = Question(
+        text=text, intent=Intent.COUNTERFACTUAL, demand_ref="random peak traffic"
+    )
+    return _concept(text=text, gold=gold, spread_demand=True)
+
+
+def test_the_generator_is_told_to_keep_spread_demand_pieces_in_place() -> None:
+    concept = _spread_concept()
+    chat = FakeChat()
+    generate_variant(concept, concept.variants[0], chat, MODELS)
+    prompt = next(user for model, user in chat.calls if model == "gen")
+    assert "Keep each piece where it is" in prompt
+
+
+def test_the_generator_gets_no_spread_instruction_for_other_concepts() -> None:
+    concept = _concept()
+    chat = FakeChat()
+    generate_variant(concept, concept.variants[0], chat, MODELS)
+    assert all("Keep each piece" not in user for _, user in chat.calls)
+    assert "Keep each piece" not in rewrite_prompt(concept.text, concept.variants[0])
+
+
+def test_review_asks_whether_the_demand_is_still_spread_only_for_spread_concepts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from eval.request_bank import generate
+
+    spread = _spread_concept()
+    plain = _concept(id="T002")
+    monkeypatch.setattr(generate, "CONCEPTS", (spread, plain))
+    monkeypatch.setattr(generate, "SPLITS", {"T001": "dev", "T002": "dev"})
+    records = {
+        r.id: r
+        for r in (generate_variant(c, c.variants[0], FakeChat(), MODELS) for c in (spread, plain))
+    }
+    review = render_review(records)
+    assert review.count("demand still spread:") == 1
+    assert "demand still spread: not checked" in review
+
+    merged = replace(records["T001.ca"], demand_still_spread=False)
+    assert "no, merged" in render_review({**records, "T001.ca": merged})
+
+
+def test_the_spread_check_survives_a_save_and_load(tmp_path: Path) -> None:
+    concept = _spread_concept()
+    record = replace(
+        generate_variant(concept, concept.variants[0], FakeChat(), MODELS),
+        demand_still_spread=False,
+    )
+    path = tmp_path / "variants.json"
+    save_variants({record.id: record}, path)
+    assert load_variants(path)[record.id].demand_still_spread is False

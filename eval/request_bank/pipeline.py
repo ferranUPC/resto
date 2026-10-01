@@ -11,7 +11,7 @@ from typing import Any, Protocol
 from eval.request_bank.concepts import LANGUAGES, Concept, Noise, Style, Vague, VariantSpec
 from eval.request_bank.noise import add_typos, strip_accents
 
-PROMPT_VERSION = "v2"
+PROMPT_VERSION = "v3"
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,6 +49,9 @@ class VariantRecord:
     cost_usd: float = 0.0
     notes: tuple[str, ...] = ()
     verifier_output: str | None = None
+    demand_still_spread: bool | None = None
+    """Set by the reviewer for a variant of a spread-demand concept: does it still say the demand in
+    pieces? `False` marks a merged variant; it stays in the bank."""
 
 
 _GENERATOR_SYSTEM = (
@@ -77,8 +80,9 @@ _STYLE = {
 }
 
 _EXACT = (
-    "Keep exactly the same meaning: every network or place, edge, lane, time, value and every "
-    "requested measure must still be recoverable without guessing, and changes that are compared "
+    "Keep exactly the same meaning: every network or place, edge, lane, time, value, every "
+    "requested measure and any description of the traffic must still be recoverable without "
+    "guessing, and changes that are compared "
     "must stay compared while changes applied together stay together. Do not add information. "
     "You may express times, numbers, units and places in any natural way a person would (for "
     "example '8 in the morning', 'the street from B0 to C0', '8.3 m/s')."
@@ -118,14 +122,21 @@ _VERIFIER_SYSTEM = (
 )
 
 _COMPARED = (
-    "the network or place; every edge, lane and junction; every time and duration; every "
-    "numeric value (a unit conversion is fine if the value is equivalent); whether several "
+    "the network or place; the description of the traffic (demand), if any; every edge, lane and "
+    "junction; every time and duration; "
+    "every numeric value (a unit conversion is fine if the value is equivalent); whether several "
     "changes are applied together or compared; which measures are asked for; what kind of "
     "question it is. Ignore style, register, spelling and language."
 )
 
 
-def rewrite_prompt(base: str, spec: VariantSpec) -> str:
+_KEEP_SPREAD = (
+    "The request describes the traffic demand in separate pieces placed in different parts of the "
+    "text. Keep each piece where it is, and do not gather them into one phrase."
+)
+
+
+def rewrite_prompt(base: str, spec: VariantSpec, spread_demand: bool = False) -> str:
     lines = [
         f"Write it in {LANGUAGES[spec.lang]}." if spec.lang != "en" else "Keep it in English."
     ]
@@ -135,6 +146,8 @@ def rewrite_prompt(base: str, spec: VariantSpec) -> str:
         lines.append(_VAGUE[spec.vague] + " Keep everything else exactly as it is.")
     else:
         lines.append(_EXACT)
+    if spread_demand:
+        lines.append(_KEEP_SPREAD)
     return "Rewrite this request.\n" + "\n".join(lines) + f"\n\nRequest:\n{base}"
 
 
@@ -238,7 +251,8 @@ def generate_variant(
         )
 
     cost = 0.0
-    generated = chat(models.generator, _GENERATOR_SYSTEM, rewrite_prompt(concept.text, spec))
+    prompt = rewrite_prompt(concept.text, spec, concept.spread_demand)
+    generated = chat(models.generator, _GENERATOR_SYSTEM, prompt)
     cost += generated.cost_usd
     rewritten = generated.text.strip()
 
