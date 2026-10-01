@@ -21,6 +21,17 @@ SHORTHAND_ARM = "treatment"
 """Label of the arm the flat `interventions` / `topology_changes` stand for."""
 
 
+NETWORK_ONLY_EXCLUDES = (
+    "demand_ref",
+    "time_window",
+    "metrics_of_interest",
+    "interventions",
+    "topology_changes",
+    "arms",
+)
+"""Fields a `network_only` question must leave empty (ADR-0035)."""
+
+
 class Mode(StrEnum):
     FREE = "free"
     FORCED = "forced"
@@ -59,18 +70,8 @@ class Question:
         if self.network_only:
             if self.intent is not Intent.DESCRIBE:
                 raise ValueError("network_only is only valid for the describe intent")
-            if (
-                self.demand_ref is not None
-                or self.time_window is not None
-                or self.metrics_of_interest
-                or self.interventions
-                or self.topology_changes
-                or self.arms
-            ):
-                raise ValueError(
-                    "network_only excludes demand_ref, time_window, metrics_of_interest, "
-                    "interventions, topology_changes and arms"
-                )
+            if any(getattr(self, f) not in (None, ()) for f in NETWORK_ONLY_EXCLUDES):
+                raise ValueError(f"network_only excludes {', '.join(NETWORK_ONLY_EXCLUDES)}")
         if self.arms and (self.interventions or self.topology_changes):
             raise ValueError("use arms or the flat interventions/topology_changes, not both")
         if self.contrasts and not self.arms:
