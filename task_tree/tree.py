@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from task_tree.critical import critical_path
 from task_tree.dag import drop_time_markers, link_tasks, parse_dag
 
 STAGES = ("needs-triage", "ready", "specified", "ticketed", "done", "wontfix", "needs-info")
@@ -573,11 +574,19 @@ def build_tree(scratch: Path, tracker: Path, plan: Path | None = None) -> dict[s
         for dep in node["blocked_by"]
     ]
     edges += [{"from": a, "to": b, "done": a in done, "inferred": False} for a, b in dag_edges]
+    path = critical_path(nodes, [(e["from"], e["to"]) for e in edges if not e["inferred"]])
+    on_path = set(path)
+    # The task to work on next is the first one on the path that can start now.
+    next_id = next((i for i in path if nodes[i]["frontier"]), None)
+    for node in nodes.values():
+        node["critical"] = node["id"] in on_path
+        node["next"] = node["id"] == next_id
     return {
         "nodes": list(nodes.values()),
         "edges": edges,
         "stages": list(STAGES),
         "rails": rails,
+        "critical_path": path,
         "warnings": tree_warnings,
     }
 
@@ -599,6 +608,14 @@ def _table_row(path: Path, task_id: str) -> list[str] | None:
 def _header_line(text: str, label: str) -> str | None:
     match = re.search(rf"^\*\*{label}:\*\*\s*(.+)$", text, re.MULTILINE)
     return match.group(1).strip() if match else None
+
+
+def _ref(scratch: Path, path: Path) -> str:
+    """The `@.scratch/...` mention that points Claude Code at a file."""
+    try:
+        return "@" + path.relative_to(scratch.parent).as_posix()
+    except ValueError:
+        return "@" + path.as_posix()
 
 
 def task_detail(scratch: Path, tracker: Path, plan: Path, task_id: str) -> dict[str, Any] | None:
@@ -635,6 +652,7 @@ def task_detail(scratch: Path, tracker: Path, plan: Path, task_id: str) -> dict[
         "tickets": task.tickets,
         "warnings": task.warnings,
         "markdown": spec_text or None,
+        "ref": _ref(scratch, task.directory / "spec.md") if task.directory else None,
     }
 
 
@@ -664,4 +682,5 @@ def ticket_detail(
         "blocked_by": ticket["blocked_by"],
         "question": question.group(1).strip() if question else None,
         "markdown": text,
+        "ref": _ref(scratch, path),
     }

@@ -147,6 +147,17 @@ def scratch(tmp_path: Path) -> Path:
     return root
 
 
+def test_the_next_task_is_the_first_startable_one_on_the_critical_path(base_url):
+    tree = _full_tree(base_url)
+    nodes = {n["id"]: n for n in tree["nodes"]}
+    critical = {i for i, n in nodes.items() if n["critical"]}
+    assert critical and all(nodes[i]["stage"] not in ("done", "wontfix") for i in critical)
+    upcoming = [i for i, n in nodes.items() if n["next"]]
+    assert len(upcoming) <= 1
+    assert all(nodes[i]["frontier"] and nodes[i]["critical"] for i in upcoming)
+    assert critical == set(tree["critical_path"])
+
+
 @pytest.fixture
 def plan_text() -> str:
     return PLAN
