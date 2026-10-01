@@ -22,7 +22,7 @@ DOCS = {
 
 # The artifact viewer wraps the page in this skeleton itself; GitHub Pages needs it written out.
 HEAD = """<!doctype html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
