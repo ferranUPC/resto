@@ -466,3 +466,17 @@ def test_the_spread_check_survives_a_save_and_load(tmp_path: Path) -> None:
     path = tmp_path / "variants.json"
     save_variants({record.id: record}, path)
     assert load_variants(path)[record.id].demand_still_spread is False
+
+
+def test_review_decisions_are_written_into_the_records() -> None:
+    from eval.request_bank.review_variants import apply_decisions
+
+    concept = _spread_concept()
+    failed = generate_variant(concept, concept.variants[0], FakeChat(verdict="{}"), MODELS)
+    assert not failed.verified
+    out = apply_decisions(
+        {failed.id: failed},
+        [{"id": failed.id, "spread": False, "accept": True, "text": "fixed text"}],
+    )[failed.id]
+    assert (out.demand_still_spread, out.verified, out.text) == (False, True, "fixed text")
+    assert "accepted by the reviewer" in out.notes[-1]

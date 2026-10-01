@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Variant review</title>
+<style>
+:root{color-scheme:light dark;--bg:#f3f5f3;--s:#fff;--ink:#1b2320;--mut:#5c6964;--line:#d5dbd7;--ok:#2b7446;--bad:#a33a2c;--acc:#17695a}
+@media(prefers-color-scheme:dark){:root{--bg:#111614;--s:#19201d;--ink:#e6ece8;--mut:#9aa7a1;--line:#2c3732;--ok:#6cc58a;--bad:#e08a7c;--acc:#5cc2ab}}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,sans-serif}
+main{max-width:860px;margin:0 auto;padding:16px}
+.card{background:var(--s);border:1px solid var(--line);border-radius:8px;padding:14px;margin:12px 0}
+.card.done{border-left:4px solid var(--ok)}
+.meta{color:var(--mut);font-size:13px}.orig{color:var(--mut)}.tag{font-size:12px;border:1px solid var(--line);border-radius:4px;padding:1px 6px}
+.fail{color:var(--bad)}textarea{width:100%;box-sizing:border-box;min-height:70px;background:transparent;color:inherit;border:1px solid var(--line);border-radius:6px;padding:6px;font:inherit}
+label{margin-right:14px;cursor:pointer}header{position:sticky;top:0;background:var(--bg);padding:8px 0;border-bottom:1px solid var(--line)}
+button{background:var(--acc);color:#fff;border:0;border-radius:6px;padding:7px 14px;font:inherit;cursor:pointer}
+</style></head><body><main>
+<header><b id="count"></b> <button id="export">Export decisions.json</button></header>
+<div id="list"></div></main>
+<script>
+const ITEMS = /*__ITEMS__*/[];
+const KEY = "variant-review-v1";
+let S = {};
+try { S = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) {}
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const st = id => S[id] || (S[id] = {spread: null, accept: null, text: null});
+const complete = i => (!i.spread || st(i.id).spread !== null) && (!i.failed || st(i.id).accept !== null);
+function draw() {
+  document.getElementById("count").textContent = ITEMS.filter(complete).length + " / " + ITEMS.length + " decided";
+  document.getElementById("list").innerHTML = ITEMS.map(i => {
+    const s = st(i.id);
+    return `<div class="card ${complete(i) ? "done" : ""}" data-id="${esc(i.id)}">
+      <div class="meta"><b>${esc(i.id)}</b> ${i.spread ? '<span class="tag">spread demand</span>' : ""} ${i.failed ? '<span class="tag fail">failed verification</span>' : ""}</div>
+      <p class="orig">Original: ${esc(i.original)}${i.gold_demand ? "<br>Gold demand: <b>" + esc(i.gold_demand) + "</b>" : ""}</p>
+      <p><b>Variant:</b> ${esc(i.text)}</p>
+      ${i.back_translation ? '<p class="meta">Back-translation: ' + esc(i.back_translation) + "</p>" : ""}
+      ${i.differences.length ? '<p class="meta fail">Verifier: ' + esc(i.differences.join(" | ")) + "</p>" : ""}
+      ${i.spread ? `<p>Demand still spread? <label><input type="radio" name="sp-${esc(i.id)}" data-k="spread" value="true" ${s.spread === true ? "checked" : ""}> yes</label>
+        <label><input type="radio" name="sp-${esc(i.id)}" data-k="spread" value="false" ${s.spread === false ? "checked" : ""}> no (merged, kept and marked)</label></p>` : ""}
+      ${i.failed ? `<p>Failed variant: <label><input type="radio" name="ac-${esc(i.id)}" data-k="accept" value="true" ${s.accept === true ? "checked" : ""}> accept (edit below if needed)</label>
+        <label><input type="radio" name="ac-${esc(i.id)}" data-k="accept" value="false" ${s.accept === false ? "checked" : ""}> leave out</label></p>
+        <textarea data-k="text" placeholder="Corrected text (optional, only used when accepting)">${esc(s.text ?? "")}</textarea>` : ""}
+    </div>`;
+  }).join("");
+}
+document.getElementById("list").addEventListener("change", e => {
+  const k = e.target.dataset.k, id = e.target.closest(".card").dataset.id;
+  if (k === "text") st(id).text = e.target.value.trim() || null;
+  else st(id)[k] = e.target.value === "true";
+  save(); const y = scrollY; draw(); scrollTo(0, y);
+});
+document.getElementById("export").onclick = () => {
+  const out = ITEMS.filter(i => st(i.id).spread !== null || st(i.id).accept !== null).map(i => {
+    const s = st(i.id), d = {id: i.id};
+    if (i.spread) d.spread = s.spread;
+    if (i.failed && s.accept) { d.accept = true; if (s.text) d.text = s.text; }
+    return d;
+  });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(out, null, 2)], {type: "application/json"}));
+  a.download = "decisions.json"; a.click();
+};
+draw();
+</script></body></html>
