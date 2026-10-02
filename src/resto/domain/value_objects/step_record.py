@@ -9,6 +9,7 @@ from typing import Any
 class StepStatus(StrEnum):
     OK = "ok"
     FAILED = "failed"
+    NEEDS_USER = "needs_user"
     SKIPPED = "skipped"
 
 

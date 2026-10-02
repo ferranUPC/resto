@@ -9,7 +9,14 @@ from dataclasses import replace
 from typing import Any, assert_never, cast
 
 from resto.application.executor.deps import StudyDeps, StudySettings
-from resto.application.executor.failures import StepFailed, crash, draft_of, fail, promote
+from resto.application.executor.failures import (
+    StepFailed,
+    StepNeedsUser,
+    crash,
+    draft_of,
+    fail,
+    promote,
+)
 from resto.application.executor.plan_validation import ok_results
 from resto.application.executor.recorder import StudyRecorder, data
 from resto.application.executor.spend import StudySpend
@@ -25,7 +32,7 @@ from resto.domain.services.experiment_design import study_window
 from resto.domain.services.ids import result_id_for, scenario_id_for
 from resto.domain.value_objects.drafts import DemandDraft, NetworkDraft
 from resto.domain.value_objects.experiment import Experiment
-from resto.domain.value_objects.outcomes import Found
+from resto.domain.value_objects.outcomes import Found, NeedsUser
 from resto.domain.value_objects.question import Question
 from resto.domain.value_objects.step_record import StepErrorKind, StepRecord, StepStatus, Usage
 from resto.domain.value_objects.study_plan import (
@@ -55,7 +62,8 @@ def execute_plan(
     settings: StudySettings,
 ) -> str | None:
     """Runs `plan` in the current phase and returns the study's network id; or nothing, once a
-    step failed and the study was recorded as `failed` with the pending steps skipped."""
+    step failed (the study is recorded `failed`) or needed the user (`awaiting_user`), with the
+    pending steps skipped."""
     reused = tuple(
         Experiment(
             r.scenario_id,
@@ -80,6 +88,9 @@ def execute_plan(
             record, experiment = _run_step(resolved, task, recorder, spend, deps, settings)
         except StepFailed as failed:
             recorder.record_failure(resolved.kind, task, failed, pending=pending)
+            return None
+        except StepNeedsUser as needs:
+            recorder.record_needs_user(resolved.kind, task, needs, pending=pending)
             return None
         except Exception as e:
             recorder.record_failure(resolved.kind, task, crash(e), pending=pending)
@@ -166,6 +177,8 @@ def _obtain_network(
     )
     run = spend.agent_call(lambda: deps.agents.network_author.obtain(network_task))
     outcome = draft_of(run, "network_author")
+    if isinstance(outcome, NeedsUser):
+        raise StepNeedsUser(outcome, run.usage)
     if isinstance(outcome, Found):
         if deps.networks.get(outcome.id) is None:
             fail(
@@ -222,6 +235,8 @@ def _obtain_demand(
     )
     run = spend.agent_call(lambda: deps.agents.demand_generator.obtain(demand_task))
     outcome = draft_of(run, "demand_generator")
+    if isinstance(outcome, NeedsUser):
+        raise StepNeedsUser(outcome, run.usage)
     if isinstance(outcome, Found):
         found = deps.demands.get(outcome.id)
         if found is None or found.network_id != demand_task.network_id:

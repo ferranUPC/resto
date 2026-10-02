@@ -17,6 +17,7 @@ from typing import NoReturn, TypeVar
 
 from resto.application.ports.llm import AgentRun, StopReason
 from resto.application.promotion import Blame, DraftRejected, RunWithoutDraft, require_draft
+from resto.domain.value_objects.outcomes import NeedsUser
 from resto.domain.value_objects.step_record import StepError, StepErrorKind, Usage
 
 T = TypeVar("T")
@@ -28,6 +29,15 @@ class StepFailed(Exception):
     def __init__(self, error: StepError, usage: Usage | None = None) -> None:
         super().__init__(error.message)
         self.error = error
+        self.usage = usage or Usage()
+
+
+class StepNeedsUser(Exception):
+    """The specialist running the step returned `NeedsUser`: not a failure, the user must act."""
+
+    def __init__(self, needs_user: NeedsUser, usage: Usage | None = None) -> None:
+        super().__init__(needs_user.message)
+        self.needs_user = needs_user
         self.usage = usage or Usage()
 
 

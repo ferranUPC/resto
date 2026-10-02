@@ -385,6 +385,39 @@
       "title": "Contrast",
       "type": "object"
     },
+    "DemandNotNamed": {
+      "description": "The request says nothing about the traffic and there is no default demand (ADR-0035 \u00a72).",
+      "properties": {
+        "kind": {
+          "const": "demand_not_named",
+          "default": "demand_not_named",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "title": "DemandNotNamed",
+      "type": "object"
+    },
+    "DemandNotObtainable": {
+      "description": "The requested demand is not stored and no capability can obtain it (ADR-0035 \u00a73).",
+      "properties": {
+        "demand_ref": {
+          "title": "Demand Ref",
+          "type": "string"
+        },
+        "kind": {
+          "const": "demand_not_obtainable",
+          "default": "demand_not_obtainable",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "demand_ref"
+      ],
+      "title": "DemandNotObtainable",
+      "type": "object"
+    },
     "DeriveNetworkStep": {
       "properties": {
         "base_network_id": {
@@ -711,6 +744,29 @@
       "title": "ExpertRound",
       "type": "object"
     },
+    "FoundItem": {
+      "description": "Something the specialist already found when it had to stop.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "what": {
+          "enum": [
+            "network",
+            "demand"
+          ],
+          "title": "What",
+          "type": "string"
+        }
+      },
+      "required": [
+        "what",
+        "id"
+      ],
+      "title": "FoundItem",
+      "type": "object"
+    },
     "FromStep": {
       "description": "The id produced by step `step` of the same plan.",
       "properties": {
@@ -894,6 +950,85 @@
       "title": "Mode",
       "type": "string"
     },
+    "NeedsUser": {
+      "description": "The user must act: the specialist is done with this request (ADR-0037 \u00a74).\n\n`message` is the specialist's account of what it was asked, what it cannot do and why. The\ncode derives the default recommendation from `reason`; `advice` is the specialist's own, on\ntop of it.",
+      "properties": {
+        "advice": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Advice",
+          "type": "array"
+        },
+        "candidates": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Candidates",
+          "type": "array"
+        },
+        "found": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/FoundItem"
+          },
+          "title": "Found",
+          "type": "array"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WindowMissing"
+            },
+            {
+              "$ref": "#/$defs/DemandNotNamed"
+            },
+            {
+              "$ref": "#/$defs/DemandNotObtainable"
+            },
+            {
+              "$ref": "#/$defs/NetworkNotFound"
+            },
+            {
+              "$ref": "#/$defs/SeveralCandidates"
+            }
+          ],
+          "title": "Reason"
+        }
+      },
+      "required": [
+        "reason",
+        "message"
+      ],
+      "title": "NeedsUser",
+      "type": "object"
+    },
+    "NetworkNotFound": {
+      "description": "No stored network matches the name and it gives no way to build one (ADR-0035 \u00a76).",
+      "properties": {
+        "kind": {
+          "const": "network_not_found",
+          "default": "network_not_found",
+          "title": "Kind",
+          "type": "string"
+        },
+        "network_ref": {
+          "title": "Network Ref",
+          "type": "string"
+        }
+      },
+      "required": [
+        "network_ref"
+      ],
+      "title": "NetworkNotFound",
+      "type": "object"
+    },
     "NoValue": {
       "description": "The data shows the measure is undefined, e.g. the mean travel time of an edge no vehicle\ncrossed. Not an abstention: the answer rests on evidence (ADR-0021). Only per-vehicle means can\nbe undefined; a 0 % occupancy or a zero total delay is a real value.",
       "properties": {
@@ -1058,7 +1193,7 @@
       "type": "string"
     },
     "Phase": {
-      "description": "One question planned and executed, then put to the Expert (ADR-0023 \u00a74). `phases[0]` holds\nthe Input Parser's question; each later phase the previous round's `proposed_experiment`.\n\n`clarification` is the Coordinator asking the user instead of planning (phase 0 only). A phase\nwithout a plan ran nothing: its only possible step is the failed planning itself.",
+      "description": "One question planned and executed, then put to the Expert (ADR-0023 \u00a74). `phases[0]` holds\nthe Input Parser's question; each later phase the previous round's `proposed_experiment`.\n\n`clarification` is the Coordinator asking the user instead of planning (phase 0 only). A phase\nwithout a plan ran nothing: its only possible step is the failed planning itself.\n\n`needs_user` is a specialist asking the user to act (ADR-0037 \u00a74): the step that returned it\nhas status `needs_user` and the rest of the plan is skipped, as after a failure.",
       "properties": {
         "clarification": {
           "anyOf": [
@@ -1078,6 +1213,17 @@
           },
           "title": "Experiments",
           "type": "array"
+        },
+        "needs_user": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NeedsUser"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "plan": {
           "anyOf": [
@@ -1554,6 +1700,19 @@
       "title": "SetSpeed",
       "type": "object"
     },
+    "SeveralCandidates": {
+      "description": "Several stored networks or demands match; `NeedsUser.candidates` lists them.",
+      "properties": {
+        "kind": {
+          "const": "several_candidates",
+          "default": "several_candidates",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "title": "SeveralCandidates",
+      "type": "object"
+    },
     "StepError": {
       "description": "Why a step failed, classified by the Executor. `details` are the items the rendered study\nlists: the wrong edge, the rejected intervention and its reason, `unresolved[]`, a logs path.",
       "properties": {
@@ -1640,6 +1799,7 @@
       "enum": [
         "ok",
         "failed",
+        "needs_user",
         "skipped"
       ],
       "title": "StepStatus",
@@ -1806,6 +1966,19 @@
         }
       },
       "title": "Usage",
+      "type": "object"
+    },
+    "WindowMissing": {
+      "description": "No study window can be derived and the request gives no period (ADR-0037 \u00a74).",
+      "properties": {
+        "kind": {
+          "const": "window_missing",
+          "default": "window_missing",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "title": "WindowMissing",
       "type": "object"
     }
   },

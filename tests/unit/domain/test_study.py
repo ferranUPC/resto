@@ -6,6 +6,7 @@ from resto.domain.entities.study import Phase, Study, StudyStatus
 from resto.domain.value_objects.answer_value import Edges
 from resto.domain.value_objects.expert_answer import Basis, Evidence, EvidenceKind, ExpertAnswer
 from resto.domain.value_objects.expert_round import ExpertRound
+from resto.domain.value_objects.outcomes import NeedsUser, WindowMissing
 from resto.domain.value_objects.question import Intent, Mode, Question
 from resto.domain.value_objects.step_record import StepError, StepErrorKind, StepRecord, StepStatus
 from resto.domain.value_objects.study_plan import (
@@ -27,6 +28,8 @@ FAILED = StepRecord(
     error=StepError(StepErrorKind.USER_INPUT, "unknown edge", ("E99",)),
 )
 SKIPPED = StepRecord(tool="run_simulation", status=StepStatus.SKIPPED)
+WAITING = StepRecord(tool="obtain_demand", status=StepStatus.NEEDS_USER)
+NEEDS = NeedsUser(WindowMissing(), "I was asked for a demand but no period can be derived")
 
 
 def _question(**kw):  # noqa: ANN003, ANN202
@@ -268,3 +271,59 @@ def test_answer_without_typed_values_must_abstain() -> None:
         ExpertAnswer(
             answer="E12 is congested", basis=Basis.OBSERVED, confidence=0.9, evidence=EVIDENCE
         )
+
+
+# --- Study: a step that needed the user ------------------------------------------------------
+
+
+def _waiting_phase(**kw: Any) -> Phase:
+    base: dict[str, Any] = dict(
+        question=_question(), plan=PLAN, steps=(OK, WAITING, SKIPPED), needs_user=NEEDS
+    )
+    base.update(kw)
+    return Phase(**base)
+
+
+def test_a_step_that_needed_the_user_puts_the_study_in_awaiting_user() -> None:
+    with pytest.raises(ValueError, match="awaiting_user"):
+        Study(study_id="s", status=StudyStatus.RUNNING, phases=(_waiting_phase(),))
+    with pytest.raises(ValueError, match="awaiting_user"):
+        Study(study_id="s", status=StudyStatus.FAILED, phases=(_waiting_phase(),))
+    study = Study(study_id="s", status=StudyStatus.AWAITING_USER, phases=(_waiting_phase(),))
+    assert study.phases[0].needs_user == NEEDS
+
+
+def test_a_waiting_study_without_a_message_or_a_step_is_rejected() -> None:
+    with pytest.raises(ValueError, match="awaiting_user"):
+        Study(
+            study_id="s",
+            status=StudyStatus.AWAITING_USER,
+            phases=(Phase(question=_question(), plan=PLAN, steps=(OK,)),),
+        )
+
+
+def test_a_phase_holds_needs_user_if_and_only_if_a_step_needed_the_user() -> None:
+    with pytest.raises(ValueError, match="needs_user"):
+        _waiting_phase(needs_user=None)
+    with pytest.raises(ValueError, match="needs_user"):
+        _waiting_phase(steps=(OK, SKIPPED))
+
+
+def test_the_steps_after_the_one_that_needed_the_user_are_skipped() -> None:
+    with pytest.raises(ValueError, match="skipped"):
+        _waiting_phase(steps=(WAITING, OK))
+
+
+def test_a_step_that_needed_the_user_ends_the_study() -> None:
+    first = _waiting_phase(round=_round(_abstain()))
+    with pytest.raises(ValueError, match="last phase"):
+        Study(
+            study_id="s",
+            status=StudyStatus.AWAITING_USER,
+            phases=(first, Phase(question=PROPOSED)),
+        )
+
+
+def test_a_study_with_a_step_that_needed_the_user_is_not_failed() -> None:
+    with pytest.raises(ValueError, match="stops at the first"):
+        _waiting_phase(steps=(WAITING, FAILED))

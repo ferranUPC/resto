@@ -10,7 +10,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from typing import Any
 
-from resto.application.executor.failures import StepFailed
+from resto.application.executor.failures import StepFailed, StepNeedsUser
 from resto.application.ports.repositories import StudyRepository
 from resto.application.ports.tracing import (
     ClarificationAsked,
@@ -125,6 +125,24 @@ class StudyRecorder:
         self._set_phase(
             replace(phase, steps=(*phase.steps, record, *skipped)), status=StudyStatus.FAILED
         )
+
+    def record_needs_user(
+        self,
+        tool: str,
+        task: Mapping[str, Any],
+        needs: StepNeedsUser,
+        *,
+        pending: Sequence[PlanStep] = (),
+    ) -> None:
+        """The step that needed the user, the plan steps left unrun and the `awaiting_user`
+        status, in one state."""
+        record = StepRecord(tool, StepStatus.NEEDS_USER, task, usage=needs.usage)
+        skipped = tuple(StepRecord(s.kind, StepStatus.SKIPPED) for s in pending)
+        self._trace_step(record)
+        phase = replace(
+            self.phase, steps=(*self.phase.steps, record, *skipped), needs_user=needs.needs_user
+        )
+        self._set_phase(phase, status=StudyStatus.AWAITING_USER)
 
     def replace_phase(self, phase: Phase, *, status: StudyStatus | None = None) -> None:
         self._set_phase(phase, status=status)

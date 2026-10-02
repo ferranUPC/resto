@@ -75,7 +75,16 @@ from resto.domain.value_objects.mechanism import (
 )
 from resto.domain.value_objects.network_recipe import NetworkRecipe
 from resto.domain.value_objects.network_source import NetworkSource
-from resto.domain.value_objects.outcomes import Found
+from resto.domain.value_objects.outcomes import (
+    DemandNotNamed,
+    DemandNotObtainable,
+    Found,
+    FoundItem,
+    NeedsUser,
+    NetworkNotFound,
+    SeveralCandidates,
+    WindowMissing,
+)
 from resto.domain.value_objects.probe_report import ProbeReport
 from resto.domain.value_objects.question import Intent, Mode, Question
 from resto.domain.value_objects.report import Claim, Report, ReportSection
@@ -341,6 +350,15 @@ SAMPLES: dict[type, Callable[[], object]] = {
         base_network_id=FromStep(0), modifications=(RemoveEdge(edge_id="E07"),), depends_on=(0,)
     ),
     Found: lambda: Found("abc123"),
+    NeedsUser: lambda: NeedsUser(
+        SeveralCandidates(), "two networks match", ("bcn-1", "bcn-2"), (FoundItem("network", "n1"),)
+    ),
+    FoundItem: lambda: FoundItem("network", "n1"),
+    WindowMissing: lambda: WindowMissing(),
+    DemandNotNamed: lambda: DemandNotNamed(),
+    DemandNotObtainable: lambda: DemandNotObtainable("the 2019 Easter traffic"),
+    NetworkNotFound: lambda: NetworkNotFound("Gran Via"),
+    SeveralCandidates: lambda: SeveralCandidates(),
     ObtainDemandStep: lambda: ObtainDemandStep(
         network_id=FromStep(0), seed=1, demand_ref="weekday morning peak", depends_on=(0,)
     ),

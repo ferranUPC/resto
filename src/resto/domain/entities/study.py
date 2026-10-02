@@ -7,6 +7,7 @@ from itertools import pairwise
 from resto.domain.constants import DEFAULT_MAX_ROUNDS
 from resto.domain.value_objects.experiment import Experiment
 from resto.domain.value_objects.expert_round import ExpertRound
+from resto.domain.value_objects.outcomes import NeedsUser
 from resto.domain.value_objects.question import Mode, Question
 from resto.domain.value_objects.report import Report
 from resto.domain.value_objects.step_record import StepRecord, StepStatus
@@ -27,11 +28,15 @@ class Phase:
     the Input Parser's question; each later phase the previous round's `proposed_experiment`.
 
     `clarification` is the Coordinator asking the user instead of planning (phase 0 only). A phase
-    without a plan ran nothing: its only possible step is the failed planning itself."""
+    without a plan ran nothing: its only possible step is the failed planning itself.
+
+    `needs_user` is a specialist asking the user to act (ADR-0037 §4): the step that returned it
+    has status `needs_user` and the rest of the plan is skipped, as after a failure."""
 
     question: Question
     plan: StudyPlan | None = None
     clarification: ClarificationRequest | None = None
+    needs_user: NeedsUser | None = None
     steps: tuple[StepRecord, ...] = ()
     experiments: tuple[Experiment, ...] = ()
     round: ExpertRound | None = None
@@ -46,9 +51,16 @@ class Phase:
                 raise ValueError("experiments and the Expert round need a plan")
         if self.clarification is not None and self.steps:
             raise ValueError("a clarification is not a failure: it records no step")
-        failed = [i for i, s in enumerate(self.steps) if s.status is StepStatus.FAILED]
-        if failed and any(s.status is not StepStatus.SKIPPED for s in self.steps[failed[0] + 1 :]):
-            raise ValueError("the Executor stops at the first failure: later steps are skipped")
+        waiting = [i for i, s in enumerate(self.steps) if s.status is StepStatus.NEEDS_USER]
+        if (self.needs_user is not None) != bool(waiting):
+            raise ValueError("a phase holds needs_user if and only if a step needed the user")
+        stops = [
+            i
+            for i, s in enumerate(self.steps)
+            if s.status in (StepStatus.FAILED, StepStatus.NEEDS_USER)
+        ]
+        if stops and any(s.status is not StepStatus.SKIPPED for s in self.steps[stops[0] + 1 :]):
+            raise ValueError("the Executor stops at the first stop: later steps are skipped")
 
     @property
     def failed_step(self) -> StepRecord | None:
@@ -109,10 +121,16 @@ class Study:
             raise ValueError("an ambiguous question puts the study in awaiting_user with no steps")
         if first.clarification is not None and self.status is not StudyStatus.AWAITING_USER:
             raise ValueError("a Coordinator clarification puts the study in awaiting_user")
+        if any(p.needs_user is not None for p in self.phases[:-1]):
+            raise ValueError("a step that needed the user ends the study: only the last phase")
+        if last.needs_user is not None and self.status is not StudyStatus.AWAITING_USER:
+            raise ValueError("a step that needed the user puts the study in awaiting_user")
         if self.status is StudyStatus.AWAITING_USER and not (
-            self.question.is_ambiguous or first.clarification is not None
+            self.question.is_ambiguous
+            or first.clarification is not None
+            or last.needs_user is not None
         ):
-            raise ValueError("awaiting_user needs the ambiguities or the candidates to show")
+            raise ValueError("awaiting_user needs the ambiguities, the candidates or a message")
         failures = [s for p in self.phases for s in p.steps if s.status is StepStatus.FAILED]
         if (self.status is StudyStatus.FAILED) != bool(failures):
             raise ValueError("a study is failed if and only if a step failed")
