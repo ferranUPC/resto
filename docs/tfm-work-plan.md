@@ -576,5 +576,6 @@ the numbering.
 | r5 | Typed study trace, one emitter, one shared test world | Trace events were free strings emitted from five modules, the plan and the Expert round were missing, and CLI runs lost the cost events. | — | E7.1, E5.5, E7.3, E7.4 |
 | r6 | One module launches SUMO tools | Two call sites treated seed and errors differently, six or seven more were coming, and nobody checked the binary's version. | — | E2.5, E6.1, E6.2, E6.5, E7.3 |
 | u2 | Failed `SimulationResult` retry conflicts in SQLite | Re-running a failed result raised `ConflictError`, which broke the real path. | [0031](adr/0031-only-ok-results-are-persisted.md) | — |
+| e5.14 | `obtain_demand` does not carry the study window | The row says the step carries the reference and the window. The window is a pure function of the `Question`, so the Executor computes it when it builds the `ObtainDemandTask` and the plan stays free of a derived value. The specialist still receives it. | [0037](adr/0037-specialists-resolve-network-and-demand.md) | E3.7, E5.2 |
 
 A new refactor adds a row here in the same change that opens it.

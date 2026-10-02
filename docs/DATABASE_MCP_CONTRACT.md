@@ -11,6 +11,12 @@ is authoritative for *why* the model looks like this.
 *Amended by [ADR-0036](adr/0036-raw-demand-data-aggregate.md): the optional `historical_demand` group (§5.6, §10
 point 3, the GP-10 row of §2) is replaced by `raw_demand_data`. The body below is not edited until E6.8.*
 
+*Amended by [ADR-0037](adr/0037-specialists-resolve-network-and-demand.md): the reader of the database is the
+specialist, not the Coordinator. The Network Author calls `find_network` and the Demand Generator calls
+`find_demand`; the Coordinator has no database tools. Wherever the body below says the Coordinator asks, finds
+or negotiates, read the specialist: a request that cannot be answered ends in `NeedsUser` and the study waits
+in `awaiting_user`. The body is not edited until E6.8.*
+
 Scope:
 
 - **In**: the five required capability groups (`networks`, `demands`, `scenarios`, `results`,
@@ -36,7 +42,7 @@ present** in `tools/list`. A partially implemented group is not a capability: a 
 | Situation | Behaviour |
 |---|---|
 | A required capability is missing | Hard failure at start-up, naming the capability and the missing tools. The framework does not start in a degraded mode for required capabilities. |
-| `historical_demand` is missing | When a request needs a demand that only historical data could give, the Coordinator asks with a `ClarificationRequest` that says what cannot be obtained and offers random trips instead. There is no silent fallback to random demand. Golden path GP-10 checks that the Coordinator asks. *(Amended by ADR-0035: v1.0 had the Demand Generator fall back to parameter-driven generation and record the fallback in `reuse_decisions`.)* |
+| `historical_demand` is missing | When a request needs a demand that only historical data could give, the Demand Generator ends in `NeedsUser` with a message that says what cannot be obtained and offers random trips instead. There is no silent fallback to random demand. Golden path GP-10 checks that the specialist asks. *(Reader changed by ADR-0037.)* *(Amended by ADR-0035: v1.0 had the Demand Generator fall back to parameter-driven generation and record the fallback in `reuse_decisions`.)* |
 | An unknown extra tool is present | Ignored. Servers may expose more than the contract. |
 
 Discovery is about *capabilities*, never about data formats: the formats are fixed here and are

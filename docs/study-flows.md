@@ -85,18 +85,19 @@ flowchart TD
   classDef code fill:#f1f5f9,stroke:#475569,color:#0f172a
   classDef stop fill:#fee2e2,stroke:#b91c1c,color:#450a0a
 
-  R[plan.reused → Experiments marked reused]:::code --> N{next step?}:::code
+  R([plan]):::code --> N{next step?}:::code
   N -- none --> END([back to the Expert]):::code
   N --> FS[Replace FromStep i with the id step i produced]:::code
   FS --> B{Study budget left?}:::code
   B -- no --> FB[StepError budget]:::stop
-  B --> D{output id already stored?}:::code
-  D -- yes --> RE[StepRecord ok, reused, no call]:::code
+  B --> D{build_scenario and ok results stored for the hash of its request?}:::code
+  D -- yes --> RE[StepRecord ok, Experiment marked reused, no call]:::code
   D -- no --> K{step kind}:::code
   K -- "obtain/derive_network, obtain_demand, build_scenario" --> AG(Specialist agent):::agent
   AG --> PR[Promotion use case]:::code
   K -- "reroute_demand, run_simulation" --> DC[Deterministic use case]:::code
   PR -- rejected / no draft --> FE[StepError user_input / agent / budget]:::stop
+  AG -- NeedsUser --> NU[needs_user, rest skipped, study awaiting_user]:::stop
   DC -- "result status failed" --> FI[StepError infrastructure]:::stop
   PR --> REC[StepRecord ok, persist Study]:::code
   DC --> REC
@@ -130,18 +131,20 @@ What the Coordinator plans in phase 0 depends on `intent`; later phases are alwa
 
 Traces as phases (P = Input Parser, C = Coordinator, E = Expert, N = note writer, Comp = Composer):
 
+Every plan starts with `obtain_network`, and `obtain_demand` follows when the plan needs traffic (ADR-0037). Rows that do not name the specialists leave them out for brevity.
+
 | GP | Request | Phase 0 | Later phases | End |
 |---|---|---|---|---|
-| GP-1 | describe, results exist | P → C (0 steps, reused baseline) → E | — | N → Comp |
+| GP-1 | describe, results exist | P → C → Network Author (`Found`) → Demand Generator (`Found`) → Executor (baseline `reused`) → E | — | N → Comp |
 | GP-2 | describe, no results | P → C → Builder → Runner → E | — | N → Comp |
 | GP-3 | counterfactual, free, no match | P → C (baseline) → E `needs_simulation` | C → Builder (treatment) → Runner → E | N → Comp |
 | GP-4 | same, forced | P → C (baseline) → E `extrapolated` | — | N (prediction note) → Comp |
-| GP-5 | same, experiment exists | P → C (0 steps, reused baseline + treatment) → E `observed` | — | N → Comp |
+| GP-5 | same, experiment exists | P → C → specialists (`Found`) → Executor (baseline + treatment `reused`) → E `observed` | — | N → Comp |
 | GP-6 | closure when occupancy > 0.8 (`run`) | P → C → Builder (script) → Runner (online) → E | — | N → Comp |
-| GP-7 | compare A and B | P → C (0 steps, reused A + B as comparison) → E | — | N → Comp |
+| GP-7 | compare A and B | P → C → specialists (`Found`) → Executor (A + B `reused`, as comparison) → E | — | N → Comp |
 | GP-8 | new place, nothing exists | P → C → Network Author → Demand Generator → Builder → Runner → E | — | N → Comp |
 | GP-9 | ambiguous | P (or C) → `awaiting_user`, render | — | — |
-| GP-10 | historical demand asked for, no `historical_demand` | P → C → `awaiting_user` (`ClarificationRequest`: no historical data, random trips offered), render; no silent fallback (ADR-0035) | — | — |
+| GP-10 | historical demand asked for, no `historical_demand` | P → C → Network Author (`Found`) → Demand Generator (`NeedsUser`: no historical data, random trips offered) → `awaiting_user`, render; no silent fallback (ADR-0035, ADR-0037) | — | — |
 | GP-11 | add an edge J7–J9 (`run`) | P → C → Network Author (derive) → `reroute_demand` → Builder ×2 → Runner ×2 → E (compare) | — | N → Comp |
 
 A free *counterfactual* topology question ("what if we added an edge…") is GP-3-shaped: phase 1 is

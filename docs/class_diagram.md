@@ -33,6 +33,7 @@ class Study {
 }
 class Phase {
   +Question question
+  +NeedsUser? needs_user
 }
 class StudyStatus {
   <<enumeration>>
@@ -80,12 +81,6 @@ class StudyPlan {
   +str | FromStep network_id
   +str rationale
 }
-class ReusedExperiment {
-  +str scenario_id
-  +str arm
-  +ExperimentRole role
-  +str purpose
-}
 class ClarificationRequest {
   +str reason
   +List~str~ candidates
@@ -98,21 +93,19 @@ class PlanStep {
 class FromStep {
   +int step
 }
-class GenerateNetworkStep {
-  +NetworkSource source
+class ObtainNetworkStep {
+  +str network_ref
   +List~str~ goals
-  +List~TopologyModification~ modifications
 }
 class DeriveNetworkStep {
   +str | FromStep base_network_id
   +List~TopologyModification~ modifications
   +List~str~ goals
 }
-class GenerateDemandStep {
-  +str | FromStep network_id
-  +DemandProfile profile
+class ObtainDemandStep {
+  +FromStep network_id
   +int seed
-  +List~DemandSource~ sources
+  +str? demand_ref
 }
 class RerouteDemandStep {
   +str | FromStep demand_id
@@ -153,6 +146,7 @@ class StepStatus {
   <<enumeration>>
   OK
   FAILED
+  NEEDS_USER
   SKIPPED
 }
 class Usage {
@@ -168,6 +162,30 @@ class Experiment {
   +str purpose
   +List~str~ result_ids
   +bool reused
+}
+class NeedsUser {
+  +NeedsUserReason reason
+  +str message
+  +List~str~ candidates
+  +List~FoundItem~ found
+  +List~str~ advice
+}
+class NeedsUserReason {
+  <<union>>
+  kind
+}
+class WindowMissing
+class DemandNotNamed
+class DemandNotObtainable {
+  +str demand_ref
+}
+class NetworkNotFound {
+  +str network_ref
+}
+class SeveralCandidates
+class FoundItem {
+  +str what
+  +str id
 }
 class ExperimentRole {
   <<enumeration>>
@@ -270,6 +288,7 @@ Study "1" o-- "0..1" Report : report
 Phase *-- "1" Question : question
 Phase "1" o-- "0..1" StudyPlan : plan
 Phase "1" o-- "0..1" ClarificationRequest : clarification
+Phase "1" o-- "0..1" NeedsUser : needs_user
 Phase "1" *-- "0..*" StepRecord : steps
 Phase "1" *-- "0..*" Experiment : experiments
 Phase "1" o-- "0..1" ExpertRound : round
@@ -286,15 +305,20 @@ StepRecord "1" o-- "0..1" StepError : error
 StepError --> StepErrorKind
 Experiment --> ExperimentRole
 StudyPlan "1" *-- "0..*" PlanStep : steps
-StudyPlan "1" *-- "0..*" ReusedExperiment : reused
 StudyPlan ..> FromStep : network_id
-ReusedExperiment --> ExperimentRole
-PlanStep <|-- GenerateNetworkStep
+PlanStep <|-- ObtainNetworkStep
 PlanStep <|-- DeriveNetworkStep
-PlanStep <|-- GenerateDemandStep
+PlanStep <|-- ObtainDemandStep
 PlanStep <|-- RerouteDemandStep
 PlanStep <|-- BuildScenarioStep
 PlanStep <|-- RunSimulationStep
+NeedsUser --> NeedsUserReason
+NeedsUser "1" *-- "0..*" FoundItem : found
+NeedsUserReason <|-- WindowMissing
+NeedsUserReason <|-- DemandNotNamed
+NeedsUserReason <|-- DemandNotObtainable
+NeedsUserReason <|-- NetworkNotFound
+NeedsUserReason <|-- SeveralCandidates
 PlanStep ..> FromStep : ids producidos por pasos anteriores
 ExpertRound *-- "1" ExpertAnswer : answer
 ExpertAnswer --> Basis
