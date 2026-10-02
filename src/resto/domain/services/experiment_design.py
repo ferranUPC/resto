@@ -10,6 +10,7 @@ from collections.abc import Iterable
 
 from resto.domain.value_objects.arm import BASE_ARM
 from resto.domain.value_objects.question import Intent, Mode, Question
+from resto.domain.value_objects.time_window import TimeWindow
 
 
 def required_arms(question: Question) -> tuple[str, ...]:
@@ -46,6 +47,17 @@ def needed_arms(question: Question, phase: int) -> tuple[str, ...]:
     if question.intent is Intent.COUNTERFACTUAL:
         return reference_arms(question)
     return (BASE_ARM,)
+
+
+def study_window(question: Question) -> TimeWindow | None:
+    """The smallest interval containing the window of every intervention in every arm, so all arms
+    share one demand. Interventions with a `condition` have no window and add nothing. `None` when
+    no intervention has a window: the Demand Generator then asks for the period."""
+    interventions = [i for arm in question.effective_arms for i in arm.interventions]
+    windows = [i.window for i in interventions if i.window is not None]
+    if not windows:
+        return None
+    return TimeWindow(min(w.start for w in windows), max(w.end for w in windows))
 
 
 def _in_order(question: Question, labels: Iterable[str]) -> tuple[str, ...]:

@@ -5,8 +5,10 @@ from resto.domain.services.experiment_design import (
     needed_arms,
     reference_arms,
     required_arms,
+    study_window,
 )
 from resto.domain.value_objects.arm import BASE_ARM, Arm, Contrast
+from resto.domain.value_objects.condition import Condition, Metric, Operator
 from resto.domain.value_objects.intervention import Intervention, InterventionType
 from resto.domain.value_objects.intervention_target import LaneTarget, TlsTarget
 from resto.domain.value_objects.question import SHORTHAND_ARM, Intent, Mode, Question
@@ -97,3 +99,56 @@ def test_needed_arms_follow_the_intent_in_phase_0_and_run_later() -> None:
     assert needed_arms(what_if, 0) == (BASE_ARM,)
     assert needed_arms(replace(what_if, intent=Intent.RUN), 0) == (BASE_ARM, SHORTHAND_ARM)
     assert needed_arms(what_if, 1) == (BASE_ARM, SHORTHAND_ARM)
+
+
+MORNING = TimeWindow(7 * 3600, 9 * 3600)
+NOON = TimeWindow(12 * 3600, 13 * 3600)
+
+
+def _closure(window: TimeWindow) -> Intervention:
+    return replace(CLOSURE, window=window)
+
+
+def test_the_study_window_of_one_intervention_is_its_window() -> None:
+    question = _question(interventions=(CLOSURE,))
+
+    assert study_window(question) == EVENING
+
+
+def test_the_study_window_spans_every_intervention_of_every_arm() -> None:
+    question = _question(
+        arms=(
+            Arm("morning", interventions=(_closure(MORNING),)),
+            Arm("both", interventions=(_closure(MORNING), RETIME)),
+            Arm("noon", interventions=(_closure(NOON),)),
+        )
+    )
+
+    assert study_window(question) == TimeWindow(7 * 3600, 20 * 3600)
+
+
+def test_an_intervention_with_a_condition_adds_no_window() -> None:
+    dynamic = replace(
+        CLOSURE, window=None, condition=Condition(Metric.SPEED, "gv_E12_0", Operator.LT, 5.0)
+    )
+    question = _question(interventions=(dynamic, _closure(NOON)))
+
+    assert study_window(question) == NOON
+
+
+def test_a_question_without_interventions_has_no_study_window() -> None:
+    assert study_window(_question()) is None
+    assert study_window(_question(topology_changes=(NEW_EDGE,))) is None
+
+
+def test_windows_past_midnight_on_the_continuous_clock_span_the_whole_night() -> None:
+    before_one = TimeWindow(23 * 3600, 25 * 3600)
+    after_one = TimeWindow(25.5 * 3600, 27 * 3600)
+    question = _question(
+        arms=(
+            Arm("early", interventions=(_closure(before_one),)),
+            Arm("late", interventions=(_closure(after_one),)),
+        )
+    )
+
+    assert study_window(question) == TimeWindow(23 * 3600, 27 * 3600)

@@ -20,6 +20,8 @@ from resto.domain.value_objects.study_plan import (
 from resto.domain.value_objects.tasks import ObtainDemandTask, ObtainNetworkTask
 from tests.unit.application._world import (
     BASELINE_PLAN,
+    CLOSURE,
+    WHAT_IF,
     World,
     answers,
     failed_kind,
@@ -158,3 +160,21 @@ def test_a_specialist_cut_by_its_budget_fails_the_step_as_budget(tmp_path: Path)
     assert study.status is StudyStatus.FAILED
     assert failed_kind(study) is StepErrorKind.BUDGET
     assert study.phases[0].failed_step.tool == "obtain_network"  # type: ignore[union-attr]
+
+
+def test_the_demand_task_carries_the_study_window_derived_from_the_question(
+    tmp_path: Path,
+) -> None:
+    world = World(tmp_path, question=WHAT_IF, plans=(_obtain_plan(),), expert=(answers(),))
+
+    world.run()
+
+    assert world.generator.calls[0][0].window == CLOSURE.window
+
+
+def test_the_demand_task_has_no_window_when_no_intervention_has_one(tmp_path: Path) -> None:
+    world = World(tmp_path, plans=(_obtain_plan(),), expert=(answers(),))
+
+    world.run()
+
+    assert world.generator.calls[0][0].window is None

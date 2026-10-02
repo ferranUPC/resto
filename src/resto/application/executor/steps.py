@@ -21,10 +21,12 @@ from resto.domain.constants import DEFAULT_SEEDS, NOTE_VERIFY_LIMIT
 from resto.domain.entities.expert_note import NoteStatus
 from resto.domain.entities.scenario import Scenario
 from resto.domain.entities.simulation_result import RunMode, RunStatus, SimulationResult
+from resto.domain.services.experiment_design import study_window
 from resto.domain.services.ids import result_id_for, scenario_id_for
 from resto.domain.value_objects.drafts import DemandDraft, NetworkDraft
 from resto.domain.value_objects.experiment import Experiment
 from resto.domain.value_objects.outcomes import Found
+from resto.domain.value_objects.question import Question
 from resto.domain.value_objects.step_record import StepErrorKind, StepRecord, StepStatus, Usage
 from resto.domain.value_objects.study_plan import (
     BuildScenarioStep,
@@ -137,7 +139,7 @@ def _run_step(
         case DeriveNetworkStep():
             return _derive_network(step, task, recorder, spend, deps), None
         case ObtainDemandStep():
-            return _obtain_demand(step, task, spend, deps), None
+            return _obtain_demand(step, task, spend, deps, recorder.phase.question), None
         case RerouteDemandStep():
             return _reroute(step, task, deps), None
         case BuildScenarioStep():
@@ -204,12 +206,17 @@ def _derive_network(
 
 
 def _obtain_demand(
-    step: ObtainDemandStep, task: Mapping[str, Any], spend: StudySpend, deps: StudyDeps
+    step: ObtainDemandStep,
+    task: Mapping[str, Any],
+    spend: StudySpend,
+    deps: StudyDeps,
+    question: Question,
 ) -> StepRecord:
     demand_task = ObtainDemandTask(
         network_id=_id(step.network_id),
         seed=step.seed,
         demand_ref=step.demand_ref,
+        window=study_window(question),
         tolerance=step.tolerance,
         max_calibration_rounds=step.max_calibration_rounds,
     )

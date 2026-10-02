@@ -1,4 +1,25 @@
 {
+  "$defs": {
+    "TimeWindow": {
+      "description": "Time of day in seconds since midnight, [start, end): 08:00\u201309:00 is [28800, 32400).\nSimulations run on the same clock (ADR-0028); past midnight the count continues.",
+      "properties": {
+        "end": {
+          "title": "End",
+          "type": "number"
+        },
+        "start": {
+          "title": "Start",
+          "type": "number"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ],
+      "title": "TimeWindow",
+      "type": "object"
+    }
+  },
   "description": "The Demand Generator's task for an `obtain_demand` step, on a network already resolved.",
   "properties": {
     "demand_ref": {
@@ -30,6 +51,17 @@
       "default": 0.15,
       "title": "Tolerance",
       "type": "number"
+    },
+    "window": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TimeWindow"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     }
   },
   "required": [

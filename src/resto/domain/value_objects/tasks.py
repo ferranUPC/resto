@@ -8,6 +8,7 @@ from resto.domain.value_objects.experiment import ExperimentRole
 from resto.domain.value_objects.expert_round import ExpertRound
 from resto.domain.value_objects.intervention import Intervention
 from resto.domain.value_objects.question import Mode
+from resto.domain.value_objects.time_window import TimeWindow
 from resto.domain.value_objects.topology_modification import TopologyModification
 
 DEFAULT_NETWORK_ROUNDS = 5
@@ -56,6 +57,9 @@ class ObtainDemandTask:
     network_id: str
     seed: int
     demand_ref: str | None = None
+    window: TimeWindow | None = None
+    """The study window, derived from the question by code (`study_window`); none when no
+    intervention has a window."""
     tolerance: float = 0.15
     max_calibration_rounds: int = DEFAULT_CALIBRATION_ROUNDS
 
