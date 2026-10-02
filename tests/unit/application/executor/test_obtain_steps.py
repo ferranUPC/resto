@@ -3,6 +3,7 @@ specialist ends in a found id or in a draft that code promotes."""
 
 from pathlib import Path
 
+from resto.application.ports.llm import StopReason
 from resto.domain.entities.study import StudyStatus
 from resto.domain.value_objects.experiment import ExperimentRole
 from resto.domain.value_objects.outcomes import Found
@@ -58,7 +59,6 @@ def _obtain_plan(*, network_ref: str = "RIVERSIDE") -> object:
             ),
         )
     )
-
 
 
 def test_a_specialist_that_finds_an_id_continues_the_study(tmp_path: Path) -> None:
@@ -149,3 +149,12 @@ def test_a_found_demand_must_be_stored_for_the_resolved_network(tmp_path: Path) 
     assert study.phases[0].failed_step.tool == "obtain_demand"  # type: ignore[union-attr]
     assert world.builder.calls == []
 
+
+def test_a_specialist_cut_by_its_budget_fails_the_step_as_budget(tmp_path: Path) -> None:
+    world = World(tmp_path, plans=(BASELINE_PLAN,), author=(run_of(None, stop=StopReason.BUDGET),))
+
+    study = world.run()
+
+    assert study.status is StudyStatus.FAILED
+    assert failed_kind(study) is StepErrorKind.BUDGET
+    assert study.phases[0].failed_step.tool == "obtain_network"  # type: ignore[union-attr]
