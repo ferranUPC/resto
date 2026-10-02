@@ -18,6 +18,7 @@ from resto.domain.value_objects.study_plan import (
     BuildScenarioStep,
     ClarificationRequest,
     FromStep,
+    ObtainNetworkStep,
     ReusedExperiment,
     RunSimulationStep,
     StudyPlan,
@@ -27,11 +28,14 @@ from tests.unit.domain._samples import study as completed_study
 
 QUESTION = Question(text="what if we close lane 1 of E12?", intent=Intent.RUN)
 PLAN = StudyPlan(
-    network_id="abc123",
+    network_id=FromStep(0),
     rationale="baseline stored, treatment to build",
     steps=(
-        BuildScenarioStep("abc123", "t1", "treatment", ExperimentRole.TREATMENT, "closure"),
-        RunSimulationStep(FromStep(0), depends_on=(0,)),
+        ObtainNetworkStep("RIVERSIDE"),
+        BuildScenarioStep(
+            FromStep(0), "t1", "treatment", ExperimentRole.TREATMENT, "closure", depends_on=(0,)
+        ),
+        RunSimulationStep(FromStep(1), depends_on=(1,)),
     ),
     reused=(ReusedExperiment("s-base", "base", ExperimentRole.BASELINE, "stored baseline"),),
 )

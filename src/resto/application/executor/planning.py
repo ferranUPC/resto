@@ -65,7 +65,6 @@ def plan_phase(
         phase=k,
         realised={e.arm for e in earlier},
         network_id=network_id,
-        has_historical_demand=settings.has_historical_demand,
         networks=deps.networks,
         demands=deps.demands,
         scenarios=deps.scenarios,

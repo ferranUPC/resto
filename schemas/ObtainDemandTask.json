@@ -1,0 +1,41 @@
+{
+  "description": "The Demand Generator's task for an `obtain_demand` step, on a network already resolved.",
+  "properties": {
+    "demand_ref": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Demand Ref"
+    },
+    "max_calibration_rounds": {
+      "default": 5,
+      "title": "Max Calibration Rounds",
+      "type": "integer"
+    },
+    "network_id": {
+      "title": "Network Id",
+      "type": "string"
+    },
+    "seed": {
+      "title": "Seed",
+      "type": "integer"
+    },
+    "tolerance": {
+      "default": 0.15,
+      "title": "Tolerance",
+      "type": "number"
+    }
+  },
+  "required": [
+    "network_id",
+    "seed"
+  ],
+  "title": "ObtainDemandTask",
+  "type": "object"
+}

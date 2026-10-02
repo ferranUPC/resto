@@ -1,13 +1,13 @@
 import pytest
 
 from resto.domain.value_objects.experiment import ExperimentRole
-from resto.domain.value_objects.network_source import NetworkSource
 from resto.domain.value_objects.study_plan import (
     BuildScenarioStep,
     ClarificationRequest,
     DeriveNetworkStep,
     FromStep,
-    GenerateNetworkStep,
+    ObtainDemandStep,
+    ObtainNetworkStep,
     RerouteDemandStep,
     ReusedExperiment,
     RunSimulationStep,
@@ -28,36 +28,82 @@ def _build(network_id: str | FromStep = "n1", demand_id: str | FromStep = "d1", 
 def _gp11_plan() -> StudyPlan:
     """GP-11: derive a network with a new edge, reroute the demand, build and run both sides."""
     return StudyPlan(
-        network_id="n1",
+        network_id=FromStep(0),
         rationale="treatment is the derived network; baseline reused",
         steps=(
-            DeriveNetworkStep(base_network_id="n1", modifications=(AddEdge("J7", "J9", 1, 13.9),)),
-            RerouteDemandStep(demand_id="d1", network_id=FromStep(0), depends_on=(0,)),
+            ObtainNetworkStep(network_ref="RIVERSIDE"),
+            DeriveNetworkStep(
+                base_network_id=FromStep(0),
+                modifications=(AddEdge("J7", "J9", 1, 13.9),),
+                depends_on=(0,),
+            ),
+            RerouteDemandStep(demand_id="d1", network_id=FromStep(1), depends_on=(1,)),
             BuildScenarioStep(
-                network_id=FromStep(0),
-                demand_id=FromStep(1),
+                network_id=FromStep(1),
+                demand_id=FromStep(2),
                 arm="new-edge",
                 role=ExperimentRole.TREATMENT,
                 purpose="new edge J7-J9",
-                depends_on=(0, 1),
+                depends_on=(1, 2),
             ),
-            RunSimulationStep(scenario_id=FromStep(2), depends_on=(2,)),
+            RunSimulationStep(scenario_id=FromStep(3), depends_on=(3,)),
         ),
         reused=(ReusedExperiment("s-base", "base", BASELINE, "network as it is"),),
     )
 
 
-def test_a_plan_may_have_no_steps() -> None:
+def test_a_plan_with_no_steps_is_rejected() -> None:
+    with pytest.raises(ValueError, match="obtain_network"):
+        StudyPlan(
+            network_id="n1",
+            rationale="baseline results exist",
+            steps=(),
+            reused=(ReusedExperiment("s1", "base", BASELINE, "reference"),),
+        )
+
+
+def test_a_plan_without_obtain_network_is_rejected() -> None:
+    with pytest.raises(ValueError, match="obtain_network"):
+        StudyPlan(network_id="n1", rationale="r", steps=(_build(),))
+
+
+def test_a_network_only_question_is_a_plan_of_one_obtain_network_step() -> None:
     plan = StudyPlan(
-        network_id="n1",
-        rationale="baseline results exist",
-        reused=(ReusedExperiment("s1", "base", BASELINE, "reference"),),
+        network_id=FromStep(0), rationale="network only", steps=(ObtainNetworkStep("RIVERSIDE"),)
     )
-    assert plan.steps == ()
+    assert plan.arms == ()
+
+
+def test_obtain_network_requires_its_reference() -> None:
+    with pytest.raises(ValueError, match="reference"):
+        ObtainNetworkStep(network_ref=" ")
+
+
+def test_obtain_demand_takes_the_network_by_from_step() -> None:
+    step = ObtainDemandStep(network_id=FromStep(0), seed=1, depends_on=(0,))
+    assert step.inputs == ((FromStep(0), "network"),)
+    assert step.produces == "demand"
+    with pytest.raises(ValueError, match="depends_on"):
+        ObtainDemandStep(network_id=FromStep(0), seed=1)
+    with pytest.raises(ValueError, match="blank"):
+        ObtainDemandStep(network_id="n1", seed=1, demand_ref=" ")
+
+
+def test_a_demand_step_must_follow_a_network_step() -> None:
+    with pytest.raises(ValueError, match="a network is expected"):
+        StudyPlan(
+            network_id=FromStep(0),
+            rationale="r",
+            steps=(
+                ObtainNetworkStep("RIVERSIDE"),
+                ObtainDemandStep(network_id=FromStep(0), seed=1, depends_on=(0,)),
+                ObtainDemandStep(network_id=FromStep(1), seed=1, depends_on=(1,)),
+            ),
+        )
 
 
 def test_a_multi_step_plan_with_from_step_is_valid() -> None:
-    assert len(_gp11_plan().steps) == 4
+    assert len(_gp11_plan().steps) == 5
 
 
 def test_every_from_step_is_declared_in_depends_on() -> None:
@@ -72,7 +118,10 @@ def test_depends_on_points_to_earlier_steps() -> None:
         StudyPlan(
             network_id="n1",
             rationale="r",
-            steps=(RunSimulationStep(scenario_id=FromStep(0), depends_on=(0,)),),
+            steps=(
+                ObtainNetworkStep("RIVERSIDE"),
+                RunSimulationStep(scenario_id=FromStep(1), depends_on=(1,)),
+            ),
         )
 
 
@@ -82,19 +131,20 @@ def test_from_step_must_point_to_a_step_that_produces_the_expected_id() -> None:
             network_id="n1",
             rationale="r",
             steps=(
+                ObtainNetworkStep("RIVERSIDE"),
                 _build(),
-                _build(network_id=FromStep(0), depends_on=(0,)),
+                _build(network_id=FromStep(1), depends_on=(1,)),
             ),
         )
 
 
 def test_plan_network_id_may_come_from_a_network_step() -> None:
-    generate = GenerateNetworkStep(source=NetworkSource(kind="place", value="Eixample"))
-    StudyPlan(network_id=FromStep(0), rationale="GP-8 creates the network", steps=(generate,))
+    obtain = ObtainNetworkStep(network_ref="Eixample")
+    StudyPlan(network_id=FromStep(0), rationale="GP-8 obtains the network", steps=(obtain,))
     with pytest.raises(ValueError, match="not a step of this plan"):
-        StudyPlan(network_id=FromStep(0), rationale="r")
+        StudyPlan(network_id=FromStep(1), rationale="r", steps=(obtain,))
     with pytest.raises(ValueError, match="a network is expected"):
-        StudyPlan(network_id=FromStep(0), rationale="r", steps=(_build(),))
+        StudyPlan(network_id=FromStep(1), rationale="r", steps=(obtain, _build()))
 
 
 def test_deriving_a_network_needs_a_modification() -> None:
@@ -120,7 +170,12 @@ def test_role_and_purpose_are_declared() -> None:
 def test_a_scenario_is_reused_once() -> None:
     reused = ReusedExperiment("s1", "base", BASELINE, "reference")
     with pytest.raises(ValueError, match="more than once"):
-        StudyPlan(network_id="n1", rationale="r", reused=(reused, reused))
+        StudyPlan(
+            network_id="n1",
+            rationale="r",
+            steps=(ObtainNetworkStep("RIVERSIDE"),),
+            reused=(reused, reused),
+        )
 
 
 def test_a_clarification_needs_a_reason() -> None:
@@ -133,7 +188,7 @@ def test_each_arm_is_realised_once_per_plan() -> None:
         StudyPlan(
             network_id="n1",
             rationale="r",
-            steps=(_build(),),
+            steps=(ObtainNetworkStep("RIVERSIDE"), _build()),
             reused=(ReusedExperiment("s1", "base", BASELINE, "reference"),),
         )
     assert _gp11_plan().arms == ("base", "new-edge")

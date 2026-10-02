@@ -8,10 +8,17 @@ from resto.domain.value_objects.expert_answer import Basis, Evidence, EvidenceKi
 from resto.domain.value_objects.expert_round import ExpertRound
 from resto.domain.value_objects.question import Intent, Mode, Question
 from resto.domain.value_objects.step_record import StepError, StepErrorKind, StepRecord, StepStatus
-from resto.domain.value_objects.study_plan import ClarificationRequest, StudyPlan
+from resto.domain.value_objects.study_plan import (
+    ClarificationRequest,
+    FromStep,
+    ObtainNetworkStep,
+    StudyPlan,
+)
 from tests.unit.domain._samples import report
 
-PLAN = StudyPlan(network_id="n1", rationale="results exist")
+PLAN = StudyPlan(
+    network_id=FromStep(0), rationale="results exist", steps=(ObtainNetworkStep("RIVERSIDE"),)
+)
 EVIDENCE = (Evidence(kind=EvidenceKind.QUERY, ref="query_edgedata(r1,E12)"),)
 OK = StepRecord(tool="run_simulation", status=StepStatus.OK)
 FAILED = StepRecord(

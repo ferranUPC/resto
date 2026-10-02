@@ -10,11 +10,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-from resto.domain.value_objects.demand_source import DemandSource
-from resto.domain.value_objects.demand_spec import DemandProfile
 from resto.domain.value_objects.experiment import ExperimentRole
 from resto.domain.value_objects.intervention import Intervention
-from resto.domain.value_objects.network_source import NetworkSource
 from resto.domain.value_objects.tasks import DEFAULT_CALIBRATION_ROUNDS, DEFAULT_NETWORK_ROUNDS
 from resto.domain.value_objects.topology_modification import TopologyModification
 
@@ -48,17 +45,21 @@ def _check_depends_on(inputs: tuple[StepInput, ...], depends_on: tuple[int, ...]
 
 
 @dataclass(frozen=True, slots=True)
-class GenerateNetworkStep:
-    source: NetworkSource
+class ObtainNetworkStep:
+    """The Network Author resolves the network the Parser named: it finds a stored one or has one
+    promoted from its draft (ADR-0037 §2). `network_ref` is the Parser's text, verbatim."""
+
+    network_ref: str
     goals: tuple[str, ...] = ()
-    modifications: tuple[TopologyModification, ...] = ()
     min_scc_ratio: float = 0.95
     probe_teleport_threshold: int = 0
     max_rounds: int = DEFAULT_NETWORK_ROUNDS
     depends_on: tuple[int, ...] = ()
-    kind: Literal["generate_network"] = "generate_network"
+    kind: Literal["obtain_network"] = "obtain_network"
 
     def __post_init__(self) -> None:
+        if not self.network_ref.strip():
+            raise ValueError("an obtain_network step requires the network reference")
         _check_depends_on(self.inputs, self.depends_on)
 
     @property
@@ -96,18 +97,23 @@ class DeriveNetworkStep:
 
 
 @dataclass(frozen=True, slots=True)
-class GenerateDemandStep:
+class ObtainDemandStep:
+    """The Demand Generator resolves the demand for a network already resolved: `network_id` is
+    always a `FromStep` to the network's step in practice, never the reference (ADR-0037 §3).
+    `demand_ref` is the Parser's phrase; none means the request names no demand and the
+    specialist asks."""
+
     network_id: str | FromStep
-    profile: DemandProfile
     seed: int
-    sources: tuple[DemandSource, ...] = ()
-    control_edges: tuple[str, ...] = ()
+    demand_ref: str | None = None
     tolerance: float = 0.15
     max_calibration_rounds: int = DEFAULT_CALIBRATION_ROUNDS
     depends_on: tuple[int, ...] = ()
-    kind: Literal["generate_demand"] = "generate_demand"
+    kind: Literal["obtain_demand"] = "obtain_demand"
 
     def __post_init__(self) -> None:
+        if self.demand_ref is not None and not self.demand_ref.strip():
+            raise ValueError("demand_ref, when given, must not be blank")
         _check_depends_on(self.inputs, self.depends_on)
 
     @property
@@ -201,9 +207,9 @@ class RunSimulationStep:
 
 
 PlanStep = (
-    GenerateNetworkStep
+    ObtainNetworkStep
     | DeriveNetworkStep
-    | GenerateDemandStep
+    | ObtainDemandStep
     | RerouteDemandStep
     | BuildScenarioStep
     | RunSimulationStep
@@ -233,12 +239,12 @@ class ReusedExperiment:
 @dataclass(frozen=True, slots=True)
 class StudyPlan:
     """Emitted by the Coordinator, one per phase; measured against gold plans. `network_id` is the
-    network the study is about (`FromStep` when the plan creates it). Zero steps is valid: the
-    Expert then answers from `reused` results only."""
+    network the study is about (`FromStep` when the plan creates it). A plan always contains an
+    `obtain_network` step (ADR-0037 §2), so it is never empty."""
 
     network_id: str | FromStep
     rationale: str
-    steps: tuple[PlanStep, ...] = ()
+    steps: tuple[PlanStep, ...]
     reused: tuple[ReusedExperiment, ...] = ()
 
     def __post_init__(self) -> None:
@@ -247,6 +253,8 @@ class StudyPlan:
                 raise ValueError(f"step {i} depends on a step that is not earlier")
             for ref, expected in step.inputs:
                 self._check_ref(ref, expected, f"step {i}")
+        if not any(isinstance(s, ObtainNetworkStep) for s in self.steps):
+            raise ValueError("a plan always contains an obtain_network step")
         if isinstance(self.network_id, FromStep):
             self._check_ref(self.network_id, "network", "network_id")
         scenario_ids = [r.scenario_id for r in self.reused]

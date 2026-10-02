@@ -19,15 +19,12 @@ from resto.domain.entities.scenario import Scenario
 from resto.domain.entities.simulation_result import RunMode, RunStatus, SimulationResult
 from resto.domain.services.ids import result_id_for, scenario_id_for
 from resto.domain.value_objects.arm import BASE_ARM, Arm
-from resto.domain.value_objects.demand_source import HistoricalDbSource
-from resto.domain.value_objects.demand_spec import DemandProfile
 from resto.domain.value_objects.experiment import ExperimentRole
 from resto.domain.value_objects.kpis import Kpis
 from resto.domain.value_objects.question import Intent, Question
 from resto.domain.value_objects.study_plan import (
     DeriveNetworkStep,
     FromStep,
-    GenerateDemandStep,
     PlanStep,
     ReusedExperiment,
     RunSimulationStep,
@@ -37,8 +34,10 @@ from resto.domain.value_objects.topology_modification import AddEdge
 from tests.unit.domain._fixtures import (
     DEMAND,
     NET,
+    after_obtain_network,
     artifact,
     build_step,
+    plan_network,
     run_step,
     static_intervention,
 )
@@ -64,18 +63,16 @@ NEW_ROAD = Question(
 def plan(
     *steps: PlanStep, reused: tuple[ReusedExperiment, ...] = (), network: str | FromStep = NET
 ) -> StudyPlan:
-    return StudyPlan(network_id=network, rationale="as needed", steps=steps, reused=reused)
+    return StudyPlan(
+        network_id=plan_network(network),
+        rationale="as needed",
+        steps=after_obtain_network(*steps),
+        reused=reused,
+    )
 
 
 def reuse(scenario_id: str, arm: str = BASE_ARM) -> ReusedExperiment:
     return ReusedExperiment(scenario_id, arm, ExperimentRole.BASELINE, "already simulated")
-
-
-def _historical_plan() -> StudyPlan:
-    demand = GenerateDemandStep(
-        network_id=NET, profile=DemandProfile.PEAK, seed=1, sources=(HistoricalDbSource(),)
-    )
-    return plan(demand, build_step(demand=FromStep(0), depends_on=(0,)), run_step(1))
 
 
 class Stored:
@@ -126,7 +123,6 @@ class Stored:
         phase: int = 0,
         realised: Collection[str] = (),
         network_id: str | None = None,
-        has_historical_demand: bool = False,
     ) -> list[str]:
         return plan_problems(
             plan,
@@ -134,7 +130,6 @@ class Stored:
             phase=phase,
             realised=realised,
             network_id=network_id,
-            has_historical_demand=has_historical_demand,
             networks=self.networks,
             demands=self.demands,
             scenarios=self.scenarios,
@@ -159,13 +154,13 @@ def test_a_valid_plan_has_no_problems(stored: Stored) -> None:
             plan(build_step(), run_step(0), network="nope"),
             [
                 "unknown network 'nope'",
-                "step 0: its arm keeps the topology, but runs on another network",
+                "step 1: its arm keeps the topology, but runs on another network",
             ],
         ),
         (
             DESCRIBE,
             plan(build_step(demand="nope"), run_step(0)),
-            ["step 0: unknown demand 'nope'"],
+            ["step 1: unknown demand 'nope'"],
         ),
         (DESCRIBE, plan(), ["arm 'base' is needed but not planned"]),
         (
@@ -173,19 +168,11 @@ def test_a_valid_plan_has_no_problems(stored: Stored) -> None:
             plan(build_step(), run_step(0), build_step("treatment", (CLOSURE,)), run_step(2)),
             ["arm 'treatment' is not needed by this phase"],
         ),
-        (DESCRIBE, plan(build_step()), ["step 0: arm 'base' is built but never run"]),
+        (DESCRIBE, plan(build_step()), ["step 1: arm 'base' is built but never run"]),
         (
             DESCRIBE,
             plan(build_step(interventions=(CLOSURE,)), run_step(0)),
-            ["step 0: its interventions are not those of its arm"],
-        ),
-        (
-            DESCRIBE,
-            _historical_plan(),
-            [
-                "step 0: historical demand requested, but the database lacks the "
-                "historical_demand capability"
-            ],
+            ["step 1: its interventions are not those of its arm"],
         ),
     ],
     ids=[
@@ -195,7 +182,6 @@ def test_a_valid_plan_has_no_problems(stored: Stored) -> None:
         "extra-arm",
         "built-never-run",
         "wrong-interventions",
-        "historical-without-capability",
     ],
 )
 def test_an_invalid_plan_names_its_problem(
@@ -204,15 +190,11 @@ def test_an_invalid_plan_names_its_problem(
     assert stored.problems(bad_plan, question) == expected
 
 
-def test_historical_demand_is_fine_when_the_database_has_it(stored: Stored) -> None:
-    assert stored.problems(_historical_plan(), has_historical_demand=True) == []
-
-
 def test_a_run_of_a_stored_scenario_id_is_rejected(stored: Stored) -> None:
     sid = stored.scenario()
 
     assert stored.problems(plan(RunSimulationStep(scenario_id=sid))) == [
-        "step 0: run_simulation must run a scenario built by this plan "
+        "step 1: run_simulation must run a scenario built by this plan "
         "(plan a build_scenario step: an existing scenario costs no agent call)",
         "arm 'base' is needed but not planned",
     ]
@@ -241,10 +223,10 @@ def test_every_problem_in_one_plan_comes_back(stored: Stored) -> None:
 
     assert stored.problems(bad) == [
         "unknown network 'nope'",
-        "step 0: unknown demand 'nope'",
-        "step 0: arm 'base' is built but never run",
-        "step 0: its interventions are not those of its arm",
-        "step 0: its arm keeps the topology, but runs on another network",
+        "step 1: unknown demand 'nope'",
+        "step 1: arm 'base' is built but never run",
+        "step 1: its interventions are not those of its arm",
+        "step 1: its arm keeps the topology, but runs on another network",
     ]
 
 
@@ -272,7 +254,7 @@ def test_a_topology_arm_on_the_study_network_is_rejected(stored: Stored) -> None
     on_study_network = plan(build_step(), run_step(0), build_step("edge"), run_step(2))
 
     assert stored.problems(on_study_network, NEW_ROAD) == [
-        "step 2: its arm changes the topology, but runs on the study network"
+        "step 3: its arm changes the topology, but runs on the study network"
     ]
 
 
@@ -287,5 +269,5 @@ def test_a_topology_arm_runs_on_the_network_deriving_its_changes(stored: Stored)
     )
 
     assert stored.problems(derived, NEW_ROAD) == [
-        "step 3: its network is derived with other changes than its arm's"
+        "step 4: its network is derived with other changes than its arm's"
     ]

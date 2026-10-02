@@ -75,6 +75,7 @@ from resto.domain.value_objects.mechanism import (
 )
 from resto.domain.value_objects.network_recipe import NetworkRecipe
 from resto.domain.value_objects.network_source import NetworkSource
+from resto.domain.value_objects.outcomes import Found
 from resto.domain.value_objects.probe_report import ProbeReport
 from resto.domain.value_objects.question import Intent, Mode, Question
 from resto.domain.value_objects.report import Claim, Report, ReportSection
@@ -91,19 +92,20 @@ from resto.domain.value_objects.study_plan import (
     ClarificationRequest,
     DeriveNetworkStep,
     FromStep,
-    GenerateDemandStep,
-    GenerateNetworkStep,
+    ObtainDemandStep,
+    ObtainNetworkStep,
     RerouteDemandStep,
     ReusedExperiment,
     RunSimulationStep,
     StudyPlan,
 )
 from resto.domain.value_objects.tasks import (
-    DemandTask,
     ExpertTask,
     NetworkTask,
     NoteScenario,
     NoteTask,
+    ObtainDemandTask,
+    ObtainNetworkTask,
     ScenarioTask,
 )
 from resto.domain.value_objects.time_window import TimeWindow
@@ -168,15 +170,17 @@ def study_plan() -> StudyPlan:
         network_id="abc123",
         rationale="baseline exists, only the treatment needs running",
         steps=(
+            ObtainNetworkStep(network_ref="RIVERSIDE"),
             BuildScenarioStep(
-                network_id="abc123",
+                network_id=FromStep(0),
                 demand_id="t1",
                 arm="treatment",
                 role=ExperimentRole.TREATMENT,
                 purpose="measure the closure",
                 interventions=(static_intervention(),),
+                depends_on=(0,),
             ),
-            RunSimulationStep(scenario_id=FromStep(0), depends_on=(0,)),
+            RunSimulationStep(scenario_id=FromStep(1), depends_on=(1,)),
         ),
         reused=(ReusedExperiment("s0", "base", ExperimentRole.BASELINE, "without the closure"),),
     )
@@ -330,14 +334,15 @@ SAMPLES: dict[type, Callable[[], object]] = {
         question=question(), clarification=ClarificationRequest("two networks match")
     ),
     FromStep: lambda: FromStep(0),
-    GenerateNetworkStep: lambda: GenerateNetworkStep(
-        source=NetworkSource(kind="place", value="Barcelona, Eixample"), goals=("drivable",)
+    ObtainNetworkStep: lambda: ObtainNetworkStep(
+        network_ref="Barcelona, Eixample", goals=("drivable",)
     ),
     DeriveNetworkStep: lambda: DeriveNetworkStep(
         base_network_id=FromStep(0), modifications=(RemoveEdge(edge_id="E07"),), depends_on=(0,)
     ),
-    GenerateDemandStep: lambda: GenerateDemandStep(
-        network_id="abc123", profile=demand_spec().profile, seed=1, sources=(ParametersSource(),)
+    Found: lambda: Found("abc123"),
+    ObtainDemandStep: lambda: ObtainDemandStep(
+        network_id=FromStep(0), seed=1, demand_ref="weekday morning peak", depends_on=(0,)
     ),
     RerouteDemandStep: lambda: RerouteDemandStep(
         demand_id="t1", network_id=FromStep(1), depends_on=(1,)
@@ -444,12 +449,9 @@ SAMPLES: dict[type, Callable[[], object]] = {
         goals=("drivable grid",),
         modifications=(RemoveEdge(edge_id="E07"),),
     ),
-    DemandTask: lambda: DemandTask(
-        network_id="abc123",
-        profile=demand_spec().profile,
-        seed=1,
-        sources=(ParametersSource(),),
-        control_edges=("E12",),
+    ObtainNetworkTask: lambda: ObtainNetworkTask(network_ref="RIVERSIDE", goals=("drivable",)),
+    ObtainDemandTask: lambda: ObtainDemandTask(
+        network_id="abc123", seed=1, demand_ref="weekday morning peak"
     ),
     ScenarioTask: lambda: ScenarioTask(
         network_id="abc123",

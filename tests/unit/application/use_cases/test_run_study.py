@@ -85,7 +85,7 @@ from tests.unit.domain._fixtures import (
 # -- golden paths ---------------------------------------------------------------------------------
 
 
-def test_gp1_a_zero_step_plan_answers_from_reused_results(tmp_path: Path) -> None:
+def test_gp1_an_obtain_network_only_plan_answers_from_reused_results(tmp_path: Path) -> None:
     world = World(tmp_path, expert=(answers(),))
     sid, ids = world.store_scenario()
     world.coordinator.items.append(
@@ -98,6 +98,7 @@ def test_gp1_a_zero_step_plan_answers_from_reused_results(tmp_path: Path) -> Non
     assert study.report is not None
     assert tools(study) == [
         ("plan", StepStatus.OK),
+        ("obtain_network", StepStatus.OK),
         ("ask_expert", StepStatus.OK),
         ("compose_report", StepStatus.OK),
     ]
@@ -118,6 +119,7 @@ def test_gp2_builds_and_runs_the_baseline_with_the_default_seeds(tmp_path: Path)
     assert study.status is StudyStatus.COMPLETED
     assert [t for t, _ in tools(study)] == [
         "plan",
+        "obtain_network",
         "build_scenario",
         "run_simulation",
         "ask_expert",
@@ -129,8 +131,8 @@ def test_gp2_builds_and_runs_the_baseline_with_the_default_seeds(tmp_path: Path)
         BASE_SID, BASE_ARM, ExperimentRole.BASELINE, "arm base", expected
     )
     assert [seed for _, seed, _ in world.runner.calls] == [0, *DEFAULT_SEEDS]  # load check + runs
-    assert study.phases[0].steps[2].usage == Usage(simulations=3)
-    assert study.phases[0].steps[1].usage == Usage(input_tokens=100)
+    assert study.phases[0].steps[3].usage == Usage(simulations=3)
+    assert study.phases[0].steps[2].usage == Usage(input_tokens=100)
 
 
 def test_gp3_counterfactual_free_plans_the_treatment_only_when_the_expert_asks(
@@ -230,14 +232,14 @@ def test_combined_topology_and_intervention_arms_share_one_derivation(tmp_path: 
     study = world.run()
 
     assert study.status is StudyStatus.COMPLETED
-    assert len(world.author.calls) == 1
+    assert len(world.promoted_networks) == 1  # the derivation; obtain_network found NET
     assert world.promoted_networks[0].base_network_id == NET
     experiments = study.phases[0].experiments
     assert [e.arm for e in experiments] == [BASE_ARM, "edge", "edge+closure"]
     assert all(len(e.result_ids) == 3 for e in experiments)
     assert world.scenarios.get(experiments[2].scenario_id).network_id == "derived-1"  # type: ignore[union-attr]
-    assert study.network_ids == ("derived-1", NET)
-    assert world.expert.calls[0][0].network_ids == ("derived-1", NET)
+    assert study.network_ids == (NET, "derived-1")
+    assert world.expert.calls[0][0].network_ids == (NET, "derived-1")
 
 
 def _derive_plan() -> Any:
@@ -553,7 +555,7 @@ def test_an_invalid_plan_is_the_agents(tmp_path: Path) -> None:
 
     study = world.run()
 
-    assert_failed_at(study, "plan", StepErrorKind.AGENT, skipped=2)
+    assert_failed_at(study, "plan", StepErrorKind.AGENT, skipped=3)
     assert study.phases[0].plan == bad_plan.output
     assert world.builder.calls == []
     error = study.phases[0].failed_step.error  # type: ignore[union-attr]
@@ -561,7 +563,7 @@ def test_an_invalid_plan_is_the_agents(tmp_path: Path) -> None:
     assert error.message == "the plan of phase 0 is invalid"
     assert error.details == (
         "unknown network 'nope'",
-        "step 0: its arm keeps the topology, but runs on another network",
+        "step 1: its arm keeps the topology, but runs on another network",
     )
 
 
@@ -615,7 +617,7 @@ def test_only_missing_seeds_are_run(tmp_path: Path) -> None:
     study = world.run()
 
     assert [seed for _, seed, _ in world.runner.calls] == [2, 3]
-    assert study.phases[0].steps[2].usage == Usage(simulations=2)
+    assert study.phases[0].steps[3].usage == Usage(simulations=2)
     assert len(study.phases[0].experiments[0].result_ids) == 3
 
 
@@ -854,7 +856,12 @@ def test_a_multi_phase_study_traces_phases_plans_steps_rounds_and_the_report(
 
     flow = _flow(world)
     assert study.status is StudyStatus.COMPLETED
-    assert flow[:3] == [("phase", 0), ("plan", 0), ("step", 0, "build_scenario")]
+    assert flow[:4] == [
+        ("phase", 0),
+        ("plan", 0),
+        ("step", 0, "obtain_network"),
+        ("step", 0, "build_scenario"),
+    ]
     assert flow.index(("round", 0, 1)) < flow.index(("phase", 1)) < flow.index(("plan", 1))
     assert [f for f in flow if isinstance(f, tuple) and f[0] == "round"] == [
         ("round", 0, 1),

@@ -55,7 +55,7 @@ class _Pending:
     def __call__(self, *args: object) -> NoReturn:
         raise NotImplementedError(f"the {self._what} is not implemented yet ({self._task_id})")
 
-    parse = plan = author = generate = compose = __call__
+    parse = plan = author = obtain = compose = __call__
 
 
 def build_deps(

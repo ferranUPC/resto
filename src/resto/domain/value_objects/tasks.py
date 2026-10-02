@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from resto.domain.value_objects.demand_source import DemandSource
-from resto.domain.value_objects.demand_spec import DemandProfile
 from resto.domain.value_objects.experiment import ExperimentRole
 from resto.domain.value_objects.expert_round import ExpertRound
 from resto.domain.value_objects.intervention import Intervention
@@ -35,16 +33,35 @@ class NetworkTask:
 
 
 @dataclass(frozen=True, slots=True)
-class DemandTask:
+class ObtainNetworkTask:
+    """The Network Author's task for an `obtain_network` step: resolve `network_ref`."""
+
+    network_ref: str
+    goals: tuple[str, ...] = ()
+    min_scc_ratio: float = 0.95
+    probe_teleport_threshold: int = 0
+    max_rounds: int = DEFAULT_NETWORK_ROUNDS
+
+    def __post_init__(self) -> None:
+        if not self.network_ref.strip():
+            raise ValueError("an ObtainNetworkTask requires the network reference")
+        if self.max_rounds < 1:
+            raise ValueError("max_rounds must be >= 1")
+
+
+@dataclass(frozen=True, slots=True)
+class ObtainDemandTask:
+    """The Demand Generator's task for an `obtain_demand` step, on a network already resolved."""
+
     network_id: str
-    profile: DemandProfile
     seed: int
-    sources: tuple[DemandSource, ...] = ()
-    control_edges: tuple[str, ...] = ()
+    demand_ref: str | None = None
     tolerance: float = 0.15
     max_calibration_rounds: int = DEFAULT_CALIBRATION_ROUNDS
 
     def __post_init__(self) -> None:
+        if not self.network_id:
+            raise ValueError("an ObtainDemandTask requires a network_id")
         if not 0 < self.tolerance < 1:
             raise ValueError("tolerance must be a fraction in (0, 1)")
         if self.max_calibration_rounds < 1:
@@ -123,4 +140,4 @@ class NoteTask:
         return next((s for s in self.scenarios if s.scenario_id == scenario_id), None)
 
 
-Task = NetworkTask | DemandTask | ScenarioTask | ExpertTask | NoteTask
+Task = NetworkTask | ObtainNetworkTask | ObtainDemandTask | ScenarioTask | ExpertTask | NoteTask

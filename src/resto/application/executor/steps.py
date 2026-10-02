@@ -13,6 +13,7 @@ from resto.application.executor.failures import StepFailed, crash, draft_of, fai
 from resto.application.executor.plan_validation import ok_results
 from resto.application.executor.recorder import StudyRecorder, data
 from resto.application.executor.spend import StudySpend
+from resto.application.ports.llm import AgentRun
 from resto.application.use_cases.build_scenario import build_scenario
 from resto.application.use_cases.run_simulation import attempt_dir, run_simulation
 from resto.application.use_cases.update_note_status import update_note_status
@@ -21,21 +22,27 @@ from resto.domain.entities.expert_note import NoteStatus
 from resto.domain.entities.scenario import Scenario
 from resto.domain.entities.simulation_result import RunMode, RunStatus, SimulationResult
 from resto.domain.services.ids import result_id_for, scenario_id_for
+from resto.domain.value_objects.drafts import DemandDraft, NetworkDraft
 from resto.domain.value_objects.experiment import Experiment
-from resto.domain.value_objects.network_source import NetworkSource
+from resto.domain.value_objects.outcomes import Found
 from resto.domain.value_objects.step_record import StepErrorKind, StepRecord, StepStatus, Usage
 from resto.domain.value_objects.study_plan import (
     BuildScenarioStep,
     DeriveNetworkStep,
     FromStep,
-    GenerateDemandStep,
-    GenerateNetworkStep,
+    ObtainDemandStep,
+    ObtainNetworkStep,
     PlanStep,
     RerouteDemandStep,
     RunSimulationStep,
     StudyPlan,
 )
-from resto.domain.value_objects.tasks import DemandTask, NetworkTask, ScenarioTask
+from resto.domain.value_objects.tasks import (
+    NetworkTask,
+    ObtainDemandTask,
+    ObtainNetworkTask,
+    ScenarioTask,
+)
 
 
 def execute_plan(
@@ -125,10 +132,12 @@ def _run_step(
     settings: StudySettings,
 ) -> tuple[StepRecord, Experiment | None]:
     match step:
-        case GenerateNetworkStep() | DeriveNetworkStep():
-            return _author_network(step, task, recorder, spend, deps), None
-        case GenerateDemandStep():
-            return _generate_demand(step, task, spend, deps), None
+        case ObtainNetworkStep():
+            return _obtain_network(step, task, recorder, spend, deps), None
+        case DeriveNetworkStep():
+            return _derive_network(step, task, recorder, spend, deps), None
+        case ObtainDemandStep():
+            return _obtain_demand(step, task, spend, deps), None
         case RerouteDemandStep():
             return _reroute(step, task, deps), None
         case BuildScenarioStep():
@@ -139,57 +148,89 @@ def _run_step(
             assert_never(step)
 
 
-def _network_task(step: GenerateNetworkStep | DeriveNetworkStep) -> NetworkTask:
-    """The Network Author's task: from a source for a generate step, from a base for a derive."""
-    source: NetworkSource | None = None
-    base_network_id: str | None = None
-    if isinstance(step, GenerateNetworkStep):
-        source = step.source
+def _obtain_network(
+    step: ObtainNetworkStep,
+    task: Mapping[str, Any],
+    recorder: StudyRecorder,
+    spend: StudySpend,
+    deps: StudyDeps,
+) -> StepRecord:
+    network_task = ObtainNetworkTask(
+        network_ref=step.network_ref,
+        goals=step.goals,
+        min_scc_ratio=step.min_scc_ratio,
+        probe_teleport_threshold=step.probe_teleport_threshold,
+        max_rounds=step.max_rounds,
+    )
+    run = spend.agent_call(lambda: deps.agents.network_author.obtain(network_task))
+    outcome = draft_of(run, "network_author")
+    if isinstance(outcome, Found):
+        if deps.networks.get(outcome.id) is None:
+            fail(
+                StepErrorKind.AGENT,
+                f"the Network Author found network {outcome.id!r}, which is not stored",
+                usage=run.usage,
+            )
+        network_id = outcome.id
     else:
-        base_network_id = _id(step.base_network_id)
-    return NetworkTask(
-        source=source,
-        base_network_id=base_network_id,
+        draft_run = cast("AgentRun[NetworkDraft]", run)
+        network_id = promote(
+            lambda: deps.promotions.network(network_task, draft_run), run.usage
+        ).network_id
+    recorder.add_networks(network_id)
+    return StepRecord(step.kind, StepStatus.OK, task, (network_id,), usage=run.usage)
+
+
+def _derive_network(
+    step: DeriveNetworkStep,
+    task: Mapping[str, Any],
+    recorder: StudyRecorder,
+    spend: StudySpend,
+    deps: StudyDeps,
+) -> StepRecord:
+    network_task = NetworkTask(
+        base_network_id=_id(step.base_network_id),
         goals=step.goals,
         modifications=step.modifications,
         min_scc_ratio=step.min_scc_ratio,
         probe_teleport_threshold=step.probe_teleport_threshold,
         max_rounds=step.max_rounds,
     )
-
-
-def _author_network(
-    step: GenerateNetworkStep | DeriveNetworkStep,
-    task: Mapping[str, Any],
-    recorder: StudyRecorder,
-    spend: StudySpend,
-    deps: StudyDeps,
-) -> StepRecord:
-    network_task = _network_task(step)
     run = spend.agent_call(lambda: deps.agents.network_author.author(network_task))
     draft_of(run, "network_author")
     network = promote(lambda: deps.promotions.network(network_task, run), run.usage)
     recorder.add_networks(network.network_id)
-    tool = "derive_network" if network_task.base_network_id else "generate_network"
-    return StepRecord(tool, StepStatus.OK, task, (network.network_id,), usage=run.usage)
+    return StepRecord(step.kind, StepStatus.OK, task, (network.network_id,), usage=run.usage)
 
 
-def _generate_demand(
-    step: GenerateDemandStep, task: Mapping[str, Any], spend: StudySpend, deps: StudyDeps
+def _obtain_demand(
+    step: ObtainDemandStep, task: Mapping[str, Any], spend: StudySpend, deps: StudyDeps
 ) -> StepRecord:
-    demand_task = DemandTask(
+    demand_task = ObtainDemandTask(
         network_id=_id(step.network_id),
-        profile=step.profile,
         seed=step.seed,
-        sources=step.sources,
-        control_edges=step.control_edges,
+        demand_ref=step.demand_ref,
         tolerance=step.tolerance,
         max_calibration_rounds=step.max_calibration_rounds,
     )
-    run = spend.agent_call(lambda: deps.agents.demand_generator.generate(demand_task))
-    draft_of(run, "demand_generator")
-    demand = promote(lambda: deps.promotions.demand(demand_task, run), run.usage)
-    return StepRecord(step.kind, StepStatus.OK, task, (demand.demand_id,), usage=run.usage)
+    run = spend.agent_call(lambda: deps.agents.demand_generator.obtain(demand_task))
+    outcome = draft_of(run, "demand_generator")
+    if isinstance(outcome, Found):
+        found = deps.demands.get(outcome.id)
+        if found is None or found.network_id != demand_task.network_id:
+            fail(
+                StepErrorKind.AGENT,
+                f"the Demand Generator found demand {outcome.id!r}, which is not stored "
+                f"for network {demand_task.network_id!r}",
+                usage=run.usage,
+            )
+        demand_id = outcome.id
+    else:
+        draft_run = cast("AgentRun[DemandDraft]", run)
+        demand_id = promote(
+            lambda: deps.promotions.demand(demand_task, draft_run), run.usage
+        ).demand_id
+    return StepRecord(step.kind, StepStatus.OK, task, (demand_id,), usage=run.usage)
 
 
 def _reroute(step: RerouteDemandStep, task: Mapping[str, Any], deps: StudyDeps) -> StepRecord:

@@ -38,7 +38,7 @@ from resto.domain.entities.network import Network
 from resto.domain.entities.study import Study
 from resto.domain.value_objects.drafts import DemandDraft, NetworkDraft
 from resto.domain.value_objects.report import Report
-from resto.domain.value_objects.tasks import DemandTask, NetworkTask
+from resto.domain.value_objects.tasks import NetworkTask, ObtainDemandTask, ObtainNetworkTask
 
 
 @dataclass(frozen=True, slots=True)
@@ -77,13 +77,13 @@ class StudyPromotions:
     """The promotions not implemented yet (E5.4, E6.1, E6.2), injected so the Executor does not
     change when they land. A `ValueError` means the draft was rejected (`StepError(agent)`); any
     other exception is `infrastructure`. `network` promotes both a created and a derived network
-    (the task says which).
+    (the task says which: a `base_network_id`, or an `ObtainNetworkTask`).
 
     A temporary seam, not a port to extend: it goes away with E5.4 / E6.1 / E6.2, when the
     Executor calls those use cases directly, as it already does with `build_scenario`."""
 
-    network: Callable[[NetworkTask, AgentRun[NetworkDraft]], Network]
-    demand: Callable[[DemandTask, AgentRun[DemandDraft]], Demand]
+    network: Callable[[NetworkTask | ObtainNetworkTask, AgentRun[NetworkDraft]], Network]
+    demand: Callable[[ObtainDemandTask, AgentRun[DemandDraft]], Demand]
     reroute: Callable[[Demand, Network], Demand]
     report: Callable[[Study, AgentRun[Report]], Report]
 
