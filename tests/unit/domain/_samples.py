@@ -445,7 +445,7 @@ SAMPLES: dict[type, Callable[[], object]] = {
     ScoredNote: lambda: ScoredNote(note=expert_note(), score=0.87),
     # tasks
     NetworkTask: lambda: NetworkTask(
-        source=NetworkSource(kind="bbox", value="2.1,41.3,2.2,41.4"),
+        base_network_id="abc123",
         goals=("drivable grid",),
         modifications=(RemoveEdge(edge_id="E07"),),
     ),

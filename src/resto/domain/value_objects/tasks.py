@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from resto.domain.value_objects.experiment import ExperimentRole
 from resto.domain.value_objects.expert_round import ExpertRound
 from resto.domain.value_objects.intervention import Intervention
-from resto.domain.value_objects.network_source import NetworkSource
 from resto.domain.value_objects.question import Mode
 from resto.domain.value_objects.topology_modification import TopologyModification
 
@@ -17,8 +16,9 @@ DEFAULT_CALIBRATION_ROUNDS = 5
 
 @dataclass(frozen=True, slots=True)
 class NetworkTask:
-    source: NetworkSource | None = None
-    base_network_id: str | None = None
+    """The Network Author's task for a `derive_network` step: edit `base_network_id`."""
+
+    base_network_id: str
     goals: tuple[str, ...] = ()
     modifications: tuple[TopologyModification, ...] = ()
     min_scc_ratio: float = 0.95
@@ -26,8 +26,8 @@ class NetworkTask:
     max_rounds: int = DEFAULT_NETWORK_ROUNDS
 
     def __post_init__(self) -> None:
-        if (self.source is None) == (self.base_network_id is None):
-            raise ValueError("exactly one of source or base_network_id must be set")
+        if not self.base_network_id:
+            raise ValueError("a NetworkTask requires a base_network_id")
         if self.max_rounds < 1:
             raise ValueError("max_rounds must be >= 1")
 

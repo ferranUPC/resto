@@ -93,7 +93,7 @@ flowchart TD
   B --> D{output id already stored?}:::code
   D -- yes --> RE[StepRecord ok, reused, no call]:::code
   D -- no --> K{step kind}:::code
-  K -- "generate/derive_network, generate_demand, build_scenario" --> AG(Specialist agent):::agent
+  K -- "obtain/derive_network, obtain_demand, build_scenario" --> AG(Specialist agent):::agent
   AG --> PR[Promotion use case]:::code
   K -- "reroute_demand, run_simulation" --> DC[Deterministic use case]:::code
   PR -- rejected / no draft --> FE[StepError user_input / agent / budget]:::stop
@@ -196,8 +196,8 @@ flowchart LR
   CLI --> EXE[run_study + Executor]:::code
   EXE -->|text| P(Input Parser):::agent
   EXE -->|Question + context| C(Coordinator):::agent
-  EXE -->|NetworkTask| NA(Network Author):::agent
-  EXE -->|DemandTask| DG(Demand Generator):::agent
+  EXE -->|ObtainNetworkTask, NetworkTask| NA(Network Author):::agent
+  EXE -->|ObtainDemandTask| DG(Demand Generator):::agent
   EXE -->|ScenarioTask| SB(Scenario Builder):::agent
   EXE -->|Scenario + seed| RUN[Runner]:::code
   EXE -->|ExpertTask| EX(Network Expert):::agent

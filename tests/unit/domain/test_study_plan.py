@@ -86,7 +86,16 @@ def test_obtain_demand_takes_the_network_by_from_step() -> None:
     with pytest.raises(ValueError, match="depends_on"):
         ObtainDemandStep(network_id=FromStep(0), seed=1)
     with pytest.raises(ValueError, match="blank"):
-        ObtainDemandStep(network_id="n1", seed=1, demand_ref=" ")
+        ObtainDemandStep(network_id=FromStep(0), seed=1, demand_ref=" ", depends_on=(0,))
+
+
+def test_a_plan_rejects_a_demand_step_that_names_the_network_by_id() -> None:
+    with pytest.raises(ValueError, match="by FromStep"):
+        StudyPlan(
+            network_id=FromStep(0),
+            rationale="r",
+            steps=(ObtainNetworkStep("RIVERSIDE"), ObtainDemandStep(network_id="n1", seed=1)),
+        )
 
 
 def test_a_demand_step_must_follow_a_network_step() -> None:

@@ -98,10 +98,11 @@ class DeriveNetworkStep:
 
 @dataclass(frozen=True, slots=True)
 class ObtainDemandStep:
-    """The Demand Generator resolves the demand for a network already resolved: `network_id` is
-    always a `FromStep` to the network's step in practice, never the reference (ADR-0037 §3).
-    `demand_ref` is the Parser's phrase; none means the request names no demand and the
-    specialist asks."""
+    """The Demand Generator resolves the demand for a network an earlier step produced:
+    `network_id` is a `FromStep` to that step, never an id or the reference (ADR-0037 §3).
+    `StudyPlan` enforces it; the Executor's resolved copy of the step holds the id the
+    `FromStep` pointed to. `demand_ref` is the Parser's phrase; none means the request names
+    no demand and the specialist asks."""
 
     network_id: str | FromStep
     seed: int
@@ -253,6 +254,8 @@ class StudyPlan:
                 raise ValueError(f"step {i} depends on a step that is not earlier")
             for ref, expected in step.inputs:
                 self._check_ref(ref, expected, f"step {i}")
+            if isinstance(step, ObtainDemandStep) and not isinstance(step.network_id, FromStep):
+                raise ValueError(f"step {i}: obtain_demand takes its network by FromStep")
         if not any(isinstance(s, ObtainNetworkStep) for s in self.steps):
             raise ValueError("a plan always contains an obtain_network step")
         if isinstance(self.network_id, FromStep):

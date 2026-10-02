@@ -935,7 +935,7 @@
       "type": "string"
     },
     "ObtainDemandStep": {
-      "description": "The Demand Generator resolves the demand for a network already resolved: `network_id` is\nalways a `FromStep` to the network's step in practice, never the reference (ADR-0037 \u00a73).\n`demand_ref` is the Parser's phrase; none means the request names no demand and the\nspecialist asks.",
+      "description": "The Demand Generator resolves the demand for a network an earlier step produced:\n`network_id` is a `FromStep` to that step, never an id or the reference (ADR-0037 \u00a73).\n`StudyPlan` enforces it; the Executor's resolved copy of the step holds the id the\n`FromStep` pointed to. `demand_ref` is the Parser's phrase; none means the request names\nno demand and the specialist asks.",
       "properties": {
         "demand_ref": {
           "anyOf": [
