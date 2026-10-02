@@ -38,7 +38,9 @@ def mode_for(question: Question, round_no: int, max_rounds: int) -> Mode:
 
 def needed_arms(question: Question, phase: int) -> tuple[str, ...]:
     """The arms a phase must have realised (ADR-0025 §2 per arm, ADR-0027 §2); phases >= 1 are
-    planned as `run`."""
+    planned as `run`. A `network_only` question needs none: the plan stops at `obtain_network`."""
+    if question.network_only:
+        return ()
     if phase >= 1 or question.intent in (Intent.RUN, Intent.COMPARE):
         return required_arms(question)
     if question.intent is Intent.COUNTERFACTUAL:

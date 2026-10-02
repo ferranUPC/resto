@@ -4,6 +4,7 @@ ports, fake promotions, in-memory repositories, a fake SUMO runner and sample pl
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -49,6 +50,7 @@ from resto.domain.value_objects.intervention_target import LaneTarget
 from resto.domain.value_objects.kpis import Kpis
 from resto.domain.value_objects.mechanism import ScriptMechanism, StaticFileMechanism
 from resto.domain.value_objects.network_recipe import NetworkRecipe
+from resto.domain.value_objects.outcomes import Found
 from resto.domain.value_objects.question import Intent, Mode, Question
 from resto.domain.value_objects.report import Report
 from resto.domain.value_objects.step_record import StepErrorKind, StepStatus, Usage
@@ -56,18 +58,19 @@ from resto.domain.value_objects.study_plan import (
     ReusedExperiment,
     StudyPlan,
 )
-from resto.domain.value_objects.tasks import ExpertTask, NoteTask
+from resto.domain.value_objects.tasks import ExpertTask, NoteTask, ObtainNetworkTask
 from resto.domain.value_objects.time_window import TimeWindow
 from resto.domain.value_objects.topology_modification import AddEdge
 from tests.unit.application._doubles import FakeRunner, StubNetworkQuery
 from tests.unit.domain._fixtures import (
     DEMAND,
     NET,
+    after_obtain_network,
     artifact,
     build_step,
-    demand_draft,
     good_sanity,
     network_draft,
+    plan_network,
     run_step,
     runnable_script,
     static_intervention,
@@ -137,12 +140,17 @@ class FakeCoordinator(Scripted):
 
 
 class FakeAuthor(Scripted):
+    """`obtain` and `author` draw from the same script, in call order."""
+
+    def obtain(self, task: Any) -> AgentRun[Any]:
+        return self._next(task)  # type: ignore[no-any-return]
+
     def author(self, task: Any) -> AgentRun[Any]:
         return self._next(task)  # type: ignore[no-any-return]
 
 
 class FakeGenerator(Scripted):
-    def generate(self, task: Any) -> AgentRun[Any]:
+    def obtain(self, task: Any) -> AgentRun[Any]:
         return self._next(task)  # type: ignore[no-any-return]
 
 
@@ -248,6 +256,15 @@ def failed_output() -> RunOutput:
     return RunOutput(ok=False, error="Error: SUMO crashed", artifacts=(), wall_clock_s=0.1)
 
 
+def obtained_network(task: Any, run: Any) -> Network:
+    return Network(
+        network_id="obtained-1",
+        net_xml=artifact("obtained.net.xml", "obtained-1", "net"),
+        recipe=run.output.recipe,
+        sanity_report=good_sanity(),
+    )
+
+
 def derived_network(task: Any, run: Any) -> Network:
     return Network(
         network_id="derived-1",
@@ -274,6 +291,8 @@ class World:
         plans: tuple[Any, ...] = (),
         expert: tuple[Any, ...] = (),
         builder: tuple[Any, ...] = (),
+        author: tuple[Any, ...] = (),
+        generator: tuple[Any, ...] = (),
         note_writer: tuple[Any, ...] = (),
         composer: tuple[Any, ...] = (),
         runner: FakeRunner | None = None,
@@ -283,8 +302,15 @@ class World:
         parsed = question if not isinstance(question, Question) else run_of(question, tokens=50)
         self.parser = FakeParser(parsed)
         self.coordinator = FakeCoordinator(*plans)
-        self.author = FakeAuthor(default=lambda task: run_of(network_draft(), tokens=100))
-        self.generator = FakeGenerator(default=lambda task: run_of(demand_draft(), tokens=100))
+        self.author = FakeAuthor(
+            *author,
+            default=lambda task: (
+                run_of(Found(NET))
+                if isinstance(task, ObtainNetworkTask)
+                else run_of(network_draft(), tokens=100)
+            ),
+        )
+        self.generator = FakeGenerator(*generator, default=lambda task: run_of(Found(DEMAND)))
         self.builder = FakeBuilder(*builder, default=echo_draft)
         self.expert = FakeExpert(*expert)
         self.note_writer = FakeNoteWriter(
@@ -319,7 +345,7 @@ class World:
             ),
             promotions=StudyPromotions(
                 network=self._promote_network,
-                demand=lambda task, run: sample_demand(),
+                demand=self._promote_demand,
                 reroute=self._reroute,
                 report=_report,
             ),
@@ -345,10 +371,24 @@ class World:
         return DERIVED_QUERY if path.name == "derived.net.xml" else QUERY
 
     def _promote_network(self, task: Any, run: Any) -> Network:
-        network = derived_network(task, run)
+        network = (
+            obtained_network(task, run)
+            if isinstance(task, ObtainNetworkTask)
+            else derived_network(task, run)
+        )
         self.promoted_networks.append(task)
         self.networks.store(network)
         return network
+
+    def _promote_demand(self, task: Any, run: Any) -> Demand:
+        demand = replace(
+            sample_demand(),
+            demand_id="obtained-demand",
+            network_id=task.network_id,
+            trips=artifact("trips3.xml", "obtained-demand", "trips"),
+        )
+        self.demands.store(demand)
+        return demand
 
     def _reroute(self, demand: Demand, network: Network) -> Demand:
         rerouted = Demand(
@@ -408,7 +448,16 @@ class World:
 
 
 def plan(*steps: Any, reused: tuple[ReusedExperiment, ...] = (), network: Any = NET) -> Any:
-    return run_of(StudyPlan(network_id=network, rationale="as needed", steps=steps, reused=reused))
+    """A plan of `steps` behind the `obtain_network` step every plan has: see
+    `after_obtain_network` for how the indexes in `steps` are read."""
+    return run_of(
+        StudyPlan(
+            network_id=plan_network(network),
+            rationale="as needed",
+            steps=after_obtain_network(*steps),
+            reused=reused,
+        )
+    )
 
 
 BASELINE_PLAN = plan(build_step(), run_step(0))

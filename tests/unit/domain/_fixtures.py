@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import dataclasses
 from pathlib import Path
+from typing import Any
 
 from resto.domain.value_objects.arm import BASE_ARM
 from resto.domain.value_objects.artifact_ref import ArtifactRef
@@ -22,7 +24,13 @@ from resto.domain.value_objects.network_recipe import NetworkRecipe
 from resto.domain.value_objects.network_source import NetworkSource
 from resto.domain.value_objects.probe_report import ProbeReport
 from resto.domain.value_objects.sanity_report import SanityReport
-from resto.domain.value_objects.study_plan import BuildScenarioStep, FromStep, RunSimulationStep
+from resto.domain.value_objects.study_plan import (
+    BuildScenarioStep,
+    FromStep,
+    ObtainNetworkStep,
+    PlanStep,
+    RunSimulationStep,
+)
 from resto.domain.value_objects.time_window import TimeWindow
 from resto.domain.value_objects.traci_script import DeclaredRule, TraciScript
 
@@ -174,3 +182,30 @@ def build_step(
 def run_step(step: int, seeds: tuple[int, ...] | None = None) -> RunSimulationStep:
     """A plan step running the scenario that step `step` builds."""
     return RunSimulationStep(scenario_id=FromStep(step), seeds=seeds, depends_on=(step,))
+
+
+def _shifted(value: Any) -> Any:
+    if isinstance(value, FromStep):
+        return FromStep(value.step + 1)
+    return value
+
+
+def after_obtain_network(*steps: PlanStep) -> tuple[PlanStep, ...]:
+    """`steps` behind the `obtain_network` step every plan has (ADR-0037 §2). The indexes a test
+    writes (`FromStep`, `depends_on`) count from its first step, so they all move by one here."""
+    moved: list[PlanStep] = []
+    for step in steps:
+        changes: dict[str, Any] = {
+            f.name: _shifted(getattr(step, f.name))
+            for f in dataclasses.fields(step)
+            if isinstance(getattr(step, f.name), FromStep)
+        }
+        changes["depends_on"] = tuple(d + 1 for d in step.depends_on)
+        moved.append(dataclasses.replace(step, **changes))  # type: ignore[type-var]
+    return (ObtainNetworkStep(network_ref="RIVERSIDE"), *moved)
+
+
+def plan_network(network: str | FromStep) -> str | FromStep:
+    """The plan's `network_id` as `after_obtain_network` leaves the steps it indexes."""
+    return _shifted(network)
+

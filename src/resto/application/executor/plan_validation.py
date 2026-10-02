@@ -15,14 +15,13 @@ from resto.application.ports.repositories import (
 from resto.domain.entities.simulation_result import RunStatus
 from resto.domain.services.experiment_design import needed_arms
 from resto.domain.value_objects.arm import Arm
-from resto.domain.value_objects.demand_source import HistoricalDbSource
 from resto.domain.value_objects.intervention import Intervention
 from resto.domain.value_objects.question import Question
 from resto.domain.value_objects.study_plan import (
     BuildScenarioStep,
     DeriveNetworkStep,
     FromStep,
-    GenerateDemandStep,
+    ObtainDemandStep,
     PlanStep,
     Produces,
     RerouteDemandStep,
@@ -39,7 +38,6 @@ def plan_problems(
     phase: int,
     realised: Collection[str],
     network_id: str | None,
-    has_historical_demand: bool,
     networks: NetworkRepository,
     demands: DemandRepository,
     scenarios: ScenarioRepository,
@@ -65,15 +63,6 @@ def plan_problems(
         for kind, ref in _str_refs(step):
             if kind != "scenario" and lookup[kind](ref) is None:
                 problems.append(f"step {i}: unknown {kind} {ref!r}")
-        if (
-            isinstance(step, GenerateDemandStep)
-            and not has_historical_demand
-            and any(isinstance(s, HistoricalDbSource) for s in step.sources)
-        ):
-            problems.append(
-                f"step {i}: historical demand requested, but the database lacks the "
-                "historical_demand capability"
-            )
         if isinstance(step, RunSimulationStep):
             if isinstance(step.scenario_id, FromStep):
                 run_targets.add(step.scenario_id.step)
@@ -123,7 +112,7 @@ def _str_refs(step: PlanStep) -> tuple[tuple[Produces, str], ...]:
     match step:
         case DeriveNetworkStep():
             refs = (("network", step.base_network_id),)
-        case GenerateDemandStep():
+        case ObtainDemandStep():
             refs = (("network", step.network_id),)
         case RerouteDemandStep():
             refs = (("demand", step.demand_id), ("network", step.network_id))

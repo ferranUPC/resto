@@ -30,7 +30,7 @@ from resto.domain.value_objects.step_record import (
     StepStatus,
     Usage,
 )
-from resto.domain.value_objects.study_plan import StudyPlan
+from resto.domain.value_objects.study_plan import FromStep, ObtainNetworkStep, StudyPlan
 
 
 def _events() -> list[TraceEvent]:
@@ -53,7 +53,11 @@ def _events() -> list[TraceEvent]:
         NoteStatusChanged("note-1", "res-1", NoteStatus.CONFIRMED),
         NoteWriterFailed("ValueError: bad"),
         PhaseStarted(1),
-        PlanMade(1, StudyPlan(network_id="net-1", rationale="baseline only")),
+        PlanMade(1, StudyPlan(
+                network_id=FromStep(0),
+                rationale="baseline only",
+                steps=(ObtainNetworkStep("RIVERSIDE"),),
+            )),
         ExpertRoundHeld(1, 2),
         ReportComposed(),
     ]

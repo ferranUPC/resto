@@ -1,4 +1,4 @@
-"""Demand Generator: DemandTask -> calibration loop via run_simulation
+"""Demand Generator: ObtainDemandTask -> calibration loop via run_simulation
 -> DemandDraft -> promoted Demand.
 
 Placeholder: signature and behaviour defined in docs/tfm-architecture-and-dod.md (v0.3).

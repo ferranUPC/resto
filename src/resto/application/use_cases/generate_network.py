@@ -1,4 +1,4 @@
-"""Network Author (create): NetworkTask with a source -> NetworkDraft -> promoted Network.
+"""Network Author (create): ObtainNetworkTask -> NetworkDraft -> promoted Network.
 
 Placeholder: signature and behaviour defined in docs/tfm-architecture-and-dod.md (v0.3).
 """

@@ -6,7 +6,7 @@ Diagrama de clases (Mermaid) de las seis entidades/agregados del dominio (`docs/
 
 **Fuera de alcance deliberadamente** (para que el diagrama siga siendo legible): los *drafts* de agente
 (`NetworkDraft`, `DemandDraft`, `ScenarioDraft`, `ExpertNoteDraft` — la forma que devuelve un agente antes
-de la promoción) y los *tasks* del Coordinator (`NetworkTask`, `DemandTask`, `ScenarioTask`, `ExpertTask` —
+de la promoción) y los *tasks* del Coordinator (`ObtainNetworkTask`, `NetworkTask`, `ObtainDemandTask`, `ScenarioTask`, `ExpertTask` —
 lo que el Coordinator le manda a cada especialista). Ambos son familias de tipos paralelas a esta, no parte
 del modelo de dominio persistido; si hacen falta, son un segundo diagrama con la misma técnica.
 

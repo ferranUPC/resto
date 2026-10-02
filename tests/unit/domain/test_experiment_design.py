@@ -86,6 +86,11 @@ def test_mode_for_forces_the_last_round_and_forced_questions() -> None:
     assert mode_for(replace(describe, mode=Mode.FORCED), 1, 3) is Mode.FORCED
 
 
+def test_a_network_only_question_needs_no_arm() -> None:
+    question = Question(text="tell me about RIVERSIDE", intent=Intent.DESCRIBE, network_only=True)
+    assert needed_arms(question, 0) == ()
+
+
 def test_needed_arms_follow_the_intent_in_phase_0_and_run_later() -> None:
     what_if = _question(Intent.COUNTERFACTUAL, interventions=(CLOSURE,))
     assert needed_arms(_question(Intent.DESCRIBE), 0) == (BASE_ARM,)

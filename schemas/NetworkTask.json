@@ -47,29 +47,6 @@
       "title": "AddEdge",
       "type": "object"
     },
-    "NetworkSource": {
-      "properties": {
-        "kind": {
-          "enum": [
-            "place",
-            "bbox",
-            "file"
-          ],
-          "title": "Kind",
-          "type": "string"
-        },
-        "value": {
-          "title": "Value",
-          "type": "string"
-        }
-      },
-      "required": [
-        "kind",
-        "value"
-      ],
-      "title": "NetworkSource",
-      "type": "object"
-    },
     "RemoveEdge": {
       "properties": {
         "edge_id": {
@@ -138,18 +115,11 @@
       "type": "object"
     }
   },
+  "description": "The Network Author's task for a `derive_network` step: edit `base_network_id`.",
   "properties": {
     "base_network_id": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Base Network Id"
+      "title": "Base Network Id",
+      "type": "string"
     },
     "goals": {
       "default": [],
@@ -194,19 +164,11 @@
       "default": 0,
       "title": "Probe Teleport Threshold",
       "type": "integer"
-    },
-    "source": {
-      "anyOf": [
-        {
-          "$ref": "#/$defs/NetworkSource"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null
     }
   },
+  "required": [
+    "base_network_id"
+  ],
   "title": "NetworkTask",
   "type": "object"
 }

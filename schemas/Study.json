@@ -89,31 +89,6 @@
       "title": "Arm",
       "type": "object"
     },
-    "ArtifactRef": {
-      "description": "Reference to a file in the artifact store, identified by content hash.",
-      "properties": {
-        "content_hash": {
-          "title": "Content Hash",
-          "type": "string"
-        },
-        "kind": {
-          "title": "Kind",
-          "type": "string"
-        },
-        "path": {
-          "format": "path",
-          "title": "Path",
-          "type": "string"
-        }
-      },
-      "required": [
-        "path",
-        "content_hash",
-        "kind"
-      ],
-      "title": "ArtifactRef",
-      "type": "object"
-    },
     "Basis": {
       "enum": [
         "observed",
@@ -409,16 +384,6 @@
       ],
       "title": "Contrast",
       "type": "object"
-    },
-    "DemandProfile": {
-      "enum": [
-        "low",
-        "peak",
-        "incident",
-        "custom"
-      ],
-      "title": "DemandProfile",
-      "type": "string"
     },
     "DeriveNetworkStep": {
       "properties": {
@@ -746,35 +711,6 @@
       "title": "ExpertRound",
       "type": "object"
     },
-    "ExternalDatasetSource": {
-      "description": "Data the Demand Generator found outside, frozen as an artifact so the demand is\nreproducible even if the URL changes.",
-      "properties": {
-        "kind": {
-          "const": "external_dataset",
-          "default": "external_dataset",
-          "title": "Kind",
-          "type": "string"
-        },
-        "snapshot": {
-          "$ref": "#/$defs/ArtifactRef"
-        },
-        "transformation": {
-          "title": "Transformation",
-          "type": "string"
-        },
-        "url": {
-          "title": "Url",
-          "type": "string"
-        }
-      },
-      "required": [
-        "url",
-        "snapshot",
-        "transformation"
-      ],
-      "title": "ExternalDatasetSource",
-      "type": "object"
-    },
     "FromStep": {
       "description": "The id produced by step `step` of the same plan.",
       "properties": {
@@ -787,172 +723,6 @@
         "step"
       ],
       "title": "FromStep",
-      "type": "object"
-    },
-    "GenerateDemandStep": {
-      "properties": {
-        "control_edges": {
-          "default": [],
-          "items": {
-            "type": "string"
-          },
-          "title": "Control Edges",
-          "type": "array"
-        },
-        "depends_on": {
-          "default": [],
-          "items": {
-            "type": "integer"
-          },
-          "title": "Depends On",
-          "type": "array"
-        },
-        "kind": {
-          "const": "generate_demand",
-          "default": "generate_demand",
-          "title": "Kind",
-          "type": "string"
-        },
-        "max_calibration_rounds": {
-          "default": 5,
-          "title": "Max Calibration Rounds",
-          "type": "integer"
-        },
-        "network_id": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "$ref": "#/$defs/FromStep"
-            }
-          ],
-          "title": "Network Id"
-        },
-        "profile": {
-          "$ref": "#/$defs/DemandProfile"
-        },
-        "seed": {
-          "title": "Seed",
-          "type": "integer"
-        },
-        "sources": {
-          "default": [],
-          "items": {
-            "anyOf": [
-              {
-                "$ref": "#/$defs/ParametersSource"
-              },
-              {
-                "$ref": "#/$defs/HistoricalDbSource"
-              },
-              {
-                "$ref": "#/$defs/ExternalDatasetSource"
-              }
-            ]
-          },
-          "title": "Sources",
-          "type": "array"
-        },
-        "tolerance": {
-          "default": 0.15,
-          "title": "Tolerance",
-          "type": "number"
-        }
-      },
-      "required": [
-        "network_id",
-        "profile",
-        "seed"
-      ],
-      "title": "GenerateDemandStep",
-      "type": "object"
-    },
-    "GenerateNetworkStep": {
-      "properties": {
-        "depends_on": {
-          "default": [],
-          "items": {
-            "type": "integer"
-          },
-          "title": "Depends On",
-          "type": "array"
-        },
-        "goals": {
-          "default": [],
-          "items": {
-            "type": "string"
-          },
-          "title": "Goals",
-          "type": "array"
-        },
-        "kind": {
-          "const": "generate_network",
-          "default": "generate_network",
-          "title": "Kind",
-          "type": "string"
-        },
-        "max_rounds": {
-          "default": 5,
-          "title": "Max Rounds",
-          "type": "integer"
-        },
-        "min_scc_ratio": {
-          "default": 0.95,
-          "title": "Min Scc Ratio",
-          "type": "number"
-        },
-        "modifications": {
-          "default": [],
-          "items": {
-            "anyOf": [
-              {
-                "$ref": "#/$defs/RemoveEdge"
-              },
-              {
-                "$ref": "#/$defs/AddEdge"
-              },
-              {
-                "$ref": "#/$defs/SetLanes"
-              },
-              {
-                "$ref": "#/$defs/SetSpeed"
-              }
-            ]
-          },
-          "title": "Modifications",
-          "type": "array"
-        },
-        "probe_teleport_threshold": {
-          "default": 0,
-          "title": "Probe Teleport Threshold",
-          "type": "integer"
-        },
-        "source": {
-          "$ref": "#/$defs/NetworkSource"
-        }
-      },
-      "required": [
-        "source"
-      ],
-      "title": "GenerateNetworkStep",
-      "type": "object"
-    },
-    "HistoricalDbSource": {
-      "properties": {
-        "kind": {
-          "const": "historical_db",
-          "default": "historical_db",
-          "title": "Kind",
-          "type": "string"
-        },
-        "query": {
-          "additionalProperties": true,
-          "title": "Query",
-          "type": "object"
-        }
-      },
-      "title": "HistoricalDbSource",
       "type": "object"
     },
     "Intent": {
@@ -1124,29 +894,6 @@
       "title": "Mode",
       "type": "string"
     },
-    "NetworkSource": {
-      "properties": {
-        "kind": {
-          "enum": [
-            "place",
-            "bbox",
-            "file"
-          ],
-          "title": "Kind",
-          "type": "string"
-        },
-        "value": {
-          "title": "Value",
-          "type": "string"
-        }
-      },
-      "required": [
-        "kind",
-        "value"
-      ],
-      "title": "NetworkSource",
-      "type": "object"
-    },
     "NoValue": {
       "description": "The data shows the measure is undefined, e.g. the mean travel time of an edge no vehicle\ncrossed. Not an abstention: the answer rests on evidence (ADR-0021). Only per-vehicle means can\nbe undefined; a 0 % occupancy or a zero total delay is a real value.",
       "properties": {
@@ -1187,6 +934,119 @@
       "title": "NoValueReason",
       "type": "string"
     },
+    "ObtainDemandStep": {
+      "description": "The Demand Generator resolves the demand for a network an earlier step produced:\n`network_id` is a `FromStep` to that step, never an id or the reference (ADR-0037 \u00a73).\n`StudyPlan` enforces it; the Executor's resolved copy of the step holds the id the\n`FromStep` pointed to. `demand_ref` is the Parser's phrase; none means the request names\nno demand and the specialist asks.",
+      "properties": {
+        "demand_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Demand Ref"
+        },
+        "depends_on": {
+          "default": [],
+          "items": {
+            "type": "integer"
+          },
+          "title": "Depends On",
+          "type": "array"
+        },
+        "kind": {
+          "const": "obtain_demand",
+          "default": "obtain_demand",
+          "title": "Kind",
+          "type": "string"
+        },
+        "max_calibration_rounds": {
+          "default": 5,
+          "title": "Max Calibration Rounds",
+          "type": "integer"
+        },
+        "network_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/FromStep"
+            }
+          ],
+          "title": "Network Id"
+        },
+        "seed": {
+          "title": "Seed",
+          "type": "integer"
+        },
+        "tolerance": {
+          "default": 0.15,
+          "title": "Tolerance",
+          "type": "number"
+        }
+      },
+      "required": [
+        "network_id",
+        "seed"
+      ],
+      "title": "ObtainDemandStep",
+      "type": "object"
+    },
+    "ObtainNetworkStep": {
+      "description": "The Network Author resolves the network the Parser named: it finds a stored one or has one\npromoted from its draft (ADR-0037 \u00a72). `network_ref` is the Parser's text, verbatim.",
+      "properties": {
+        "depends_on": {
+          "default": [],
+          "items": {
+            "type": "integer"
+          },
+          "title": "Depends On",
+          "type": "array"
+        },
+        "goals": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Goals",
+          "type": "array"
+        },
+        "kind": {
+          "const": "obtain_network",
+          "default": "obtain_network",
+          "title": "Kind",
+          "type": "string"
+        },
+        "max_rounds": {
+          "default": 5,
+          "title": "Max Rounds",
+          "type": "integer"
+        },
+        "min_scc_ratio": {
+          "default": 0.95,
+          "title": "Min Scc Ratio",
+          "type": "number"
+        },
+        "network_ref": {
+          "title": "Network Ref",
+          "type": "string"
+        },
+        "probe_teleport_threshold": {
+          "default": 0,
+          "title": "Probe Teleport Threshold",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "network_ref"
+      ],
+      "title": "ObtainNetworkStep",
+      "type": "object"
+    },
     "Operator": {
       "enum": [
         ">",
@@ -1196,18 +1056,6 @@
       ],
       "title": "Operator",
       "type": "string"
-    },
-    "ParametersSource": {
-      "properties": {
-        "kind": {
-          "const": "parameters",
-          "default": "parameters",
-          "title": "Kind",
-          "type": "string"
-        }
-      },
-      "title": "ParametersSource",
-      "type": "object"
     },
     "Phase": {
       "description": "One question planned and executed, then put to the Expert (ADR-0023 \u00a74). `phases[0]` holds\nthe Input Parser's question; each later phase the previous round's `proposed_experiment`.\n\n`clarification` is the Coordinator asking the user instead of planning (phase 0 only). A phase\nwithout a plan ran nothing: its only possible step is the failed planning itself.",
@@ -1798,7 +1646,7 @@
       "type": "string"
     },
     "StudyPlan": {
-      "description": "Emitted by the Coordinator, one per phase; measured against gold plans. `network_id` is the\nnetwork the study is about (`FromStep` when the plan creates it). Zero steps is valid: the\nExpert then answers from `reused` results only.",
+      "description": "Emitted by the Coordinator, one per phase; measured against gold plans. `network_id` is the\nnetwork the study is about (`FromStep` when the plan creates it). A plan always contains an\n`obtain_network` step (ADR-0037 \u00a72), so it is never empty.",
       "properties": {
         "network_id": {
           "anyOf": [
@@ -1824,17 +1672,16 @@
           "type": "array"
         },
         "steps": {
-          "default": [],
           "items": {
             "anyOf": [
               {
-                "$ref": "#/$defs/GenerateNetworkStep"
+                "$ref": "#/$defs/ObtainNetworkStep"
               },
               {
                 "$ref": "#/$defs/DeriveNetworkStep"
               },
               {
-                "$ref": "#/$defs/GenerateDemandStep"
+                "$ref": "#/$defs/ObtainDemandStep"
               },
               {
                 "$ref": "#/$defs/RerouteDemandStep"
@@ -1853,7 +1700,8 @@
       },
       "required": [
         "network_id",
-        "rationale"
+        "rationale",
+        "steps"
       ],
       "title": "StudyPlan",
       "type": "object"

@@ -30,10 +30,11 @@ from resto.domain.value_objects.question import Question
 from resto.domain.value_objects.report import Report
 from resto.domain.value_objects.study_plan import ClarificationRequest, StudyPlan
 from resto.domain.value_objects.tasks import (
-    DemandTask,
     ExpertTask,
     NetworkTask,
     NoteTask,
+    ObtainDemandTask,
+    ObtainNetworkTask,
     ScenarioTask,
 )
 
@@ -59,7 +60,8 @@ SCHEMA_TYPES: dict[str, type] = {
     "ExpertNoteDrafts": ExpertNoteDrafts,
     # agent inputs
     "NetworkTask": NetworkTask,
-    "DemandTask": DemandTask,
+    "ObtainNetworkTask": ObtainNetworkTask,
+    "ObtainDemandTask": ObtainDemandTask,
     "ScenarioTask": ScenarioTask,
     "ExpertTask": ExpertTask,
     "NoteTask": NoteTask,
