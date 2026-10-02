@@ -395,7 +395,7 @@ class SqliteNoteRepository:
 class SqliteDatabase:
     """Owns the shared connection/schema and every repository (DatabaseMCP's five required
     capability groups - `historical_demand` is optional and unimplemented here, contract §10
-    point 3: its shape isn't pinned until E6.5 chooses a data source)."""
+    point 3: its shape isn't pinned until E7.4 chooses a data source)."""
 
     def __init__(self, path: Path | str, embedder: Embedder | None = None) -> None:
         self.connection = connect(path)

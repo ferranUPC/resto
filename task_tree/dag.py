@@ -78,7 +78,7 @@ def drop_time_markers(
 ) -> tuple[dict[str, tuple[str, str]], list[tuple[str, str]]]:
     """Remove the diagram's dates, which are moments in time and not work.
 
-    A milestone survives only when a real task has an edge into it (M7 closes E7.6 and E8.7).
+    A milestone survives only when a real task has an edge into it (M8 closes E9.6 and E10.7).
     Validation 1, Validation 2, the feature freeze and "all built" have no task of their own, so
     they go, and so does any node whose only links were to them (the January buffer).
     """

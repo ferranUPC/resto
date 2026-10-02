@@ -1,5 +1,8 @@
 # Architecture Decision Records
 
+Task ids cited in these ADRs (`E6.5`, `E7.4`, ...) use the work plan v0.3 numbering. Since v0.4 several
+changed; read them through [`../tfm-work-plan.md`](../tfm-work-plan.md) §8.
+
 ADRs for RESTO, indexed against [`../tfm-architecture-and-dod.md`](../tfm-architecture-and-dod.md) v1.0
 §7. Only decisions with real alternatives and consequences get an ADR — a fixed catalogue, a flag's
 meaning, or a default that moves once E7.4 has measurements is recorded once, in the architecture doc

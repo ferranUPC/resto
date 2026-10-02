@@ -3,7 +3,7 @@
 
 Placeholder: signature and behaviour defined in docs/tfm-architecture-and-dod.md (v0.3).
 
-Promotion rule (ADR-0035, built and tested in E6.2): the promoted `Demand` copies the draft's
+Promotion rule (ADR-0035, built and tested in E7.1): the promoted `Demand` copies the draft's
 `description` and `labels` unchanged, then adds `spec.profile.value` to `labels`. The profile goes
 in for every profile, `custom` included.
 """

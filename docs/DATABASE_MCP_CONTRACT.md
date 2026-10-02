@@ -9,13 +9,13 @@ is authoritative for tool names, payloads, semantics and error codes; the archit
 is authoritative for *why* the model looks like this.
 
 *Amended by [ADR-0036](adr/0036-raw-demand-data-aggregate.md): the optional `historical_demand` group (§5.6, §10
-point 3, the GP-10 row of §2) is replaced by `raw_demand_data`. The body below is not edited until E6.8.*
+point 3, the GP-10 row of §2) is replaced by `raw_demand_data`. The body below is not edited until E7.2.*
 
 *Amended by [ADR-0037](adr/0037-specialists-resolve-network-and-demand.md): the reader of the database is the
 specialist, not the Coordinator. The Network Author calls `find_network` and the Demand Generator calls
 `find_demand`; the Coordinator has no database tools. Wherever the body below says the Coordinator asks, finds
 or negotiates, read the specialist: a request that cannot be answered ends in `NeedsUser` and the study waits
-in `awaiting_user`. The body is not edited until E6.8.*
+in `awaiting_user`. The body is not edited until E7.2.*
 
 Scope:
 
@@ -432,4 +432,4 @@ rather than merely asserted.
    move from "server-owned, therefore unpinnable" to "pinned in the contract" without forcing
    every backend onto one embedding model.
 3. **`historical_demand` return shape** is only sketched here because no data source has been
-   chosen yet (E6.5). It must be pinned before that task starts.
+   chosen yet (E7.4). It must be pinned before that task starts.

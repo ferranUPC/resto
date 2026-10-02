@@ -48,10 +48,10 @@
 | Blind annotation of held-out + external request split | Input Parser (gold check) | page built, annotations pending | `eval/request_bank/annotation/` |
 | Plan bank (gold phase-0 `StudyPlan` per request, fixed DB state) | Coordinator | pending (E3.7) | — |
 | Builder bank (25–30 specs) | Scenario Builder | pending (E2.7) | — |
-| Derivation bank (10 modifications) | Network Author | pending (E6.4) | — |
-| GEN-LOCATIONS (10 raw OSM locations) | Network Author | pending (E6.4) | — |
-| REAL-NET + matrix + question bank | Expert on a real network | pending (E6.3, E3.5, E3.6) | — |
-| Golden-path framework (GP-1…GP-11) | Integration | pending (E7.1) | — |
+| Derivation bank (10 modifications) | Network Author | pending (E6.2) | — |
+| GEN-LOCATIONS (10 raw OSM locations) | Network Author | pending (E6.2) | — |
+| REAL-NET + matrix + question bank | Expert on a real network | pending (E8.1, E8.3, E8.4) | — |
+| Golden-path framework (GP-1…GP-11) | Integration | pending (E9.1) | — |
 
 ---
 
@@ -64,13 +64,13 @@ already fixes; each procedure is written here when its benchmark task starts, no
 |---|---|---|---|
 | Input Parser | request bank | schema validity, field match, ambiguity detection, `intent` agreement (§4.1); arm structure ≥ 90 % on multi-arm requests (§5, 2026-09-23) | E5.1 (`eval/parser_benchmark`, [`parser-tuning-log.md`](parser-tuning-log.md)), E5.8 |
 | Coordinator | plan bank | routing vs gold plan (§4.2); the `StepRecord` trace is Executor behaviour, checked by fake-agent tests (ADR-0023) | E5.5, E5.8 |
-| Network Author | GEN-LOCATIONS, derivation bank | loadable networks, sanity report, replay determinism, agent stability (§4.3) | E6.4 |
-| Demand Generator | demand profiles, control counts | calibration fidelity ±15 % DEV / ±25 % REAL, replay determinism (§4.4) | E6.5 |
+| Network Author | GEN-LOCATIONS, derivation bank | loadable networks, sanity report, replay determinism, agent stability (§4.3) | E6.2 |
+| Demand Generator | demand profiles, control counts | calibration fidelity ±15 % DEV / ±25 % REAL, replay determinism (§4.4) | E7.4 |
 | Scenario Builder | builder bank | mechanism selection, validity, effect verification ≥ 27/30, authoring determinism (§4.5) | E2.7 |
 | Simulation Runner | unit tests | reproducibility 20/20, sandbox, latency (§4.6) | done (E2.1), online mode E2.5 |
 | **Network Expert** | **question bank** | **§4.7 — see §4 below** | **E3.3** |
 | Output Composer | 20 reports | claim traceability, no claims absent from `ExpertAnswer` (§4.8) | E5.7 |
-| Integration | golden paths GP-1…GP-11 | trace match 11/11 on 3 runs, reproducibility, no silent failures (§5) | E7.5 |
+| Integration | golden paths GP-1…GP-11 | trace match 11/11 on 3 runs, reproducibility, no silent failures (§5) | E9.5 |
 
 ---
 
@@ -391,7 +391,7 @@ the note's content as observed without citing it is not detected; the typed `val
 | 2026-09-24 | **Second blind annotation round** (the user, 24/24, after guide v4; revised several earlier answers): extraction is now near-perfect — interventions, topology and time window 100 %, network 100 %, demand 94 %, arm structure 3/4 (up from 1/4), R042's ambiguity caught — but intent falls to 72 % (13/18), and the misses sit on exactly the boundaries settled today: "simulate X and report Y" labelled `run` (R017, R032, R043, gold `counterfactual` under the rule the user set), R022 ("how much would X reduce… and how much more would Y change") labelled `compare`, R027 ("is it then better to … or …?") labelled `counterfactual`. Even the person who wrote the rule does not apply it the same way twice, so a single gold intent on those boundaries is not a fair target for the Parser either. Other misses: metrics left out on R003, R023 and R032 and added on R068 (which asks for none); R043's "reduced to one lane" entered as two lanes. Pending the user's decision: accept both `run` and `counterfactual` on "simulate X and report Y" requests and report intent strict and lenient. |
 | 2026-09-24 | **Intent graded with accepted second readings** (the user's call). `concepts.ALSO_ACCEPTED` lists, per concept, intents accepted besides the gold one: `run` on the ten "simulate X and report Y" concepts (R004, R015, R017, R019, R032, R034, R040, R041, R043, R063), gold still `counterfactual`. `score_request` takes them; graded `intent` (the E5.1 threshold) accepts either reading, `intent_strict` is reported against the gold alone, in the Parser and the annotation reports. The compare/counterfactual boundary stays strict: "which is better" against "how much does it change" has one reading by the definition. Re-scored for free: Parser v6 on dev 99.4 % both ways (it always reads these as `counterfactual`); the user's second round 89 % (16/18) graded, 72 % strict; the two left are R022 and R027, compare and counterfactual swapped. |
 | 2026-09-24 | **E5.1 held-out pass run** (the user's call, with the external annotation still pending; v6, 114 × 3, $0.376, `eval/parser_benchmark/reports/v6-heldout.md`): every per-run threshold met, **`intent` agreement 93.9 % < 95 %, so E5.1 is not Done**; 94.1 % when only requests with a gold intent are counted, reported but not adopted since it was computed after the result. The held-out split is now spent for tuning: any change made after this pass is chosen on dev, and a second held-out measurement must say it is a second use. Details and the suspect (no temperature set) in `parser-tuning-log.md` §2b. |
-| 2026-09-24 | **Development runs vs measurement runs** (the user's call, [wayfinder #3](https://github.com/ferranUPC/resto/issues/3); supersedes the 2026-09-22 row). The line is purpose, not price: development runs go now, measurement runs wait for Validation 1 (mid-December, reduced checkpoints on dev) or Validation 2 (before E8.5, definitive, each suite once). $30 cap for both passes unless funded; under it suites shrink, they are not dropped. A task whose only missing piece is a measurement suite is ⏳ in the tracker, not 🚧. E5.1's second held-out use happens in Validation 2, with the prompt frozen, and is reported next to the first (93.9 %). |
+| 2026-09-24 | **Development runs vs measurement runs** (the user's call, [wayfinder #3](https://github.com/ferranUPC/resto/issues/3); supersedes the 2026-09-22 row). The line is purpose, not price: development runs go now, measurement runs wait for Validation 1 (mid-December, reduced checkpoints on dev) or Validation 2 (before E10.5, definitive, each suite once). $30 cap for both passes unless funded; under it suites shrink, they are not dropped. A task whose only missing piece is a measurement suite is ⏳ in the tracker, not 🚧. E5.1's second held-out use happens in Validation 2, with the prompt frozen, and is reported next to the first (93.9 %). |
 | 2026-09-24 | **DEV-NET assets in clock time** (E3.8, ADR-0028): the three demands cover 08:00–09:00 (`[28800, 32400)`, every `depart` shifted by exactly 28800 s, same trips and routes); the matrix and the question bank are rebuilt on it, with every id changed. Gold answers are unchanged except on the four `signal_program` rows, whose windows moved to whole minutes (08:02–08:05, …, 08:11–08:14; 18 gold answers). The Expert's `window` argument is described as seconds since midnight. Expert sweeps before this (v0–v2) ran on the old bank and are not compared with later ones as if on the same bank. |
 | 2026-09-24 | **ADR-0027 accepted (E5.13), nested contrasts oriented by code.** Of two nested arms the contained one is the reference, whatever the direction written (`Question.effective_contrasts`); this generalises the 2026-09-23 rule that `base` is always the reference. The arm-structure metric is unchanged (unordered pairs, now equivalent to ordered on nested pairs; alternatives in `compare` stay unordered) and re-scoring every stored Parser run and the annotation changed no score. |
 | 2026-09-25 | **Diagnostic "why" graded as a typed cause per edge** (ADR-0029; resolves the §6 open question and the 2026-09-17 row). The Expert states one `BottleneckCause` (`intervention` > `merge` > `spillback` > `signal` > `demand`) per bottleneck edge in a `BottleneckCauses` value; the gold computes the same cause per top-3 edge from the network's traffic-light control, its known lane drops and the scenario's interventions. `diag_cause_accuracy` (DoD "why" ≥ 70 %) is scored over the edges shared by answer and gold, micro-averaged per repetition; `correct` stays Jaccard ≥ 0.6. No rubric and no judge model. Runs from before Expert v3 carry no cause value and score 0 on it (e.g. `v2-e38-forced-1rep` re-scored: 0.00). |
@@ -415,7 +415,7 @@ produces the figure a DoD threshold reads; it waits for one of two passes dated 
 - **Validation 1** (mid-December): reduced checkpoints of what is built by then, on dev splits only, to
   see how things stand while there is still time to fix them. Its figures are interim; they turn no task
   ✅. If funding is confirmed by then, frozen modules may be measured at definitive size here.
-- **Validation 2** (before the results chapter, E8.5): every definitive measurement, each suite once. A
+- **Validation 2** (before the results chapter, E10.5): every definitive measurement, each suite once. A
   threshold missed here is reported as a result, not re-tuned.
 
 Both passes together are capped at $30 unless funding arrives; under the cap a suite shrinks in scale

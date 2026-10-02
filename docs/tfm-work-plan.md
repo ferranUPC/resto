@@ -1,8 +1,8 @@
-# Agentic Traffic Simulation Framework — Work Plan (v0.3)
+# Agentic Traffic Simulation Framework — Work Plan (v0.4)
 
 Scope: reach **Done** on every module of the Architecture & DoD document (**v1.0**, frozen) as amended by
-**ADR-0001 … ADR-0028**, plus the thesis document, between **Wed 9 Sep 2026** and **Thu 18 Feb 2027**
-(end of full-time work, M7). The thesis is delivered in **May 2027** (M8, date TBC), which this plan
+**ADR-0001 … ADR-0037**, plus the thesis document, between **Wed 9 Sep 2026** and **Thu 18 Feb 2027**
+(end of full-time work, M8). The thesis is delivered in **May 2027** (M9, date TBC), which this plan
 records but does not schedule. Stretch items are explicitly out of plan.
 
 v0.3 (2026-09-24) re-baselines the plan after the project ran well ahead of v0.2's calendar. Every
@@ -12,15 +12,28 @@ change comes from a decision on the map
 - plan hours are read as **story points**; capacity is recomputed at 40 pts/week and the plan now has
   ≈ +170 points of slack (v0.2: −95) — [Re-sequence the remaining work](https://github.com/ferranUPC/resto/issues/6#issuecomment-5816072783);
 - **development runs** go now, **measurement runs** wait for **Validation 1 / Validation 2**; new status
-  ⏳; M2–M6 become **build milestones** — [What does ✅ mean…](https://github.com/ferranUPC/resto/issues/3#issuecomment-5815386485);
+  ⏳; M2–M7 become **build milestones** — [What does ✅ mean…](https://github.com/ferranUPC/resto/issues/3#issuecomment-5815386485);
 - new task **E3.8** (ADR-0028 clock-time migration, 10 pts), run first — [ADR-0028 clock-time migration](https://github.com/ferranUPC/resto/issues/4#issuecomment-5815606676);
-- the task DAG with its critical paths (§4); E4.9 moves to DEV-NET, GP-9 goes to E7.1, feature freeze
-  before Validation 2, E7.6 becomes packaging only — [Prototype: DAG of pending tasks](https://github.com/ferranUPC/resto/issues/5#issuecomment-5815749846);
+- the task DAG with its critical paths (§4); E4.9 moves to DEV-NET, GP-9 goes to E9.1, feature freeze
+  before Validation 2, E9.6 becomes packaging only — [Prototype: DAG of pending tasks](https://github.com/ferranUPC/resto/issues/5#issuecomment-5815749846);
 - each milestone gets a **target** and a **deadline**, tasks get a **wave** and a **latest due**; new
   §3 calendar and §5 fallback order — [Re-sequence the remaining work](https://github.com/ferranUPC/resto/issues/6#issuecomment-5816072783);
 - the costs behind the validation passes — [Inventory of pending paid runs](https://github.com/ferranUPC/resto/issues/2#issuecomment-5814898247).
 
-Task ids are unchanged. The notes v0.2 accumulated in its §0 (ADR-0023/0025/0026 scope, E3.4 split,
+v0.4 (2026-10-02) restructures the epics and the calendar; no scope is added or dropped (1003 pts before
+and after):
+
+- **Epics.** E6 held two agents and the REAL-NET work. It is now three epics: **E6 Network Author**,
+  **E7 Demand Generator**, **E8 REAL-NET** (E6.3, E6.6, E3.5, E3.6, E4.8). Integration moves to **E9**
+  and gains GP-8 / GP-11 (E9.8); the thesis moves to **E10**. Every old id maps to a new one in §8; ids in
+  ADRs, the diary and past reviews keep their v0.3 spelling and are read through that table.
+- **Milestones.** M3–M7 are one per block of work, in build order (M3 Coordinator loop, M4 Builder and
+  Runner, M5 Generators, M6 REAL-NET, M7 all built). End of full-time work is now M8 and delivery M9.
+- **Calendar.** Waves 3–5 asked for 55 pts more than the planning rate gives by 11 Dec. The six tasks
+  that Validation 1 does not measure (E4.9, E5.6, E5.7, E7.5, E7.6, E9.3, 60 pts) move to a wave 5 after
+  V1, 4 → 15 Jan. Every latest due is now on or before the feature freeze (22 Jan).
+
+The notes v0.2 accumulated in its §0 (ADR-0023/0025/0026 scope, E3.4 split,
 estimates for E4.11 and E5.9–E5.12) are absorbed into the task rows; the old text is in
 [`_old/tfm-work-plan-v0.2.md`](_old/tfm-work-plan-v0.2.md). Task status lives in
 [`progress-tracker.md`](progress-tracker.md), kept in sync by the `progress-review` skill, never here.
@@ -34,17 +47,17 @@ estimates for E4.11 and E5.9–E5.12) are absorbed into the task rows; the old t
 | | |
 |---|---|
 | Unit | **1 point = 1 plan hour**, read as a story point, not wall-clock time (LLM-assisted work runs much faster than the estimate; the observed rate is not extrapolated) |
-| Remaining span | Thu 24 Sep 2026 → Thu 18 Feb 2027 (M7) |
+| Remaining span | Thu 24 Sep 2026 → Thu 18 Feb 2027 (M8) |
 | Christmas break | **24 Dec → 2 Jan, zero work** (21–23 Dec are working days) |
 | Planning rate | 40 pts/week nominal → **38.5 pts/week** after supervisor meetings (DLR + FIB, ~3 h every two weeks): ≈ 34.5 build + ≈ 4 writing |
 | Capacity to 18 Feb | ≈ **745 pts** |
-| Remaining work | ≈ **623 pts**: 434 build (incl. E3.8, E3.11, E3.12, E5.13, E5.14 and E6.8–E6.11) + ≈ 50 measurement-only + ≈ 120 writing + 12 E7.6 + 7 (E3.9, E3.10) |
-| Slack | ≈ **+121 pts** (v0.2: −95 h; +170 before E3.11; −26 for E6.8–E6.11; −11 net for ADR-0037, tentative). Conservative: it still counts the writing that sits in the M8 window (second half of E8.7, E8.8, ≈ 18 pts) |
-| Plan total (every row of §1) | 1003 pts: v0.2's 935 + E3.8 (10) + E3.9 (5) + E3.10 (2) + E3.11 (12) + E5.13 (2) + E6.8–E6.11 (26) + ADR-0037 net (+11: E5.14 +5, E3.12 +8, E6.1 +2, E6.2 +3, E3.7 −3, E5.2 −4) |
-| After 18 Feb | ~7 h/week from about March (the maintainer likely has a job), reserved for revisions, the thesis and the defense: M8 window, not planned here |
+| Remaining work | ≈ **623 pts**: 434 build (incl. E3.8, E3.11, E3.12, E5.13, E5.14 and E7.2, E7.3, E7.5, E7.6) + ≈ 50 measurement-only + ≈ 120 writing + 12 E9.6 + 7 (E3.9, E3.10) |
+| Slack | ≈ **+121 pts** (v0.2: −95 h; +170 before E3.11; −26 for E7.2, E7.3, E7.5, E7.6; −11 net for ADR-0037, tentative). Conservative: it still counts the writing that sits in the M9 window (second half of E10.7, E10.8, ≈ 18 pts) |
+| Plan total (every row of §1) | 1003 pts: v0.2's 935 + E3.8 (10) + E3.9 (5) + E3.10 (2) + E3.11 (12) + E5.13 (2) + E7.2, E7.3, E7.5, E7.6 (26) + ADR-0037 net (+11: E5.14 +5, E3.12 +8, E6.1 +2, E7.1 +3, E3.7 −3, E5.2 −4) |
+| After 18 Feb | ~7 h/week from about March (the maintainer likely has a job), reserved for revisions, the thesis and the defense: M9 window, not planned here |
 
 The slack is not a licence for Stretch work: it is the January buffer (§3) and the first step of the
-fallback order (§5). Do not add Stretch work before M6.
+fallback order (§5). Do not add Stretch work before M7.
 
 ### 0.2 Cross-cutting rules
 
@@ -77,7 +90,7 @@ fallback order (§5). Do not add Stretch work before M6.
   rehearsal of V2. Its figures are interim and turn no task ✅. If funding is confirmed by then, frozen
   modules may be measured at definitive size here.
 - **Feature freeze** (target 22 Jan, deadline 29 Jan): no behaviour change after it. V2 measures frozen
-  code; E7.6 is packaging only.
+  code; E9.6 is packaging only.
 - **Validation 2** (25 → 29 Jan): every definitive measurement, each suite once, held-out splits
   included. A threshold missed here is reported as a result, not re-tuned; V1 is the safety net.
 - E5.1's held-out split may be used **a second time, once** (need N4): in V2, prompt frozen, labelled as
@@ -88,8 +101,8 @@ fallback order (§5). Do not add Stretch work before M6.
 - A **milestone** has a *target* (internal, computed from the planning rate) and a *deadline* (the v0.2
   date). A target may move; a deadline never moves later. A moved date is struck through, never
   deleted.
-- A **build milestone** (M2–M6) is met when every task it lists is ✅ or ⏳. Its measurement happens in
-  V2; "do not cut M2, M3, M5" protects both the build and the V2 measurement.
+- A **build milestone** (M2–M7) is met when every task it lists is ✅ or ⏳. Its measurement happens in
+  V2; "do not cut M2, M3, M6" protects both the build and the V2 measurement.
 - A **task** has no target date: it carries a **wave** (§3) and a **latest due**, the latest date that
   keeps its consumers on time.
 - Every date is an internal commitment; nothing is promised to FIB/DLR by date.
@@ -103,7 +116,7 @@ document the task satisfies.
 
 **Wave** (§3): `1a`, `1b`, `2`, `3`, `4`, `5` build waves · `W` rolling writing track · `V2` only its
 measurement suite is left (built; ⏳ once the tracker syncs) · `F` final stretch, after V2 ·
-`M8` delivery window, not planned · `—` completed before this re-baseline (status in the tracker).
+`M9` delivery window, not planned · `—` completed before this re-baseline (status in the tracker).
 **Latest due** for a `—` row is its v0.2 due date.
 
 ### E0 — Foundations (70) · DoD §2
@@ -142,7 +155,7 @@ measurement suite is left (built; ⏳ once the tracker syncs) · `F` final stret
 | E2.6 | Builder scripts: `condition` → `when(...)` script; `custom` interventions (static mechanism if one fits, else free Python against `traci_api`); `rejected[]` with reason; mechanism-selection tests | builder | 14 | 2 | 8 Dec |
 | E2.7 | Builder bank (25–30 specs covering every §2.5 cell incl. `custom`) built and checked on a development run; rejection of unsupported specs with reason. **Measured in V2:** ≥27/30 and the structural-determinism check over 3 runs (static files + `declared_rules`) | bank + report | 14 | 2 | 11 Dec |
 
-### E3 — Evaluation assets & harness (104)
+### E3 — Evaluation assets & harness (97)
 
 | ID | Task | Output | pts | Wave | Latest due |
 |---|---|---|---|---|---|
@@ -150,16 +163,14 @@ measurement suite is left (built; ⏳ once the tracker syncs) · `F` final stret
 | E3.2 | Question templates (descriptive / diagnostic / counterfactual) + generator + programmatic gold answers from the matrix; ≥60 questions on DEV-NET. *(Rebuilt in clock time by E3.8; not reopened.)* | question bank | 16 | — | 23 Oct |
 | E3.3 | Metrics: exact match, Jaccard top-k, direction, magnitude band, Brier, abstention P/R; harness with repeated runs, mean ± std, report generation | `eval/` | 16 | — | 27 Oct |
 | E3.4 | Request bank (text → `Question`, Input Parser): ~60 hand-written **concepts**, each an English base request + gold `Question` (single treatment per `intent`, 10+ multi-arm with gold `arms`/`contrasts` per ADR-0027, combined-treatment controls, ambiguous, unintelligible, out of scope, adversarial), expanded to ~250 requests by **variants** that share the concept's gold (translations, registers, *vaguised* variants, code-made typos); variants LLM-generated and field-verified by families not under evaluation, human-reviewed, frozen; 70/30 dev/held-out split by concept. Code and rules: `eval/request_bank/`, `evaluating-resto.md` §5. Consumer: E5.1 | request bank + variant pipeline | 12 | — | 18 Nov |
-| E3.5 | Scenario matrix REAL-NET / peak | matrix in DB | 8 | 3 | 15 Jan |
-| E3.6 | Question bank REAL-NET (40+) | question bank | 6 | 4 | 18 Jan |
 | E3.7 | Plan bank (`Question` → `StudyPlan`, Coordinator), reshaped by ADR-0037: one gold plan per E3.4 concept that has a gold `Question` (54 of 80), which its variants share (a request id resolves through its concept, split inherited), independent of the database. Plans follow ADR-0025 §2 (rules by `intent`, role/purpose per scenario, no `ask_expert`/`compose_report` steps), ADR-0027 (exactly `required_arms`, reference side only for `counterfactual`, one `derive_network` per distinct topology) and ADR-0037 (`obtain_network` and `obtain_demand` with the references as the Parser wrote them and the study window derived by code; a network-only question is one `obtain_network` step). Gold proposed by a rules script that imports nothing from the Coordinator, reviewed on an HTML page with flags like the Parser's; one gold per concept in V1. Gold fields: step kinds and dependencies, arm and role per scenario, study window; free text (`purpose`, `rationale`, the wording of the references) is not gold. The DB states, distractors and resolution cases moved to E3.12. Consumers: E5.2, E5.5 | plan bank | 4 | 1b | 20 Nov |
 | E3.8 | *(new 2026-09-24)* ADR-0028 migration to clock time: the three DEV-NET demands move from `[0, 3600)` to `[28800, 32400)` (08:00–09:00; `low`/`peak`/`incident` are intensity labels, not times) — `eval/dev-net/demand/` (`generate_demand.sh`, trips/routes, `control_counts.json`, verification notebook re-run over 9 sim seeds, README); `eval/scenario_matrix/` windows `[0, 300)` → `[28800, 29100)`, `matrix.db`, report; `eval/question_bank/` (`DEFAULT_WINDOW`, question text in clock time, `question-bank.json`, report); `verify/` tests; the expert benchmark's bank loader; `evaluating-resto.md` citations. Not touched: synthetic unit tests, the request bank, old expert runs (history). DoD: rebuilt assets pass the checks they already passed (`peak` congestion 10–20 %, `incident` teleport-free over 9 seeds, every matrix row's §4.5 effect check, ≥ 60 questions, `verify/` green). No paid runs | demands + matrix + question bank | 10 | 1a | 23 Oct |
 | E3.9 | *(new 2026-09-24)* Evaluation budget document for the supervisors (FIB/DLR): short, in English, one row per measurement suite (what it measures, which threshold, which pass, full vs minimum size, cost measured vs proxy), totals against the $30 cap; takes over `evaluating-resto.md` §7.2's table. First version with whatever is known, **before the funding request (~24 Oct)**; each suite's row is refined when its benchmark is designed | document | 5 | 1b | 23 Oct |
 | E3.10 | *(new 2026-09-24)* Trim `evaluating-resto.md`'s Decisions log (§5) to one line per decision, linking the tuning logs | doc edit | 2 | 1b | 11 Dec |
 | E3.11 | *(new 2026-09-30, widened by its grilling the same day)* ADR-0035 described demand, found while triaging E3.7: `Demand.description` (required) + free `labels` (domain, `DemandDraft`, schemas, both `Database` backends, DatabaseMCP demand record; `matrix.db` rebuilt); DEV-NET's three demands described; `Question.network_only` marked by the Parser; `time_window` is the period the user asks about for every `intent`; `demand_ref` becomes a short English phrase, scored by presence; DatabaseMCP contract and GP-10 ask instead of falling back to random demand; request bank (E3.4): concepts that need a demand name it (some with the demand spread across the text), a few stay without one on purpose, + 3 network-only `describe` concepts and one traffic counterexample, + 3 concepts on networks not in the DB (Berlin-Mitte, the Eixample, a 4x4 grid), variants regenerated and reviewed, new concepts placed by the frozen split rule (`concepts.py`); module docstring's "peak hour" rule updated; Parser (E5.1) development pass on dev, logged as one contract change (bank + the `demand_ref`/`time_window`/`network_only` prompt rules). DoD: bank rebuilt and verified, Parser dev thresholds still met, tests green. Development runs only (≈ $0.30) | domain + DEV-NET demands + request bank | 12 | 1b | 13 Nov |
-| E3.12 | *(new 2026-10-01, from the E3.7 grilling)* Resolution banks for the specialists (ADR-0037): the DB states built by functions in `eval/` from `matrix.db` (nothing, network, network + demands, results exist), all four for a stratified subset of ~15 concepts and "results exist" with synthetic marked results for the rest; distractors (`DEV-NET-2`, `Eixample-1347` and `Eixample-1211`, demands described by day); the 32-row demand resolution table (reuse only when the stored window contains the study window, generate otherwise, ask for typical-day phrases without raw data, ask for the period when none is derivable, `random traffic` always generates); gold per case as `Found`, draft or `NeedsUser` with candidates, reviewed on an annotation page. Single gold in V1. Detail in `.scratch/unplanned/issues/04`. Consumers: E6.1, E6.2 tuning | resolution banks | 8 | 3 | 18 Dec |
+| E3.12 | *(new 2026-10-01, from the E3.7 grilling)* Resolution banks for the specialists (ADR-0037): the DB states built by functions in `eval/` from `matrix.db` (nothing, network, network + demands, results exist), all four for a stratified subset of ~15 concepts and "results exist" with synthetic marked results for the rest; distractors (`DEV-NET-2`, `Eixample-1347` and `Eixample-1211`, demands described by day); the 32-row demand resolution table (reuse only when the stored window contains the study window, generate otherwise, ask for typical-day phrases without raw data, ask for the period when none is derivable, `random traffic` always generates); gold per case as `Found`, draft or `NeedsUser` with candidates, reviewed on an annotation page. Single gold in V1. Detail in `.scratch/unplanned/issues/04`. Used by E6.1 and E7.1 (their resolution is tuned against it, so it follows them) | resolution banks | 8 | 3 | 11 Dec |
 
-### E4 — Network Expert (166) · DoD §4.7 · **research focus**
+### E4 — Network Expert (142) · DoD §4.7 · **research focus**
 
 | ID | Task | Output | pts | Wave | Latest due |
 |---|---|---|---|---|---|
@@ -170,12 +181,11 @@ measurement suite is left (built; ⏳ once the tracker syncs) · `F` final stret
 | E4.5 | Free mode: abstention policy, `proposed_experiment` (a `Question`) generation; harness built. **Measured in V2** by EXP-01's free-mode leg: abstention recall ≥70 %, false requests ≤30 % | benchmark run | 14 | V2 | 5 Feb |
 | E4.6 | `ExpertNote` writing after each experiment, RAG over notes, `status` update on confirm/refute; knowledge-hygiene probes (20) | notes pipeline + tests | 16 | — | 12 Nov |
 | E4.7 | DEV-NET benchmark report from EXP-01 (V2): all §4.7 metrics, 3 runs, mean ± std | report | 8 | F | 9 Feb |
-| E4.8 | Port to REAL-NET and tune on development runs (build). **Measured in V2:** full benchmark, 3 reps (descriptive ≥85 %, Jaccard ≥0.5, direction ≥65 %) | report | 24 | 4 | 26 Jan |
-| E4.9 | Learning-effect experiment **on DEV-NET**, after E4.2–E4.4: store size 0 / 5 / 15 / 25, held-out interventions; setup built in wave 4. **Measured in V2:** confidence intervals, plot | figure + data | 18 | 4 | 29 Jan |
+| E4.9 | Learning-effect experiment **on DEV-NET**, after E4.2–E4.4: store size 0 / 5 / 15 / 25, held-out interventions; setup built in wave 5 (4 → 15 Jan, before V2). **Measured in V2:** confidence intervals, plot | figure + data | 18 | 5 | 22 Jan |
 | E4.10 | Calibration analysis (Brier, accuracy by `basis`) and ablation facts-only vs facts + notes, read from EXP-01 and E4.9's V2 runs (store size 0 is the facts-only arm) | figures | 8 | F | 9 Feb |
 | E4.11 | Notes per ADR-0026: note writer returns 0–3 `ExpertNoteDraft`s, each with a `scenario_ref` from an allow-list (study scenarios + predicted `scenario_id`); `write_note` validates the ref and sets `provenance = simulation` only if that scenario has results in the study; tests with the fake agent | notes v2 + tests | 6 | — | 12 Nov |
 
-### E5 — Input Parser, Coordinator, Executor, Output Composer (140) · DoD §4.1, §4.2, §4.8
+### E5 — Input Parser, Coordinator, Executor, Output Composer (141) · DoD §4.1, §4.2, §4.8
 
 | ID | Task | Output | pts | Wave | Latest due |
 |---|---|---|---|---|---|
@@ -183,82 +193,97 @@ measurement suite is left (built; ⏳ once the tracker syncs) · `F` final stret
 | E5.2 | Coordinator Minimal (ADR-0023 as changed by ADR-0037): one `ToolAgent.run` per `Question`, no database tools → typed `StudyPlan`; planning rules by `intent` (ADR-0025 §2), role/purpose in the plan, planning per arm (ADR-0027), `obtain_network` and `obtain_demand` with the references and the derived study window; `CoordinatorAgent` port | coordinator agent | 8 | 1b | 23 Nov |
 | E5.3 | Loop closure (ADR-0023): `needs_simulation` → Coordinator plans the `proposed_experiment` as a new phase → Executor runs it → re-ask with the original question and all phases' results, `max_rounds` respected with the last round forced (`forced_by_limit`, ADR-0025); `ExpertTask` over base + derived networks (decided here, §4 risks); GP-3 / GP-4 / GP-5 passing | tests | 14 | 1b | 26 Nov |
 | E5.4 | Output Composer Minimal (agent): completed `Study` → `Report` (claims with `evidence_refs`) → Markdown with evidence table; experiments table marks reused experiments; fixed limitation line added by code when the last round was `forced_by_limit` (ADR-0025) | composer | 6 | 1b | 27 Nov |
-| E5.5 | Coordinator Done (build): routing harness on `StudyPlan` vs gold plan (plan bank, E3.7); `StepRecord` trace vs expected checked by tests with the fake agent; zero redundant simulations (counter); failure injection (incl. agent budget exhausted) yields named failing step with the right `StepError.kind` (ADR-0025). **Measured in V2:** routing ≥90 %, 3 reps (serves E5.8 too) | report | 18 | 5 | 29 Jan |
-| E5.6 | Capability negotiation with DatabaseMCP (`raw_demand_data` group and `list_demand_data`, ADR-0036); GP-10 | tests | 8 | 5 | 29 Jan |
-| E5.7 | Output Composer Done: automatic traceability checker (numbers ↔ artifacts), built in wave 5; faithfulness rubric on 20 reports taken from E7.5's V2 studies (F) | checker + report | 12 | 5 | 29 Jan (checker) · 9 Feb (rubric) |
+| E5.5 | Coordinator Done (build): routing harness on `StudyPlan` vs gold plan (plan bank, E3.7); `StepRecord` trace vs expected checked by tests with the fake agent; zero redundant simulations (counter); failure injection (incl. agent budget exhausted) yields named failing step with the right `StepError.kind` (ADR-0025). **Measured in V2:** routing ≥90 %, 3 reps (serves E5.8 too) | report | 18 | 4 | 11 Dec |
+| E5.6 | Capability negotiation with DatabaseMCP (`raw_demand_data` group and `list_demand_data`, ADR-0036); GP-10 | tests | 8 | 5 | 12 Jan |
+| E5.7 | Output Composer Done: automatic traceability checker (numbers ↔ artifacts), built in wave 5; faithfulness rubric on 20 reports taken from E9.5's V2 studies (F) | checker + report | 12 | 5 | 22 Jan (checker) · 9 Feb (rubric) |
 | E5.8 | Stability: 3 repeated runs of Input Parser and Coordinator benchmarks, read from V2 (Parser: N4; Coordinator: E5.5's 3-rep run) | report | 8 | F | 9 Feb |
 | E5.9 | Domain change for ADR-0023/0025: `Phase`, `Study.phases`, typed `PlanStep` union with `FromStep`, `ExpertRound` without `triggered_experiments`, `StudyPlan.network_id` + `reused`, zero-step plans, `Experiment.reused`, `StepError`, `ExpertRound.forced_by_limit`; schemas and class diagram regenerated | domain + tests | 12 | — | 13 Nov |
 | E5.10 | Executor (`run_study`, deterministic code, not an agent): resolves `FromStep`, calls specialists, promotes drafts, records `StepRecord`s per phase, guards in code, runs `ask_expert` and `compose_report` itself, mechanical closing status; agent ports + composition root, `StepError`, forced last round, `DEFAULT_SEEDS`, note writer after the final round (ADR-0025/0026) | run_study | 24 | — | 25 Nov |
 | E5.11 | Deterministic rendering (ADR-0025) of `failed` and `awaiting_user` studies in `interface/render.py`; CLI error when no `Study` is created | render + tests | 4 | — | 27 Nov |
 | E5.12 | Domain change for ADR-0027: `Arm`, `Contrast`, `Question.arms`/`contrasts`, `required_arms`/`reference_arms`, `AddEdge.edge_id`, `arm` on `BuildScenarioStep`/`ReusedExperiment`/`Experiment` | domain + tests | 6 | — | 13 Nov |
-| E5.13 | *(new 2026-09-24)* ADR-0027 (arms and contrasts, still *Proposed*): Accept it, or change it and Accept, before E3.7 starts — it roots E3.7, E5.2, E5.4 and E6.7 | ADR status | 2 | 1a | 13 Nov |
+| E5.13 | *(new 2026-09-24)* ADR-0027 (arms and contrasts, still *Proposed*): Accept it, or change it and Accept, before E3.7 starts — it roots E3.7, E5.2, E5.4 and E9.8 | ADR status | 2 | 1a | 13 Nov |
 | E5.14 | *(new 2026-10-01, from the E3.7 grilling)* ADR-0037 refactor of what E5.9 and E5.10 built: `GenerateNetworkStep` and `GenerateDemandStep` become `obtain_network` and `obtain_demand` (reference + study window; ids flow by `FromStep`); `StudyPlan` loses `reused` and zero-step plans; the `NeedsUser` outcome of a specialist puts the `Study` in `awaiting_user` with the candidates and what was found (rendered by E5.11); the Executor looks a scenario up by the hash of the typed request before calling the Scenario Builder and marks it `reused` (verify that the hash before the call equals the one after); study window derived by code from the `Question`; DatabaseMCP contract and GP-10 point at the specialist. DoD: unit tests on both outcomes and on the lookup, schemas and `docs/class_diagram.md` regenerated | domain + Executor change | 5 | 1b | 13 Nov |
 
-### E6 — Network Author, Demand Generator, REAL-NET (106) · DoD §4.3, §4.4
+### E6 — Network Author (42) · DoD §4.3
 
 | ID | Task | Output | pts | Wave | Latest due |
 |---|---|---|---|---|---|
-| E6.1 | Network Author Minimal (agent): place / bbox → OSM snapshot → `netconvert` → `Network` with recipe; v1 tool catalogue (`netconvert` options, `remove_edge` / `add_edge` / `set_lanes` / `set_speed` on plain XML, `inspect_network`, `sanity_check`, `probe_run`); `NetworkDraft` promotion with replay check; `NetworkAuthorAgent` port; resolution of `network_ref` (ADR-0037: `find_network`, `Found`, draft or `NeedsUser` with candidates; ADR-0035 point 6) | agent + tools | 18 | 3 | 16 Dec |
-| E6.2 | Demand Generator Minimal (agent): parameters → `randomTrips` + `duarouter` → trips + routes stored via `demands`; teleport ≤2 %; seeded; replay-deterministic; `reroute_demand` (deterministic); `DemandGeneratorAgent` port; resolution of `demand_ref` on the network id already resolved (ADR-0037: `find_demand`, reuse a stored demand whose window contains the study window, generate what can be obtained, `NeedsUser` otherwise; ADR-0035 points 3 and 4) | agent + tools | 13 | 3 | 18 Dec |
-| E6.3 | REAL-NET: choose district (300–800 edges), hand-clean on plain XML, **freeze**, log every fix as (type, plain file, attribute) → error taxonomy **and** Network Author tool backlog. No prerequisite: fills gaps in wave 1b; if not done by 23 Oct it moves into wave 3 before E6.4/E6.5 | `real-net.net.xml` + fix log | 16 | 1b | 6 Jan |
-| E6.4 | Network Author Done (build): sanity report (SCC ≥95 %, no zero-length, fringe reachability) + `probe_run` threshold; replay determinism (`replay(recipe)` == `content_hash`, 100 %); derivation bank (incl. `AddEdge`); catalogue extended from the E6.3 fix log where cheap. **Measured in V2:** GEN-LOCATIONS 10/10 over 3 runs (the stability runs are the loadable check), derivation bank 10/10 | report | 24 | 3 | 11 Jan |
-| E6.5 | Demand Generator Done (build): calibration loop (`routeSampler` + `calibration_run`), `Fidelity.evidence` resolvable; external datasets frozen as artifacts; history-driven generation from `RawDemandData` (the data model, the contract group and the OD path are E6.8, E6.9, ADR-0036); `reroute_demand` test on a derived network. **Measured in V2:** fidelity ±15 % DEV / ±25 % REAL at the control edges within 5 rounds | report | 26 | 3 | 14 Jan |
-| E6.6 | Demand profiles `low` / `peak` / `incident` on REAL-NET (clock-time windows, ADR-0028) | route sets | 6 | 3 | 15 Jan |
-| E6.7 | GP-8 (full pipeline from a new place name) and GP-11 (add an edge, a `run` request per ADR-0025: derive → reroute → baseline vs treatment) passing | tests | 8 | 3 | 15 Jan |
-| E6.8 | *(new 2026-10-01)* Raw demand data (ADR-0036): `RawDemandData` aggregate with `counts` content and `ObservationInterval`; DatabaseMCP group `raw_demand_data` (`list_demand_data`, `get_demand_data`, optional `store_demand_data`) replacing `historical_demand`; `RawDataSource` replacing `HistoricalDbSource`; SQLite backend and conformance; `plan_validation` reads the list | code + contract | 6 | 3 | 7 Jan |
-| E6.9 | *(new 2026-10-01)* `od_matrix` content with `ZoneMap` (edge roles `source` / `sink` / `both`) and the Demand Generator's path from an OD matrix to a `Demand` through a `kind → fitter` registry | code | 8 | 3 | 14 Jan |
-| E6.10 | *(new 2026-10-01)* Import of external demand data: `resto import` for counts (CSV) and OD (CSV + SUMO TAZ file), checks against the network, same content with another description is a conflict | CLI | 8 | 5 | 29 Jan |
-| E6.11 | *(new 2026-10-01)* `flows` content (a measurement over a whole edge) and its fitting path in the generator. Lowest priority of the four | code | 4 | 5 | 29 Jan |
+| E6.1 | Network Author Minimal (agent): place / bbox → OSM snapshot → `netconvert` → `Network` with recipe; v1 tool catalogue (`netconvert` options, `remove_edge` / `add_edge` / `set_lanes` / `set_speed` on plain XML, `inspect_network`, `sanity_check`, `probe_run`); `NetworkDraft` promotion with replay check; `NetworkAuthorAgent` port; resolution of `network_ref` (ADR-0037: `find_network`, `Found`, draft or `NeedsUser` with candidates; ADR-0035 point 6) | agent + tools | 18 | 3 | 9 Dec |
+| E6.2 | Network Author Done (build): sanity report (SCC ≥95 %, no zero-length, fringe reachability) + `probe_run` threshold; replay determinism (`replay(recipe)` == `content_hash`, 100 %); derivation bank (incl. `AddEdge`); catalogue extended from the E8.1 fix log where cheap. **Measured in V2:** GEN-LOCATIONS 10/10 over 3 runs (the stability runs are the loadable check), derivation bank 10/10 | report | 24 | 3 | 11 Jan |
 
-### E7 — Integration (54) · DoD §5
+### E7 — Demand Generator (65) · DoD §4.4
 
 | ID | Task | Output | pts | Wave | Latest due |
 |---|---|---|---|---|---|
-| E7.1 | Golden-path test framework: expected-trace assertions over the trace log, per phase, starting at the Input Parser (`study-flows.md` §4); GP-1 … GP-5 and **GP-9** (ambiguous request → `awaiting_user`) | `golden/` | 10 | 1b | 27 Nov |
-| E7.2 | GP-6 (dynamic path) and GP-7 (compare) | tests | 6 | 2 | 11 Dec |
-| E7.3 | Failure-injection suite across all golden paths (netconvert, SUMO crash, invalid scenario, script lint/dry-run failure, tool timeout, agent budget exhausted); asserts `StepError.kind` and the rendered failure blocks (ADR-0025) | tests | 10 | 5 | 29 Jan |
-| E7.4 | Cost / latency per golden path, read from E7.5's V2 traces; thresholds set from that first measurement | table | 6 | F | 9 Feb |
-| E7.5 | Full run in V2: 11/11 golden paths × 3; GP-2 reproducibility (identical `result_id`s, hashes and conclusions) | report | 10 | F | 9 Feb |
-| E7.6 | Release packaging only (no behaviour change after the feature freeze): tag, README, reproducibility package (one command per experiment in the thesis) | release | 12 | F | **Wed 10 Feb** |
-| E7.7 | *(Stretch, only if M6 is on time)* usability session with 2–3 DLR engineers | — | — | — | — |
+| E7.1 | Demand Generator Minimal (agent): parameters → `randomTrips` + `duarouter` → trips + routes stored via `demands`; teleport ≤2 %; seeded; replay-deterministic; `reroute_demand` (deterministic); `DemandGeneratorAgent` port; resolution of `demand_ref` on the network id already resolved (ADR-0037: `find_demand`, reuse a stored demand whose window contains the study window, generate what can be obtained, `NeedsUser` otherwise; ADR-0035 points 3 and 4) | agent + tools | 13 | 3 | 10 Dec |
+| E7.2 | *(new 2026-10-01)* Raw demand data (ADR-0036): `RawDemandData` aggregate with `counts` content and `ObservationInterval`; DatabaseMCP group `raw_demand_data` (`list_demand_data`, `get_demand_data`, optional `store_demand_data`) replacing `historical_demand`; `RawDataSource` replacing `HistoricalDbSource`; SQLite backend and conformance; `plan_validation` reads the list | code + contract | 6 | 3 | 7 Jan |
+| E7.3 | *(new 2026-10-01)* `od_matrix` content with `ZoneMap` (edge roles `source` / `sink` / `both`) and the Demand Generator's path from an OD matrix to a `Demand` through a `kind → fitter` registry | code | 8 | 3 | 14 Jan |
+| E7.4 | Demand Generator Done (build): calibration loop (`routeSampler` + `calibration_run`), `Fidelity.evidence` resolvable; external datasets frozen as artifacts; history-driven generation from `RawDemandData` (the data model, the contract group and the OD path are E7.2, E7.3, ADR-0036); `reroute_demand` test on a derived network. **Measured in V2:** fidelity ±15 % DEV / ±25 % REAL at the control edges within 5 rounds | report | 26 | 3 | 14 Jan |
+| E7.5 | *(new 2026-10-01)* Import of external demand data: `resto import` for counts (CSV) and OD (CSV + SUMO TAZ file), checks against the network, same content with another description is a conflict | CLI | 8 | 5 | 15 Jan |
+| E7.6 | *(new 2026-10-01)* `flows` content (a measurement over a whole edge) and its fitting path in the generator. Lowest priority of the four | code | 4 | 5 | 20 Jan |
 
-### E8 — Thesis document (120) · rolling from now, concentrated 1 → 18 Feb
+### E8 — REAL-NET (60) · DoD §4.7 (REAL-NET), assets
+
+| ID | Task | Output | pts | Wave | Latest due |
+|---|---|---|---|---|---|
+| E8.1 | REAL-NET: choose district (300–800 edges), hand-clean on plain XML, **freeze**, log every fix as (type, plain file, attribute) → error taxonomy **and** Network Author tool backlog. No prerequisite: fills gaps in wave 1b; if not done by 23 Oct it moves into wave 3 before E6.2/E7.4 | `real-net.net.xml` + fix log | 16 | 1b | 6 Jan |
+| E8.2 | Demand profiles `low` / `peak` / `incident` on REAL-NET (clock-time windows, ADR-0028) | route sets | 6 | 4 | 15 Jan |
+| E8.3 | Scenario matrix REAL-NET / peak | matrix in DB | 8 | 4 | 15 Jan |
+| E8.4 | Question bank REAL-NET (40+) | question bank | 6 | 4 | 18 Jan |
+| E8.5 | Port to REAL-NET and tune on development runs (build). **Measured in V2:** full benchmark, 3 reps (descriptive ≥85 %, Jaccard ≥0.5, direction ≥65 %) | report | 24 | 4 | 22 Jan |
+
+### E9 — Integration (62) · DoD §5
+
+| ID | Task | Output | pts | Wave | Latest due |
+|---|---|---|---|---|---|
+| E9.1 | Golden-path test framework: expected-trace assertions over the trace log, per phase, starting at the Input Parser (`study-flows.md` §4); GP-1 … GP-5 and **GP-9** (ambiguous request → `awaiting_user`) | `golden/` | 10 | 1b | 27 Nov |
+| E9.2 | GP-6 (dynamic path) and GP-7 (compare) | tests | 6 | 2 | 11 Dec |
+| E9.3 | Failure-injection suite across all golden paths (netconvert, SUMO crash, invalid scenario, script lint/dry-run failure, tool timeout, agent budget exhausted); asserts `StepError.kind` and the rendered failure blocks (ADR-0025) | tests | 10 | 5 | 15 Jan |
+| E9.4 | Cost / latency per golden path, read from E9.5's V2 traces; thresholds set from that first measurement | table | 6 | F | 9 Feb |
+| E9.5 | Full run in V2: 11/11 golden paths × 3; GP-2 reproducibility (identical `result_id`s, hashes and conclusions) | report | 10 | F | 9 Feb |
+| E9.6 | Release packaging only (no behaviour change after the feature freeze): tag, README, reproducibility package (one command per experiment in the thesis) | release | 12 | F | **Wed 10 Feb** |
+| E9.7 | *(Stretch, only if M7 is on time)* usability session with 2–3 DLR engineers | — | — | — | — |
+| E9.8 | GP-8 (full pipeline from a new place name) and GP-11 (add an edge, a `run` request per ADR-0025: derive → reroute → baseline vs treatment) passing | tests | 8 | 3 | 15 Jan |
+
+### E10 — Thesis document (120) · rolling from now, concentrated 1 → 18 Feb
 
 Rule: a module's section is drafted at the close of the wave that builds it, while the details are
 fresh (~4 pts/week of writing from now on).
 
 | ID | Task | Output | pts | Wave | Latest due |
 |---|---|---|---|---|---|
-| E8.1 | Outline mapped to epics; state-of-the-art chapter from the existing SoA matrix work | outline + SoA chapter | 16 | W (Oct) | 30 Oct |
-| E8.2 | Architecture & contracts chapter (from doc v1.0, ADRs), once ADR-0027 is settled and the Coordinator spine is closed | chapter | 12 | W (Nov) | 27 Nov |
-| E8.3 | Evaluation methodology chapter (assets, banks, metrics, DoD approach, validation passes), **before V1** | chapter | 12 | W | 11 Dec |
-| E8.4 | Module sections written at the close of each wave (Builder/Runner, Expert, generators, Coordinator) | sections | 20 | W | rolling |
-| E8.5 | Results chapter: DEV-NET, REAL-NET, learning-effect curve, calibration, ablation (from V2) | chapter | 20 | F | 12 Feb |
-| E8.6 | Discussion, limitations, threats to validity, conclusions | chapter | 12 | F | 16 Feb |
-| E8.7 | Full draft v1 to supervisors (FIB + DLR) → **M7** (10) · revision round → v2 (10, M8 window, not planned) | draft v1 → v2 | 20 | F / M8 | **18 Feb** (v1) |
-| E8.8 | Final delivery → **M8** | — | 8 | M8 | May 2027 (TBC) |
+| E10.1 | Outline mapped to epics; state-of-the-art chapter from the existing SoA matrix work | outline + SoA chapter | 16 | W (Oct) | 30 Oct |
+| E10.2 | Architecture & contracts chapter (from doc v1.0, ADRs), once ADR-0027 is settled and the Coordinator spine is closed | chapter | 12 | W (Nov) | 27 Nov |
+| E10.3 | Evaluation methodology chapter (assets, banks, metrics, DoD approach, validation passes), **before V1** | chapter | 12 | W | 11 Dec |
+| E10.4 | Module sections written at the close of each wave (Builder/Runner, Expert, generators, Coordinator) | sections | 20 | W | rolling |
+| E10.5 | Results chapter: DEV-NET, REAL-NET, learning-effect curve, calibration, ablation (from V2) | chapter | 20 | F | 12 Feb |
+| E10.6 | Discussion, limitations, threats to validity, conclusions | chapter | 12 | F | 16 Feb |
+| E10.7 | Full draft v1 to supervisors (FIB + DLR) → **M8** (10) · revision round → v2 (10, M9 window, not planned) | draft v1 → v2 | 20 | F / M9 | **18 Feb** (v1) |
+| E10.8 | Final delivery → **M9** | — | 8 | M9 | May 2027 (TBC) |
 
 ---
 
 ## 2. Milestones
 
-M2–M6 are **build milestones** (§0.2): met when every task listed is ✅ or ⏳. Their measurements run in
-V2 and are read by the tasks in wave F.
+M2–M7 are **build milestones** (§0.2): met when every task listed is ✅ or ⏳. Their measurements run in
+V2 and are read by the tasks in wave F. v0.4 renumbered M3–M9 (§8); the dates below are recomputed from the
+planning rate, not carried over.
 
 | ID | Target | Deadline | Milestone | Acceptance check |
 |---|---|---|---|---|
 | **M0** | Fri 18 Sep | Fri 18 Sep | Foundations frozen | Contracts v1 merged; DEV-NET runs the three demand profiles; CI green; architecture v1.0 |
 | **M1** | Fri 16 Oct | Fri 16 Oct | Tooling complete | All MCPs Done (§4.9); Builder & Runner Minimal; DEV-NET scenario matrix stored |
-| **M2** | **Tue 20 Oct** | Fri 13 Nov | **Expert built on DEV-NET** | E3.8 ✅ (clock-time bank); E4.2–E4.4 ⏳ with a development sweep on the E3.8 bank, per-family figures stated; E4.5 ⏳. EXP-01 is ready to run in V2 (command and cost cap written); E3.9 ✅ (evaluation budget for the supervisors) |
-| **M3** | **Fri 6 Nov** | Fri 11 Dec | **End-to-end loop built** | E3.7, E5.14, E5.2, E5.3, E5.4 ✅; GP-1 … GP-7 and GP-9 pass (E7.1, E7.2); Builder & Runner built (E2.5, E2.6 ✅; E2.7 ✅ or ⏳); E3.10 ✅ (Decisions log trimmed) |
-| **M4** | **Fri 27 Nov** | Fri 15 Jan | Real network ready (built) | REAL-NET frozen with fix log (E6.3); Network Author and Demand Generator built (E6.1, E6.2, E3.12, E6.8, E6.9 ✅; E6.4, E6.5 ✅ or ⏳); REAL-NET matrix and profiles stored (E3.5, E6.6); GP-8, GP-11 (E6.7) |
-| **M5** | **Fri 4 Dec** | Fri 29 Jan (v0.2 date, now a build deadline) | **Thesis result built** | E3.6 ✅; E4.8 ⏳ (ported and tuned on REAL-NET, development evidence stated); E4.9 ⏳ (learning-effect setup on DEV-NET ready to run). The figures come from V2 → E4.10 → E8.5 |
-| **M6** | **Fri 11 Dec** | ~~Fri 5 Feb~~ Fri 29 Jan | All modules built | E5.5, E5.6, E7.3 ✅ or ⏳; E6.10, E6.11 ✅ or ⏳; E5.7's checker built; 11 golden paths pass as tests; failure injection green |
-| **V1** | Mon 14 → Fri 18 Dec | Fri 18 Dec | Validation 1 | Reduced checkpoints of every built module on dev splits, figures recorded as interim. If M6 slips, V1 covers what is built on 14 Dec and does not move |
-| **FF** | **Fri 22 Jan** | Fri 29 Jan | Feature freeze | No behaviour change after it; V1 fixes and slips absorbed by the January buffer |
+| **M2** | **Tue 20 Oct** (~~Fri 9 Oct~~) | Fri 13 Nov | **Expert built on DEV-NET** | E3.8 ✅ (clock-time bank); E4.2–E4.4 ⏳ with a development sweep on the E3.8 bank, per-family figures stated; E4.5 ⏳. EXP-01 is ready to run in V2 (command and cost cap written); E3.9 ✅ (evaluation budget for the supervisors) |
+| **M3** | **Mon 26 Oct** | Fri 27 Nov | **Coordinator loop built** | E5.13, E3.11, E3.7, E5.14, E5.2, E5.3, E5.4 ✅; GP-1 … GP-5 and GP-9 pass (E9.1) |
+| **M4** | **Fri 6 Nov** | Fri 11 Dec | **Builder and Runner built** | E3.10 ✅ (Decisions log trimmed); E2.5, E2.6 ✅; E2.7 ✅ or ⏳; GP-6 and GP-7 pass (E9.2) |
+| **M5** | **Mon 30 Nov** | Fri 15 Jan | **Generators built** | E6.1, E7.1, E3.12, E7.2, E7.3 ✅; E6.2, E7.4 ✅ or ⏳ (both need E8.1, the frozen REAL-NET); GP-8 and GP-11 pass (E9.8) |
+| **M6** | **Tue 8 Dec** | Fri 22 Jan | **REAL-NET ready (built)** | REAL-NET frozen with fix log (E8.1); profiles, matrix and question bank stored (E8.2, E8.3, E8.4 ✅); E8.5 ⏳ (ported and tuned on REAL-NET, development evidence stated). The figures come from V2 → E4.10 → E10.5 |
+| **M7** | **Fri 15 Jan** (~~Fri 11 Dec~~) | ~~Fri 5 Feb~~ Fri 29 Jan | **All modules built** | E5.5 ✅ or ⏳ (built before V1, which checkpoints routing); E5.6, E5.7 (checker), E9.3 ✅ or ⏳; E7.5, E7.6 ✅ or ⏳; E4.9 ⏳ (learning-effect setup on DEV-NET ready to run); 11 golden paths pass as tests; failure injection green |
+| **V1** | Mon 14 → Fri 18 Dec | Fri 18 Dec | Validation 1 | Reduced checkpoints of every module built by 11 Dec (M2–M6 and E5.5) on dev splits, figures recorded as interim. Wave 5 is not in V1. If a milestone slips, V1 covers what is built on 14 Dec and does not move |
+| **FF** | **Fri 22 Jan** | Fri 29 Jan | Feature freeze | No behaviour change after it; V1 fixes and slips absorbed by the buffer of 18 → 22 Jan and the margin days |
 | **V2** | Mon 25 → Fri 29 Jan | Fri 5 Feb | Validation 2 | Every measurement suite run once at its definitive size (under the $30 cap), held-out included; a missed threshold is a result |
-| **M7** | **Thu 18 Feb** | Thu 18 Feb | **End of full-time work** | Code frozen and tagged (E7.6, 10 Feb); V2 done; thesis chapters E8.1–E8.4 written and E8.5 written; full draft v1 sent to supervisors (E8.7) |
-| **M8** | May 2027 (TBC) | — | Delivery | Revision round (second half of E8.7), E8.8, defense preparation. Recorded only, **not planned in v0.3** |
+| **M8** | **Thu 18 Feb** | Thu 18 Feb | **End of full-time work** | Code frozen and tagged (E9.6, 10 Feb); V2 done; thesis chapters E10.1–E10.4 written and E10.5 written (E10.6 may move to the M9 window, §5); E4.7, E4.10, E5.8, E9.4 and E9.5 done; full draft v1 sent to supervisors (E10.7) |
+| **M9** | May 2027 (TBC) | — | Delivery | Revision round (second half of E10.7), E10.8, defense preparation. Recorded only, **not planned in v0.4** |
 
 ---
 
@@ -273,42 +298,46 @@ by the DAG (§4), not by the week.
 | Wave | Weeks | Content (in order) | Cum. pts | Target | Deadline |
 |---|---|---|---|---|---|
 | 1a | 24 Sep → 9 Oct | E3.8 → E5.13 (accept/change ADR-0027) → E4.2–E4.4 development sweep and tuning | 68 | **M2: Tue 20 Oct** | 13 Nov |
-| 1b | 12 → 23 Oct | E3.11 → E5.14 → E3.7 → E5.2 → E5.3 → E5.4 → E7.1; E6.3 (REAL-NET) in the gaps; E3.9 evaluation budget (before ~24 Oct); E3.10 Decisions-log trim | 143 | Fri 23 Oct | — |
-| 2 | 26 Oct → 6 Nov | E2.5 → E2.6 → E7.2 → E2.7 | 201 | **M3: Fri 6 Nov** | 11 Dec |
-| 3 | 9 → 27 Nov | E6.1, E6.2 → E3.12, E6.8 → E6.9, E6.4, E6.5, E6.6, E3.5, E6.7 (E6.3 here if it missed 1b) | 326 | **M4: Fri 27 Nov** | 15 Jan |
-| 4 | 30 Nov → 4 Dec | E3.6 → E4.8; E4.9 (DEV-NET) | 374 | **M5: Fri 4 Dec** | 29 Jan |
-| 5 | 7 → 11 Dec | E5.5, E5.6, E5.7 (checker), E7.3, E6.10, E6.11 | 434 | **M6 = all built: Fri 11 Dec** | 29 Jan |
-| V1 | 14 → 18 Dec | Validation 1 | — | Fri 18 Dec | 18 Dec |
-| — | 21 → 23 Dec | Margin (working days) | — | — | — |
+| 1b | 12 → 26 Oct | E3.11 → E5.14 → E3.7 → E5.2 → E5.3 → E5.4 → E9.1; E8.1 (REAL-NET) in the gaps; E3.9 evaluation budget (before ~24 Oct); E3.10 Decisions-log trim | 143 | **M3: Mon 26 Oct** | 27 Nov |
+| 2 | 27 Oct → 6 Nov | E2.5 → E2.6 → E9.2 → E2.7 | 201 | **M4: Fri 6 Nov** | 11 Dec |
+| 3 | 9 → 30 Nov | E6.1, E7.1 → E3.12, E7.2 → E7.3, E6.2, E7.4, E9.8 (E8.1 here if it missed 1b) | 312 | **M5: Mon 30 Nov** | 15 Jan |
+| 4 | 1 → 11 Dec | E8.2 → E8.3 → E8.4 → E8.5 (356 pts, M6); E5.5 last (374 pts, Fri 11 Dec), so V1 can checkpoint routing | 374 | **M6: Tue 8 Dec** | 22 Jan |
+| V1 | 14 → 18 Dec | Validation 1 (modules built by 11 Dec) | — | Fri 18 Dec | 18 Dec |
+| — | 21 → 23 Dec | Margin (working days), not planned | — | — | — |
 | — | **24 Dec → 2 Jan** | **Break, zero work** | — | — | — |
+| 5 | 4 → 15 Jan | E5.6, E9.3, E7.5 → E4.9, E5.7 (checker), E7.6 | 434 | **M7 = all built: Fri 15 Jan** | 29 Jan |
+
+Cumulative points leave out E3.9 and E3.10 (7 pts, counted apart in §0.1). Wave 5 holds only work that V1 does not measure (no suite of §4.2's V1 checkpoints reads it), so it can sit
+after the break. Cumulative points before the break are 374, within the 379 the planning rate gives by
+11 Dec; v0.3 asked for 434 by that date.
 
 ### Writing track
 
 | When | Content |
 |---|---|
-| Oct | E8.1 outline + state of the art |
-| Nov | E8.2 architecture, once ADR-0027 is settled and the Coordinator spine is closed |
-| before V1 (by 11 Dec) | E8.3 evaluation methodology |
-| close of each wave | E8.4 module sections |
+| Oct | E10.1 outline + state of the art |
+| Nov | E10.2 architecture, once ADR-0027 is settled and the Coordinator spine is closed |
+| before V1 (by 11 Dec) | E10.3 evaluation methodology |
+| close of each wave | E10.4 module sections |
 
 ### Final stretch
 
 | Block | Target | Deadline | Content |
 |---|---|---|---|
-| Buffer + V1 fixes | 4 → 22 Jan | — | What V1 surfaced, plus any slipped build work. If empty, everything below moves earlier |
+| Buffer + V1 fixes | 18 → 22 Jan, plus 21 → 23 Dec | — | What V1 surfaced, plus any slipped build work (≈ 35 + 21 pts, and any gap in wave 5). A latest due after 15 Jan (E4.9, E5.7, E7.6, E8.4, E8.5) is a slip into this buffer, not a separate slot. If empty, everything below moves earlier |
 | **Feature freeze** | **Fri 22 Jan** | Fri 29 Jan | No behaviour change after it |
 | **Validation 2** | 25 → 29 Jan | Fri 5 Feb | Each suite once, held-out; a failure is a result |
-| Measurement-only work | 25 Jan → 5 Feb | Tue 9 Feb | E4.7 report, E4.10, E5.8, E7.4, E7.5, E5.7 rubric half |
-| E7.6 release packaging | Wed 10 Feb | Wed 10 Feb | Tag, README, reproducibility package |
-| E8.5 results → E8.6 discussion | 1 → 16 Feb | — | |
-| **M7: full draft v1 to supervisors** | **Thu 18 Feb** | Thu 18 Feb | End of full-time work |
+| Measurement-only work | 25 Jan → 5 Feb | Tue 9 Feb | E4.7 report, E4.10, E5.8, E9.4, E9.5, E5.7 rubric half |
+| E9.6 release packaging | Wed 10 Feb | Wed 10 Feb | Tag, README, reproducibility package |
+| E10.5 results → E10.6 discussion | 1 → 16 Feb | — | |
+| **M8: full draft v1 to supervisors** | **Thu 18 Feb** | Thu 18 Feb | End of full-time work |
 
 ---
 
 ## 4. Dependencies
 
-The plan is **limited by capacity, not by dependencies**: the longest chain of pending build work is 83
-of 423 points (≈ 20 %), so the order within a wave is mostly free. Two DAGs: what must be **built**
+The plan is **limited by capacity, not by dependencies**: the longest chain of pending build work is 81
+of 434 points (≈ 19 %), so the order within a wave is mostly free. Two DAGs: what must be **built**
 before V2, and which **measurement suites** turn ⏳ into ✅.
 
 ### 4.1 Build DAG
@@ -344,7 +373,7 @@ flowchart LR
     E53["E5.3 loop closure · 14"]:::pending
     E54["E5.4 Composer Min · 6"]:::frontier
     E51["E5.1 Input Parser ⏳"]:::await
-    E71["E7.1 golden-path fw, GP-1…5 + GP-9 · 10"]:::pending
+    E91["E9.1 golden-path fw, GP-1…5 + GP-9 · 10"]:::pending
     E55["E5.5 Coordinator Done (build) · 18"]:::pending
     E57["E5.7 traceability checker · 12"]:::pending
     E56["E5.6 capability neg. + GP-10 · 8"]:::pending
@@ -354,84 +383,88 @@ flowchart LR
     E25["E2.5 sandbox + online Runner · 24"]:::frontier
     E26["E2.6 Builder scripts · 14"]:::pending
     E27["E2.7 Builder bank (build) · 14"]:::pending
-    E72["E7.2 GP-6, GP-7 · 6"]:::pending
-    E73["E7.3 failure injection · 10"]:::pending
+    E92["E9.2 GP-6, GP-7 · 6"]:::pending
+    E93["E9.3 failure injection · 10"]:::pending
   end
 
   subgraph GEN["Generators + REAL-NET"]
     E61["E6.1 Network Author Min · 18"]:::frontier
-    E62["E6.2 Demand Generator Min · 13"]:::frontier
+    E71["E7.1 Demand Generator Min · 13"]:::frontier
     E312["E3.12 resolution banks · 8"]:::pending
-    E63["E6.3 REAL-NET clean + freeze · 16"]:::frontier
-    E64["E6.4 Network Author Done (build) · 24"]:::pending
-    E65["E6.5 Demand Gen Done (build) · 26"]:::pending
-    E66["E6.6 REAL-NET profiles · 6"]:::pending
-    E35["E3.5 REAL-NET matrix · 8"]:::pending
-    E36["E3.6 REAL-NET question bank · 6"]:::pending
-    E48["E4.8 Expert on REAL-NET (port+tune) · 24"]:::pending
-    E67["E6.7 GP-8, GP-11 · 8"]:::pending
-    E68["E6.8 raw demand data (ADR-0036) · 6"]:::pending
-    E69["E6.9 od_matrix + ZoneMap · 8"]:::pending
-    E610["E6.10 external data import · 8"]:::pending
-    E611["E6.11 flows · 4"]:::pending
+    E81["E8.1 REAL-NET clean + freeze · 16"]:::frontier
+    E62["E6.2 Network Author Done (build) · 24"]:::pending
+    E74["E7.4 Demand Gen Done (build) · 26"]:::pending
+    E82["E8.2 REAL-NET profiles · 6"]:::pending
+    E83["E8.3 REAL-NET matrix · 8"]:::pending
+    E84["E8.4 REAL-NET question bank · 6"]:::pending
+    E85["E8.5 Expert on REAL-NET (port+tune) · 24"]:::pending
+    E98["E9.8 GP-8, GP-11 · 8"]:::pending
+    E72["E7.2 raw demand data (ADR-0036) · 6"]:::pending
+    E73["E7.3 od_matrix + ZoneMap · 8"]:::pending
+    E75["E7.5 external data import · 8"]:::pending
+    E76["E7.6 flows · 4"]:::pending
   end
 
   M2(("M2<br/>20 Oct / 13 Nov")):::ms
-  M3(("M3<br/>6 Nov / 11 Dec")):::ms
-  M4(("M4<br/>27 Nov / 15 Jan")):::ms
-  M5(("M5<br/>4 Dec / 29 Jan")):::ms
-  M6(("M6<br/>11 Dec / 29 Jan")):::ms
+  M3(("M3 Coordinator<br/>26 Oct / 27 Nov")):::ms
+  M4(("M4 Builder, Runner<br/>6 Nov / 11 Dec")):::ms
+  M5(("M5 Generators<br/>30 Nov / 15 Jan")):::ms
+  M6(("M6 REAL-NET<br/>8 Dec / 22 Jan")):::ms
+  M7(("M7 all built<br/>15 Jan / 29 Jan")):::ms
 
   %% Expert
   E38 --> E42 & E43 & E44
   E42 & E43 & E44 --> E49
   E42 & E43 & E44 & E45 --> M2
 
-  %% Coordinator spine (critical for M3, M4, M6)
-  E38 ==> E311 ==> E514 ==> E37 ==> E52 ==> E53 ==> E71 ==> E72
-  E71 ==> E67 ==> E73
+  %% Coordinator spine (critical for M3, M4, M5, M7)
+  E38 ==> E311 ==> E514 ==> E37 ==> E52 ==> E53 ==> E91 ==> E92
+  E91 ==> E98 ==> E93
   E52 --> E55
   E37 --> E55
   E45 --> E53
-  E51 --> E71
-  E54 --> E71
+  E51 --> E91
+  E54 --> E91
   E54 --> E57
+  E91 --> E56
   E71 --> E56
-  E62 --> E56
-  E68 --> E56
+  E72 --> E56
 
   %% Runner / Builder
   E25 --> E26 --> E27
-  E26 --> E72
-  E25 --> E73
-  E72 --> E73
-  E72 & E27 --> M3
+  E26 --> E92
+  E25 --> E93
+  E92 --> E93
+  E91 --> M3
+  E92 & E27 --> M4
 
-  %% Generators + REAL-NET (critical for M5)
-  E61 & E62 & E63 --> E64
-  E61 & E62 & E63 --> E65
-  E61 & E62 --> E67
-  E61 & E62 --> E312
-  E62 --> E68 --> E65
-  E68 --> E69
-  E69 --> E610
-  E69 --> E611
-  E69 --> M4
-  E610 & E611 -.-> M6
-  E61 --> E73
-  E63 ==> E66 ==> E35 ==> E36 ==> E48
-  E64 & E65 & E35 & E67 --> M4
-  E48 & E49 --> M5
-  E55 & E56 & E57 & E73 --> M6
+  %% Generators + REAL-NET (critical for M6)
+  E61 & E71 & E81 --> E62
+  E61 & E71 & E81 --> E74
+  E61 & E71 --> E98
+  E61 & E71 --> E312
+  E71 --> E72 --> E74
+  E73 --> E74
+  E72 --> E73
+  E73 --> E75
+  E73 --> E76
+  E73 --> M5
+  E312 --> M5
+  E75 & E76 -.-> M7
+  E61 --> E93
+  E81 ==> E82 ==> E83 ==> E84 ==> E85
+  E62 & E74 & E98 --> M5
+  E82 & E83 & E84 & E85 --> M6
+  E49 & E55 & E56 & E57 & E93 --> M7
 
   %% risks
-  E513 -.-> E37 & E52 & E54 & E67
-  E514 -.-> E61 & E62
-  XNET -.-> E53 & E67
+  E513 -.-> E37 & E52 & E54 & E98
+  E514 -.-> E61 & E71
+  XNET -.-> E53 & E98
 ```
 
 Off every chain, no prerequisite: E3.9 evaluation budget (5, before ~24 Oct), E3.10 Decisions-log
-trim (2), E8.1–E8.4 (writing track).
+trim (2), E10.1–E10.4 (writing track).
 
 ### 4.2 Measurement DAG
 
@@ -446,9 +479,9 @@ flowchart LR
   classDef suite fill:#e8eefc,stroke:#1f3b73,color:#000
   classDef task fill:#fff,stroke:#555,color:#000
 
-  BUILT(("all built<br/>M6 target 11 Dec")):::pass
+  BUILT(("built before V1<br/>M2–M6 + E5.5 · 11 Dec")):::pass
   V1{{"Validation 1 · 14–18 Dec<br/>dev splits, interim, turns nothing ✅"}}:::pass
-  BUF["Buffer + V1 fixes · 4–22 Jan"]:::task
+  BUF["Wave 5 (M7 · 15 Jan) + V1 fixes · 4–22 Jan"]:::task
   FRZ{{"Feature freeze · 22 Jan<br/>(deadline 29 Jan)"}}:::pass
   V2{{"Validation 2 · 25–29 Jan<br/>definitive, each suite once"}}:::pass
 
@@ -470,18 +503,18 @@ flowchart LR
   S2 --> T2["✅ E5.1 · Parser half of E5.8"]:::task
   S3 --> T3["✅ E2.7"]:::task
   S4 --> T4["✅ E5.5 · E5.8 · 8"]:::task
-  S5 --> T5["✅ E6.4"]:::task
-  S6 --> T6["✅ E6.5"]:::task
-  S7 --> T7["✅ E4.8"]:::task
+  S5 --> T5["✅ E6.2"]:::task
+  S6 --> T6["✅ E7.4"]:::task
+  S7 --> T7["✅ E8.5"]:::task
   S8 --> T8["✅ E4.9"]:::task
-  S9 --> T9["✅ E7.5 · 10 · E7.4 · 6 · E5.7 rubric · GP-2 repro"]:::task
+  S9 --> T9["✅ E9.5 · 10 · E9.4 · 6 · E5.7 rubric · GP-2 repro"]:::task
 
   S1 & S8 --> E410["E4.10 calibration + ablation · 8"]:::task
-  T1 & T7 & T8 & E410 --> E85["E8.5 results · 20 · by 12 Feb"]:::task
-  E85 --> E86["E8.6 discussion · 12 · by 16 Feb"]:::task --> E87["E8.7 draft v1 · 10"]:::task
-  T9 --> E76["E7.6 release packaging · 12 · 10 Feb"]:::task
-  E87 & E76 --> M7(("M7 · 18 Feb<br/>end of full-time work")):::pass
-  M7 -.-> M8(("M8 · May<br/>delivery, not planned")):::pass
+  T1 & T7 & T8 & E410 --> E105["E10.5 results · 20 · by 12 Feb"]:::task
+  E105 --> E106["E10.6 discussion · 12 · by 16 Feb"]:::task --> E107["E10.7 draft v1 · 10"]:::task
+  T9 --> E96["E9.6 release packaging · 12 · 10 Feb"]:::task
+  E107 & E96 --> M8(("M8 · 18 Feb<br/>end of full-time work")):::pass
+  M8 -.-> M9(("M9 · May<br/>delivery, not planned")):::pass
 ```
 
 ### 4.3 Critical paths
@@ -489,17 +522,18 @@ flowchart LR
 | Target | Points | Chain |
 |---|---|---|
 | M2 (build) | 34 | E3.8 → E4.4 |
-| M3 (build) | 69 | E3.8 → E3.11 → E5.14 → E3.7 → E5.2 → E5.3 → E7.1 → E7.2 |
-| M4 (build) | 71 | E3.8 → E3.11 → E5.14 → E3.7 → E5.2 → E5.3 → E7.1 → E6.7 |
-| M5 (build) | 60 | E6.3 → E6.6 → E3.5 → E3.6 → E4.8 (E4.9: E3.8 → E4.4 → E4.9 = 52) |
-| M6 (build) = all built | **81** | E3.8 → E3.11 → E5.14 → E3.7 → E5.2 → E5.3 → E7.1 → E6.7 → E7.3 |
-| Tail after V2 | 68 + V2 runs | E4.10 → E8.5 → E8.6 → E8.7 → (E8.8 in M8) |
+| M3 (build) | 63 | E3.8 → E3.11 → E5.14 → E3.7 → E5.2 → E5.3 → E9.1 |
+| M4 (build) | 69 | E3.8 → E3.11 → E5.14 → E3.7 → E5.2 → E5.3 → E9.1 → E9.2 (the Builder chain E2.5 → E2.6 → E2.7 is 52) |
+| M5 (build) | 71 | E3.8 → E3.11 → E5.14 → E3.7 → E5.2 → E5.3 → E9.1 → E9.8 |
+| M6 (build) | 60 | E8.1 → E8.2 → E8.3 → E8.4 → E8.5 |
+| M7 (build) = all built | **81** | E3.8 → E3.11 → E5.14 → E3.7 → E5.2 → E5.3 → E9.1 → E9.8 → E9.3 (E4.9: E3.8 → E4.4 → E4.9 = 52) |
+| Tail after V2 | 68 + V2 runs | E4.10 → E10.5 → E10.6 → E10.7 → (E10.8 in M9) |
 
 ### 4.4 What to watch
 
-- **The Coordinator spine is the critical path of the whole plan.** E3.8 → E3.11 → E5.14 → E3.7 → E5.2 → E5.3 → E7.1
-  feeds M3, M4 (GP-8/GP-11 need the Coordinator and the golden-path framework) and M6. Start it first.
-- **ADR-0027 sits at the root of the spine** (E3.7, E5.2, E5.4, E6.7 build on arms): E5.13 settles it
+- **The Coordinator spine is the critical path of the whole plan.** E3.8 → E3.11 → E5.14 → E3.7 → E5.2 → E5.3 → E9.1
+  feeds M3, M4, M5 (GP-8/GP-11 need the Coordinator and the golden-path framework) and M7. Start it first.
+- **ADR-0027 sits at the root of the spine** (E3.7, E5.2, E5.4, E9.8 build on arms): E5.13 settles it
   right after E3.8, before E3.7 starts.
 - **Multi-network `ExpertTask`** (risk, decided inside E5.3): `ExpertTask` carries one `network_id`; the
   Expert's topology tools are built over one `NetworkQuery`, `ask_expert` rejects `values` naming an edge
@@ -507,16 +541,18 @@ flowchart LR
   topology (GP-11: `treatment` on a derived network adding edge `J7J9`) a correct answer about the new
   edge is rejected. E5.10 passes the phase-0 network plus every result id (`TODO(E5.3)` in
   `application/use_cases/run_study.py`). E5.3 decides the fix (e.g. `network_ids` and one
-  `NetworkQuery` per network); it also gates GP-11 (E6.7).
+  `NetworkQuery` per network); it also gates GP-11 (E9.8).
 - **E3.8 before any Expert sweep.** A sweep on the pre-ADR-0028 bank is paid again after the rebuild:
   E4.2–E4.4's development sweep and EXP-01 both read the E3.8 bank.
-- **E6.3 has no prerequisite.** The whole REAL-NET chain (M5) can start any week; keep it in the gaps of
+- **E8.1 has no prerequisite.** The whole REAL-NET chain (M6) can start any week; keep it in the gaps of
   wave 1b so it is off the Christmas break.
 - **E2.5 has no fallback**: without it GP-6 and the script half of §4.5 cannot pass.
-- **E6.2 before E6.4 and E6.7**: the derivation bank and GP-11 use `reroute_demand`.
-- **The measurement-only work (≈ 50 pts) sits between V2 and E8.5.** That window (25 Jan → 9 Feb) is
+- **E7.1 before E6.2 and E9.8**: the derivation bank and GP-11 use `reroute_demand`.
+- **Wave 5 sits after V1 on purpose.** E4.9, E5.6, E5.7, E7.5, E7.6 and E9.3 feed no V1 checkpoint, so they
+  are built 4 → 15 Jan. A defect in them first shows in V2; the 18 → 22 Jan buffer is the margin for it.
+- **The measurement-only work (≈ 50 pts) sits between V2 and E10.5.** That window (25 Jan → 9 Feb) is
   the real crunch of the calendar; the January buffer exists to keep V2 on its target.
-- **E8.5 needs E4.9 and E4.10's figures**, which is why the learning-effect setup is in wave 4, not
+- **E10.5 needs E4.9 and E4.10's figures**, which is why the learning-effect setup is in wave 5, not
   after.
 
 ---
@@ -528,21 +564,21 @@ Apply one step at a time, in order. Record every downgrade in the thesis as a st
 1. **Consume the January buffer**: targets slide towards their deadlines. A deadline never moves later.
 2. **Cost axis**: under the $30 cap, measurement suites shrink in scale (inputs × repetitions × models,
    never below 2 repetitions); no suite is dropped.
-3. **Move E8.6** (discussion, limitations, conclusions) to the March–May window. It is the only writing
-   that may move; E8.5 may not.
+3. **Move E10.6** (discussion, limitations, conclusions) to the March–May window. It is the only writing
+   that may move; E10.5 may not.
 4. **Downgrade *Done* criteria to *Minimal*** (the v0.2 list, unchanged):
-   1. E7.7 (already Stretch) — never scheduled.
-   2. E6.4 / E6.5 agent tuning → keep the v1 tool catalogue with a single prompt; drop the *agent
+   1. E9.7 (already Stretch) — never scheduled.
+   2. E6.2 / E7.4 agent tuning → keep the v1 tool catalogue with a single prompt; drop the *agent
       stability over 3 runs* criterion (replay determinism and the derivation bank stay).
-   3. E6.5 history-driven demand generation → keep parameter-driven and count-calibrated only
-      (E6.8 and E6.9 stay; the generator uses counts from one source and no longer mixes sources or
+   3. E7.4 history-driven demand generation → keep parameter-driven and count-calibrated only
+      (E7.2 and E7.3 stay; the generator uses counts from one source and no longer mixes sources or
       selects dates to compute a typical day; GP-10 still demonstrates negotiation).
    4. E4.10 ablation → keep calibration analysis only.
    5. E5.7 automatic traceability checker → manual rubric only.
-   6. E6.4 GEN-LOCATIONS 10/10 → 6/6 locations.
+   6. E6.2 GEN-LOCATIONS 10/10 → 6/6 locations.
    7. E2.7 Builder bank → drop the `custom` and `signal_program` script variants.
 
-What must **not** be cut: M2, M3, M5 — their build and their V2 measurement. Those three are the
+What must **not** be cut: M2, M3, M6 and E4.9 — their build and their V2 measurement. Those are the
 thesis. Nothing that needs SUMO, API budget or sustained work moves past 18 Feb.
 
 ---
@@ -571,11 +607,48 @@ the numbering.
 | — | One module for paid evaluation runs | Three eval runners copied the same loop, and their cost caps had drifted apart (optional cap, no $1 gate, cap applied per mode). | — | E4.2–E4.4 sweeps, the validation passes |
 | r1 | Each responsibility of `run_simulation` gets its own home | The use case also owned the reproducibility rule, result building and directory promotion, which are not orchestration. Behavior does not change. | — | E2.5 |
 | r2 | One `Database` protocol for the in-memory and SQLite repositories | The two backends answered the same query differently (filters ignored, ordering, error types), so a test could pass on behavior production does not have. | [0034](adr/0034-database-protocol-and-backends.md) | E5.2, E5.6, E4.9 |
-| r3 | Declare each tool once | Changing an Expert tool parameter meant editing five places, and about twenty more tools are coming. A forgotten edit failed only when a model called the tool. | [0033](adr/0033-tools-declared-once.md) | E5.2, E5.3, E2.6, E6.1, E6.2 |
-| r4 | One network scope for the Expert round | `ExpertTask` carried one network id, so the Expert could not see a derived network's new edge and rejected correct answers about it. | [0032](adr/0032-expert-network-scope.md) | E5.3, E6.7, M4 |
-| r5 | Typed study trace, one emitter, one shared test world | Trace events were free strings emitted from five modules, the plan and the Expert round were missing, and CLI runs lost the cost events. | — | E7.1, E5.5, E7.3, E7.4 |
-| r6 | One module launches SUMO tools | Two call sites treated seed and errors differently, six or seven more were coming, and nobody checked the binary's version. | — | E2.5, E6.1, E6.2, E6.5, E7.3 |
+| r3 | Declare each tool once | Changing an Expert tool parameter meant editing five places, and about twenty more tools are coming. A forgotten edit failed only when a model called the tool. | [0033](adr/0033-tools-declared-once.md) | E5.2, E5.3, E2.6, E6.1, E7.1 |
+| r4 | One network scope for the Expert round | `ExpertTask` carried one network id, so the Expert could not see a derived network's new edge and rejected correct answers about it. | [0032](adr/0032-expert-network-scope.md) | E5.3, E9.8, M5 |
+| r5 | Typed study trace, one emitter, one shared test world | Trace events were free strings emitted from five modules, the plan and the Expert round were missing, and CLI runs lost the cost events. | — | E9.1, E5.5, E9.3, E9.4 |
+| r6 | One module launches SUMO tools | Two call sites treated seed and errors differently, six or seven more were coming, and nobody checked the binary's version. | — | E2.5, E6.1, E7.1, E7.4, E9.3 |
 | u2 | Failed `SimulationResult` retry conflicts in SQLite | Re-running a failed result raised `ConflictError`, which broke the real path. | [0031](adr/0031-only-ok-results-are-persisted.md) | — |
 | e5.14 | `obtain_demand` does not carry the study window | The row says the step carries the reference and the window. The window is a pure function of the `Question`, so the Executor computes it when it builds the `ObtainDemandTask` and the plan stays free of a derived value. The specialist still receives it. | [0037](adr/0037-specialists-resolve-network-and-demand.md) | E3.7, E5.2 |
 
 A new refactor adds a row here in the same change that opens it.
+
+---
+
+## 8. Equivalence v0.3 → v0.4
+
+ADRs, the diary, tuning logs, past reviews (`docs/feasability-analisis/`) and the frozen architecture
+document keep v0.3 ids. Read them through this table. Ids absent from it did not change (E0–E2, E3 except
+E3.5 and E3.6, E4 except E4.8, E5).
+
+| v0.3 | v0.4 | Task |
+|---|---|---|
+| E6.1 | E6.1 | Network Author Minimal |
+| E6.4 | E6.2 | Network Author Done |
+| E6.2 | E7.1 | Demand Generator Minimal |
+| E6.8 | E7.2 | Raw demand data (ADR-0036) |
+| E6.9 | E7.3 | `od_matrix` and `ZoneMap` |
+| E6.5 | E7.4 | Demand Generator Done |
+| E6.10 | E7.5 | Import of external demand data |
+| E6.11 | E7.6 | `flows` content |
+| E6.3 | E8.1 | REAL-NET district, clean and freeze |
+| E6.6 | E8.2 | REAL-NET demand profiles |
+| E3.5 | E8.3 | REAL-NET scenario matrix |
+| E3.6 | E8.4 | REAL-NET question bank |
+| E4.8 | E8.5 | Expert on REAL-NET |
+| E7.1 – E7.7 | E9.1 – E9.7 | Integration (same order) |
+| E6.7 | E9.8 | GP-8 and GP-11 |
+| E8.1 – E8.8 | E10.1 – E10.8 | Thesis (same order) |
+
+| v0.3 milestone | v0.4 |
+|---|---|
+| M0, M1, M2 | M0, M1, M2 |
+| M3 End-to-end loop built | M3 Coordinator loop built and M4 Builder and Runner built |
+| M4 Real network ready | M5 Generators built (E6.1, E7.x, E3.12, E9.8) and M6 REAL-NET ready (E8.x) |
+| M5 Thesis result built | M6 (E8.5) and M7 (E4.9) |
+| M6 All modules built | M7 |
+| M7 End of full-time work | M8 |
+| M8 Delivery | M9 |

@@ -307,7 +307,8 @@ def _date_text(cell: str) -> str | None:
 def _task_refs(acceptance: str) -> list[str]:
     """Task ids named in an acceptance check, with `E4.2–E4.4` expanded.
 
-    Text after an arrow is a pointer to later work (`V2 → E4.10 → E8.5`), not part of the milestone.
+    Text after an arrow is a pointer to later work (`V2 → E4.10 → E10.5`), not part of the
+    milestone.
     """
     ids: list[str] = []
     for match in re.finditer(r"E(\d+)\.(\d+)(?:\s*[–-]\s*E\1\.(\d+))?", acceptance.split("→")[0]):
@@ -365,7 +366,7 @@ def _assign_rails(
     foundations and tooling, whose milestones name no task) goes in the first milestone whose
     deadline is not before the task's due date. Any other unlisted task goes in the earliest
     milestone downstream of it, and a suite or validates node with nothing downstream goes in the
-    last milestone drawn from the diagram (M7, where the results close). Refactors have no
+    last milestone drawn from the diagram (M8, where the results close). Refactors have no
     milestone and share a collapsed rail. What is left is in a collapsed "Unscheduled" rail below
     it. Only milestones that end up with a node get a rail.
     """
@@ -383,7 +384,7 @@ def _assign_rails(
         return next((r for k, r in by_deadline if due is not None and k >= due), None)
 
     listed = {m.id for m in milestones}
-    # A diagram milestone named after a table row (`M7 · 18 Feb ...`) is that row's rail.
+    # A diagram milestone named after a table row (`M8 · 18 Feb ...`) is that row's rail.
     same_as: dict[str, str] = {}
     for node in nodes.values():
         if node["kind"] != "milestone" or node["lane"] != "active":
@@ -492,7 +493,7 @@ def _load_tasks(
                and re.fullmatch(r"E\d+\.\d+", t.id)}
     for task_id, deps in _infer_chains(sorted(guessed)).items():
         tasks[task_id].blocked_by = deps
-    # A task a milestone lists but nobody has opened yet (E8.8, final delivery) still belongs on
+    # A task a milestone lists but nobody has opened yet (E10.8, final delivery) still belongs on
     # the tree, as a task that needs triage.
     for task_id in _members(plan):
         row = _table_row(plan, task_id) if plan is not None else None

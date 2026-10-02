@@ -1,7 +1,7 @@
 """`DemandTools` adapter: `randomTrips`/`duarouter`/`routeSampler` wrappers (architecture §2.2).
 
 `duarouter` is implemented now — work-plan E2.3 needs it to route a `demand_scale`-derived trips
-file. `random_trips`/`route_sampler` are work-plan E6.2 (Demand Generator Minimal/Done): raising
+file. `random_trips`/`route_sampler` are work-plan E7.1 (Demand Generator Minimal/Done): raising
 `NotImplementedError` here rather than a bare placeholder keeps this adapter usable for the part
 that already has a caller (ADR-0017's "raise, don't stub silently" convention — see
 `SubprocessSumoRunner.run_online`).
@@ -65,7 +65,7 @@ class SumoDemandTools:
         seed: int,
         out_dir: Path,
     ) -> ArtifactRef:
-        raise NotImplementedError("random_trips: see work-plan E6.2")
+        raise NotImplementedError("random_trips: see work-plan E7.1")
 
     def route_sampler(
         self,
@@ -75,4 +75,4 @@ class SumoDemandTools:
         seed: int,
         out_dir: Path,
     ) -> ArtifactRef:
-        raise NotImplementedError("route_sampler: see work-plan E6.5")
+        raise NotImplementedError("route_sampler: see work-plan E7.4")

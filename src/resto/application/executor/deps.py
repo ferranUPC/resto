@@ -74,12 +74,12 @@ class StudyAgents:
 
 @dataclass(frozen=True, slots=True)
 class StudyPromotions:
-    """The promotions not implemented yet (E5.4, E6.1, E6.2), injected so the Executor does not
+    """The promotions not implemented yet (E5.4, E6.1, E7.1), injected so the Executor does not
     change when they land. A `ValueError` means the draft was rejected (`StepError(agent)`); any
     other exception is `infrastructure`. `network` promotes both a created and a derived network
     (the task says which: a `base_network_id`, or an `ObtainNetworkTask`).
 
-    A temporary seam, not a port to extend: it goes away with E5.4 / E6.1 / E6.2, when the
+    A temporary seam, not a port to extend: it goes away with E5.4 / E6.1 / E7.1, when the
     Executor calls those use cases directly, as it already does with `build_scenario`."""
 
     network: Callable[[NetworkTask | ObtainNetworkTask, AgentRun[NetworkDraft]], Network]

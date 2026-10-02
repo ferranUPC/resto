@@ -1,6 +1,6 @@
 """DatabaseMCP server: the five required capability groups of DATABASE_MCP_CONTRACT.md over MCP,
 wrapping any `Database` (E1.3). `historical_demand` is not implemented here - it is optional
-(§1), and its shape is deliberately unpinned until E6.5 picks a data source (contract §10 point 3).
+(§1), and its shape is deliberately unpinned until E7.4 picks a data source (contract §10 point 3).
 
 Thin driving adapter (ADR-0009): each tool function only (de)serialises through
 `application.schemas.ADAPTERS` and calls straight into a `Database` repository - no logic

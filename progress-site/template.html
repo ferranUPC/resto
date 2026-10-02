@@ -494,14 +494,14 @@ footer { margin-top: 40px; font-size: 12px; color: var(--ink-3); max-width: 80ch
       const r = tr.milestones[m.id] || { status: "todo", notes: "" };
       m.status = r.status; m.notes = r.notes; m.doneDate = r.status === "done" ? r.firstDate : null;
     }
-    // Milestones without a date (M8, delivery in May, not planned) get a card but stay off the chart.
+    // Milestones without a date (M9, delivery in May, not planned) get a card but stay off the chart.
     const dated = plan.milestones.filter(m => m.date);
     const last = dated[dated.length - 1], undated = plan.milestones.find(m => !m.date);
     for (const t of plan.tasks) {
       // A task in a build wave (or V2) counts at the wave's target and belongs to the first milestone
       // whose target it meets; any other task counts at its latest due, matched against deadlines.
       const wave = plan.waves[t.wave] || null, waveDate = wave ? wave.date : null;
-      t.unplanned = t.wave === "M8";
+      t.unplanned = t.wave === "M9";
       t.planned = t.unplanned ? null : (waveDate || t.due);
       if (t.stretch) { t.milestone = null; continue; }
       if (t.unplanned) { t.milestone = (undated || last).id; continue; }
@@ -536,7 +536,7 @@ footer { margin-top: 40px; font-size: 12px; color: var(--ink-3); max-width: 80ch
   const pill = s => `<span class="pill ${s}">${SLABEL[s]}</span>`;
 
   // Cumulative planned points at date d (a task counts at its wave's target, else at its latest due;
-  // rolling tasks at the end; tasks left for the M8 window are not planned).
+  // rolling tasks at the end; tasks left for the M9 window are not planned).
   function planCurve(M) {
     const end = M.end;
     const pts = M.counted.filter(t => t.hours && !t.unplanned).map(t => [t.planned || end, t.hours]).sort((a, b) => a[0] - b[0]);

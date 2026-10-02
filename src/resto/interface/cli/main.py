@@ -2,7 +2,7 @@
 ports meet their implementations and the infrastructure is bound.
 
 Agents that do not exist yet — Coordinator (E5.2), Output Composer (E5.4), Network Author (E6.1),
-Demand Generator (E6.2) — and the promotions of their drafts are placeholders that raise
+Demand Generator (E7.1) — and the promotions of their drafts are placeholders that raise
 `NotImplementedError`. A request the Input Parser cannot turn into a `Question` ends in
 `ParserFailed`, and the CLI reports it without creating a Study.
 
@@ -71,7 +71,7 @@ def build_deps(
             parser=InputParserPort(agent=agent, budget=budget),
             coordinator=_Pending("Coordinator", "E5.2"),
             network_author=_Pending("Network Author", "E6.1"),
-            demand_generator=_Pending("Demand Generator", "E6.2"),
+            demand_generator=_Pending("Demand Generator", "E7.1"),
             scenario_builder=ScenarioBuilderPort(
                 agent=agent,
                 budget=budget,
@@ -103,8 +103,8 @@ def build_deps(
         ),
         promotions=StudyPromotions(
             network=_Pending("network promotion", "E6.1"),
-            demand=_Pending("demand promotion", "E6.2"),
-            reroute=_Pending("reroute_demand", "E6.2"),
+            demand=_Pending("demand promotion", "E7.1"),
+            reroute=_Pending("reroute_demand", "E7.1"),
             report=_Pending("compose_report promotion", "E5.4"),
         ),
         networks=db.networks,

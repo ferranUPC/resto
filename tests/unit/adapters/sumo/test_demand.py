@@ -1,5 +1,5 @@
 """`SumoDemandTools.duarouter` on DEV-NET with real SUMO (E2.3): what `scale_demand` calls to
-route a resampled trips file. `random_trips`/`route_sampler` are work-plan E6.2/E6.5, still
+route a resampled trips file. `random_trips`/`route_sampler` are work-plan E7.1/E7.4, still
 `NotImplementedError`."""
 
 from __future__ import annotations
