@@ -13,8 +13,8 @@ class ExperimentRole(StrEnum):
 @dataclass(frozen=True, slots=True)
 class Experiment:
     """One scenario and its seeded runs, inside a Study. `arm` is the question's arm it realises
-    (ADR-0027); `reused` marks a scenario whose stored results the plan reused instead of running
-    it now (ADR-0025 §1)."""
+    (ADR-0027); `reused` marks a scenario the Executor found by the hash of its request, with ok
+    results, and so did not send to the Scenario Builder (ADR-0037 §5)."""
 
     scenario_id: str
     arm: str

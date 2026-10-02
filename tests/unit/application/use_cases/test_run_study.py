@@ -47,7 +47,6 @@ from resto.domain.value_objects.study_plan import (
     DeriveNetworkStep,
     FromStep,
     RerouteDemandStep,
-    ReusedExperiment,
 )
 from tests.unit.application._doubles import FakeRunner
 from tests.unit.application._world import (
@@ -85,12 +84,9 @@ from tests.unit.domain._fixtures import (
 # -- golden paths ---------------------------------------------------------------------------------
 
 
-def test_gp1_an_obtain_network_only_plan_answers_from_reused_results(tmp_path: Path) -> None:
-    world = World(tmp_path, expert=(answers(),))
+def test_gp1_a_stored_baseline_is_answered_from_its_results(tmp_path: Path) -> None:
+    world = World(tmp_path, plans=(BASELINE_PLAN,), expert=(answers(),))
     sid, ids = world.store_scenario()
-    world.coordinator.items.append(
-        plan(reused=(ReusedExperiment(sid, BASE_ARM, ExperimentRole.BASELINE, "stored baseline"),))
-    )
 
     study = world.run()
 
@@ -99,11 +95,13 @@ def test_gp1_an_obtain_network_only_plan_answers_from_reused_results(tmp_path: P
     assert tools(study) == [
         ("plan", StepStatus.OK),
         ("obtain_network", StepStatus.OK),
+        ("build_scenario", StepStatus.OK),
+        ("run_simulation", StepStatus.OK),
         ("ask_expert", StepStatus.OK),
         ("compose_report", StepStatus.OK),
     ]
     assert study.phases[0].experiments == (
-        Experiment(sid, BASE_ARM, ExperimentRole.BASELINE, "stored baseline", ids, reused=True),
+        Experiment(sid, BASE_ARM, ExperimentRole.BASELINE, "arm base", ids, reused=True),
     )
     assert world.runner.calls == [] and world.builder.calls == []
     task = world.expert.calls[0][0]

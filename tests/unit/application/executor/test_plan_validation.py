@@ -19,14 +19,12 @@ from resto.domain.entities.scenario import Scenario
 from resto.domain.entities.simulation_result import RunMode, RunStatus, SimulationResult
 from resto.domain.services.ids import result_id_for, scenario_id_for
 from resto.domain.value_objects.arm import BASE_ARM, Arm
-from resto.domain.value_objects.experiment import ExperimentRole
 from resto.domain.value_objects.kpis import Kpis
 from resto.domain.value_objects.question import Intent, Question
 from resto.domain.value_objects.study_plan import (
     DeriveNetworkStep,
     FromStep,
     PlanStep,
-    ReusedExperiment,
     RunSimulationStep,
     StudyPlan,
 )
@@ -60,19 +58,12 @@ NEW_ROAD = Question(
 )
 
 
-def plan(
-    *steps: PlanStep, reused: tuple[ReusedExperiment, ...] = (), network: str | FromStep = NET
-) -> StudyPlan:
+def plan(*steps: PlanStep, network: str | FromStep = NET) -> StudyPlan:
     return StudyPlan(
         network_id=plan_network(network),
         rationale="as needed",
         steps=after_obtain_network(*steps),
-        reused=reused,
     )
-
-
-def reuse(scenario_id: str, arm: str = BASE_ARM) -> ReusedExperiment:
-    return ReusedExperiment(scenario_id, arm, ExperimentRole.BASELINE, "already simulated")
 
 
 class Stored:
@@ -133,7 +124,6 @@ class Stored:
             networks=self.networks,
             demands=self.demands,
             scenarios=self.scenarios,
-            results=self.results,
         )
 
 
@@ -227,26 +217,6 @@ def test_every_problem_in_one_plan_comes_back(stored: Stored) -> None:
         "step 1: arm 'base' is built but never run",
         "step 1: its interventions are not those of its arm",
         "step 1: its arm keeps the topology, but runs on another network",
-    ]
-
-
-def test_a_reused_scenario_with_ok_results_realises_its_arm(stored: Stored) -> None:
-    sid = stored.scenario()
-
-    assert stored.problems(plan(reused=(reuse(sid),))) == []
-
-
-def test_a_reused_scenario_without_ok_results_is_rejected(stored: Stored) -> None:
-    sid = stored.scenario(ok=False)
-
-    assert stored.problems(plan(reused=(reuse(sid),))) == [
-        f"reused scenario {sid!r} has no ok results"
-    ]
-
-
-def test_a_reused_scenario_must_exist(stored: Stored) -> None:
-    assert stored.problems(plan(reused=(reuse("nope"),))) == [
-        "reused scenario 'nope' does not exist"
     ]
 
 

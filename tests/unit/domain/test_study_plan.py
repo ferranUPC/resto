@@ -9,7 +9,6 @@ from resto.domain.value_objects.study_plan import (
     ObtainDemandStep,
     ObtainNetworkStep,
     RerouteDemandStep,
-    ReusedExperiment,
     RunSimulationStep,
     StudyPlan,
 )
@@ -29,7 +28,7 @@ def _gp11_plan() -> StudyPlan:
     """GP-11: derive a network with a new edge, reroute the demand, build and run both sides."""
     return StudyPlan(
         network_id=FromStep(0),
-        rationale="treatment is the derived network; baseline reused",
+        rationale="treatment is the derived network",
         steps=(
             ObtainNetworkStep(network_ref="RIVERSIDE"),
             DeriveNetworkStep(
@@ -48,7 +47,6 @@ def _gp11_plan() -> StudyPlan:
             ),
             RunSimulationStep(scenario_id=FromStep(3), depends_on=(3,)),
         ),
-        reused=(ReusedExperiment("s-base", "base", BASELINE, "network as it is"),),
     )
 
 
@@ -56,9 +54,8 @@ def test_a_plan_with_no_steps_is_rejected() -> None:
     with pytest.raises(ValueError, match="obtain_network"):
         StudyPlan(
             network_id="n1",
-            rationale="baseline results exist",
+            rationale="no steps",
             steps=(),
-            reused=(ReusedExperiment("s1", "base", BASELINE, "reference"),),
         )
 
 
@@ -172,19 +169,6 @@ def test_explicit_seeds_are_non_empty_and_distinct() -> None:
 def test_role_and_purpose_are_declared() -> None:
     with pytest.raises(ValueError, match="purpose"):
         BuildScenarioStep(network_id="n1", demand_id="d1", arm="base", role=BASELINE, purpose=" ")
-    with pytest.raises(ValueError, match="purpose"):
-        ReusedExperiment("s1", "base", BASELINE, "")
-
-
-def test_a_scenario_is_reused_once() -> None:
-    reused = ReusedExperiment("s1", "base", BASELINE, "reference")
-    with pytest.raises(ValueError, match="more than once"):
-        StudyPlan(
-            network_id="n1",
-            rationale="r",
-            steps=(ObtainNetworkStep("RIVERSIDE"),),
-            reused=(reused, reused),
-        )
 
 
 def test_a_clarification_needs_a_reason() -> None:
@@ -197,10 +181,9 @@ def test_each_arm_is_realised_once_per_plan() -> None:
         StudyPlan(
             network_id="n1",
             rationale="r",
-            steps=(ObtainNetworkStep("RIVERSIDE"), _build()),
-            reused=(ReusedExperiment("s1", "base", BASELINE, "reference"),),
+            steps=(ObtainNetworkStep("RIVERSIDE"), _build(), _build()),
         )
-    assert _gp11_plan().arms == ("base", "new-edge")
+    assert _gp11_plan().arms == ("new-edge",)
 
 
 def test_a_build_step_names_its_arm() -> None:

@@ -68,7 +68,6 @@ def plan_phase(
         networks=deps.networks,
         demands=deps.demands,
         scenarios=deps.scenarios,
-        results=deps.results,
     )
     if problems:
         failure = StepFailed(

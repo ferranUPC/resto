@@ -55,7 +55,6 @@ from resto.domain.value_objects.question import Intent, Mode, Question
 from resto.domain.value_objects.report import Report
 from resto.domain.value_objects.step_record import StepErrorKind, StepStatus, Usage
 from resto.domain.value_objects.study_plan import (
-    ReusedExperiment,
     StudyPlan,
 )
 from resto.domain.value_objects.tasks import ExpertTask, NoteTask, ObtainNetworkTask
@@ -447,7 +446,7 @@ class World:
 # -- plans ----------------------------------------------------------------------------------------
 
 
-def plan(*steps: Any, reused: tuple[ReusedExperiment, ...] = (), network: Any = NET) -> Any:
+def plan(*steps: Any, network: Any = NET) -> Any:
     """A plan of `steps` behind the `obtain_network` step every plan has: see
     `after_obtain_network` for how the indexes in `steps` are read."""
     return run_of(
@@ -455,7 +454,6 @@ def plan(*steps: Any, reused: tuple[ReusedExperiment, ...] = (), network: Any = 
             network_id=plan_network(network),
             rationale="as needed",
             steps=after_obtain_network(*steps),
-            reused=reused,
         )
     )
 

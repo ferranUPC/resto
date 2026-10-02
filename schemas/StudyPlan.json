@@ -596,34 +596,6 @@
       "title": "RerouteDemandStep",
       "type": "object"
     },
-    "ReusedExperiment": {
-      "description": "A stored scenario whose ok results the Expert is given, without running anything.",
-      "properties": {
-        "arm": {
-          "title": "Arm",
-          "type": "string"
-        },
-        "purpose": {
-          "title": "Purpose",
-          "type": "string"
-        },
-        "role": {
-          "$ref": "#/$defs/ExperimentRole"
-        },
-        "scenario_id": {
-          "title": "Scenario Id",
-          "type": "string"
-        }
-      },
-      "required": [
-        "scenario_id",
-        "arm",
-        "role",
-        "purpose"
-      ],
-      "title": "ReusedExperiment",
-      "type": "object"
-    },
     "RunSimulationStep": {
       "description": "`seeds=None` means the Executor's `DEFAULT_SEEDS`; one result per seed.",
       "properties": {
@@ -796,14 +768,6 @@
     "rationale": {
       "title": "Rationale",
       "type": "string"
-    },
-    "reused": {
-      "default": [],
-      "items": {
-        "$ref": "#/$defs/ReusedExperiment"
-      },
-      "title": "Reused",
-      "type": "array"
     },
     "steps": {
       "items": {

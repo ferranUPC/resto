@@ -220,24 +220,6 @@ steps: the Executor always runs them (ADR-0023 §2)."""
 
 
 @dataclass(frozen=True, slots=True)
-class ReusedExperiment:
-    """A stored scenario whose ok results the Expert is given, without running anything."""
-
-    scenario_id: str
-    arm: str
-    role: ExperimentRole
-    purpose: str
-
-    def __post_init__(self) -> None:
-        if not self.scenario_id:
-            raise ValueError("a ReusedExperiment requires a scenario_id")
-        if not self.arm.strip():
-            raise ValueError("a ReusedExperiment names the arm it realises")
-        if not self.purpose.strip():
-            raise ValueError("a ReusedExperiment requires a purpose")
-
-
-@dataclass(frozen=True, slots=True)
 class StudyPlan:
     """Emitted by the Coordinator, one per phase; measured against gold plans. `network_id` is the
     network the study is about (`FromStep` when the plan creates it). A plan always contains an
@@ -246,7 +228,6 @@ class StudyPlan:
     network_id: str | FromStep
     rationale: str
     steps: tuple[PlanStep, ...]
-    reused: tuple[ReusedExperiment, ...] = ()
 
     def __post_init__(self) -> None:
         for i, step in enumerate(self.steps):
@@ -260,18 +241,14 @@ class StudyPlan:
             raise ValueError("a plan always contains an obtain_network step")
         if isinstance(self.network_id, FromStep):
             self._check_ref(self.network_id, "network", "network_id")
-        scenario_ids = [r.scenario_id for r in self.reused]
-        if len(set(scenario_ids)) != len(scenario_ids):
-            raise ValueError("a scenario is reused more than once")
         arms = self.arms
         if len(set(arms)) != len(arms):
-            raise ValueError("each arm is built or reused once per plan")
+            raise ValueError("each arm is built once per plan")
 
     @property
     def arms(self) -> tuple[str, ...]:
-        """The arms this plan realises: reused first, then built, in order."""
-        built = (s.arm for s in self.steps if isinstance(s, BuildScenarioStep))
-        return (*(r.arm for r in self.reused), *built)
+        """The arms this plan builds, in order."""
+        return tuple(s.arm for s in self.steps if isinstance(s, BuildScenarioStep))
 
     def _check_ref(self, ref: FromStep, expected: Produces, where: str) -> None:
         if ref.step >= len(self.steps):

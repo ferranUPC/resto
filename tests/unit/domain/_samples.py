@@ -104,7 +104,6 @@ from resto.domain.value_objects.study_plan import (
     ObtainDemandStep,
     ObtainNetworkStep,
     RerouteDemandStep,
-    ReusedExperiment,
     RunSimulationStep,
     StudyPlan,
 )
@@ -177,7 +176,7 @@ def expert_answer() -> ExpertAnswer:
 def study_plan() -> StudyPlan:
     return StudyPlan(
         network_id="abc123",
-        rationale="baseline exists, only the treatment needs running",
+        rationale="the treatment arm, on the network as obtained",
         steps=(
             ObtainNetworkStep(network_ref="RIVERSIDE"),
             BuildScenarioStep(
@@ -191,7 +190,6 @@ def study_plan() -> StudyPlan:
             ),
             RunSimulationStep(scenario_id=FromStep(1), depends_on=(1,)),
         ),
-        reused=(ReusedExperiment("s0", "base", ExperimentRole.BASELINE, "without the closure"),),
     )
 
 
@@ -374,7 +372,6 @@ SAMPLES: dict[type, Callable[[], object]] = {
         depends_on=(0,),
     ),
     RunSimulationStep: lambda: RunSimulationStep(scenario_id="s1", seeds=(1, 2)),
-    ReusedExperiment: lambda: ReusedExperiment("s1", "base", ExperimentRole.BASELINE, "reference"),
     Arm: lambda: Arm(
         "new-edge+closure",
         topology_changes=(AddEdge("J7", "J9", lanes=1, speed=13.9, edge_id="J7J9"),),

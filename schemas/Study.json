@@ -601,7 +601,7 @@
       "type": "string"
     },
     "Experiment": {
-      "description": "One scenario and its seeded runs, inside a Study. `arm` is the question's arm it realises\n(ADR-0027); `reused` marks a scenario whose stored results the plan reused instead of running\nit now (ADR-0025 \u00a71).",
+      "description": "One scenario and its seeded runs, inside a Study. `arm` is the question's arm it realises\n(ADR-0027); `reused` marks a scenario the Executor found by the hash of its request, with ok\nresults, and so did not send to the Scenario Builder (ADR-0037 \u00a75).",
       "properties": {
         "arm": {
           "title": "Arm",
@@ -1574,34 +1574,6 @@
       "title": "RerouteDemandStep",
       "type": "object"
     },
-    "ReusedExperiment": {
-      "description": "A stored scenario whose ok results the Expert is given, without running anything.",
-      "properties": {
-        "arm": {
-          "title": "Arm",
-          "type": "string"
-        },
-        "purpose": {
-          "title": "Purpose",
-          "type": "string"
-        },
-        "role": {
-          "$ref": "#/$defs/ExperimentRole"
-        },
-        "scenario_id": {
-          "title": "Scenario Id",
-          "type": "string"
-        }
-      },
-      "required": [
-        "scenario_id",
-        "arm",
-        "role",
-        "purpose"
-      ],
-      "title": "ReusedExperiment",
-      "type": "object"
-    },
     "RunSimulationStep": {
       "description": "`seeds=None` means the Executor's `DEFAULT_SEEDS`; one result per seed.",
       "properties": {
@@ -1822,14 +1794,6 @@
         "rationale": {
           "title": "Rationale",
           "type": "string"
-        },
-        "reused": {
-          "default": [],
-          "items": {
-            "$ref": "#/$defs/ReusedExperiment"
-          },
-          "title": "Reused",
-          "type": "array"
         },
         "steps": {
           "items": {

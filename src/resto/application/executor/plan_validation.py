@@ -41,7 +41,6 @@ def plan_problems(
     networks: NetworkRepository,
     demands: DemandRepository,
     scenarios: ScenarioRepository,
-    results: ResultRepository,
 ) -> list[str]:
     """Every problem of `plan` for phase `phase`, in the order found; none means it may run.
     `realised` are the arms earlier phases realised, `network_id` the study's network (none
@@ -82,19 +81,6 @@ def plan_problems(
                 step.interventions,
                 on_study_network=step.network_id == plan.network_id,
                 derived_by=_derivation(plan, step.network_id),
-            )
-    for reused in plan.reused:
-        scenario = scenarios.get(reused.scenario_id)
-        if scenario is None:
-            problems.append(f"reused scenario {reused.scenario_id!r} does not exist")
-        elif not ok_results(results, reused.scenario_id):
-            problems.append(f"reused scenario {reused.scenario_id!r} has no ok results")
-        else:
-            problems += _arm_problems(
-                f"reused scenario {reused.scenario_id!r}",
-                arms.get(reused.arm),
-                scenario.interventions,
-                on_study_network=scenario.network_id == plan.network_id,
             )
     problems += _coverage_problems(plan, question, phase, realised)
     return problems

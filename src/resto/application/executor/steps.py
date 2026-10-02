@@ -64,19 +64,6 @@ def execute_plan(
     """Runs `plan` in the current phase and returns the study's network id; or nothing, once a
     step failed (the study is recorded `failed`) or needed the user (`awaiting_user`), with the
     pending steps skipped."""
-    reused = tuple(
-        Experiment(
-            r.scenario_id,
-            r.arm,
-            r.role,
-            r.purpose,
-            ok_results(deps.results, r.scenario_id),
-            True,
-        )
-        for r in plan.reused
-    )
-    if reused:
-        recorder.replace_phase(replace(recorder.phase, experiments=reused))
     produced: dict[int, str] = {}
     # Keyed by build step, not by scenario id: two build steps can share one (see the spec).
     built: dict[int, int] = {}  # build step index -> index of its Experiment in the phase
@@ -284,35 +271,35 @@ def _build_scenario(
         scenario_task.interventions,
         scenario_task.context_tags,
     )
-    usage = Usage()
-    if deps.scenarios.get(requested) is not None:
-        scenario_id = requested
-    else:
-        builder = deps.agents.scenario_builder
-        run = spend.agent_call(lambda: builder.build(scenario_task))
-        draft = draft_of(run, "scenario_builder")
-        usage = run.usage
-        if draft.rejected:
-            fail(
-                StepErrorKind.USER_INPUT,
-                f"the Scenario Builder rejected {len(draft.rejected)} intervention(s)",
-                *(f"{r.intervention.type}: {r.reason}" for r in draft.rejected),
-                usage=usage,
-            )
-        scenario = promote(
-            lambda: build_scenario(
-                scenario_task,
-                run,
-                networks=deps.networks,
-                demands=deps.demands,
-                scenarios=deps.scenarios,
-                network_query_loader=deps.network_query_loader,
-                runner=deps.runner,
-                out_dir=settings.out_dir / "scenarios",
-            ),
-            usage,
+    stored_ids = ok_results(deps.results, requested) if deps.scenarios.get(requested) else ()
+    if stored_ids:
+        record = StepRecord(step.kind, StepStatus.OK, task, (requested,))
+        return record, Experiment(requested, step.arm, step.role, step.purpose, stored_ids, True)
+    builder = deps.agents.scenario_builder
+    run = spend.agent_call(lambda: builder.build(scenario_task))
+    draft = draft_of(run, "scenario_builder")
+    usage = run.usage
+    if draft.rejected:
+        fail(
+            StepErrorKind.USER_INPUT,
+            f"the Scenario Builder rejected {len(draft.rejected)} intervention(s)",
+            *(f"{r.intervention.type}: {r.reason}" for r in draft.rejected),
+            usage=usage,
         )
-        scenario_id = scenario.scenario_id
+    scenario = promote(
+        lambda: build_scenario(
+            scenario_task,
+            run,
+            networks=deps.networks,
+            demands=deps.demands,
+            scenarios=deps.scenarios,
+            network_query_loader=deps.network_query_loader,
+            runner=deps.runner,
+            out_dir=settings.out_dir / "scenarios",
+        ),
+        usage,
+    )
+    scenario_id = scenario.scenario_id
     record = StepRecord(step.kind, StepStatus.OK, task, (scenario_id,), usage=usage)
     return record, Experiment(scenario_id, step.arm, step.role, step.purpose)
 
