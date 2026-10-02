@@ -2,6 +2,10 @@
 
 A short summary of what happened on each working day. The most recent entry comes first, and days with no activity have no entry. `progress-review` adds the new entries.
 
+## 01.10.2026
+
+ADR-0035 (described demand) is complete: DEV-NET's demands are now described, `Question.network_only` is scored, the request bank adds networks outside the database, and the Parser's v7 contract (a demand phrase, a time window, the network-only rule) meets every dev threshold. ADR-0037 removes the Coordinator's four database tools; a plan now carries `obtain_network`/`obtain_demand` steps, and the Network Author and Demand Generator resolve the actual reference themselves, returning `NeedsUser` with candidates when one is missing. ADR-0036 adds a `RawDemandData` aggregate and an `od_matrix` content type, replacing the unbuilt `historical_demand` DatabaseMCP group; both ADRs add new tasks to the work plan (E3.12, E5.14, E6.8 to E6.11), none built yet. The task-tree progress page gains a search box, critical-path and next-task navigation, a markdown viewer, and an English-translated interface.
+
 ## 30.09.2026
 
 The Expert now sees a scope of networks instead of one fixed id, so it can answer about an edge a derivation added, and a note's network is derived from its scenario instead of chosen by hand (ADR-0032). A tool contract change, treating an unknown traffic-light id as an answer instead of a failure, lifts diagnostic Jaccard from 0.60 to 0.95 in a one-repetition sweep. Opening the plan bank (E3.7) surfaced a missing rule for choosing between demands on the same network. A demand now carries a required description and labels, and the Coordinator asks instead of defaulting to random traffic when none fits (ADR-0035). SUMO and `duarouter` launches move behind one shared module, and the Scenario Builder's tools join the Network and Expert tools under a single declaration.
