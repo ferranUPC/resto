@@ -613,6 +613,9 @@ the numbering.
 | r6 | One module launches SUMO tools | Two call sites treated seed and errors differently, six or seven more were coming, and nobody checked the binary's version. | — | E2.5, E6.1, E7.1, E7.4, E9.3 |
 | u2 | Failed `SimulationResult` retry conflicts in SQLite | Re-running a failed result raised `ConflictError`, which broke the real path. | [0031](adr/0031-only-ok-results-are-persisted.md) | — |
 | e5.14 | `obtain_demand` does not carry the study window | The row says the step carries the reference and the window. The window is a pure function of the `Question`, so the Executor computes it when it builds the `ObtainDemandTask` and the plan stays free of a derived value. The specialist still receives it. | [0037](adr/0037-specialists-resolve-network-and-demand.md) | E3.7, E5.2 |
+| r9 | Planning has no `counterfactual` rule; `run` has no default contrast | Phase 0 held back the treatment of a counterfactual for the Expert to ask for, which it always does, and `run` planned a base nobody asked for. | [0038](adr/0038-no-counterfactual-intent-contrast-decides-the-arms.md) | E3.7, E5.2, E5.5 |
+| r10 | Request bank gold `intent` without `counterfactual` | 32 gold concepts carry an intent that ADR-0038 removes; the Parser and the plan bank score against them. | [0038](adr/0038-no-counterfactual-intent-contrast-decides-the-arms.md) | E3.7, E5.1 |
+| r11 | The Input Parser reads four intents | The prompt teaches five; the `compare`/`run` boundary replaces the unstable `counterfactual` one. | [0038](adr/0038-no-counterfactual-intent-contrast-decides-the-arms.md) | E5.1, E5.8 |
 
 A new refactor adds a row here in the same change that opens it.
 
