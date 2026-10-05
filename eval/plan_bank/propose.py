@@ -16,6 +16,7 @@ A network-only question stops at step 0.
 
 from __future__ import annotations
 
+from collections.abc import Collection
 from typing import NamedTuple
 
 from resto.domain.services.experiment_design import needed_arms
@@ -61,8 +62,12 @@ class _Placement(NamedTuple):
     demand_id: FromStep
 
 
-def propose_plan(question: Question) -> StudyPlan:
-    """The phase-0 plan a correct Coordinator would write for `question`."""
+def propose_plan(
+    question: Question, phase: int = 0, realised: Collection[str] = ()
+) -> StudyPlan:
+    """The plan a correct Coordinator would write for `question` in `phase`: phase 0 by default.
+    `realised` are the arms earlier phases realised; they are not planned again. A later phase
+    keeps the phase-0 layout (obtain_network, obtain_demand, ...): both find what is stored."""
     if question.network_ref is None:
         raise ValueError("a gold plan needs the question's network_ref")
     steps: list[PlanStep] = [ObtainNetworkStep(network_ref=question.network_ref)]
@@ -80,7 +85,7 @@ def propose_plan(question: Question) -> StudyPlan:
             depends_on=(_OBTAIN_NETWORK_AT,),
         )
     )
-    arms = _needed_arms(question)
+    arms = _needed_arms(question, phase, realised)
     placement = _derive_topologies(steps, arms)
     for arm in arms:
         where = placement[arm.topology]
@@ -100,7 +105,7 @@ def propose_plan(question: Question) -> StudyPlan:
     labels = ", ".join(arm.label for arm in arms)
     return StudyPlan(
         network_id=_NETWORK,
-        rationale=f"Phase 0 of a {question.intent.value} question, arms: {labels}.",
+        rationale=f"Phase {phase} of a {question.intent.value} question, arms: {labels}.",
         steps=tuple(steps),
     )
 
@@ -131,10 +136,12 @@ def _derive_topologies(steps: list[PlanStep], arms: list[_NeededArm]) -> dict[To
     return placement
 
 
-def _needed_arms(question: Question) -> list[_NeededArm]:
+def _needed_arms(question: Question, phase: int, realised: Collection[str]) -> list[_NeededArm]:
     by_label = {a.label: a for a in question.effective_arms}
     result = []
-    for label in needed_arms(question, 0):
+    for label in needed_arms(question, phase):
+        if label in realised:
+            continue
         arm = by_label.get(label)
         result.append(
             _NeededArm(label, arm.topology_changes, arm.interventions)

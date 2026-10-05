@@ -1,4 +1,5 @@
-"""Writes `review.html`: the review page with the 54 proposed plans embedded, delicate ones first.
+"""Writes `review.html`: the review page with the 54 proposed plans embedded, delicate ones first,
+and the phase-1 cases in a section of their own.
 
 Each item carries the concept's gold `Question` in short form, the plan's steps as one line each,
 the flags that make a plan delicate and the plan itself as JSON (the page edits it to correct).
@@ -14,7 +15,8 @@ from typing import Any
 
 from eval.plan_bank.annotation.review import FORMAT
 from eval.plan_bank.bank import load_plans, planned_concepts
-from eval.request_bank.concepts import SPLITS
+from eval.plan_bank.phase1 import load_phase1
+from eval.request_bank.concepts import SPLITS, concept_by_id
 from resto.application.schemas import adapter_for
 from resto.domain.value_objects.arm import BASE_ARM, contains
 from resto.domain.value_objects.question import Intent, Question
@@ -33,6 +35,7 @@ HERE = Path(__file__).parent
 TEMPLATE = HERE / "template.html"
 OUTPUT = HERE / "review.html"
 _PLACEHOLDER = "/*__ITEMS__*/[]"
+_PHASE1_PLACEHOLDER = "/*__PHASE1__*/[]"
 _FORMAT_PLACEHOLDER = "/*__FORMAT__*/"
 
 
@@ -115,20 +118,52 @@ def plan_items() -> list[dict[str, Any]]:
     return items
 
 
-def render(template: str, items: list[dict[str, Any]]) -> str:
-    if _PLACEHOLDER not in template:
-        raise ValueError(f"template has no {_PLACEHOLDER} placeholder")
+def phase1_items() -> list[dict[str, Any]]:
+    """One item per phase-1 case: the question, the arms phase 0 realised and the gold plan."""
+    adapter = adapter_for(StudyPlan)
+    items: list[dict[str, Any]] = []
+    for concept_id, case in sorted(load_phase1().items()):
+        question = concept_by_id(concept_id).gold
+        assert isinstance(question, Question)
+        items.append(
+            {
+                "concept_id": concept_id,
+                "split": SPLITS[concept_id],
+                "question": _question_summary(question),
+                "realised": [e.arm for e in case.context.experiments],
+                "rationale": case.plan.rationale,
+                "steps": [step_line(s) for s in case.plan.steps],
+                "flags": [],
+                "plan": adapter.dump_python(case.plan, mode="json"),
+            }
+        )
+    return items
+
+
+def _embed(items: list[dict[str, Any]]) -> str:
     # `</` is escaped so a question text can never close the <script> element.
-    payload = json.dumps(items, ensure_ascii=False).replace("</", "<\\/")
-    return template.replace(_PLACEHOLDER, payload).replace(
-        _FORMAT_PLACEHOLDER + '""', json.dumps(FORMAT)
+    return json.dumps(items, ensure_ascii=False).replace("</", "<\\/")
+
+
+def render(
+    template: str, items: list[dict[str, Any]], phase1: list[dict[str, Any]] | None = None
+) -> str:
+    for placeholder in (_PLACEHOLDER, _PHASE1_PLACEHOLDER):
+        if placeholder not in template:
+            raise ValueError(f"template has no {placeholder} placeholder")
+    return (
+        template.replace(_PLACEHOLDER, _embed(items))
+        .replace(_PHASE1_PLACEHOLDER, _embed(phase1 or []))
+        .replace(_FORMAT_PLACEHOLDER + '""', json.dumps(FORMAT))
     )
 
 
 def main() -> None:
-    items = plan_items()
-    OUTPUT.write_text(render(TEMPLATE.read_text(encoding="utf-8"), items), encoding="utf-8")
-    print(f"{OUTPUT} written with {len(items)} plans")
+    items, phase1 = plan_items(), phase1_items()
+    OUTPUT.write_text(
+        render(TEMPLATE.read_text(encoding="utf-8"), items, phase1), encoding="utf-8"
+    )
+    print(f"{OUTPUT} written with {len(items)} plans and {len(phase1)} phase-1 cases")
 
 
 if __name__ == "__main__":

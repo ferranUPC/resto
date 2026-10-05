@@ -130,6 +130,10 @@ textarea.json { font-family: var(--mono); font-size: 12px; }
 
 <script>
 const ITEMS = /*__ITEMS__*/[];
+const ITEMS1 = /*__PHASE1__*/[];
+ITEMS.forEach((it) => { it.key = it.concept_id; });
+ITEMS1.forEach((it) => { it.key = "p1:" + it.concept_id; });
+const ALL = [...ITEMS, ...ITEMS1];
 const FORMAT = /*__FORMAT__*/"";
 const STORE_KEY = "resto-plan-review-v1";
 const FLAG_HELP = {
@@ -141,14 +145,14 @@ const FLAG_HELP = {
 };
 
 let state = { reviewer: "", tab: "phase0", onlyFlagged: false, onlyPending: false, plans: {} };
-for (const it of ITEMS) state.plans[it.concept_id] = { status: "pending", note: "", plan_text: JSON.stringify(it.plan, null, 2) };
+for (const it of ALL) state.plans[it.key] = { status: "pending", note: "", plan_text: JSON.stringify(it.plan, null, 2) };
 
 function load() {
   try {
     const raw = localStorage.getItem(STORE_KEY);
     if (raw) state = Object.assign(state, JSON.parse(raw));
   } catch (e) { /* storage unavailable: start empty */ }
-  for (const it of ITEMS) if (!state.plans[it.concept_id]) state.plans[it.concept_id] = { status: "pending", note: "", plan_text: JSON.stringify(it.plan, null, 2) };
+  for (const it of ALL) if (!state.plans[it.key]) state.plans[it.key] = { status: "pending", note: "", plan_text: JSON.stringify(it.plan, null, 2) };
 }
 function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) { /* ignore */ } }
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -156,37 +160,39 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "
 function parsePlan(text) {
   try { return { plan: JSON.parse(text) }; } catch (e) { return { error: String(e.message || e) }; }
 }
-function reviewedCount() { return Object.values(state.plans).filter((p) => p.status === "accepted" || p.status === "corrected").length; }
+const isReviewed = (p) => p.status === "accepted" || p.status === "corrected";
+function reviewedCount(items = ITEMS) { return items.filter((it) => isReviewed(state.plans[it.key])).length; }
 
 /* ---------- phase 0: the plans ---------- */
 function cardHTML(it) {
-  const p = state.plans[it.concept_id];
+  const p = state.plans[it.key];
   const q = it.question;
   const flags = it.flags.map((f) => `<span class="chip flag">${esc(FLAG_HELP[f] || f)}</span>`).join("");
   let err = "";
   if (p.status === "corrected") { const r = parsePlan(p.plan_text); if (r.error) err = `<p class="err">The plan is not valid JSON: ${esc(r.error)}</p>`; }
   const editor = p.status === "corrected"
-    ? `<label class="hint" for="plan-${esc(it.concept_id)}">Edit the plan (full StudyPlan JSON). The apply step validates it with the plan's own invariants.</label>
-       <textarea class="json" id="plan-${esc(it.concept_id)}" rows="14" data-id="${esc(it.concept_id)}" data-k="plan_text">${esc(p.plan_text)}</textarea>${err}`
+    ? `<label class="hint" for="plan-${esc(it.key)}">Edit the plan (full StudyPlan JSON). The apply step validates it with the plan's own invariants.</label>
+       <textarea class="json" id="plan-${esc(it.key)}" rows="14" data-id="${esc(it.key)}" data-k="plan_text">${esc(p.plan_text)}</textarea>${err}`
     : "";
-  return `<article class="card ${esc(p.status)}" id="card-${esc(it.concept_id)}">
+  return `<article class="card ${esc(p.status)}" id="card-${esc(it.key)}">
     <div class="card-head"><span class="id">${esc(it.concept_id)}</span><span class="chip">${esc(it.split)}</span>${flags}
       <span class="chip ${p.status === "pending" ? "" : "done"}" style="margin-left:auto">${esc(p.status)}</span></div>
     <p class="question">${esc(q.text)}</p>
     <div class="facts"><span>intent: <b>${esc(q.intent)}</b></span><span>network: ${esc(q.network_ref ?? "none")}</span><span>demand: ${esc(q.demand_ref ?? "none")}</span>
       <span>arms: ${esc(q.arms.join(", "))}</span>${q.contrasts.length ? `<span>contrasts: ${esc(q.contrasts.join(", "))}</span>` : ""}</div>
+    ${it.realised ? `<div class="facts"><span>already realised in phase 0: <b>${esc(it.realised.join(", "))}</b></span></div>` : ""}
     <ol class="steps">${it.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>
     <div class="verdict">
-      <label><input type="radio" name="st-${esc(it.concept_id)}" data-id="${esc(it.concept_id)}" data-k="status" value="accepted" ${p.status === "accepted" ? "checked" : ""}> Accepted</label>
-      <label><input type="radio" name="st-${esc(it.concept_id)}" data-id="${esc(it.concept_id)}" data-k="status" value="corrected" ${p.status === "corrected" ? "checked" : ""}> Corrected</label>
-      <label><input type="radio" name="st-${esc(it.concept_id)}" data-id="${esc(it.concept_id)}" data-k="status" value="pending" ${p.status === "pending" ? "checked" : ""}> Pending</label>
+      <label><input type="radio" name="st-${esc(it.key)}" data-id="${esc(it.key)}" data-k="status" value="accepted" ${p.status === "accepted" ? "checked" : ""}> Accepted</label>
+      <label><input type="radio" name="st-${esc(it.key)}" data-id="${esc(it.key)}" data-k="status" value="corrected" ${p.status === "corrected" ? "checked" : ""}> Corrected</label>
+      <label><input type="radio" name="st-${esc(it.key)}" data-id="${esc(it.key)}" data-k="status" value="pending" ${p.status === "pending" ? "checked" : ""}> Pending</label>
     </div>
-    <textarea rows="2" placeholder="Note (why it was corrected, what to look at)" data-id="${esc(it.concept_id)}" data-k="note">${esc(p.note)}</textarea>
+    <textarea rows="2" placeholder="Note (why it was corrected, what to look at)" data-id="${esc(it.key)}" data-k="note">${esc(p.note)}</textarea>
     ${editor}
   </article>`;
 }
 function phase0HTML() {
-  const shown = ITEMS.filter((it) => (!state.onlyFlagged || it.flags.length) && (!state.onlyPending || state.plans[it.concept_id].status === "pending"));
+  const shown = ITEMS.filter((it) => (!state.onlyFlagged || it.flags.length) && (!state.onlyPending || state.plans[it.key].status === "pending"));
   return `<div class="panel"><p class="hint">All ${ITEMS.length} proposed plans, delicate ones first. Accept the plan as proposed, or mark it corrected and edit its JSON. Gold fields are step kinds and dependencies, the arm and role of each scenario, the modifications of each derive_network and whether demand_ref is present; free text is not gold.</p>
     <div class="filters"><label><input type="checkbox" data-f="onlyFlagged" ${state.onlyFlagged ? "checked" : ""}> Flagged only</label>
     <label><input type="checkbox" data-f="onlyPending" ${state.onlyPending ? "checked" : ""}> Pending only</label>
@@ -194,29 +200,34 @@ function phase0HTML() {
     ${shown.map(cardHTML).join("") || '<div class="panel muted">Nothing to show with these filters.</div>'}`;
 }
 
-/* ---------- phase 1: reserved for the phase-1 cases (ticket 04) ---------- */
+/* ---------- phase 1: the plans for what phase 0 left ---------- */
 function phase1HTML() {
+  const shown = ITEMS1.filter((it) => !state.onlyPending || state.plans[it.key].status === "pending");
   return `<section id="phase1" class="panel"><h2 style="font-size:18px">Phase 1 cases</h2>
-    <p class="hint">Not built yet. The phase-1 cases (counterfactual concepts replanned with the phase-0 experiments already realised) are added here by E3.7 ticket 04. The export already carries an empty <code>phase1</code> list for them.</p></section>`;
+    <p class="hint">${ITEMS1.length} counterfactual concepts replanned once phase 0 has realised their reference arms. The gold is the plan with only the treatment arms: it must not build an arm listed as already realised. Accept it or mark it corrected and edit its JSON; a corrected plan is checked against the plan validation's coverage rule when the review is applied. These cases do not count towards the 54 phase-0 plans.</p>
+    <div class="filters"><label><input type="checkbox" data-f="onlyPending" ${state.onlyPending ? "checked" : ""}> Pending only</label>
+    <span class="muted mono">${shown.length} shown, ${reviewedCount(ITEMS1)} / ${ITEMS1.length} reviewed</span></div></section>
+    ${shown.map(cardHTML).join("") || '<div class="panel muted">Nothing to show with these filters.</div>'}`;
 }
 
 /* ---------- export ---------- */
 function exportPayload() {
-  const plans = ITEMS.map((it) => {
-    const p = state.plans[it.concept_id];
+  const rows = (items) => items.map((it) => {
+    const p = state.plans[it.key];
     const row = { concept_id: it.concept_id, status: p.status, note: p.note, plan: null };
     if (p.status === "corrected") { const r = parsePlan(p.plan_text); row.plan = r.plan ?? null; }
     return row;
   });
-  return { format: FORMAT, reviewer: state.reviewer.trim(), exported_at: new Date().toISOString(), plans, phase1: [] };
+  return { format: FORMAT, reviewer: state.reviewer.trim(), exported_at: new Date().toISOString(), plans: rows(ITEMS), phase1: rows(ITEMS1) };
 }
 function exportHTML() {
   const p = exportPayload();
-  const n = (s) => p.plans.filter((r) => r.status === s).length;
-  const badJson = p.plans.filter((r) => r.status === "corrected" && !r.plan).length;
+  const every = [...p.plans, ...p.phase1];
+  const n = (s) => every.filter((r) => r.status === s).length;
+  const badJson = every.filter((r) => r.status === "corrected" && !r.plan).length;
   return `<div class="panel"><h2 style="font-size:18px">Export</h2>
     <div class="stats"><div><b>${n("accepted")}</b><span>accepted</span></div><div><b>${n("corrected")}</b><span>corrected</span></div><div><b>${n("pending")}</b><span>pending</span></div></div>
-    ${n("pending") ? `<p class="toast err">${n("pending")} plans are still pending: the apply step refuses a review that does not cover every plan.</p>` : ""}
+    ${n("pending") ? `<p class="toast err">${n("pending")} plans and phase-1 cases are still pending: the apply step refuses a review that does not cover every one.</p>` : ""}
     ${badJson ? `<p class="toast err">${badJson} corrected plans have invalid JSON.</p>` : ""}
     ${state.reviewer.trim() ? "" : `<p class="toast err">Enter your name or initials at the top before exporting.</p>`}
     <p class="hint">Apply it with <code>python -m eval.plan_bank.annotation.review plan-review.json</code>.</p>
@@ -228,7 +239,7 @@ function exportHTML() {
 const TABS = [["phase0", "Phase 0 plans"], ["phase1", "Phase 1"], ["export", "Export"]];
 function render() {
   document.getElementById("tabs").innerHTML = TABS.map(([k, label]) =>
-    `<button role="tab" data-tab="${k}" aria-selected="${state.tab === k}">${label}${k === "phase0" ? `<span class="count">${reviewedCount()}/${ITEMS.length}</span>` : ""}</button>`).join("");
+    `<button role="tab" data-tab="${k}" aria-selected="${state.tab === k}">${label}${k === "phase0" ? `<span class="count">${reviewedCount()}/${ITEMS.length}</span>` : k === "phase1" ? `<span class="count">${reviewedCount(ITEMS1)}/${ITEMS1.length}</span>` : ""}</button>`).join("");
   document.getElementById("main").innerHTML = state.tab === "phase0" ? phase0HTML() : state.tab === "phase1" ? phase1HTML() : exportHTML();
 }
 
