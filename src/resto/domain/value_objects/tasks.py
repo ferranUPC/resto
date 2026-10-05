@@ -80,7 +80,7 @@ class ScenarioTask:
 
 @dataclass(frozen=True, slots=True)
 class ExpertTask:
-    """One Expert round. `network_ids` is the study's network scope (`CONTEXT.md`) as it stood
+    """One Expert round. `network_ids` is the study's network scope (`GLOSSARY.md`) as it stood
     when the round started (ADR-0032)."""
 
     question: str
