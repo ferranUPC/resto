@@ -14,68 +14,52 @@ Status (decided 2026-09-24, wayfinder #3 — exact wording, applied by the `prog
 - 🚧 **blocked**: cannot proceed for a stated reason outside our control (an external person, data or
   service); the Notes say what unblocks it.
 
-Last updated: 2026-10-02
+Last updated: 2026-10-05
 
-**Summary: 32 / 83 tasks done (38.6 %), 6 awaiting measurement, 1 in progress, 0 blocked** (⏳: E4.2,
+**Summary: 33 / 83 tasks done (39.8 %), 6 awaiting measurement, 1 in progress, 0 blocked** (⏳: E4.2,
 E4.3, E4.4, E4.5, E4.7, E5.1, 92 of 1003 pts, counted apart from done; 🔄: E5.3, 14 pts; E9.7 is
 Stretch, never scheduled, excluded from the count per work plan §5).
 
-Since the last review (`7d896ce`, 2026-10-01), one more day of heavy commit activity landed
-(`7d896ce..HEAD`, 21 commits, all dated 01.10.2026 and merged the same day). One task flips to ✅, two
-ADRs reshape a chunk of the build DAG, and the work plan grows by 37 points without moving the Feb
-deadline.
+Since the last review (`b3d054c`, 2026-10-02), six more commits landed the same day before this review's
+baseline (`b3d054c..5a2fd2e`). One task flips to ✅; the rest is a plan restructure that renumbers ids
+without changing scope.
 
-- **E3.11 (ADR-0035 described demand) is done.** Tickets 2–6 landed today, closing out the task the last
-  review left at "ticket 1 of several": `129d687` adds `dev_net_demand(profile)` describing DEV-NET's
-  three demands (ticket 2). `c88f15c`/`4cccb12`/`d78e4bb` add `Question.network_only` and its own
-  excluded-fields invariant, scored by presence (ticket 3). `e80a2e2` rewrites the request-bank concepts
-  for the ADR (ticket 4): concepts name a demand or spread it across the text, 3 network-only `describe`
-  concepts plus a traffic counterexample, 3 concepts on networks outside the DB (Berlin-Mitte, the
-  Eixample, a 4×4 grid). `0f55736`/`f719782`/`9c3237d` regenerate and review the variants (ticket 5; dev
-  bank now 255 requests, up from 232). `b815e32` lands the Parser's contract change as **v7** (ticket 6):
-  `demand_ref` a short phrase scored by presence, `time_window` for every intent, the `network_only`
-  rule, `network_ref` over a described network. Verified now by reading `v7-dev.json` directly: 255
-  requests, every E5.1 dev threshold met (validity 99.6 %, intent 99.5 %, interventions/topology/metrics
-  100 %, ambiguity 95.6 %, arm structure 100 %), and the new fields reported without a threshold
-  (`network_only` 100 %, `demand_ref` 93.3 %, `time_window` 84.1 %). This meets the task's own Done bar
-  stated in the work plan (bank rebuilt and verified, Parser dev thresholds still met, tests green).
-  Flipped to ✅ below.
-- **ADR-0037 (Accepted today, `90b2aa1`) removes the Coordinator's database tools.** Grilling the plan
-  bank (E3.7) found that a Coordinator which looks up network/demand/scenario state itself would make
-  the plan bank measure database lookup rather than experiment design, and duplicates knowledge the
-  Network Author and Demand Generator specialists need anyway. The Coordinator now only maps a
-  `Question` to a `StudyPlan`; two new plan steps, `obtain_network`/`obtain_demand`, carry the Parser's
-  raw references and let the specialists resolve them (`find_network`/`find_demand` → `Found`, a draft,
-  or `NeedsUser` with candidates). This reshapes E3.7 (7→4 pts, DB-state machinery moved out), E5.2
-  (12→8 pts, loses its four DB tools) and E6.1/E7.1 (+2/+3 pts, gain resolution duties), and adds two new
-  tasks: **E5.14** (5 pts, the domain/Executor refactor this forces onto what E5.9/E5.10 already built)
-  and **E3.12** (8 pts, the resolution banks the specialists will be tuned against, moved out of E3.7).
-  None of the five changed/new tasks has a commit yet, a same-day plan change rather than built work, so
-  none of their rows move off ⬜.
-- **ADR-0036 (raw demand data, `0b27bea`) plans four new E6 tasks** (E7.2, E7.3, E7.5, E7.6, 26 pts): a
-  `RawDemandData` aggregate replacing the never-built `historical_demand` DatabaseMCP group, an
-  `od_matrix` content type with a `kind → fitter` registry, external-data import, and a `flows` content
-  type. All four are ⬜, nothing built; `DATABASE_MCP_CONTRACT.md` gained a one-line pointer to the ADR
-  today but is, by its own text, "not edited until E7.2".
-- **The work plan absorbs all of this without moving the Feb deadline.** Plan total 966→**1003 pts**
-  (+37: E7.2, E7.3, E7.5, E7.6 +26, ADR-0037's net +11). Remaining work 586→**623 pts**, slack +158→**+121 pts**,
-  still comfortably positive against the 18 Feb capacity and not yet touching the May fallback time. The
-  one schedule change is a re-baselining, not a slip: **M2's target moved from Fri 9 Oct to Tue 20 Oct**
-  (deadline unchanged at Fri 13 Nov); M2 was already met 2026-09-25, now 25 days ahead of its new target
-  instead of 11.
-- **The remaining commits are progress-site tooling**, same as every recent review: a search box,
-  critical-path/next-task navigation, a markdown viewer and an English translation pass on the
-  maintainer's own task-tree dashboard (`e8f34c2`…`08f8726`). Real, tested, but tooling for tracking this
-  plan, not a work-plan task, so it does not appear in this tracker.
+- **E5.14 (ADR-0037's domain/Executor refactor) is done.** All five tickets named in the work plan's own
+  DoD landed: `e371a60` replaces `GenerateNetworkStep`/`GenerateDemandStep` with `obtain_network`/
+  `obtain_demand` plan steps carrying the Parser's raw references (`tests/unit/application/executor/test_obtain_steps.py`,
+  new). `8551b8d` derives the study window by code from the `Question` instead of planning it
+  (`test_experiment_design.py` gains coverage). `ab3dcfa` makes a specialist's `NeedsUser` outcome leave
+  the `Study` in `awaiting_user` with its candidates rather than failing it, rendered via E5.11
+  (`test_needs_user.py`, 139 new lines). `7d4a4d8` moves scenario reuse out of the plan: the Executor now
+  looks a scenario up by the hash of the typed request before calling the Scenario Builder and marks it
+  `reused`, and `StudyPlan.reused` and zero-step plans are gone (`test_scenario_lookup.py`, new). `b08973d`
+  regenerates `docs/class_diagram.md`, `DATABASE_MCP_CONTRACT.md` and `docs/study-flows.md` to name the
+  specialist instead of the Coordinator for resolution. Verified now: `grep -rn "GenerateNetworkStep\|GenerateDemandStep" src/`
+  returns nothing, `StudyPlan`'s `reused` field is gone, and `NeedsUser` exists in `domain/value_objects/outcomes.py`.
+  This meets the task's own Done bar (unit tests on both outcomes and on the lookup, schemas and the class
+  diagram regenerated). Flipped to ✅ below; its 5 pts move out of the remaining-work total.
+- **The work plan restructures into v0.4 (`5a2fd2e`), same day.** The former E6 epic (two agents plus
+  REAL-NET) splits into three: E6 Network Author, E7 Demand Generator, E8 REAL-NET; integration becomes
+  E9 (gaining GP-8/GP-11 as E9.8) and the thesis becomes E10. Milestones M3–M7 are renumbered one per
+  block of work (M3 Coordinator loop, M4 Builder/Runner, M5 Generators, M6 REAL-NET, M7 all built); end of
+  full-time work is now M8, delivery M9. The commit states, and this review's own point count confirms,
+  that no scope was added or dropped: plan total stays **1003 pts** before and after. Every id in this
+  tracker already reads the v0.4 numbering (the rename was applied in the same commit); ADRs, the diary
+  and past reviews keep their v0.3 ids, read through the equivalence table in work-plan §8.
+- **E3.7 (plan bank), the next link in the Coordinator-spine critical path after E5.14, is still
+  untouched.** Checked now: no `eval/plan_bank/`-shaped directory, no `plan_bank` reference anywhere in
+  `src/`, `eval/` or `tests/`. E5.2, E5.4, E6.1 and E7.1's agent files are all still confirmed 4-line
+  placeholders; E9.1's golden-path framework still does not exist. The spine's next open task is E3.7.
 
-By plan points, 386 of 1003 (38.5 %) are in ✅ tasks, 92 in ⏳, 14 in 🔄 (down from 26, E3.11's 12 pts
-moved to ✅), consistent with the point totals above.
+By plan points, 391 of 1003 (39.0 %) are in ✅ tasks, 92 in ⏳, 14 in 🔄, consistent with the point totals
+above.
 Verified now in a fresh system Python 3.11 venv (no `resto` conda env in this container, same limitation
 as every prior review): `pip install -e ".[dev]"` succeeded cleanly, installing `eclipse-sumo` 1.27.1,
 `sumolib`, `traci`, `mcp`, `openai`, `pydantic` from PyPI and putting the `sumo` binary on `PATH`.
-`pytest -q` **1298 passed, 1 skipped** (same pre-existing fixture needing a locally-generated,
-uncommitted run directory), up from 1261. `ruff check .` clean. `mypy` clean over **313** source files,
-up from 310. See `docs/feasability-analisis/2026-10-02.md`.
+`pytest -q` **1356 passed, 1 skipped** (same pre-existing fixture needing a locally-generated,
+uncommitted run directory), up from 1298. `ruff check .` clean. `mypy` (the CI invocation, over the
+`files` list in `pyproject.toml`, not just `src/`) clean over **318** source files, up from 313. See
+`docs/feasability-analisis/2026-10-05.md`.
 
 ---
 
@@ -162,7 +146,7 @@ up from 310. See `docs/feasability-analisis/2026-10-02.md`.
 | E5.11 | Deterministic rendering (ADR-0025) of `failed`/`awaiting_user` studies in `interface/render.py`; CLI error when no `Study` is created | ✅ | 2026-09-23, commit `9f13608`: `render_study` produces the three-block failure render and an `awaiting_user` render. Verified now: `test_render.py` parametrises every `StepErrorKind`; `test_main.py` covers both CLI paths |
 | E5.12 | Domain change (ADR-0027): `Arm`, `Contrast`, `Question.arms`/`contrasts`, `required_arms`/`reference_arms`, `AddEdge.edge_id`, `arm` on plan/experiment types | ✅ | 2026-09-23, commit `cfb9711`: `domain/value_objects/arm.py`, `Question.arms`/`.contrasts` with `effective_arms`/`effective_contrasts`. This task's own scope is domain-only, met: `test_arm.py` + `test_experiment_design.py`. ADR-0027 itself is now **Accepted** (2026-09-25, E5.13, ✅) |
 | E5.13 | *(new 2026-09-24)* Accept or change-then-accept ADR-0027 (arms and contrasts) — roots E3.7, E5.2, E5.4, E9.8 | ✅ | 2026-09-25, commit `c912797`: `docs/adr/0027-experiment-arms-and-contrasts.md`'s status line now reads "Accepted (2026-09-24, E5.13, with the contrast-direction rule added to §1)". The change resolved during acceptance: of two nested arms, the one contained in the other is always the reference regardless of how a request wrote the contrast (`Question.effective_contrasts` now orients every such pair). The blind annotation for E5.1 had written two of three multi-arm contrasts backwards, and both had scored as correct under the old rule. Planning/plan-validation use (E5.2/E5.10) and Expert/Composer use (E5.3/E5.4) remain pending, as the ADR's own status line says, but this task's own scope (accept, or change-then-accept) is met |
-| E5.14 | *(new 2026-10-01, from the E3.7 grilling, ADR-0037)* Refactor of what E5.9/E5.10 built: `GenerateNetworkStep`/`GenerateDemandStep` → `obtain_network`/`obtain_demand`; `StudyPlan` loses `reused` and zero-step plans; the `NeedsUser` outcome renders via E5.11; Executor looks a scenario up by hash before building; study window derived by code | ⬜ | Wave 1b. New today alongside ADR-0037; `application/executor/steps.py` and `plan_validation.py` confirmed still importing `GenerateNetworkStep`/`GenerateDemandStep` this review (grepped, unchanged). Sits between E3.11 (now ✅) and E3.7 on the Coordinator spine |
+| E5.14 | *(new 2026-10-01, from the E3.7 grilling, ADR-0037)* Refactor of what E5.9/E5.10 built: `GenerateNetworkStep`/`GenerateDemandStep` → `obtain_network`/`obtain_demand`; `StudyPlan` loses `reused` and zero-step plans; the `NeedsUser` outcome renders via E5.11; Executor looks a scenario up by hash before building; study window derived by code | ✅ | 2026-10-02, five commits (`e371a60`/`8551b8d`/`ab3dcfa`/`7d4a4d8`/`b08973d`), each ticketed to one piece of the ADR-0037 refactor: `obtain_network`/`obtain_demand` plan steps, the study window derived by code, `NeedsUser` leaving the `Study` in `awaiting_user`, scenario reuse found by the Executor via a hash lookup instead of planned (`StudyPlan.reused` dropped), and the class diagram/contract docs regenerated to name the specialist. Verified now: `GenerateNetworkStep`/`GenerateDemandStep` no longer appear anywhere in `src/`, `NeedsUser` exists in `domain/value_objects/outcomes.py`, and dedicated tests back every piece (`test_obtain_steps.py`, `test_needs_user.py`, `test_scenario_lookup.py`, plus `test_experiment_design.py` for the window). Meets the task's own Done bar (unit tests on both outcomes and on the lookup, schemas and `docs/class_diagram.md` regenerated) |
 
 ## E6 — Network Author (42 pts, 2 tasks) · DoD §4.3
 
@@ -230,7 +214,7 @@ measurement happens in Validation 2. Plan v0.4 renumbered M3–M9; the equivalen
 | M0 | Fri 18 Sep | Fri 18 Sep | Foundations frozen | ✅ | 2026-09-14, 4 days early: all 8 E0 tasks ✅, CI green on `master`, DEV-NET runs its three demand profiles, architecture v1.0 frozen |
 | M1 | Fri 16 Oct | Fri 16 Oct | Tooling complete | ✅ | 2026-09-15, a month early: E1 fully ✅, E2.1/E2.2 (Runner/Builder Minimal) ✅, E3.1 (20×3 scenario matrix stored via real DatabaseMCP) ✅ |
 | M2 | Tue 20 Oct | Fri 13 Nov | Expert built on DEV-NET | ✅ | 2026-09-25: E3.8 ✅, E4.2/E4.3/E4.4 ⏳ (dev sweep on the E3.8 bank meets every DoD bar), E4.5 ⏳ (EXP-01 ready to run in V2). Every listed task is ✅ or ⏳. 2026-10-01: the work plan re-baselined this milestone's target from Fri 9 Oct to Tue 20 Oct (deadline unchanged), a re-baselining rather than a slip, since M2 was already met and is now 25 days ahead of the new target instead of 11. The measurement itself (EXP-01, all four §4.7 families at full scale) still runs in Validation 2, per the build/measurement split this milestone type is defined around |
-| M3 | Mon 26 Oct | Fri 27 Nov | Coordinator loop built | ⬜ | E3.7, E5.14, E5.2, E5.3, E5.4 ✅; GP-1…5 and GP-9 passing (E9.1). Renumbered by plan v0.4 (§8); the next `progress-review` refreshes the evidence. |
+| M3 | Mon 26 Oct | Fri 27 Nov | Coordinator loop built | ⬜ | Needs E3.7, E5.14, E5.2, E5.3, E5.4 ✅ and GP-1…5/GP-9 passing (E9.1). **E5.14 is now ✅** (ADR-0037 refactor, all five tickets landed 2026-10-02). E3.7 (plan bank) is the spine's next open task, checked now and still untouched (no `eval/plan_bank/`, no commit); E5.2/E5.4 are still 4-line placeholders; E5.3 stays 🔄; E9.1's golden-path framework does not exist yet. |
 | M4 | Fri 6 Nov | Fri 11 Dec | Builder and Runner built | ⬜ | E2.5, E2.6 ✅, E2.7 ✅ or ⏳; GP-6 and GP-7 passing (E9.2). Renumbered by plan v0.4 (§8); the next `progress-review` refreshes the evidence. |
 | M5 | Mon 30 Nov | Fri 15 Jan | Generators built | ⬜ | E6.1, E7.1, E3.12, E7.2, E7.3 ✅; E6.2, E7.4 ✅ or ⏳; GP-8 and GP-11 (E9.8). Renumbered by plan v0.4 (§8); the next `progress-review` refreshes the evidence. |
 | M6 | Tue 8 Dec | Fri 22 Jan | REAL-NET ready (built) | ⬜ | E8.1 frozen; E8.2, E8.3, E8.4 ✅; E8.5 ⏳. Renumbered by plan v0.4 (§8); the next `progress-review` refreshes the evidence. |

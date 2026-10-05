@@ -2,6 +2,17 @@
 
 A short summary of what happened on each working day. The most recent entry comes first, and days with no activity have no entry. `progress-review` adds the new entries.
 
+## 02.10.2026
+
+ADR-0037's refactor is implemented: `obtain_network` and `obtain_demand` plan steps replace the old
+network/demand generation steps, the study window is derived by code from the `Question` instead of being
+planned, a specialist's `NeedsUser` outcome now leaves the Study awaiting the user with its candidates
+instead of failing it, and the Executor finds a reusable scenario by hashing the request before calling
+the Scenario Builder, so a plan no longer marks reuse itself. The work plan is also restructured into
+version 0.4: the agents and REAL-NET work that shared one epic are split into three, integration and the
+thesis move to their own epics, and the remaining milestones are renumbered one per block of work, with no
+points added or dropped.
+
 ## 01.10.2026
 
 ADR-0035 (described demand) is complete: DEV-NET's demands are now described, `Question.network_only` is scored, the request bank adds networks outside the database, and the Parser's v7 contract (a demand phrase, a time window, the network-only rule) meets every dev threshold. ADR-0037 removes the Coordinator's four database tools; a plan now carries `obtain_network`/`obtain_demand` steps, and the Network Author and Demand Generator resolve the actual reference themselves, returning `NeedsUser` with candidates when one is missing. ADR-0036 adds a `RawDemandData` aggregate and an `od_matrix` content type, replacing the unbuilt `historical_demand` DatabaseMCP group; both ADRs add new tasks to the work plan (E3.12, E5.14, E6.8 to E6.11), none built yet. The task-tree progress page gains a search box, critical-path and next-task navigation, a markdown viewer, and an English-translated interface.
