@@ -13,12 +13,12 @@ from task_tree.dag import drop_time_markers, link_tasks, parse_dag
 STAGES = ("needs-triage", "ready", "specified", "ticketed", "done", "wontfix", "needs-info")
 FINISHED = ("done", "wontfix")
 _TITLE = re.compile(
-    r"^#\s+(?:(?:Refactor|Unplanned)\s+)?(?:([A-Za-z]+\d+(?:\.\d+)?):\s*)?(.+?)\s*$"
+    r"^#\s+(?:(?:Refactor|Unplanned)\s+)?(?:([A-Za-z]+\d+(?:\.\d+)?|retr-\d+):\s*)?(.+?)\s*$"
 )
 _STATUS = re.compile(r"^\*\*Status:\*\*\s*(\S+)", re.MULTILINE)
 _BLOCKED = re.compile(r"^\*\*Blocked by:\*\*(.*(?:\n(?![\n*#]).*)*)", re.MULTILINE)
 _PRIORITY = re.compile(r"^\*\*Priority:\*\*\s*urgent\s*$", re.MULTILINE | re.IGNORECASE)
-_TASK_ID = re.compile(r"\b(E\d+\.\d+|r\d+)\b")
+_TASK_ID = re.compile(r"\b(E\d+\.\d+|r\d+|retr-\d+)\b")
 _TICKET_ID = re.compile(r"\b(\d{2})\b")
 _LINK = re.compile(r"\[[^\]]*\]\([^)]*\)|`[^`]*`")
 _PLACEHOLDER = "_Not written yet"
@@ -362,6 +362,10 @@ def _parse_milestones(plan: Path) -> tuple[list[Milestone], int | None]:
     return milestones, freeze
 
 
+def _is_retrospective(task_id: str) -> bool:
+    return re.fullmatch(r"retr-\d+", task_id) is not None
+
+
 def _is_refactor(task_id: str) -> bool:
     return re.fullmatch(r"r\d+|refactor-.+", task_id) is not None
 
@@ -440,6 +444,8 @@ def _assign_rails(
             found = same_as.get(node_id, node_id)
         elif _is_refactor(node_id):
             found = "refactors"
+        elif _is_retrospective(node_id):
+            found = "retrospectives"
         elif node_id in member:
             found = member[node_id]
         elif node["stage"] in FINISHED and rail_by_due(node_id):
@@ -449,7 +455,7 @@ def _assign_rails(
                 r
                 for s in successors.get(node_id, [])
                 if nodes.get(s, {}).get("lane") == "active"
-                and (r := rail_of(s, seen | {node_id})) not in (None, "refactors")
+                and (r := rail_of(s, seen | {node_id})) not in (None, "refactors", "retrospectives")
             ]
             if below:
                 found = min(below, key=lambda r: order.get(r or "", 10**6))
@@ -465,6 +471,8 @@ def _assign_rails(
     ]
     if "refactors" in used:
         rails.append({"id": "refactors", "name": "Refactors", "collapsed": True})
+    if "retrospectives" in used:
+        rails.append({"id": "retrospectives", "name": "Retrospectives", "collapsed": True})
     if None in chosen.values():
         rails.append({"id": "unscheduled", "name": "Unscheduled", "collapsed": True})
     index = {r["id"]: i for i, r in enumerate(rails)}

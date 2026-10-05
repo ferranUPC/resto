@@ -109,6 +109,10 @@ def scratch(tmp_path: Path) -> Path:
     _spec(root / "e2-2-ready", "E2.2: Ready", "ready", "None", "_Not written yet._")
     _spec(root / "e2-3-specified", "E2.3: Specified", "ready", "None", "A real spec.")
     _spec(root / "r1-tidy-up", "Refactor r1: Tidy up", "ready", "None", "A real spec.")
+    _spec(root / "retr-01-workflow", "retr-01: Workflow retrospective", "ready", "None", "A spec.")
+    retr_issues = root / "retr-01-workflow" / "issues"
+    retr_issues.mkdir()
+    (retr_issues / "01-first.md").write_text("# 01: First\n\n**Status:** ready\n", encoding="utf-8")
     _spec(root / "e2-4-ticketed", "E2.4: Ticketed", "ready", "None", "A real spec.")
     issues = root / "e2-4-ticketed" / "issues"
     issues.mkdir()
@@ -256,7 +260,7 @@ def test_pending_nodes_are_grouped_into_the_rail_of_the_milestone_whose_row_list
     tree = _full_tree(base_url)
     names = [r["name"] for r in tree["rails"]]
     assert names[:3] == ["M3 · Loop built", "M6 · All built", "M7 · End of work"]
-    assert names[3:] == ["M8 · Not planned", "Refactors", "Unscheduled"]
+    assert names[3:] == ["M8 · Not planned", "Refactors", "Retrospectives", "Unscheduled"]
     assert tree["rails"][0]["target"] == "6 Nov"
     assert tree["rails"][1]["deadline"] == "29 Jan"  # the struck-through 5 Feb is ignored
     rail = {n["id"]: names[n["rail"]].split(" · ")[0] for n in tree["nodes"] if "rail" in n}
@@ -286,13 +290,36 @@ def test_a_task_due_after_the_feature_freeze_is_flagged_with_its_due_date(base_u
 
 def test_refactors_and_unscheduled_are_collapsed_rails_and_refactors_come_first(base_url):
     tree = _full_tree(base_url)
-    assert tree["rails"][-2:] == [
+    assert tree["rails"][-3:] == [
         {"id": "refactors", "name": "Refactors", "collapsed": True},
+        {"id": "retrospectives", "name": "Retrospectives", "collapsed": True},
         {"id": "unscheduled", "name": "Unscheduled", "collapsed": True},
     ]
     nodes = {n["id"]: n for n in tree["nodes"]}
-    assert nodes["r1"]["rail"] == len(tree["rails"]) - 2
-    assert not any(r.get("collapsed") for r in tree["rails"][:-2])
+    assert nodes["r1"]["rail"] == len(tree["rails"]) - 3
+    assert not any(r.get("collapsed") for r in tree["rails"][:-3])
+
+
+def test_a_retrospective_spec_is_a_node_in_the_collapsed_retrospectives_rail(base_url):
+    tree = _full_tree(base_url)
+    nodes = {n["id"]: n for n in tree["nodes"]}
+    node = nodes["retr-01"]
+    assert tree["rails"][node["rail"]] == {
+        "id": "retrospectives",
+        "name": "Retrospectives",
+        "collapsed": True,
+    }
+    assert "retr-01-workflow" not in nodes
+    assert [t["stage"] for t in node["tickets"]] == ["ready"]
+
+
+def test_no_retrospectives_rail_is_drawn_without_a_retr_directory(base_url, scratch):
+    import shutil
+
+    shutil.rmtree(scratch / "retr-01-workflow")
+    tree = _full_tree(base_url)
+    assert "retrospectives" not in [r["id"] for r in tree["rails"]]
+    assert "retr-01" not in {n["id"] for n in tree["nodes"]}
 
 
 def test_a_task_a_milestone_lists_but_nobody_opened_is_a_node_that_needs_triage(base_url):
