@@ -123,6 +123,11 @@ def _id(ref: str | FromStep) -> str:
     return ref
 
 
+def _or(step_value: int | None, configured: int) -> int:
+    """A step's own limit when it sets one, else the configured one."""
+    return configured if step_value is None else step_value
+
+
 def _run_step(
     step: PlanStep,
     task: Mapping[str, Any],
@@ -133,11 +138,11 @@ def _run_step(
 ) -> tuple[StepRecord, Experiment | None]:
     match step:
         case ObtainNetworkStep():
-            return _obtain_network(step, task, recorder, spend, deps), None
+            return _obtain_network(step, task, recorder, spend, deps, settings), None
         case DeriveNetworkStep():
-            return _derive_network(step, task, recorder, spend, deps), None
+            return _derive_network(step, task, recorder, spend, deps, settings), None
         case ObtainDemandStep():
-            return _obtain_demand(step, task, spend, deps, recorder.phase.question), None
+            return _obtain_demand(step, task, spend, deps, settings, recorder.phase.question), None
         case RerouteDemandStep():
             return _reroute(step, task, deps), None
         case BuildScenarioStep():
@@ -154,13 +159,14 @@ def _obtain_network(
     recorder: StudyRecorder,
     spend: StudySpend,
     deps: StudyDeps,
+    settings: StudySettings,
 ) -> StepRecord:
     network_task = ObtainNetworkTask(
         network_ref=step.network_ref,
         goals=step.goals,
         min_scc_ratio=step.min_scc_ratio,
         probe_teleport_threshold=step.probe_teleport_threshold,
-        max_rounds=step.max_rounds,
+        max_rounds=_or(step.max_rounds, settings.network_max_rounds),
     )
     run = spend.agent_call(lambda: deps.agents.network_author.obtain(network_task))
     outcome = draft_of(run, "network_author")
@@ -189,6 +195,7 @@ def _derive_network(
     recorder: StudyRecorder,
     spend: StudySpend,
     deps: StudyDeps,
+    settings: StudySettings,
 ) -> StepRecord:
     network_task = NetworkTask(
         base_network_id=_id(step.base_network_id),
@@ -196,7 +203,7 @@ def _derive_network(
         modifications=step.modifications,
         min_scc_ratio=step.min_scc_ratio,
         probe_teleport_threshold=step.probe_teleport_threshold,
-        max_rounds=step.max_rounds,
+        max_rounds=_or(step.max_rounds, settings.network_max_rounds),
     )
     run = spend.agent_call(lambda: deps.agents.network_author.author(network_task))
     draft_of(run, "network_author")
@@ -210,6 +217,7 @@ def _obtain_demand(
     task: Mapping[str, Any],
     spend: StudySpend,
     deps: StudyDeps,
+    settings: StudySettings,
     question: Question,
 ) -> StepRecord:
     demand_task = ObtainDemandTask(
@@ -218,7 +226,7 @@ def _obtain_demand(
         demand_ref=step.demand_ref,
         window=study_window(question),
         tolerance=step.tolerance,
-        max_calibration_rounds=step.max_calibration_rounds,
+        max_calibration_rounds=_or(step.max_calibration_rounds, settings.calibration_max_rounds),
     )
     run = spend.agent_call(lambda: deps.agents.demand_generator.obtain(demand_task))
     outcome = draft_of(run, "demand_generator")

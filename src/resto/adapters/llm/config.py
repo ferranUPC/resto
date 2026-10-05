@@ -20,6 +20,8 @@ DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
 DEFAULT_MODEL = "deepseek/deepseek-v4.1-flash"
 DEFAULT_MAX_OUTPUT_TOKENS = 2048
 DEFAULT_MAX_STEPS = 6
+DEFAULT_NETWORK_MAX_ROUNDS = 5
+DEFAULT_CALIBRATION_MAX_ROUNDS = 5
 
 _ENV_LOADED = False
 
@@ -72,6 +74,35 @@ def load_llm_config(env: Mapping[str, str] | None = None) -> LlmConfig:
             env.get("RESTO_LLM_MAX_OUTPUT_TOKENS", str(DEFAULT_MAX_OUTPUT_TOKENS))
         ),
         max_steps=int(env.get("RESTO_LLM_MAX_STEPS", str(DEFAULT_MAX_STEPS))),
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class RoundsConfig:
+    """Loop limits of the Network Author and the Demand Generator for a plan step that sets none.
+    Not part of `LlmConfig`: they need no API key, so a dry run can read them."""
+
+    network_max_rounds: int = DEFAULT_NETWORK_MAX_ROUNDS
+    calibration_max_rounds: int = DEFAULT_CALIBRATION_MAX_ROUNDS
+
+    def __post_init__(self) -> None:
+        if self.network_max_rounds < 1 or self.calibration_max_rounds < 1:
+            raise ValueError("round limits must be >= 1")
+
+
+def load_rounds_config(env: Mapping[str, str] | None = None) -> RoundsConfig:
+    """Reads `RESTO_NETWORK_MAX_ROUNDS` and `RESTO_CALIBRATION_MAX_ROUNDS` the way
+    `load_llm_config` reads its variables (`.env` first, the shell wins)."""
+    if env is None:
+        _load_dotenv_once()
+        env = os.environ
+    return RoundsConfig(
+        network_max_rounds=int(
+            env.get("RESTO_NETWORK_MAX_ROUNDS", str(DEFAULT_NETWORK_MAX_ROUNDS))
+        ),
+        calibration_max_rounds=int(
+            env.get("RESTO_CALIBRATION_MAX_ROUNDS", str(DEFAULT_CALIBRATION_MAX_ROUNDS))
+        ),
     )
 
 

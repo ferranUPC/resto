@@ -56,6 +56,10 @@ class StudySettings:
     """What varies per study run and is not a collaborator (ADR-0030 follow-up)."""
 
     out_dir: Path
+    network_max_rounds: int
+    """Network Author rounds for a step that sets none (`RESTO_NETWORK_MAX_ROUNDS`)."""
+    calibration_max_rounds: int
+    """Demand calibration rounds for a step that sets none (`RESTO_CALIBRATION_MAX_ROUNDS`)."""
     budget: StudyBudget = field(default_factory=StudyBudget)
     has_historical_demand: bool = False
 

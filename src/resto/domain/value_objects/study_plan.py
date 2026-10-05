@@ -12,7 +12,6 @@ from typing import Literal
 
 from resto.domain.value_objects.experiment import ExperimentRole
 from resto.domain.value_objects.intervention import Intervention
-from resto.domain.value_objects.tasks import DEFAULT_CALIBRATION_ROUNDS, DEFAULT_NETWORK_ROUNDS
 from resto.domain.value_objects.topology_modification import TopologyModification
 
 Produces = Literal["network", "demand", "scenario", "result"]
@@ -53,7 +52,8 @@ class ObtainNetworkStep:
     goals: tuple[str, ...] = ()
     min_scc_ratio: float = 0.95
     probe_teleport_threshold: int = 0
-    max_rounds: int = DEFAULT_NETWORK_ROUNDS
+    max_rounds: int | None = None
+    """Rounds the Network Author may take; none means the configured limit (`.env`)."""
     depends_on: tuple[int, ...] = ()
     kind: Literal["obtain_network"] = "obtain_network"
 
@@ -78,7 +78,8 @@ class DeriveNetworkStep:
     goals: tuple[str, ...] = ()
     min_scc_ratio: float = 0.95
     probe_teleport_threshold: int = 0
-    max_rounds: int = DEFAULT_NETWORK_ROUNDS
+    max_rounds: int | None = None
+    """Rounds the Network Author may take; none means the configured limit (`.env`)."""
     depends_on: tuple[int, ...] = ()
     kind: Literal["derive_network"] = "derive_network"
 
@@ -108,7 +109,8 @@ class ObtainDemandStep:
     seed: int
     demand_ref: str | None = None
     tolerance: float = 0.15
-    max_calibration_rounds: int = DEFAULT_CALIBRATION_ROUNDS
+    max_calibration_rounds: int | None = None
+    """Calibration rounds the Demand Generator may take; none means the configured limit."""
     depends_on: tuple[int, ...] = ()
     kind: Literal["obtain_demand"] = "obtain_demand"
 

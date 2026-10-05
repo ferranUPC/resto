@@ -10,7 +10,6 @@
       "type": "array"
     },
     "max_rounds": {
-      "default": 5,
       "title": "Max Rounds",
       "type": "integer"
     },
@@ -30,7 +29,8 @@
     }
   },
   "required": [
-    "network_ref"
+    "network_ref",
+    "max_rounds"
   ],
   "title": "ObtainNetworkTask",
   "type": "object"

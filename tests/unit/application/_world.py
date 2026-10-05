@@ -89,6 +89,10 @@ DERIVED_QUERY = StubNetworkQuery(edges={"E12", "J7J9"}, lanes={("E12", 1)})  # N
 REPORT = Report(summary="done", mode=Mode.FREE, basis=Basis.OBSERVED)
 KPIS = Kpis(mean_delay=24.4, mean_travel_time=85.4, teleports=0, departed=50, arrived=43)
 
+NETWORK_ROUNDS = 7
+CALIBRATION_ROUNDS = 3
+"""The World's configured limits, apart from the usual 5 to show where a value comes from."""
+
 DESCRIBE = Question(text="how congested is the peak?", intent=Intent.DESCRIBE)
 WHAT_IF = Question(
     text="what if we close lane 1 of E12?", intent=Intent.COUNTERFACTUAL, interventions=(CLOSURE,)
@@ -361,6 +365,8 @@ class World:
         )
         self.settings = StudySettings(
             out_dir=tmp_path,
+            network_max_rounds=NETWORK_ROUNDS,
+            calibration_max_rounds=CALIBRATION_ROUNDS,
             budget=budget or StudyBudget(),
             has_historical_demand=has_historical_demand,
         )

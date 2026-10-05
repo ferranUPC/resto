@@ -11,20 +11,17 @@ from resto.domain.value_objects.question import Mode
 from resto.domain.value_objects.time_window import TimeWindow
 from resto.domain.value_objects.topology_modification import TopologyModification
 
-DEFAULT_NETWORK_ROUNDS = 5
-DEFAULT_CALIBRATION_ROUNDS = 5
-
 
 @dataclass(frozen=True, slots=True)
 class NetworkTask:
     """The Network Author's task for a `derive_network` step: edit `base_network_id`."""
 
     base_network_id: str
+    max_rounds: int
     goals: tuple[str, ...] = ()
     modifications: tuple[TopologyModification, ...] = ()
     min_scc_ratio: float = 0.95
     probe_teleport_threshold: int = 0
-    max_rounds: int = DEFAULT_NETWORK_ROUNDS
 
     def __post_init__(self) -> None:
         if not self.base_network_id:
@@ -38,10 +35,10 @@ class ObtainNetworkTask:
     """The Network Author's task for an `obtain_network` step: resolve `network_ref`."""
 
     network_ref: str
+    max_rounds: int
     goals: tuple[str, ...] = ()
     min_scc_ratio: float = 0.95
     probe_teleport_threshold: int = 0
-    max_rounds: int = DEFAULT_NETWORK_ROUNDS
 
     def __post_init__(self) -> None:
         if not self.network_ref.strip():
@@ -56,12 +53,12 @@ class ObtainDemandTask:
 
     network_id: str
     seed: int
+    max_calibration_rounds: int
     demand_ref: str | None = None
     window: TimeWindow | None = None
     """The study window, derived from the question by code (`study_window`); none when no
     intervention has a window."""
     tolerance: float = 0.15
-    max_calibration_rounds: int = DEFAULT_CALIBRATION_ROUNDS
 
     def __post_init__(self) -> None:
         if not self.network_id:
