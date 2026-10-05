@@ -17,7 +17,7 @@
 2. **Agents are evaluated statistically.** Every agent benchmark runs the same inputs 3 times and reports
    mean ± std; a single run proves nothing about an LLM step.
 3. **Tests never call a real model.** `pytest` uses the shared `FakeToolAgent` (ADR-0001). Benchmarks against
-   a real model are manual runs with an estimated cost confirmed before spending (CLAUDE.md cost policy):
+   a real model are manual runs with an estimated cost confirmed before spending (`docs/llm-cost-policy.md`):
    a *development run* (smoke, tuning, a 1-repetition check) runs now; a *measurement run* (the figure a
    DoD threshold reads) waits for a validation pass (§7).
 4. **Raw runs are kept.** A benchmark stores every agent run (output, tool calls, ledger, tokens, cost) so
@@ -29,7 +29,7 @@
    (or, before a sweep has run, best-estimate) input/output tokens per family per run. The dollar figure
    for the current default model is that token count run through `resto.adapters.llm.pricing`'s per-token
    rate — never a number re-derived by hand. Pricing a different model, including a paid escalation (which
-   still needs the explicit approval and cost confirmation CLAUDE.md's LLM cost policy requires), is then
+   still needs the explicit approval and cost confirmation `docs/llm-cost-policy.md` requires), is then
    the same token count multiplied by that model's own published rate, not a new analysis.
 
 ---
@@ -408,7 +408,7 @@ the note's content as observed without citing it is not detected; the typed `val
 
 ## 7. Measurement runs and validation passes
 
-Per CLAUDE.md's cost policy, runs are split by purpose. A **development run** (smoke, tuning, a
+Per `docs/llm-cost-policy.md`, runs are split by purpose. A **development run** (smoke, tuning, a
 1-repetition check) runs now with its cost stated and is not logged here. A **measurement run**
 produces the figure a DoD threshold reads; it waits for one of two passes dated in the work plan:
 
