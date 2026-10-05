@@ -262,7 +262,10 @@ def score_request(
         if pred is None:
             missed = False if gold.intent is not None else None
             return RequestScore(
-                valid=False, intent=missed, intent_strict=missed, ambiguity_detected=False,
+                valid=False,
+                intent=missed,
+                intent_strict=missed,
+                ambiguity_detected=False,
             )
         if gold.intent is None:
             return RequestScore(valid=True, ambiguity_detected=pred.is_ambiguous)
@@ -276,15 +279,19 @@ def score_request(
     multi_arm = len(gold.effective_arms) > 1
     if pred is None:
         return RequestScore(
-            valid=False, intent=False, intent_strict=False, interventions=False,
+            valid=False,
+            intent=False,
+            intent_strict=False,
+            interventions=False,
             topology_changes=False,
-            metrics_of_interest=False, arm_structure=False, multi_arm=multi_arm,
+            metrics_of_interest=False,
+            arm_structure=False,
+            multi_arm=multi_arm,
             required_arms=False,
         )
     labels = _arm_matching(gold, pred)
-    required = (
-        labels is not None
-        and {labels[label] for label in required_arms(pred)} == set(required_arms(gold))
+    required = labels is not None and {labels[label] for label in required_arms(pred)} == set(
+        required_arms(gold)
     )
     return RequestScore(
         valid=True,

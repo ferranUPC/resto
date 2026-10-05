@@ -26,6 +26,7 @@ def _structured(result: object) -> Any:
     assert isinstance(result, CallToolResult)
     return result.structured_content
 
+
 DEV_NET = Path(__file__).resolve().parents[4] / "eval" / "dev-net" / "dev-net.net.xml"
 
 

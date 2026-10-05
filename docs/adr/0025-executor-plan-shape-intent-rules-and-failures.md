@@ -82,7 +82,7 @@ fixed limitation line when the last round carries it. The loop of ADR-0023 becom
 
 ```python
 round = ask_expert(original_question, all_results, mode=mode_for(round_no=1))
-while round.needs_simulation:                    # only possible while mode_for(...) is free
+while round.needs_simulation:  # only possible while mode_for(...) is free
     plan = coordinator(round.answer.proposed_experiment)
     execute(plan)
     round = ask_expert(original_question, all_results, mode=mode_for(round_no + 1))

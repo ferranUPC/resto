@@ -58,9 +58,9 @@ def _record(
         "model": "fake",
         "expert_version": "vtest",
         "rejection": rejection,
-        "answer": None if answer is None else adapter_for(ExpertAnswer).dump_python(
-            answer, mode="json"
-        ),
+        "answer": None
+        if answer is None
+        else adapter_for(ExpertAnswer).dump_python(answer, mode="json"),
         "steps": [],
         "input_tokens": 0,
         "output_tokens": 0,

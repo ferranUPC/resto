@@ -20,7 +20,9 @@ from tests.unit.adapters.llm._fakes import FakeToolAgent, call_tool
 
 BUDGET = Budget(max_steps=6, max_tokens=2048, max_seconds=60.0)
 PROBE = HygieneProbe(
-    id="S00-desc-occ", question="which edges exceed 3.5% occupancy?", network_id="n",
+    id="S00-desc-occ",
+    question="which edges exceed 3.5% occupancy?",
+    network_id="n",
     note_text="Earlier informal review: expect the usual bottleneck edges.",
 )
 
@@ -136,15 +138,23 @@ def test_each_worker_thread_builds_its_own_query_instead_of_sharing_one(tmp_path
 
     probes = [
         HygieneProbe(
-            id=f"S0{i}-desc-occ", question="which edges exceed 3.5% occupancy?",
-            network_id="n", note_text="note",
+            id=f"S0{i}-desc-occ",
+            question="which edges exceed 3.5% occupancy?",
+            network_id="n",
+            note_text="note",
         )
         for i in range(workers)
     ]
     agent = FakeToolAgent(output=_extrapolated_answer())
     outcome = run_probes(
-        probes, repetitions=1, agent=agent, budget=BUDGET, query=factory,
-        out_file=tmp_path / "runs.jsonl", cost_policy=_policy(), workers=workers,
+        probes,
+        repetitions=1,
+        agent=agent,
+        budget=BUDGET,
+        query=factory,
+        out_file=tmp_path / "runs.jsonl",
+        cost_policy=_policy(),
+        workers=workers,
         log=lambda _: None,
     )
     assert outcome.ran == workers

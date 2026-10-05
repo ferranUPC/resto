@@ -185,8 +185,10 @@ def _layout(nodes: dict[str, dict[str, Any]], extra_deps: dict[str, list[str]]) 
     for node in nodes.values():
         node["lane"] = "active"
     active = set(nodes)
-    deps_of = {i: [d for d in nodes[i]["blocked_by"] + extra_deps.get(i, []) if d in active]
-               for i in active}
+    deps_of = {
+        i: [d for d in nodes[i]["blocked_by"] + extra_deps.get(i, []) if d in active]
+        for i in active
+    }
     column: dict[str, int] = {}
 
     def depth(node_id: str, seen: frozenset[str]) -> int:
@@ -207,6 +209,7 @@ def _layout(nodes: dict[str, dict[str, Any]], extra_deps: dict[str, list[str]]) 
     for node_id, col in column.items():
         by_column.setdefault(col, []).append(node_id)
     for col in sorted(by_column):
+
         def key(node_id: str) -> tuple[float, str]:
             deps = [rows[d] for d in deps_of[node_id] if d in rows]
             return (sum(deps) / len(deps) if deps else 1e9, node_id)
@@ -217,8 +220,12 @@ def _layout(nodes: dict[str, dict[str, Any]], extra_deps: dict[str, list[str]]) 
         nodes[node_id]["column"], nodes[node_id]["row"] = column[node_id], int(rows[node_id])
 
 
-_MONTHS = {m: i for i, m in enumerate(
-    ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"), 1)}
+_MONTHS = {
+    m: i
+    for i, m in enumerate(
+        ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"), 1
+    )
+}
 _DATE = re.compile(r"(\d{1,2})(?:\s*[–-]\s*(\d{1,2}))?\s+(" + "|".join(_MONTHS) + r")\b")
 
 
@@ -343,8 +350,14 @@ def _parse_milestones(plan: Path) -> tuple[list[Milestone], int | None]:
                 freeze = key
             else:
                 milestones.append(
-                    Milestone(_plain(cells[0]), _plain(cells[3]), target, _date_text(cells[2]),
-                              key, _task_refs(cells[4]))
+                    Milestone(
+                        _plain(cells[0]),
+                        _plain(cells[3]),
+                        target,
+                        _date_text(cells[2]),
+                        key,
+                        _task_refs(cells[4]),
+                    )
                 )
     return milestones, freeze
 
@@ -371,8 +384,13 @@ def _assign_rails(
     it. Only milestones that end up with a node get a rail.
     """
     candidates = [
-        {"id": m.id, "name": f"{m.id} · {m.title}", "target": m.target, "deadline": m.deadline,
-         "key": m.key}
+        {
+            "id": m.id,
+            "name": f"{m.id} · {m.title}",
+            "target": m.target,
+            "deadline": m.deadline,
+            "key": m.key,
+        }
         for m in milestones
     ]
     by_deadline = sorted(
@@ -393,8 +411,15 @@ def _assign_rails(
         if lead and lead.group() in listed:
             same_as[node["id"]] = lead.group()
         else:
-            candidates.append({"id": node["id"], "name": node["name"], "target": None,
-                               "deadline": None, "key": _milestone_date(node["name"])})
+            candidates.append(
+                {
+                    "id": node["id"],
+                    "name": node["name"],
+                    "target": None,
+                    "deadline": None,
+                    "key": _milestone_date(node["name"]),
+                }
+            )
     candidates.sort(key=lambda c: c["key"] if c["key"] is not None else 10**6)
     order = {c["id"]: i for i, c in enumerate(candidates)}
     from_diagram = [c["id"] for c in candidates if c["id"] in nodes] + list(same_as.values())
@@ -420,9 +445,12 @@ def _assign_rails(
         elif node["stage"] in FINISHED and rail_by_due(node_id):
             found = rail_by_due(node_id)
         else:
-            below = [r for s in successors.get(node_id, [])
-                     if nodes.get(s, {}).get("lane") == "active"
-                     and (r := rail_of(s, seen | {node_id})) not in (None, "refactors")]
+            below = [
+                r
+                for s in successors.get(node_id, [])
+                if nodes.get(s, {}).get("lane") == "active"
+                and (r := rail_of(s, seen | {node_id})) not in (None, "refactors")
+            ]
             if below:
                 found = min(below, key=lambda r: order.get(r or "", 10**6))
             elif node["kind"] in ("suite", "validates"):
@@ -489,8 +517,11 @@ def _load_tasks(
             tasks[task_id] = Task(task_id, name, "done")
     # A finished task with no known blocker would sit in column 0 whatever its epic, so it gets
     # a guessed order too.
-    guessed = {t.id for t in tasks.values() if t.stage in FINISHED and not t.blocked_by
-               and re.fullmatch(r"E\d+\.\d+", t.id)}
+    guessed = {
+        t.id
+        for t in tasks.values()
+        if t.stage in FINISHED and not t.blocked_by and re.fullmatch(r"E\d+\.\d+", t.id)
+    }
     for task_id, deps in _infer_chains(sorted(guessed)).items():
         tasks[task_id].blocked_by = deps
     # A task a milestone lists but nobody has opened yet (E10.8, final delivery) still belongs on
@@ -562,8 +593,13 @@ def build_tree(scratch: Path, tracker: Path, plan: Path | None = None) -> dict[s
     for a, b in dag_edges:
         extra_deps.setdefault(b, []).append(a)
     _layout(nodes, extra_deps)
-    rails = _assign_rails(nodes, dag_edges + [(d, n["id"]) for n in nodes.values()
-                                               for d in n["blocked_by"]], milestones, member, dues)
+    rails = _assign_rails(
+        nodes,
+        dag_edges + [(d, n["id"]) for n in nodes.values() for d in n["blocked_by"]],
+        milestones,
+        member,
+        dues,
+    )
     edges = [
         {
             "from": dep,

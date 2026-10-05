@@ -38,9 +38,7 @@ def edge_closure(**overrides: object) -> Intervention:
     return Intervention(**kwargs)  # type: ignore[arg-type]
 
 
-def test_supports_static_lane_closure_on_a_lane_target_and_edge_closure_on_an_edge_target() -> (
-    None
-):
+def test_supports_static_lane_closure_on_a_lane_target_and_edge_closure_on_an_edge_target() -> None:
     writer = RerouterWriter()
     assert writer.supports(lane_closure())
     assert writer.supports(edge_closure())

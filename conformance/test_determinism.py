@@ -36,9 +36,7 @@ def test_list_demands_is_deterministic_across_repeated_calls(db: McpClientDataba
         base = demand()
         trips = dataclasses.replace(base.trips, content_hash=f"trip-{i}")
         db.demands.store(
-            dataclasses.replace(
-                base, demand_id=f"trip-{i}", network_id=net.network_id, trips=trips
-            )
+            dataclasses.replace(base, demand_id=f"trip-{i}", network_id=net.network_id, trips=trips)
         )
 
     first = [d.demand_id for d in db.demands.list(net.network_id)]

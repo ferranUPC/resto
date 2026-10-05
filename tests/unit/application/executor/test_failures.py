@@ -41,9 +41,7 @@ def test_promote_lets_an_already_classified_failure_pass_unchanged() -> None:
 
 
 def test_promote_classifies_a_draft_rejected_for_the_user_as_user_input() -> None:
-    failure = _promotion_failure(
-        DraftRejected("unknown edge 'e9'", blame=Blame.USER)
-    )
+    failure = _promotion_failure(DraftRejected("unknown edge 'e9'", blame=Blame.USER))
 
     assert failure.error == StepError(StepErrorKind.USER_INPUT, "unknown edge 'e9'")
 

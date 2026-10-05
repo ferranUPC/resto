@@ -73,11 +73,13 @@ def score_records(
         predicted = prediction(record)
         scored.append(
             Scored(
-                request, record["repetition"],
+                request,
+                record["repetition"],
                 score_request(
                     request.gold, predicted, ALSO_ACCEPTED.get(request.concept_id, frozenset())
                 ),
-                predicted, record,
+                predicted,
+                record,
             )
         )
     return sorted(scored, key=lambda s: (s.request.id, s.repetition))
@@ -170,9 +172,11 @@ def summarize_run(scored: Sequence[Scored]) -> dict[str, Any]:
         "total_estimated_cost_usd": round(sum(r[ESTIMATED_COST_KEY] or 0.0 for r in records), 4),
         "total_real_cost_usd": None if real_cost_usd is None else round(real_cost_usd, 4),
         "mean_input_tokens": round(sum(r["input_tokens"] for r in records) / len(records))
-        if records else 0,
+        if records
+        else 0,
         "mean_output_tokens": round(sum(r["output_tokens"] for r in records) / len(records))
-        if records else 0,
+        if records
+        else 0,
         "stop_reasons": dict(Counter(r["stop_reason"] for r in records)),
         "metrics": {name: _rate(rate) for name, rate in summary.items()},
         "intervals": {name: concept_interval(scored, name) for name in GRADED},
@@ -200,8 +204,10 @@ def _interval(interval: Mapping[str, Any] | None) -> str:
     if interval is None:
         return "—"
     rule = ", rule of three" if interval.get("method") == "rule of three" else ""
-    return (f"{100 * interval['low']:.0f}–{100 * interval['high']:.0f} % "
-            f"({interval['concepts']} concepts{rule})")
+    return (
+        f"{100 * interval['low']:.0f}–{100 * interval['high']:.0f} % "
+        f"({interval['concepts']} concepts{rule})"
+    )
 
 
 def render_markdown(name: str, summary: Mapping[str, Any], scored: Sequence[Scored]) -> str:
@@ -234,11 +240,14 @@ def render_markdown(name: str, summary: Mapping[str, Any], scored: Sequence[Scor
             f"| intent_agreement | {_pct(summary['intent_agreement'])} | — | "
             f"≥ {INTENT_AGREEMENT_THRESHOLD:.0%} | {met} |"
         )
-    lines += ["", "Met is judged on the point estimate. The interval resamples whole concepts "
-              "(bootstrap), so it shows how much the result could move with another draw of "
-              "concepts; when every concept is right it is the rule-of-three bound 1 − 3/n. "
-              "`intent` also accepts the second reading listed in `concepts.ALSO_ACCEPTED`; "
-              "`intent_strict` below is against the gold intent alone."]
+    lines += [
+        "",
+        "Met is judged on the point estimate. The interval resamples whole concepts "
+        "(bootstrap), so it shows how much the result could move with another draw of "
+        "concepts; when every concept is right it is the rule-of-three bound 1 − 3/n. "
+        "`intent` also accepts the second reading listed in `concepts.ALSO_ACCEPTED`; "
+        "`intent_strict` below is against the gold intent alone.",
+    ]
     lines += ["", "Reported, not graded:", ""]
     for metric, rate in summary["metrics"].items():
         if metric not in THRESHOLDS:
@@ -246,8 +255,13 @@ def render_markdown(name: str, summary: Mapping[str, Any], scored: Sequence[Scor
     lines.append(f"- consistency across variants: {_pct(summary['consistency'])}")
 
     for axis, groups in summary["breakdowns"].items():
-        lines += ["", f"## By {axis}", "", "| " + axis + " | " + " | ".join(GRADED) + " |",
-                  "|---" * (len(GRADED) + 1) + "|"]
+        lines += [
+            "",
+            f"## By {axis}",
+            "",
+            "| " + axis + " | " + " | ".join(GRADED) + " |",
+            "|---" * (len(GRADED) + 1) + "|",
+        ]
         for value, metrics in groups.items():
             cells = [_pct(metrics[m]) if metrics[m]["total"] else "—" for m in GRADED]
             lines.append(f"| {value} | " + " | ".join(cells) + " |")
@@ -269,4 +283,3 @@ def render_markdown(name: str, summary: Mapping[str, Any], scored: Sequence[Scor
             lines.append("Parsed: " + "\n".join(describe_question(s.predicted)))
         lines.append("")
     return "\n".join(lines) + "\n"
-

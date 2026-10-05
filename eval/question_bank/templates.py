@@ -122,8 +122,13 @@ def descriptive_occupancy_item(
         f"{clock(window.start)} and {clock(window.end)} in the scenario with {row.description}?"
     )
     kwargs = _base_kwargs(
-        scenario, intent=Intent.DESCRIBE, network_id=network_id, demand_id=demand_id,
-        context_tags=context_tags, metrics_of_interest=("occupancy",), time_window=window,
+        scenario,
+        intent=Intent.DESCRIBE,
+        network_id=network_id,
+        demand_id=demand_id,
+        context_tags=context_tags,
+        metrics_of_interest=("occupancy",),
+        time_window=window,
     )
     question = Question(text=text, **kwargs)
     return QuestionBankItem(
@@ -178,8 +183,13 @@ def descriptive_travel_time_item(
         f"{clock(window.end)} in the scenario with {row.description}?"
     )
     kwargs = _base_kwargs(
-        scenario, intent=Intent.DESCRIBE, network_id=network_id, demand_id=demand_id,
-        context_tags=context_tags, metrics_of_interest=("travel_time",), time_window=window,
+        scenario,
+        intent=Intent.DESCRIBE,
+        network_id=network_id,
+        demand_id=demand_id,
+        context_tags=context_tags,
+        metrics_of_interest=("travel_time",),
+        time_window=window,
     )
     question = Question(text=text, **kwargs)
     return QuestionBankItem(
@@ -219,8 +229,13 @@ def diagnostic_bottleneck_item(
         "congested?"
     )
     kwargs = _base_kwargs(
-        scenario, intent=Intent.DIAGNOSE, network_id=network_id, demand_id=demand_id,
-        context_tags=context_tags, metrics_of_interest=("delay",), time_window=window,
+        scenario,
+        intent=Intent.DIAGNOSE,
+        network_id=network_id,
+        demand_id=demand_id,
+        context_tags=context_tags,
+        metrics_of_interest=("delay",),
+        time_window=window,
     )
     question = Question(text=text, **kwargs)
     return QuestionBankItem(
@@ -264,8 +279,13 @@ def counterfactual_direction_item(
         f"within 5% relative to the baseline, over {clock(window.start)}-{clock(window.end)}?"
     )
     kwargs = _base_kwargs(
-        scenario, intent=Intent.COUNTERFACTUAL, network_id=network_id, demand_id=demand_id,
-        context_tags=context_tags, metrics_of_interest=("delay",), time_window=window,
+        scenario,
+        intent=Intent.COUNTERFACTUAL,
+        network_id=network_id,
+        demand_id=demand_id,
+        context_tags=context_tags,
+        metrics_of_interest=("delay",),
+        time_window=window,
     )
     question = Question(text=text, **kwargs)
     return QuestionBankItem(
@@ -311,8 +331,13 @@ def counterfactual_top_k_item(
         f"baseline, over {clock(window.start)}-{clock(window.end)}?"
     )
     kwargs = _base_kwargs(
-        scenario, intent=Intent.COUNTERFACTUAL, network_id=network_id, demand_id=demand_id,
-        context_tags=context_tags, metrics_of_interest=("delay",), time_window=window,
+        scenario,
+        intent=Intent.COUNTERFACTUAL,
+        network_id=network_id,
+        demand_id=demand_id,
+        context_tags=context_tags,
+        metrics_of_interest=("delay",),
+        time_window=window,
     )
     question = Question(text=text, **kwargs)
     return QuestionBankItem(
@@ -349,8 +374,13 @@ def counterfactual_magnitude_item(
     band = magnitude_band(change)
     text = f"By roughly how much does network-wide mean delay change if {row.description}?"
     kwargs = _base_kwargs(
-        scenario, intent=Intent.COUNTERFACTUAL, network_id=network_id, demand_id=demand_id,
-        context_tags=context_tags, metrics_of_interest=("delay",), time_window=None,
+        scenario,
+        intent=Intent.COUNTERFACTUAL,
+        network_id=network_id,
+        demand_id=demand_id,
+        context_tags=context_tags,
+        metrics_of_interest=("delay",),
+        time_window=None,
     )
     question = Question(text=text, **kwargs)
     return QuestionBankItem(

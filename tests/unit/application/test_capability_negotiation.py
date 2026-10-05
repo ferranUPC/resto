@@ -22,9 +22,9 @@ _ALL_REQUIRED_TOOLS = frozenset().union(*(CAPABILITY_TOOLS[c] for c in REQUIRED_
 
 
 def test_required_capabilities_are_exactly_the_five_from_the_contract() -> None:
-    assert frozenset(
-        {"networks", "demands", "scenarios", "results", "notes"}
-    ) == REQUIRED_CAPABILITIES
+    assert (
+        frozenset({"networks", "demands", "scenarios", "results", "notes"}) == REQUIRED_CAPABILITIES
+    )
 
 
 def test_capabilities_of_derives_a_group_only_when_every_one_of_its_tools_is_present() -> None:

@@ -131,9 +131,7 @@ def test_scoring_ranks_by_context_tags_overlap_only(db: McpClientDatabase) -> No
 
 
 def test_scoring_combines_intervention_and_context_tags_weights(db: McpClientDatabase) -> None:
-    candidate = _static_scenario(
-        "candidate", "n1", (_lane_closure("E12"),), frozenset({"peak"})
-    )
+    candidate = _static_scenario("candidate", "n1", (_lane_closure("E12"),), frozenset({"peak"}))
     db.scenarios.store(candidate)
 
     [(_found, score)] = db.scenarios.find_similar(
@@ -170,13 +168,9 @@ def test_results_are_scoped_to_one_network(db: McpClientDatabase) -> None:
 
 def test_limit_truncates_the_ranked_results(db: McpClientDatabase) -> None:
     for i in range(5):
-        db.scenarios.store(
-            _static_scenario(f"s{i}", "n1", (_lane_closure(f"E{i}"),), frozenset())
-        )
+        db.scenarios.store(_static_scenario(f"s{i}", "n1", (_lane_closure(f"E{i}"),), frozenset()))
 
-    results = db.scenarios.find_similar(
-        "n1", "t1", (_lane_closure("E999"),), frozenset(), limit=2
-    )
+    results = db.scenarios.find_similar("n1", "t1", (_lane_closure("E999"),), frozenset(), limit=2)
 
     assert len(results) == 2
 

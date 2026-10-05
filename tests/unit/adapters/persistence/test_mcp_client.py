@@ -140,9 +140,7 @@ def test_client_reads_the_same_data_the_server_side_backend_holds(
     stored_directly = backend.networks.get(net.network_id)
 
     assert stored_directly == net
-    assert ADAPTERS["Network"].dump_python(stored_directly) == ADAPTERS["Network"].dump_python(
-        net
-    )
+    assert ADAPTERS["Network"].dump_python(stored_directly) == ADAPTERS["Network"].dump_python(net)
 
 
 # --- plumbing failure modes: errors, never hangs -------------------------------------------

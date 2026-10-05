@@ -118,8 +118,7 @@ def build_server(db: Database, name: str = "DatabaseMCP") -> MCPServer:
             network_id, demand_id, parsed_interventions, context_tags, limit
         )
         return [
-            {"scenario": scenario.dump_python(s, mode="json"), "score": score}
-            for s, score in pairs
+            {"scenario": scenario.dump_python(s, mode="json"), "score": score} for s, score in pairs
         ]
 
     # --- results ---------------------------------------------------------------------------------

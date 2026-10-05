@@ -298,6 +298,8 @@ def test_ensure_cited_rejects_a_query_ref_that_matches_no_tool_call() -> None:
 def test_ensure_cited_rejects_an_artifact_no_result_tool_call_returned() -> None:
     with pytest.raises(DraftRejected, match="artifact 'nope.xml'"):
         _ledger_with_a_result().ensure_cited([Evidence(EvidenceKind.ARTIFACT, "nope.xml")])
+
+
 class ScopedLoader:
     """Two networks in the scope: the base one and a derived one that adds edge NEW."""
 

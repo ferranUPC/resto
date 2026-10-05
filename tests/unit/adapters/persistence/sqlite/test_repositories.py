@@ -165,7 +165,7 @@ def _static_scenario(
 
 
 def test_find_similar_scenario_exact_match_short_circuits_via_the_real_hash(
-    conn: sqlite3.Connection
+    conn: sqlite3.Connection,
 ) -> None:
     # A decoy on a *different* demand_id, but with the exact same interventions/context_tags,
     # would also score a coincidental 1.0 under step 2's Jaccard formula (demand_id plays no part
@@ -196,9 +196,7 @@ def test_find_similar_scenario_ranks_partial_matches_by_jaccard(conn: sqlite3.Co
     # and both are ranked - that path is covered separately by the "exact match" test above.
     repo = SqliteScenarioRepository(conn)
     closer = _static_scenario("closer", (_lane_closure("E12"),), frozenset())
-    farther = _static_scenario(
-        "farther", (_lane_closure("E12"), _lane_closure("E50")), frozenset()
-    )
+    farther = _static_scenario("farther", (_lane_closure("E12"), _lane_closure("E50")), frozenset())
     repo.store(closer)
     repo.store(farther)
 
@@ -257,7 +255,7 @@ def test_query_edgedata_unknown_result_id_raises_not_found(conn: sqlite3.Connect
 
 
 def test_query_edgedata_result_without_edgedata_artifact_returns_empty(
-    conn: sqlite3.Connection
+    conn: sqlite3.Connection,
 ) -> None:
     repo = SqliteResultRepository(conn)
     result = dataclasses.replace(simulation_result(), artifacts=())

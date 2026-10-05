@@ -138,9 +138,7 @@ def _check_targets_exist(draft: ScenarioDraft, query: NetworkQuery) -> None:
         target = intervention.target
         if isinstance(target, EdgeTarget) and not query.has_edge(target.edge_id):
             raise _unknown_target(f"unknown edge {target.edge_id!r}")
-        if isinstance(target, LaneTarget) and not query.has_lane(
-            target.edge_id, target.lane_index
-        ):
+        if isinstance(target, LaneTarget) and not query.has_lane(target.edge_id, target.lane_index):
             raise _unknown_target(f"unknown lane {target.lane_id!r}")
         if isinstance(target, TlsTarget) and not query.has_tls(target.tls_id):
             raise _unknown_target(f"unknown tls {target.tls_id!r}")

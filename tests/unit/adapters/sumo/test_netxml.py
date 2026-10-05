@@ -169,9 +169,7 @@ def test_capacity_estimate_matches_the_greenshields_formula_for_a_known_edge(
 
 def test_capacity_estimate_scales_linearly_with_lane_count(query: SumolibNetworkQuery) -> None:
     # B0C0 has the same speed as A0A1 but 2 lanes instead of 1 (E0.5 bottleneck).
-    assert query.capacity_estimate("B0C0") == pytest.approx(
-        2 * query.capacity_estimate("A0A1")
-    )
+    assert query.capacity_estimate("B0C0") == pytest.approx(2 * query.capacity_estimate("A0A1"))
 
 
 def test_capacity_estimate_unknown_edge_raises_key_error(query: SumolibNetworkQuery) -> None:

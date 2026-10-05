@@ -136,4 +136,3 @@ def test_the_waiting_study_renders_without_a_model_call(tmp_path: Path) -> None:
     assert calls == [
         len(a.calls) for a in (world.parser, world.coordinator, world.author, world.generator)
     ]
-

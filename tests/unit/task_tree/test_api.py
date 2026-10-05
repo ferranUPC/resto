@@ -382,7 +382,11 @@ def test_done_tasks_without_a_known_blocker_get_guessed_edges_within_and_across_
     tree = _full_tree(base_url)
     guessed = [(e["from"], e["to"]) for e in tree["edges"] if e["inferred"]]
     assert sorted(guessed) == [
-        ("E1.1", "E1.3"), ("E1.1", "E2.7"), ("E2.10", "E2.13"), ("E2.7", "E2.10"), ("E2.7", "E3.1"),
+        ("E1.1", "E1.3"),
+        ("E1.1", "E2.7"),
+        ("E2.10", "E2.13"),
+        ("E2.7", "E2.10"),
+        ("E2.7", "E3.1"),
     ]
     assert all(e["done"] for e in tree["edges"] if e["inferred"])
     assert not any(e["inferred"] for e in tree["edges"] if e["to"] in ("E2.5", "E2.6"))
@@ -456,7 +460,10 @@ def test_the_measurement_dag_edges_follow_chains_fan_out_and_labelled_arrows(bas
     tree = _full_tree(base_url)
     pairs = {(e["from"], e["to"]) for e in tree["edges"] if e["from"].startswith("dag:")}
     assert pairs == {
-        ("dag:S1", "dag:T1"), ("dag:S1", "dag:T2"), ("dag:S2", "dag:T2"), ("dag:T2", "dag:M7"),
+        ("dag:S1", "dag:T1"),
+        ("dag:S1", "dag:T2"),
+        ("dag:S2", "dag:T2"),
+        ("dag:T2", "dag:M7"),
         ("dag:T1", "E2.1"),
     }
     assert tree["warnings"] == []
@@ -464,7 +471,7 @@ def test_the_measurement_dag_edges_follow_chains_fan_out_and_labelled_arrows(bas
 
 def test_a_change_to_the_mermaid_block_shows_up_on_the_next_request(base_url, tmp_path):
     (tmp_path / "tfm-work-plan.md").write_text(
-        '### 4.2 DAG\n\n```mermaid\nflowchart LR\n'
+        "### 4.2 DAG\n\n```mermaid\nflowchart LR\n"
         '  C["E2.1 calibration"]:::task --> A(("Only one")):::pass\n```\n',
         encoding="utf-8",
     )
@@ -572,7 +579,7 @@ def test_an_unknown_id_action_or_ticket_is_rejected_and_launches_nothing(base_ur
 
 
 def test_the_prompt_reaches_claude_as_one_shell_argument_even_with_quotes_and_spaces():
-    prompt = "/implement .scratch/it's a dir/issues/01-\"x\" $(y).md"
+    prompt = '/implement .scratch/it\'s a dir/issues/01-"x" $(y).md'
     words = shlex.split(terminal_command(prompt, Path("/repo root")))
     assert words == ["cd", "/repo root", "&&", "claude", prompt]
 

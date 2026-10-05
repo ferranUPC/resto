@@ -86,84 +86,128 @@ class MatrixRow:
 ROWS: tuple[MatrixRow, ...] = (
     MatrixRow("S00", "baseline", "no interventions"),
     MatrixRow(
-        "S01", "lane_closure",
+        "S01",
+        "lane_closure",
         "lane_closure B2C2 lane 0, 08:00-08:05",
-        edge_id="B2C2", lane_index=0, window=TimeWindow(28800.0, 29100.0),
+        edge_id="B2C2",
+        lane_index=0,
+        window=TimeWindow(28800.0, 29100.0),
     ),
     MatrixRow(
-        "S02", "lane_closure",
+        "S02",
+        "lane_closure",
         "lane_closure C2D2 lane 0, 08:00-08:05",
-        edge_id="C2D2", lane_index=0, window=TimeWindow(28800.0, 29100.0),
+        edge_id="C2D2",
+        lane_index=0,
+        window=TimeWindow(28800.0, 29100.0),
     ),
     MatrixRow(
-        "S03", "lane_closure",
+        "S03",
+        "lane_closure",
         "lane_closure B0C0 lane 0, 08:00-08:05 (bottleneck approach, lane 1 stays open)",
-        edge_id="B0C0", lane_index=0, window=TimeWindow(28800.0, 29100.0),
+        edge_id="B0C0",
+        lane_index=0,
+        window=TimeWindow(28800.0, 29100.0),
     ),
     MatrixRow(
-        "S04", "lane_closure",
+        "S04",
+        "lane_closure",
         "lane_closure C1D1 lane 0, 08:00-08:05",
-        edge_id="C1D1", lane_index=0, window=TimeWindow(28800.0, 29100.0),
+        edge_id="C1D1",
+        lane_index=0,
+        window=TimeWindow(28800.0, 29100.0),
     ),
     MatrixRow(
-        "S05", "edge_closure",
+        "S05",
+        "edge_closure",
         "edge_closure C0D0, 08:00-08:05 (bottleneck exit, single lane - full closure)",
-        edge_id="C0D0", window=TimeWindow(28800.0, 29100.0),
+        edge_id="C0D0",
+        window=TimeWindow(28800.0, 29100.0),
     ),
     MatrixRow(
-        "S06", "edge_closure",
+        "S06",
+        "edge_closure",
         "edge_closure A1B1, 08:00-08:05",
-        edge_id="A1B1", window=TimeWindow(28800.0, 29100.0),
+        edge_id="A1B1",
+        window=TimeWindow(28800.0, 29100.0),
     ),
     MatrixRow(
-        "S07", "edge_closure",
+        "S07",
+        "edge_closure",
         "edge_closure D2E2, 08:00-08:05",
-        edge_id="D2E2", window=TimeWindow(28800.0, 29100.0),
+        edge_id="D2E2",
+        window=TimeWindow(28800.0, 29100.0),
     ),
     MatrixRow(
-        "S08", "edge_closure",
+        "S08",
+        "edge_closure",
         "edge_closure B2C2, 08:00-08:05",
-        edge_id="B2C2", window=TimeWindow(28800.0, 29100.0),
+        edge_id="B2C2",
+        window=TimeWindow(28800.0, 29100.0),
     ),
     MatrixRow(
-        "S09", "speed_limit",
+        "S09",
+        "speed_limit",
         "speed_limit B2C2 lane 0 at 5 m/s, 08:00-08:05",
-        edge_id="B2C2", lane_index=0, window=TimeWindow(28800.0, 29100.0), speed_mps=5.0,
+        edge_id="B2C2",
+        lane_index=0,
+        window=TimeWindow(28800.0, 29100.0),
+        speed_mps=5.0,
     ),
     MatrixRow(
-        "S10", "speed_limit",
+        "S10",
+        "speed_limit",
         "speed_limit C1D1 lane 0 at 5 m/s, 08:00-08:05",
-        edge_id="C1D1", lane_index=0, window=TimeWindow(28800.0, 29100.0), speed_mps=5.0,
+        edge_id="C1D1",
+        lane_index=0,
+        window=TimeWindow(28800.0, 29100.0),
+        speed_mps=5.0,
     ),
     MatrixRow(
-        "S11", "speed_limit",
+        "S11",
+        "speed_limit",
         "speed_limit A2B2 lane 0 at 8 m/s, 08:00-08:05",
-        edge_id="A2B2", lane_index=0, window=TimeWindow(28800.0, 29100.0), speed_mps=8.0,
+        edge_id="A2B2",
+        lane_index=0,
+        window=TimeWindow(28800.0, 29100.0),
+        speed_mps=8.0,
     ),
     MatrixRow(
-        "S12", "speed_limit",
+        "S12",
+        "speed_limit",
         "speed_limit B0C0 lane 0 at 5 m/s, 08:00-08:05",
-        edge_id="B0C0", lane_index=0, window=TimeWindow(28800.0, 29100.0), speed_mps=5.0,
+        edge_id="B0C0",
+        lane_index=0,
+        window=TimeWindow(28800.0, 29100.0),
+        speed_mps=5.0,
     ),
     MatrixRow(
-        "S13", "signal_program",
+        "S13",
+        "signal_program",
         "signal_program C2 -> program 1, 08:02-08:05",
-        tls_id="C2", window=TimeWindow(28920.0, 29100.0),
+        tls_id="C2",
+        window=TimeWindow(28920.0, 29100.0),
     ),
     MatrixRow(
-        "S14", "signal_program",
+        "S14",
+        "signal_program",
         "signal_program B2 -> program 1, 08:05-08:08",
-        tls_id="B2", window=TimeWindow(29100.0, 29280.0),
+        tls_id="B2",
+        window=TimeWindow(29100.0, 29280.0),
     ),
     MatrixRow(
-        "S15", "signal_program",
+        "S15",
+        "signal_program",
         "signal_program D2 -> program 1, 08:08-08:11",
-        tls_id="D2", window=TimeWindow(29280.0, 29460.0),
+        tls_id="D2",
+        window=TimeWindow(29280.0, 29460.0),
     ),
     MatrixRow(
-        "S16", "signal_program",
+        "S16",
+        "signal_program",
         "signal_program A2 -> program 1, 08:11-08:14",
-        tls_id="A2", window=TimeWindow(29460.0, 29640.0),
+        tls_id="A2",
+        window=TimeWindow(29460.0, 29640.0),
     ),
     MatrixRow("S17", "demand_scale", "demand_scale x1.2 (heavier peak)", factor=1.2),
     MatrixRow("S18", "demand_scale", "demand_scale x0.8 (lighter peak)", factor=0.8),
@@ -204,27 +248,36 @@ def build_draft(
         mechanism, ref = RerouterWriter().write(intervention, row_dir)
         sumocfg = sumocfg_writer.write(
             _settings(net_ref.path, (peak_routes_ref.path,), (ref.path,)),
-            row_dir, "scenario.sumocfg",
+            row_dir,
+            "scenario.sumocfg",
         )
         return ScenarioDraft(
-            interventions=(intervention,), mechanisms=(mechanism,), sumocfg=sumocfg,
-            additional_files=(ref,), rationale=row.description,
+            interventions=(intervention,),
+            mechanisms=(mechanism,),
+            sumocfg=sumocfg,
+            additional_files=(ref,),
+            rationale=row.description,
         )
 
     if row.mechanism == "edge_closure":
         assert row.edge_id is not None and row.window is not None
         intervention = Intervention(
-            type=InterventionType.EDGE_CLOSURE, target=EdgeTarget(edge_id=row.edge_id),
+            type=InterventionType.EDGE_CLOSURE,
+            target=EdgeTarget(edge_id=row.edge_id),
             window=row.window,
         )
         mechanism, ref = RerouterWriter().write(intervention, row_dir)
         sumocfg = sumocfg_writer.write(
             _settings(net_ref.path, (peak_routes_ref.path,), (ref.path,)),
-            row_dir, "scenario.sumocfg",
+            row_dir,
+            "scenario.sumocfg",
         )
         return ScenarioDraft(
-            interventions=(intervention,), mechanisms=(mechanism,), sumocfg=sumocfg,
-            additional_files=(ref,), rationale=row.description,
+            interventions=(intervention,),
+            mechanisms=(mechanism,),
+            sumocfg=sumocfg,
+            additional_files=(ref,),
+            rationale=row.description,
         )
 
     if row.mechanism == "speed_limit":
@@ -243,40 +296,56 @@ def build_draft(
         mechanism, ref = VssWriter().write(intervention, row_dir)
         sumocfg = sumocfg_writer.write(
             _settings(net_ref.path, (peak_routes_ref.path,), (ref.path,)),
-            row_dir, "scenario.sumocfg",
+            row_dir,
+            "scenario.sumocfg",
         )
         return ScenarioDraft(
-            interventions=(intervention,), mechanisms=(mechanism,), sumocfg=sumocfg,
-            additional_files=(ref,), rationale=row.description,
+            interventions=(intervention,),
+            mechanisms=(mechanism,),
+            sumocfg=sumocfg,
+            additional_files=(ref,),
+            rationale=row.description,
         )
 
     if row.mechanism == "signal_program":
         assert row.tls_id is not None and row.window is not None
         alt_program_path = write_alt_program(row_dir, row.tls_id, net_ref.path)
         intervention = Intervention(
-            type=InterventionType.SIGNAL_PROGRAM, target=TlsTarget(tls_id=row.tls_id),
-            window=row.window, params={"program_id": ALT_PROGRAM_ID},
+            type=InterventionType.SIGNAL_PROGRAM,
+            target=TlsTarget(tls_id=row.tls_id),
+            window=row.window,
+            params={"program_id": ALT_PROGRAM_ID},
         )
         mechanism, waut_ref = TlsProgramWriter().write(intervention, row_dir)
         alt_program_ref = artifact_ref(alt_program_path, "additional")
         sumocfg = sumocfg_writer.write(
             _settings(net_ref.path, (peak_routes_ref.path,), (alt_program_path, waut_ref.path)),
-            row_dir, "scenario.sumocfg",
+            row_dir,
+            "scenario.sumocfg",
         )
         return ScenarioDraft(
-            interventions=(intervention,), mechanisms=(mechanism,), sumocfg=sumocfg,
-            additional_files=(alt_program_ref, waut_ref), rationale=row.description,
+            interventions=(intervention,),
+            mechanisms=(mechanism,),
+            sumocfg=sumocfg,
+            additional_files=(alt_program_ref, waut_ref),
+            rationale=row.description,
         )
 
     if row.mechanism == "demand_scale":
         assert row.factor is not None
         derived = scale_demand(
-            demand, network, row.factor,
-            scaler=SumoDemandScaler(), duarouter=SumoDemandTools(), demands=demands,
+            demand,
+            network,
+            row.factor,
+            scaler=SumoDemandScaler(),
+            duarouter=SumoDemandTools(),
+            demands=demands,
             out_dir=row_dir,
         )
         intervention = Intervention(
-            type=InterventionType.DEMAND_SCALE, target=None, window=TimeWindow(BEGIN_S, END_S),
+            type=InterventionType.DEMAND_SCALE,
+            target=None,
+            window=TimeWindow(BEGIN_S, END_S),
             params={"factor": row.factor},
         )
         regenerate_mechanism = RegenerateDemandMechanism(demand_id=derived.demand_id)
@@ -284,7 +353,9 @@ def build_draft(
             _settings(net_ref.path, (derived.routes.path,), ()), row_dir, "scenario.sumocfg"
         )
         return ScenarioDraft(
-            interventions=(intervention,), mechanisms=(regenerate_mechanism,), sumocfg=sumocfg,
+            interventions=(intervention,),
+            mechanisms=(regenerate_mechanism,),
+            sumocfg=sumocfg,
             rationale=row.description,
         )
 
@@ -295,6 +366,9 @@ def _settings(
     net_file: Path, route_files: tuple[Path, ...], additional_files: tuple[Path, ...]
 ) -> SimulationSettings:
     return SimulationSettings(
-        net_file=net_file, route_files=route_files, additional_files=additional_files,
-        begin=BEGIN_S, end=END_S,
+        net_file=net_file,
+        route_files=route_files,
+        additional_files=additional_files,
+        begin=BEGIN_S,
+        end=END_S,
     )

@@ -45,8 +45,11 @@ def closure_cfg(tmp_path_factory: pytest.TempPathFactory) -> ArtifactRef:
     )
     _, rerouter_ref = RerouterWriter().write(closure, out_dir)
     settings = SimulationSettings(
-        net_file=NET, route_files=(PEAK_ROUTES,), additional_files=(rerouter_ref.path,),
-        begin=BEGIN_S, end=END_S,
+        net_file=NET,
+        route_files=(PEAK_ROUTES,),
+        additional_files=(rerouter_ref.path,),
+        begin=BEGIN_S,
+        end=END_S,
     )
     return SumocfgFileWriter().write(settings, out_dir, "scenario.sumocfg")
 

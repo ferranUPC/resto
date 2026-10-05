@@ -62,9 +62,7 @@ class _Placement(NamedTuple):
     demand_id: FromStep
 
 
-def propose_plan(
-    question: Question, phase: int = 0, realised: Collection[str] = ()
-) -> StudyPlan:
+def propose_plan(question: Question, phase: int = 0, realised: Collection[str] = ()) -> StudyPlan:
     """The plan a correct Coordinator would write for `question` in `phase`: phase 0 by default.
     `realised` are the arms earlier phases realised; they are not planned again. A later phase
     keeps the phase-0 layout (obtain_network, obtain_demand, ...): both find what is stored."""

@@ -66,7 +66,7 @@ after planning is the free-mode Expert asking for a new experiment, and that req
 ```python
 round = ask_expert(original_question, result_ids_of_all_phases)
 while round.needs_simulation and rounds_left:
-    plan = coordinator(round.answer.proposed_experiment)     # a new plan for a new Question
+    plan = coordinator(round.answer.proposed_experiment)  # a new plan for a new Question
     execute(plan)
     round = ask_expert(original_question, result_ids_of_all_phases)
 compose_report(study)
@@ -92,11 +92,12 @@ compose_report(study)
 ```python
 @dataclass(frozen=True, slots=True)
 class Phase:
-    question: Question               # phases[0]: the Input Parser's; then each proposed_experiment
+    question: Question  # phases[0]: the Input Parser's; then each proposed_experiment
     plan: StudyPlan | None = None
     steps: tuple[StepRecord, ...] = ()
     experiments: tuple[Experiment, ...] = ()
     round: ExpertRound | None = None
+
 
 @dataclass(frozen=True, slots=True)
 class Study:

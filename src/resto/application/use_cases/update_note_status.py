@@ -37,8 +37,7 @@ def update_note_status(
     if not claims:
         return None
     agrees = all(
-        within_tolerance(claim.value, getattr(result.kpis, claim.measure.value))
-        for claim in claims
+        within_tolerance(claim.value, getattr(result.kpis, claim.measure.value)) for claim in claims
     )
     status = NoteStatus.CONFIRMED if agrees else NoteStatus.REFUTED
     notes.update_status(note.note_id, status)

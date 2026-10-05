@@ -208,4 +208,3 @@ def after_obtain_network(*steps: PlanStep) -> tuple[PlanStep, ...]:
 def plan_network(network: str | FromStep) -> str | FromStep:
     """The plan's `network_id` as `after_obtain_network` leaves the steps it indexes."""
     return _shifted(network)
-

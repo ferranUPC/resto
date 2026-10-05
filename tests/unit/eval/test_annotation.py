@@ -28,14 +28,25 @@ def _dump(question: Question) -> dict[str, Any]:
 
 def _item(concept_id: str, question: dict[str, Any] | None, done: bool = True) -> dict[str, Any]:
     return {
-        "source": "held_out", "concept_id": concept_id, "text": concept_by_id(concept_id).text,
-        "done": done, "question": question, "issues": [], "notes": "", "form": {},
+        "source": "held_out",
+        "concept_id": concept_id,
+        "text": concept_by_id(concept_id).text,
+        "done": done,
+        "question": question,
+        "issues": [],
+        "notes": "",
+        "form": {},
     }
 
 
 def _export(annotator: str, items: list[dict[str, Any]], external: list[Any] | None = None):
-    return {"format": FORMAT, "annotator": annotator, "exported_at": "t", "held_out": items,
-            "external": external or []}
+    return {
+        "format": FORMAT,
+        "annotator": annotator,
+        "exported_at": "t",
+        "held_out": items,
+        "external": external or [],
+    }
 
 
 def _gold_question(concept_id: str) -> Question:
@@ -62,8 +73,10 @@ def test_the_page_order_is_shuffled_and_fixed():
 
 
 def test_a_request_text_cannot_close_the_script_element():
-    page = render_page("<script>const X = /*__ITEMS__*/[];</script>",
-                       [{"concept_id": "R1", "text": "a </script> b"}])
+    page = render_page(
+        "<script>const X = /*__ITEMS__*/[];</script>",
+        [{"concept_id": "R1", "text": "a </script> b"}],
+    )
     assert page.count("</script>") == 1
 
 
@@ -75,10 +88,15 @@ def test_the_template_has_the_items_placeholder():
 
 
 def test_an_annotation_equal_to_gold_agrees_on_every_field():
-    export = parse_export(_export("a", [
-        _item("R027", _dump(_gold_question("R027"))),
-        _item("R033", _dump(_gold_question("R033"))),
-    ]))
+    export = parse_export(
+        _export(
+            "a",
+            [
+                _item("R027", _dump(_gold_question("R027"))),
+                _item("R033", _dump(_gold_question("R033"))),
+            ],
+        )
+    )
     for _, _, score in score_against_gold(export):
         assert score.intent and score.interventions and score.topology_changes
         assert score.metrics_of_interest and not score.spurious_ambiguity
@@ -135,10 +153,16 @@ def test_pairwise_compares_only_concepts_both_marked_done():
 
 def test_external_requests_keep_only_finished_ones_with_their_authors_gold(tmp_path: Path):
     question = _dump(Question(text="x", intent=Intent.DESCRIBE, network_ref="DEV-NET"))
-    export = parse_export(_export("ana", [], external=[
-        {"id": "N01", "text": "x", "done": True, "question": question, "notes": ""},
-        {"id": "N02", "text": "y", "done": False, "question": question, "notes": ""},
-        {"id": "N03", "text": "", "done": True, "question": question, "notes": ""},
-    ]))
+    export = parse_export(
+        _export(
+            "ana",
+            [],
+            external=[
+                {"id": "N01", "text": "x", "done": True, "question": question, "notes": ""},
+                {"id": "N02", "text": "y", "done": False, "question": question, "notes": ""},
+                {"id": "N03", "text": "", "done": True, "question": question, "notes": ""},
+            ],
+        )
+    )
     [request] = external_requests([export])
     assert request["id"] == "X-ana-N01" and request["question"] == question

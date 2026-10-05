@@ -140,9 +140,7 @@ def test_max_rounds_is_enforced() -> None:
 
 def test_the_last_free_round_and_only_it_is_forced_by_the_limit() -> None:
     Study(study_id="s", status=StudyStatus.RUNNING, phases=_free_loop(3))
-    early = Phase(
-        question=_question(), plan=PLAN, round=_round(_answer(), forced_by_limit=True)
-    )
+    early = Phase(question=_question(), plan=PLAN, round=_round(_answer(), forced_by_limit=True))
     with pytest.raises(ValueError, match="forced by the limit"):
         Study(study_id="s", status=StudyStatus.RUNNING, phases=(early,))
     *head, last = _free_loop(3)

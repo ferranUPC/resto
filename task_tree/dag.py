@@ -15,9 +15,7 @@ _NODE = re.compile(
     r"(?::::(\w+))?"
 )
 _ARROW = re.compile(r"\s*(?:==>|-->|-\.->|---|-\.-)(?:\s*\|[^|]*\|)?\s*")
-_IGNORED = re.compile(
-    r"(flowchart|graph|classDef|class|style|linkStyle|subgraph|end|direction)\b"
-)
+_IGNORED = re.compile(r"(flowchart|graph|classDef|class|style|linkStyle|subgraph|end|direction)\b")
 _KINDS = {"pass": "milestone", "suite": "suite"}
 
 
@@ -122,6 +120,9 @@ def link_tasks(
     edges = [(full(a), full(b)) for a, b in dag.edges]
     for node_id, (_, label) in dag.nodes.items():
         if label.startswith("✅"):
-            edges += [(t, PREFIX + node_id) for t in dict.fromkeys(_TASK_IN_LABEL.findall(label))
-                      if t in task_ids]
+            edges += [
+                (t, PREFIX + node_id)
+                for t in dict.fromkeys(_TASK_IN_LABEL.findall(label))
+                if t in task_ids
+            ]
     return nodes, edges

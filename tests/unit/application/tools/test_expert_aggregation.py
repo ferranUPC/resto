@@ -26,9 +26,15 @@ from tests.unit.domain._samples import simulation_result
 def _edge(tt: float, occ: float, loss: float, entered: float) -> dict[str, float]:
     sampled = 100.0 if entered else 0.0
     return {
-        "sampled_seconds": sampled, "travel_time": tt, "speed": 10.0 if entered else 0.0,
-        "occupancy": occ, "density": occ * 2, "time_loss": loss, "waiting_time": 0.0,
-        "entered": entered, "left": entered,
+        "sampled_seconds": sampled,
+        "travel_time": tt,
+        "speed": 10.0 if entered else 0.0,
+        "occupancy": occ,
+        "density": occ * 2,
+        "time_loss": loss,
+        "waiting_time": 0.0,
+        "entered": entered,
+        "left": entered,
     }
 
 

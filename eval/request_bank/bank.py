@@ -45,8 +45,16 @@ def bank_requests(
         split = SPLITS.get(concept.id, "dev")
         requests.append(
             BankRequest(
-                concept.id, concept.id, concept.category, split, "en", None, None, None,
-                concept.text, concept.gold,
+                concept.id,
+                concept.id,
+                concept.category,
+                split,
+                "en",
+                None,
+                None,
+                None,
+                concept.text,
+                concept.gold,
             )
         )
         for spec in concept.variants:
@@ -55,8 +63,16 @@ def bank_requests(
                 continue
             requests.append(
                 BankRequest(
-                    record.id, concept.id, concept.category, split, spec.lang, spec.style,
-                    spec.vague, spec.noise, record.text, concept.gold_for(spec, record.text),
+                    record.id,
+                    concept.id,
+                    concept.category,
+                    split,
+                    spec.lang,
+                    spec.style,
+                    spec.vague,
+                    spec.noise,
+                    record.text,
+                    concept.gold_for(spec, record.text),
                 )
             )
     return requests

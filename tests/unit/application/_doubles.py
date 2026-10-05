@@ -81,4 +81,3 @@ class FakeRunner:
         self, sumocfg: ArtifactRef, script: ArtifactRef, seed: int, out_dir: Path
     ) -> RunOutput:
         raise AssertionError("not used")
-

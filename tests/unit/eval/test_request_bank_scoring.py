@@ -263,8 +263,13 @@ def test_summary_reports_network_only_and_done_ignores_it_and_demand_ref() -> No
 
 def _request(request_id: str, concept_id: str, lang: str = "en", **rest: object) -> BankRequest:
     fields: dict[str, object] = {
-        "category": Category.MULTI_ARM, "split": "dev", "style": None, "vague": None,
-        "noise": None, "text": "t", "gold": ALTERNATIVES,
+        "category": Category.MULTI_ARM,
+        "split": "dev",
+        "style": None,
+        "vague": None,
+        "noise": None,
+        "text": "t",
+        "gold": ALTERNATIVES,
     }
     fields.update(rest)
     return BankRequest(request_id, concept_id, lang=lang, **fields)  # type: ignore[arg-type]
@@ -284,13 +289,18 @@ def test_breakdown_groups_by_axis() -> None:
 def test_consistency_is_agreement_between_variants_not_correctness() -> None:
     wrong = _question(interventions=(CLOSE, LIMIT), metrics_of_interest=("mean_delay",))
     requests = [
-        _request("A", "A"), _request("A.ca", "A", "ca"),
-        _request("B", "B"), _request("B.ca", "B", "ca"),
+        _request("A", "A"),
+        _request("A.ca", "A", "ca"),
+        _request("B", "B"),
+        _request("B.ca", "B", "ca"),
         _request("B.en-vague_time", "B", vague="time"),
     ]
     predictions = {
-        "A": wrong, "A.ca": replace(wrong, text="other"),
-        "B": ALTERNATIVES, "B.ca": wrong, "B.en-vague_time": None,
+        "A": wrong,
+        "A.ca": replace(wrong, text="other"),
+        "B": ALTERNATIVES,
+        "B.ca": wrong,
+        "B.en-vague_time": None,
     }
     assert consistency(requests, predictions) == Rate(1, 2)
 
@@ -299,15 +309,24 @@ def test_intent_agreement_across_runs() -> None:
     compare = _question()
     describe = _question(intent=Intent.DESCRIBE)
     runs: list[dict[str, Question | None]] = [
-        {"a": compare, "b": compare}, {"a": compare, "b": describe}, {"a": compare, "b": None},
+        {"a": compare, "b": compare},
+        {"a": compare, "b": describe},
+        {"a": compare, "b": None},
     ]
     assert intent_agreement(runs) == Rate(1, 2)
 
 
 def _record(concept: Concept, spec: VariantSpec, text: str, verified: bool) -> VariantRecord:
     return VariantRecord(
-        id=concept.variant_id(spec), concept_id=concept.id, lang=spec.lang, style=spec.style,
-        vague=spec.vague, noise=spec.noise, text=text, generated=text, back_translation=None,
+        id=concept.variant_id(spec),
+        concept_id=concept.id,
+        lang=spec.lang,
+        style=spec.style,
+        vague=spec.vague,
+        noise=spec.noise,
+        text=text,
+        generated=text,
+        back_translation=None,
         verified=verified,
     )
 
@@ -316,7 +335,8 @@ def test_the_bank_holds_bases_and_verified_variants_only() -> None:
     concept = concept_by_id("R001")
     ca, es, vague = concept.variants[0], concept.variants[1], concept.variants[6]
     records = {
-        r.id: r for r in (
+        r.id: r
+        for r in (
             _record(concept, ca, "Tanca el carril", True),
             _record(concept, es, "Cierra el carril", False),
             _record(concept, vague, "Cierra el carril por la mañana", True),

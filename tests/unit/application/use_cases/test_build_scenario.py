@@ -175,9 +175,7 @@ def test_content_hash_differs_from_scenario_id(tmp_path: Path) -> None:
 
 
 def demand_scale_intervention() -> Intervention:
-    return Intervention(
-        type=InterventionType.DEMAND_SCALE, target=None, window=TimeWindow(0, 3600)
-    )
+    return Intervention(type=InterventionType.DEMAND_SCALE, target=None, window=TimeWindow(0, 3600))
 
 
 def derived_demand():  # noqa: ANN201
