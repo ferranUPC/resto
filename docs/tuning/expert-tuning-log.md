@@ -4,8 +4,8 @@
 - Purpose: record every change to the Network Expert agent — prompt, tool set, budget, answer schema — with
   the hypothesis behind it and its measured effect, so the thesis can explain how the Expert was optimised
   and why.
-- Related: how answers are scored and aggregated is in [`evaluating-resto.md`](evaluating-resto.md) §4;
-  thresholds are in [`tfm-architecture-and-dod.md`](tfm-architecture-and-dod.md) §4.7.
+- Related: how answers are scored and aggregated is in [`evaluating-resto.md`](../evaluating-resto.md) §4;
+  thresholds are in [`tfm-architecture-and-dod.md`](../tfm-architecture-and-dod.md) §4.7.
 
 ---
 

@@ -6,7 +6,7 @@ functions of `application/tools/network.py` with a network id in front) plus `ge
 `NetworkQuery` port that take a list of ids instead of one (v2: describing a neighbourhood of
 several edges was costing one tool call per edge per NetworkMCP's singular contract, which starved
 `-diag` questions of turns before they could describe a whole neighbourhood — see
-docs/expert-tuning-log.md). Simulated data reaches it via the `ResultRepository`/
+docs/tuning/expert-tuning-log.md). Simulated data reaches it via the `ResultRepository`/
 `ScenarioRepository` ports (never by parsing an artifact file), and earlier interpretations via
 `search_notes`.
 

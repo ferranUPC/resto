@@ -3,8 +3,8 @@
 - Status: living document, started 2026-09-23
 - Purpose: record every change to the Input Parser agent (prompt, budget, output handling) with the
   reason behind it and its measured effect, so the thesis can explain how the Parser was tuned.
-- Related: the request bank and its scoring rules are in [`evaluating-resto.md`](evaluating-resto.md) §5;
-  thresholds in [`tfm-architecture-and-dod.md`](tfm-architecture-and-dod.md) §4.1, plus arm structure
+- Related: the request bank and its scoring rules are in [`evaluating-resto.md`](../evaluating-resto.md) §5;
+  thresholds in [`tfm-architecture-and-dod.md`](../tfm-architecture-and-dod.md) §4.1, plus arm structure
   ≥ 90 % (evaluating-resto.md §5, 2026-09-23).
 
 ---
