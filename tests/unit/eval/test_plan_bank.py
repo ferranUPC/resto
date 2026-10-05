@@ -9,6 +9,7 @@ from eval.plan_bank.bank import (
     build_plans,
     concept_id_of,
     dump_plans,
+    load_corrected,
     load_plans,
     plan_for,
     split_of,
@@ -45,8 +46,15 @@ def _gold(step: PlanStep) -> tuple[object, ...]:
     the references, `seed`, `goals` and the order of independent steps are left out."""
     kind = type(step).__name__
     if isinstance(step, BuildScenarioStep):
-        return (kind, step.arm, step.role is ExperimentRole.BASELINE, step.interventions,
-                step.network_id, step.demand_id, step.depends_on)
+        return (
+            kind,
+            step.arm,
+            step.role is ExperimentRole.BASELINE,
+            step.interventions,
+            step.network_id,
+            step.demand_id,
+            step.depends_on,
+        )
     if isinstance(step, DeriveNetworkStep):
         return (kind, step.modifications, step.base_network_id, step.depends_on)
     if isinstance(step, ObtainDemandStep):
@@ -100,11 +108,19 @@ class TestStoredPlans:
     def test_stored_gold_fields_are_what_the_rules_script_proposes_today(self) -> None:
         """A change in `needed_arms` or the plan types fails here and forces a review of the bank.
         Free text and step order are not compared, so the review can edit them. Regenerate with
-        `python -m eval.plan_bank.bank` after a reviewed change, which overwrites those edits."""
+        `python -m eval.plan_bank.bank` after a reviewed change, which overwrites those edits.
+        Concepts listed in `corrected.json` are the maintainer's own gold and are skipped here;
+        the invariants above still hold for them."""
         proposed = build_plans()
         assert set(proposed) == set(PLANS)
-        changed = [c for c in PLANS if _gold_of(PLANS[c]) != _gold_of(proposed[c])]
+        corrected = set(load_corrected()["plans"])  # the maintainer's gold, not the proposal
+        changed = [
+            c for c in PLANS if c not in corrected and _gold_of(PLANS[c]) != _gold_of(proposed[c])
+        ]
         assert not changed
+
+    def test_corrected_concepts_are_bank_concepts(self) -> None:
+        assert set(load_corrected()["plans"]) <= set(PLANS)
 
     def test_stored_file_round_trips_through_the_adapter(self) -> None:
         assert PLANS_PATH.read_text(encoding="utf-8") == dump_plans(PLANS)

@@ -15,8 +15,8 @@ from typing import Any
 
 from eval.plan_bank.annotation.review import FORMAT
 from eval.plan_bank.bank import load_plans, planned_concepts
-from eval.plan_bank.phase1 import load_phase1
-from eval.request_bank.concepts import SPLITS, concept_by_id
+from eval.plan_bank.phase1 import load_phase1, phase1_question
+from eval.request_bank.concepts import SPLITS
 from resto.application.schemas import adapter_for
 from resto.domain.value_objects.arm import BASE_ARM, contains
 from resto.domain.value_objects.question import Intent, Question
@@ -95,49 +95,41 @@ def _question_summary(q: Question) -> dict[str, Any]:
     }
 
 
+def _item(concept_id: str, question: Question, plan: StudyPlan, **extra: Any) -> dict[str, Any]:
+    return {
+        "concept_id": concept_id,
+        "split": SPLITS[concept_id],
+        "question": _question_summary(question),
+        "rationale": plan.rationale,
+        "steps": [step_line(s) for s in plan.steps],
+        "plan": adapter_for(StudyPlan).dump_python(plan, mode="json"),
+        **extra,
+    }
+
+
 def plan_items() -> list[dict[str, Any]]:
     plans = load_plans()
-    adapter = adapter_for(StudyPlan)
-    items: list[dict[str, Any]] = []
-    for concept in planned_concepts():
-        question = concept.gold
-        assert isinstance(question, Question)
-        plan = plans[concept.id]
-        items.append(
-            {
-                "concept_id": concept.id,
-                "split": SPLITS[concept.id],
-                "question": _question_summary(question),
-                "rationale": plan.rationale,
-                "steps": [step_line(s) for s in plan.steps],
-                "flags": flags_of(question, plan),
-                "plan": adapter.dump_python(plan, mode="json"),
-            }
-        )
+    items = [
+        _item(c.id, q, plans[c.id], flags=flags_of(q, plans[c.id]))
+        for c in planned_concepts()
+        if isinstance(q := c.gold, Question)
+    ]
     items.sort(key=lambda i: (-len(i["flags"]), i["concept_id"]))
     return items
 
 
 def phase1_items() -> list[dict[str, Any]]:
     """One item per phase-1 case: the question, the arms phase 0 realised and the gold plan."""
-    adapter = adapter_for(StudyPlan)
-    items: list[dict[str, Any]] = []
-    for concept_id, case in sorted(load_phase1().items()):
-        question = concept_by_id(concept_id).gold
-        assert isinstance(question, Question)
-        items.append(
-            {
-                "concept_id": concept_id,
-                "split": SPLITS[concept_id],
-                "question": _question_summary(question),
-                "realised": [e.arm for e in case.context.experiments],
-                "rationale": case.plan.rationale,
-                "steps": [step_line(s) for s in case.plan.steps],
-                "flags": [],
-                "plan": adapter.dump_python(case.plan, mode="json"),
-            }
+    return [
+        _item(
+            cid,
+            phase1_question(cid),
+            case.plan,
+            realised=[e.arm for e in case.context.experiments],
+            flags=[],
         )
-    return items
+        for cid, case in sorted(load_phase1().items())
+    ]
 
 
 def _embed(items: list[dict[str, Any]]) -> str:
@@ -160,9 +152,7 @@ def render(
 
 def main() -> None:
     items, phase1 = plan_items(), phase1_items()
-    OUTPUT.write_text(
-        render(TEMPLATE.read_text(encoding="utf-8"), items, phase1), encoding="utf-8"
-    )
+    OUTPUT.write_text(render(TEMPLATE.read_text(encoding="utf-8"), items, phase1), encoding="utf-8")
     print(f"{OUTPUT} written with {len(items)} plans and {len(phase1)} phase-1 cases")
 
 

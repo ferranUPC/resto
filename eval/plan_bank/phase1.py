@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from eval.plan_bank.bank import planned_concepts
+from eval.plan_bank.bank import load_plans, planned_concepts
 from eval.plan_bank.propose import propose_plan
 from eval.request_bank.concepts import Concept, concept_by_id
 from resto.application.ports.agents.coordinator import PlanningContext
@@ -55,9 +55,10 @@ def phase1_question(concept_id: str) -> Question:
     return gold
 
 
-def build_case(concept_id: str, question: Question) -> Phase1Case:
-    """The context phase 0 leaves behind and the plan for what is still missing."""
-    phase0 = propose_plan(question)
+def build_case(concept_id: str, question: Question, phase0: StudyPlan | None = None) -> Phase1Case:
+    """The context phase 0 leaves behind and the plan for what is still missing. `phase0` is the
+    stored (possibly corrected) phase-0 plan; the proposal when not given."""
+    phase0 = propose_plan(question) if phase0 is None else phase0
     experiments = tuple(
         Experiment(
             scenario_id=f"scenario-{concept_id}-{s.arm}",
@@ -78,11 +79,10 @@ def build_case(concept_id: str, question: Question) -> Phase1Case:
 
 
 def build_phase1() -> dict[str, Phase1Case]:
-    cases: dict[str, Phase1Case] = {}
-    for concept in phase1_concepts():
-        assert isinstance(concept.gold, Question)
-        cases[concept.id] = build_case(concept.id, concept.gold)
-    return cases
+    """The cases, with the context taken from the stored phase-0 plans, so a corrected phase-0 plan
+    cannot desync phase 1."""
+    plans = load_plans()
+    return {c.id: build_case(c.id, phase1_question(c.id), plans[c.id]) for c in phase1_concepts()}
 
 
 def dump_phase1(cases: dict[str, Phase1Case]) -> str:

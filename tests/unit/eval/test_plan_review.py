@@ -8,7 +8,12 @@ from typing import Any
 
 import pytest
 from eval.plan_bank.annotation.build import TEMPLATE, phase1_items, plan_items, render
-from eval.plan_bank.annotation.review import FORMAT, apply_phase1_review, apply_review
+from eval.plan_bank.annotation.review import (
+    FORMAT,
+    apply_phase1_review,
+    apply_review,
+    corrected_notes,
+)
 from eval.plan_bank.bank import load_plans, planned_concepts
 from eval.plan_bank.phase1 import Phase1Case, load_phase1
 
@@ -40,7 +45,7 @@ def _review(
 def test_the_page_lists_every_planned_concept_once():
     items = plan_items()
     assert sorted(i["concept_id"] for i in items) == sorted(c.id for c in planned_concepts())
-    assert len(items) == 54
+    assert len(items) == len(planned_concepts())
 
 
 def test_each_item_has_question_steps_and_flags():
@@ -169,7 +174,7 @@ def _review1(
 def test_the_page_lists_every_phase_one_case_once_with_its_realised_arms():
     items = phase1_items()
     assert sorted(i["concept_id"] for i in items) == sorted(CASES)
-    assert len(items) == 24
+    assert len(items) == len(CASES)
     for item in items:
         case = CASES[item["concept_id"]]
         assert item["realised"] == [e.arm for e in case.context.experiments]
@@ -181,7 +186,7 @@ def test_the_rendered_page_embeds_the_phase_one_items():
     phase1 = [{"concept_id": "R9", "question": "</script>", "realised": [], "steps": []}]
     page = render(TEMPLATE.read_text(encoding="utf-8"), items, phase1)
     assert '"R9"' in page
-    assert "</script>\"" not in page
+    assert '</script>"' not in page
     assert "/*__PHASE1__*/[]" not in page
 
 
@@ -225,3 +230,41 @@ def test_every_phase_one_case_must_be_reviewed_once():
 
 def test_phase_zero_review_ignores_the_phase_one_rows():
     assert apply_review(PLANS, _review1()) == PLANS
+
+
+# --- validation of corrections, notes ------------------------------------------------------------
+
+
+def test_a_corrected_phase_zero_plan_must_cover_the_needed_arms():
+    plan = _dump(PLANS["R001"])
+    plan["steps"] = plan["steps"][:1]
+    review = _review(overrides={"R001": {"status": "corrected", "plan": plan}})
+    with pytest.raises(ValueError, match="phase-0"):
+        apply_review(PLANS, review)
+
+
+def test_a_corrected_phase_zero_plan_derives_each_topology_once():
+    concept_id = next(
+        c for c, p in PLANS.items() if any(s.kind == "derive_network" for s in p.steps)
+    )
+    plan = _dump(PLANS[concept_id])
+    plan["steps"] = [s for s in plan["steps"] if s["kind"] != "derive_network"]
+    review = _review(overrides={concept_id: {"status": "corrected", "plan": plan}})
+    with pytest.raises(ValueError):
+        apply_review(PLANS, review)
+
+
+def test_a_corrected_phase_one_plan_may_not_hold_a_baseline():
+    plan = _dump(CASES["R001"].plan)
+    for step in plan["steps"]:
+        if step["kind"] == "build_scenario":
+            step["role"] = "baseline"
+    review = _review1(overrides={"R001": {"status": "corrected", "plan": plan}})
+    with pytest.raises(ValueError, match="R001"):
+        apply_phase1_review(CASES, review)
+
+
+def test_the_note_of_each_corrected_row_is_kept():
+    review = _review1(overrides={"R001": {"status": "corrected", "note": "why"}})
+    assert corrected_notes(review, "plans") == {}
+    assert corrected_notes(review, "phase1") == {"R001": "why"}

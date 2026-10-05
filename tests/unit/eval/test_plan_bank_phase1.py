@@ -4,7 +4,7 @@ No database, no LLM, no network."""
 from __future__ import annotations
 
 import pytest
-from eval.plan_bank.bank import planned_concepts
+from eval.plan_bank.bank import load_corrected, load_plans, planned_concepts
 from eval.plan_bank.phase1 import (
     PHASE1_PATH,
     build_phase1,
@@ -37,7 +37,7 @@ def _question(concept_id: str) -> Question:
 def test_one_case_per_counterfactual_concept() -> None:
     assert sorted(CASES) == COUNTERFACTUAL_IDS
     assert sorted(c.id for c in phase1_concepts()) == COUNTERFACTUAL_IDS
-    assert len(CASES) == 24
+    assert len(CASES) == len(COUNTERFACTUAL_IDS)
 
 
 @pytest.mark.parametrize("concept_id", COUNTERFACTUAL_IDS)
@@ -63,10 +63,18 @@ def test_gold_holds_only_treatment_arms_and_repeats_no_realised_arm(concept_id: 
 def test_context_is_what_phase_0_realised(concept_id: str) -> None:
     question = _question(concept_id)
     realised = [e.arm for e in CASES[concept_id].context.experiments]
+    assert realised == [
+        s.arm for s in load_plans()[concept_id].steps if isinstance(s, BuildScenarioStep)
+    ]
     assert tuple(realised) == needed_arms(question, 0)
     assert set(realised) | set(CASES[concept_id].plan.arms) == set(needed_arms(question, 1))
 
 
 def test_stored_file_is_what_the_rules_script_builds_and_round_trips() -> None:
-    assert build_phase1() == CASES
+    built = build_phase1()
+    corrected = set(load_corrected()["phase1"])  # the maintainer's gold, not the proposal
+    assert {c: v.context for c, v in built.items()} == {c: v.context for c, v in CASES.items()}
+    assert {c: v for c, v in built.items() if c not in corrected} == {
+        c: v for c, v in CASES.items() if c not in corrected
+    }
     assert PHASE1_PATH.read_text(encoding="utf-8") == dump_phase1(CASES)
