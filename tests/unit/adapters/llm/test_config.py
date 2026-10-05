@@ -8,7 +8,13 @@ from __future__ import annotations
 
 import pytest
 
-from resto.adapters.llm.config import LlmConfig, MissingApiKeyError, load_llm_config
+from resto.adapters.llm.config import (
+    LlmConfig,
+    MissingApiKeyError,
+    RoundsConfig,
+    load_llm_config,
+    load_rounds_config,
+)
 
 
 def test_requires_an_api_key() -> None:
@@ -54,3 +60,20 @@ def test_dataclass_fields_are_still_readable_by_code_that_needs_the_key() -> Non
     config = load_llm_config(env={"OPENROUTER_API_KEY": "fake-test-key"})
     assert config.api_key == "fake-test-key"
     assert isinstance(config, LlmConfig)
+
+
+def test_rounds_default_without_an_api_key() -> None:
+    config = load_rounds_config(env={})
+    assert config == RoundsConfig(network_max_rounds=5, calibration_max_rounds=5)
+
+
+def test_rounds_are_overridable() -> None:
+    config = load_rounds_config(
+        env={"RESTO_NETWORK_MAX_ROUNDS": "8", "RESTO_CALIBRATION_MAX_ROUNDS": "2"}
+    )
+    assert (config.network_max_rounds, config.calibration_max_rounds) == (8, 2)
+
+
+def test_rounds_below_one_are_rejected() -> None:
+    with pytest.raises(ValueError):
+        load_rounds_config(env={"RESTO_NETWORK_MAX_ROUNDS": "0"})

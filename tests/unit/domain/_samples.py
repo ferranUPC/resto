@@ -461,12 +461,15 @@ SAMPLES: dict[type, Callable[[], object]] = {
     # tasks
     NetworkTask: lambda: NetworkTask(
         base_network_id="abc123",
+        max_rounds=5,
         goals=("drivable grid",),
         modifications=(RemoveEdge(edge_id="E07"),),
     ),
-    ObtainNetworkTask: lambda: ObtainNetworkTask(network_ref="RIVERSIDE", goals=("drivable",)),
+    ObtainNetworkTask: lambda: ObtainNetworkTask(
+        network_ref="RIVERSIDE", max_rounds=5, goals=("drivable",)
+    ),
     ObtainDemandTask: lambda: ObtainDemandTask(
-        network_id="abc123", seed=1, demand_ref="weekday morning peak"
+        network_id="abc123", seed=1, max_calibration_rounds=5, demand_ref="weekday morning peak"
     ),
     ScenarioTask: lambda: ScenarioTask(
         network_id="abc123",

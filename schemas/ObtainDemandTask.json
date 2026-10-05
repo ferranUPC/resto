@@ -35,7 +35,6 @@
       "title": "Demand Ref"
     },
     "max_calibration_rounds": {
-      "default": 5,
       "title": "Max Calibration Rounds",
       "type": "integer"
     },
@@ -66,7 +65,8 @@
   },
   "required": [
     "network_id",
-    "seed"
+    "seed",
+    "max_calibration_rounds"
   ],
   "title": "ObtainDemandTask",
   "type": "object"

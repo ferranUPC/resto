@@ -150,7 +150,15 @@ def main(
         tracer = JsonlTracer(args.out / "traces")
         agent = OpenRouterToolAgent(config)
         deps = build_deps(db=db, agent=agent, budget=budget, tracer=tracer, out_dir=args.out)
-    settings = settings or StudySettings(out_dir=args.out)
+    if settings is None:
+        from resto.adapters.llm.config import load_rounds_config
+
+        rounds = load_rounds_config()
+        settings = StudySettings(
+            out_dir=args.out,
+            network_max_rounds=rounds.network_max_rounds,
+            calibration_max_rounds=rounds.calibration_max_rounds,
+        )
     try:
         study = run_study(args.text, deps, settings, mode=mode)
     except ParserFailed as e:

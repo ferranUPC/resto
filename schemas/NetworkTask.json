@@ -130,7 +130,6 @@
       "type": "array"
     },
     "max_rounds": {
-      "default": 5,
       "title": "Max Rounds",
       "type": "integer"
     },
@@ -167,7 +166,8 @@
     }
   },
   "required": [
-    "base_network_id"
+    "base_network_id",
+    "max_rounds"
   ],
   "title": "NetworkTask",
   "type": "object"

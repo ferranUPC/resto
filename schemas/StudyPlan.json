@@ -193,9 +193,16 @@
           "type": "string"
         },
         "max_rounds": {
-          "default": 5,
-          "title": "Max Rounds",
-          "type": "integer"
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Rounds"
         },
         "min_scc_ratio": {
           "default": 0.95,
@@ -437,9 +444,16 @@
           "type": "string"
         },
         "max_calibration_rounds": {
-          "default": 5,
-          "title": "Max Calibration Rounds",
-          "type": "integer"
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Calibration Rounds"
         },
         "network_id": {
           "anyOf": [
@@ -495,9 +509,16 @@
           "type": "string"
         },
         "max_rounds": {
-          "default": 5,
-          "title": "Max Rounds",
-          "type": "integer"
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Rounds"
         },
         "min_scc_ratio": {
           "default": 0.95,

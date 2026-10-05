@@ -20,7 +20,9 @@ from resto.domain.value_objects.study_plan import (
 from resto.domain.value_objects.tasks import ObtainDemandTask, ObtainNetworkTask
 from tests.unit.application._world import (
     BASELINE_PLAN,
+    CALIBRATION_ROUNDS,
     CLOSURE,
+    NETWORK_ROUNDS,
     WHAT_IF,
     World,
     answers,
@@ -38,16 +40,25 @@ NETWORK_ONLY = Question(
 )
 
 
-def _obtain_plan(*, network_ref: str = "RIVERSIDE") -> object:
+def _obtain_plan(
+    *,
+    network_ref: str = "RIVERSIDE",
+    max_rounds: int | None = None,
+    max_calibration_rounds: int | None = None,
+) -> object:
     """Obtain the network and the demand, then build and run the base arm on what they produced."""
     return run_of(
         StudyPlan(
             network_id=FromStep(0),
             rationale="as needed",
             steps=(
-                ObtainNetworkStep(network_ref),
+                ObtainNetworkStep(network_ref, max_rounds=max_rounds),
                 ObtainDemandStep(
-                    network_id=FromStep(0), seed=1, demand_ref="the peak", depends_on=(0,)
+                    network_id=FromStep(0),
+                    seed=1,
+                    demand_ref="the peak",
+                    max_calibration_rounds=max_calibration_rounds,
+                    depends_on=(0,),
                 ),
                 BuildScenarioStep(
                     network_id=FromStep(0),
@@ -78,12 +89,24 @@ def test_a_specialist_that_finds_an_id_continues_the_study(tmp_path: Path) -> No
     ]
     assert world.promoted_networks == []  # nothing to promote: the ids were found
     network_task = world.author.calls[0][0]
-    assert network_task == ObtainNetworkTask(network_ref="RIVERSIDE")
+    assert network_task == ObtainNetworkTask(network_ref="RIVERSIDE", max_rounds=NETWORK_ROUNDS)
     demand_task = world.generator.calls[0][0]
-    assert demand_task == ObtainDemandTask(network_id=NET, seed=1, demand_ref="the peak")
+    assert demand_task == ObtainDemandTask(
+        network_id=NET, seed=1, max_calibration_rounds=CALIBRATION_ROUNDS, demand_ref="the peak"
+    )
     (experiment,) = study.phases[0].experiments
     assert world.scenarios.get(experiment.scenario_id).demand_id == DEMAND  # type: ignore[union-attr]
     assert study.network_ids == (NET,)
+
+
+def test_a_step_that_sets_its_rounds_overrides_the_configured_limits(tmp_path: Path) -> None:
+    plan = _obtain_plan(max_rounds=2, max_calibration_rounds=4)
+    world = World(tmp_path, plans=(plan,), expert=(answers(),))
+
+    world.run()
+
+    assert world.author.calls[0][0].max_rounds == 2
+    assert world.generator.calls[0][0].max_calibration_rounds == 4
 
 
 def test_a_specialist_that_returns_a_draft_has_it_promoted_by_code(tmp_path: Path) -> None:
@@ -98,7 +121,9 @@ def test_a_specialist_that_returns_a_draft_has_it_promoted_by_code(tmp_path: Pat
     study = world.run()
 
     assert study.status is StudyStatus.COMPLETED
-    assert world.promoted_networks == [ObtainNetworkTask(network_ref="RIVERSIDE")]
+    assert world.promoted_networks == [
+        ObtainNetworkTask(network_ref="RIVERSIDE", max_rounds=NETWORK_ROUNDS)
+    ]
     obtained = study.phases[0].steps[1]
     assert obtained.produced_ids == ("obtained-1",)  # the id code gave it, not the agent
     assert study.network_ids == ("obtained-1",)

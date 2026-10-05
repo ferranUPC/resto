@@ -1,0 +1,4056 @@
+{
+  "R001": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a counterfactual question, arms: base.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": "typical Monday morning traffic",
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R002": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a describe question, arms: base.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": "peak",
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R003": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a compare question, arms: base, closure, speed_limit.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": "peak",
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "closure",
+        "role": "treatment",
+        "purpose": "Arm 'closure', the change the question asks about.",
+        "interventions": [
+          {
+            "type": "edge_closure",
+            "target": {
+              "edge_id": "C0D0",
+              "kind": "edge"
+            },
+            "params": {},
+            "window": {
+              "start": 28800.0,
+              "end": 30600.0
+            },
+            "condition": null,
+            "description": null,
+            "expected_effect": null
+          }
+        ],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "speed_limit",
+        "role": "treatment",
+        "purpose": "Arm 'speed_limit', the change the question asks about.",
+        "interventions": [
+          {
+            "type": "speed_limit",
+            "target": {
+              "edge_id": "B2C2",
+              "kind": "edge"
+            },
+            "params": {
+              "speed": 8.333
+            },
+            "window": {
+              "start": 28800.0,
+              "end": 30600.0
+            },
+            "condition": null,
+            "description": null,
+            "expected_effect": null
+          }
+        ],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R004": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a counterfactual question, arms: base.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": "heavy rush-hour traffic",
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R006": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a describe question, arms: base.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": null,
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R007": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a describe question, arms: base.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": "peak",
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R008": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a diagnose question, arms: base.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": "peak",
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R009": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a diagnose question, arms: base.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": null,
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R010": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a counterfactual question, arms: base.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": "typical Monday morning traffic",
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R011": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a counterfactual question, arms: base.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": "random traffic",
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R012": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a counterfactual question, arms: base.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": "Saturday traffic",
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R013": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a counterfactual question, arms: base.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": null,
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R014": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a counterfactual question, arms: base.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": "low traffic",
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R015": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a counterfactual question, arms: base.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": "peak",
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R016": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a counterfactual question, arms: base.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": "random traffic at peak",
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R017": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a counterfactual question, arms: base.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": "rush-hour traffic",
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R018": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a counterfactual question, arms: base.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": "typical Monday evening traffic",
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R019": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a counterfactual question, arms: base.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": "low",
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R020": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a compare question, arms: base, speed_limit, signal, less_demand.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": "peak",
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "speed_limit",
+        "role": "treatment",
+        "purpose": "Arm 'speed_limit', the change the question asks about.",
+        "interventions": [
+          {
+            "type": "speed_limit",
+            "target": {
+              "edge_id": "B2C2",
+              "kind": "edge"
+            },
+            "params": {
+              "speed": 11.111
+            },
+            "window": {
+              "start": 28800.0,
+              "end": 32400.0
+            },
+            "condition": null,
+            "description": null,
+            "expected_effect": null
+          }
+        ],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "signal",
+        "role": "treatment",
+        "purpose": "Arm 'signal', the change the question asks about.",
+        "interventions": [
+          {
+            "type": "signal_program",
+            "target": {
+              "tls_id": "C2",
+              "kind": "tls"
+            },
+            "params": {
+              "program_id": "1"
+            },
+            "window": {
+              "start": 28800.0,
+              "end": 32400.0
+            },
+            "condition": null,
+            "description": null,
+            "expected_effect": null
+          }
+        ],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "less_demand",
+        "role": "treatment",
+        "purpose": "Arm 'less_demand', the change the question asks about.",
+        "interventions": [
+          {
+            "type": "demand_scale",
+            "target": null,
+            "params": {
+              "factor": 0.9
+            },
+            "window": {
+              "start": 28800.0,
+              "end": 32400.0
+            },
+            "condition": null,
+            "description": null,
+            "expected_effect": null
+          }
+        ],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R021": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a compare question, arms: lane_1, lane_0.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": null,
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "lane_1",
+        "role": "comparison",
+        "purpose": "Alternative 'lane_1', measured against the other alternatives.",
+        "interventions": [
+          {
+            "type": "lane_closure",
+            "target": {
+              "edge_id": "B0C0",
+              "lane_index": 1,
+              "kind": "lane"
+            },
+            "params": {},
+            "window": {
+              "start": 28800.0,
+              "end": 30600.0
+            },
+            "condition": null,
+            "description": null,
+            "expected_effect": null
+          }
+        ],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "lane_0",
+        "role": "comparison",
+        "purpose": "Alternative 'lane_0', measured against the other alternatives.",
+        "interventions": [
+          {
+            "type": "lane_closure",
+            "target": {
+              "edge_id": "B0C0",
+              "lane_index": 0,
+              "kind": "lane"
+            },
+            "params": {},
+            "window": {
+              "start": 28800.0,
+              "end": 30600.0
+            },
+            "condition": null,
+            "description": null,
+            "expected_effect": null
+          }
+        ],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R022": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a counterfactual question, arms: base, new_edge.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": "random traffic",
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "base_network_id": {
+          "step": 0
+        },
+        "modifications": [
+          {
+            "from_junction": "C1",
+            "to_junction": "D2",
+            "lanes": 1,
+            "speed": 13.889,
+            "edge_id": null,
+            "kind": "add_edge"
+          }
+        ],
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "derive_network"
+      },
+      {
+        "demand_id": {
+          "step": 1
+        },
+        "network_id": {
+          "step": 2
+        },
+        "depends_on": [
+          1,
+          2
+        ],
+        "kind": "reroute_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      },
+      {
+        "network_id": {
+          "step": 2
+        },
+        "demand_id": {
+          "step": 3
+        },
+        "arm": "new_edge",
+        "role": "treatment",
+        "purpose": "Arm 'new_edge', the change the question asks about.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          2,
+          3
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R023": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a counterfactual question, arms: new_edge.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": "peak",
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "base_network_id": {
+          "step": 0
+        },
+        "modifications": [
+          {
+            "from_junction": "B3",
+            "to_junction": "C2",
+            "lanes": 2,
+            "speed": 13.889,
+            "edge_id": "NEW1",
+            "kind": "add_edge"
+          }
+        ],
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "derive_network"
+      },
+      {
+        "demand_id": {
+          "step": 1
+        },
+        "network_id": {
+          "step": 2
+        },
+        "depends_on": [
+          1,
+          2
+        ],
+        "kind": "reroute_demand"
+      },
+      {
+        "network_id": {
+          "step": 2
+        },
+        "demand_id": {
+          "step": 3
+        },
+        "arm": "new_edge",
+        "role": "treatment",
+        "purpose": "Arm 'new_edge', the change the question asks about.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          2,
+          3
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R024": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a compare question, arms: base, removed, one_lane.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": "typical Monday morning traffic",
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "base_network_id": {
+          "step": 0
+        },
+        "modifications": [
+          {
+            "edge_id": "B0C0",
+            "kind": "remove_edge"
+          }
+        ],
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "derive_network"
+      },
+      {
+        "demand_id": {
+          "step": 1
+        },
+        "network_id": {
+          "step": 2
+        },
+        "depends_on": [
+          1,
+          2
+        ],
+        "kind": "reroute_demand"
+      },
+      {
+        "base_network_id": {
+          "step": 0
+        },
+        "modifications": [
+          {
+            "edge_id": "B0C0",
+            "lanes": 1,
+            "kind": "set_lanes"
+          }
+        ],
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "derive_network"
+      },
+      {
+        "demand_id": {
+          "step": 1
+        },
+        "network_id": {
+          "step": 4
+        },
+        "depends_on": [
+          1,
+          4
+        ],
+        "kind": "reroute_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      },
+      {
+        "network_id": {
+          "step": 2
+        },
+        "demand_id": {
+          "step": 3
+        },
+        "arm": "removed",
+        "role": "treatment",
+        "purpose": "Arm 'removed', the change the question asks about.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          2,
+          3
+        ],
+        "kind": "build_scenario"
+      },
+      {
+        "network_id": {
+          "step": 4
+        },
+        "demand_id": {
+          "step": 5
+        },
+        "arm": "one_lane",
+        "role": "treatment",
+        "purpose": "Arm 'one_lane', the change the question asks about.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          4,
+          5
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R025": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a compare question, arms: base, closure, speed_limit, both.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": "peak",
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "closure",
+        "role": "treatment",
+        "purpose": "Arm 'closure', the change the question asks about.",
+        "interventions": [
+          {
+            "type": "lane_closure",
+            "target": {
+              "edge_id": "B0C0",
+              "lane_index": 1,
+              "kind": "lane"
+            },
+            "params": {},
+            "window": {
+              "start": 28800.0,
+              "end": 30600.0
+            },
+            "condition": null,
+            "description": null,
+            "expected_effect": null
+          }
+        ],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "speed_limit",
+        "role": "treatment",
+        "purpose": "Arm 'speed_limit', the change the question asks about.",
+        "interventions": [
+          {
+            "type": "speed_limit",
+            "target": {
+              "edge_id": "A0B0",
+              "kind": "edge"
+            },
+            "params": {
+              "speed": 8.333
+            },
+            "window": {
+              "start": 28800.0,
+              "end": 30600.0
+            },
+            "condition": null,
+            "description": null,
+            "expected_effect": null
+          }
+        ],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "both",
+        "role": "treatment",
+        "purpose": "Arm 'both', the change the question asks about.",
+        "interventions": [
+          {
+            "type": "lane_closure",
+            "target": {
+              "edge_id": "B0C0",
+              "lane_index": 1,
+              "kind": "lane"
+            },
+            "params": {},
+            "window": {
+              "start": 28800.0,
+              "end": 30600.0
+            },
+            "condition": null,
+            "description": null,
+            "expected_effect": null
+          },
+          {
+            "type": "speed_limit",
+            "target": {
+              "edge_id": "A0B0",
+              "kind": "edge"
+            },
+            "params": {
+              "speed": 8.333
+            },
+            "window": {
+              "start": 28800.0,
+              "end": 30600.0
+            },
+            "condition": null,
+            "description": null,
+            "expected_effect": null
+          }
+        ],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R026": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a counterfactual question, arms: base.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": "low traffic",
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R027": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a compare question, arms: widened, widened_closure, widened_limit.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": "random traffic",
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "base_network_id": {
+          "step": 0
+        },
+        "modifications": [
+          {
+            "edge_id": "C3D3",
+            "lanes": 3,
+            "kind": "set_lanes"
+          }
+        ],
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "derive_network"
+      },
+      {
+        "demand_id": {
+          "step": 1
+        },
+        "network_id": {
+          "step": 2
+        },
+        "depends_on": [
+          1,
+          2
+        ],
+        "kind": "reroute_demand"
+      },
+      {
+        "network_id": {
+          "step": 2
+        },
+        "demand_id": {
+          "step": 3
+        },
+        "arm": "widened",
+        "role": "treatment",
+        "purpose": "Arm 'widened', the change the question asks about.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          2,
+          3
+        ],
+        "kind": "build_scenario"
+      },
+      {
+        "network_id": {
+          "step": 2
+        },
+        "demand_id": {
+          "step": 3
+        },
+        "arm": "widened_closure",
+        "role": "treatment",
+        "purpose": "Arm 'widened_closure', the change the question asks about.",
+        "interventions": [
+          {
+            "type": "lane_closure",
+            "target": {
+              "edge_id": "C3D3",
+              "lane_index": 2,
+              "kind": "lane"
+            },
+            "params": {},
+            "window": {
+              "start": 28800.0,
+              "end": 30600.0
+            },
+            "condition": null,
+            "description": null,
+            "expected_effect": null
+          }
+        ],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          2,
+          3
+        ],
+        "kind": "build_scenario"
+      },
+      {
+        "network_id": {
+          "step": 2
+        },
+        "demand_id": {
+          "step": 3
+        },
+        "arm": "widened_limit",
+        "role": "treatment",
+        "purpose": "Arm 'widened_limit', the change the question asks about.",
+        "interventions": [
+          {
+            "type": "speed_limit",
+            "target": {
+              "edge_id": "C3D3",
+              "kind": "edge"
+            },
+            "params": {
+              "speed": 8.333
+            },
+            "window": {
+              "start": 28800.0,
+              "end": 30600.0
+            },
+            "condition": null,
+            "description": null,
+            "expected_effect": null
+          }
+        ],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          2,
+          3
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R028": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a counterfactual question, arms: base.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": "rush-hour traffic",
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R029": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a compare question, arms: base, early, late.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": "low traffic",
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "early",
+        "role": "treatment",
+        "purpose": "Arm 'early', the change the question asks about.",
+        "interventions": [
+          {
+            "type": "edge_closure",
+            "target": {
+              "edge_id": "B1C1",
+              "kind": "edge"
+            },
+            "params": {},
+            "window": {
+              "start": 25200.0,
+              "end": 27000.0
+            },
+            "condition": null,
+            "description": null,
+            "expected_effect": null
+          }
+        ],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "late",
+        "role": "treatment",
+        "purpose": "Arm 'late', the change the question asks about.",
+        "interventions": [
+          {
+            "type": "edge_closure",
+            "target": {
+              "edge_id": "B1C1",
+              "kind": "edge"
+            },
+            "params": {},
+            "window": {
+              "start": 28800.0,
+              "end": 30600.0
+            },
+            "condition": null,
+            "description": null,
+            "expected_effect": null
+          }
+        ],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R030": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a compare question, arms: base, signal, widened.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": "peak",
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "base_network_id": {
+          "step": 0
+        },
+        "modifications": [
+          {
+            "edge_id": "C2D2",
+            "lanes": 2,
+            "kind": "set_lanes"
+          }
+        ],
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "derive_network"
+      },
+      {
+        "demand_id": {
+          "step": 1
+        },
+        "network_id": {
+          "step": 2
+        },
+        "depends_on": [
+          1,
+          2
+        ],
+        "kind": "reroute_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "signal",
+        "role": "treatment",
+        "purpose": "Arm 'signal', the change the question asks about.",
+        "interventions": [
+          {
+            "type": "signal_program",
+            "target": {
+              "tls_id": "D2",
+              "kind": "tls"
+            },
+            "params": {
+              "program_id": "1"
+            },
+            "window": {
+              "start": 25200.0,
+              "end": 36000.0
+            },
+            "condition": null,
+            "description": null,
+            "expected_effect": null
+          }
+        ],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      },
+      {
+        "network_id": {
+          "step": 2
+        },
+        "demand_id": {
+          "step": 3
+        },
+        "arm": "widened",
+        "role": "treatment",
+        "purpose": "Arm 'widened', the change the question asks about.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          2,
+          3
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R031": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a compare question, arms: base, speed_limit, signal.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": "peak",
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "speed_limit",
+        "role": "treatment",
+        "purpose": "Arm 'speed_limit', the change the question asks about.",
+        "interventions": [
+          {
+            "type": "speed_limit",
+            "target": {
+              "edge_id": "B2C2",
+              "kind": "edge"
+            },
+            "params": {
+              "speed": 8.333
+            },
+            "window": null,
+            "condition": {
+              "metric": "vehicle_count",
+              "target": "B2C2",
+              "op": ">",
+              "value": 40.0
+            },
+            "description": null,
+            "expected_effect": null
+          }
+        ],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "signal",
+        "role": "treatment",
+        "purpose": "Arm 'signal', the change the question asks about.",
+        "interventions": [
+          {
+            "type": "signal_program",
+            "target": {
+              "tls_id": "C2",
+              "kind": "tls"
+            },
+            "params": {
+              "program_id": "1"
+            },
+            "window": null,
+            "condition": {
+              "metric": "vehicle_count",
+              "target": "B2C2",
+              "op": ">",
+              "value": 40.0
+            },
+            "description": null,
+            "expected_effect": null
+          }
+        ],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R032": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a counterfactual question, arms: base.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": "rush-hour traffic",
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R033": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a counterfactual question, arms: base.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": "low random traffic",
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R034": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a counterfactual question, arms: base.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": "low traffic",
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R035": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a counterfactual question, arms: base.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": "heavy rush-hour traffic",
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R036": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a counterfactual question, arms: base.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": "peak",
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R061": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a counterfactual question, arms: base.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": "peak",
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R062": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a counterfactual question, arms: base.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": "peak",
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R063": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a counterfactual question, arms: base.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": "peak",
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R065": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a compare question, arms: base, a, b, widened_a, widened_c, removed_b, new_edge, new_edge_d.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": "peak",
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "base_network_id": {
+          "step": 0
+        },
+        "modifications": [
+          {
+            "edge_id": "C0D0",
+            "lanes": 3,
+            "kind": "set_lanes"
+          }
+        ],
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "derive_network"
+      },
+      {
+        "demand_id": {
+          "step": 1
+        },
+        "network_id": {
+          "step": 2
+        },
+        "depends_on": [
+          1,
+          2
+        ],
+        "kind": "reroute_demand"
+      },
+      {
+        "base_network_id": {
+          "step": 0
+        },
+        "modifications": [
+          {
+            "edge_id": "B1C1",
+            "kind": "remove_edge"
+          }
+        ],
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "derive_network"
+      },
+      {
+        "demand_id": {
+          "step": 1
+        },
+        "network_id": {
+          "step": 4
+        },
+        "depends_on": [
+          1,
+          4
+        ],
+        "kind": "reroute_demand"
+      },
+      {
+        "base_network_id": {
+          "step": 0
+        },
+        "modifications": [
+          {
+            "from_junction": "B1",
+            "to_junction": "C2",
+            "lanes": 2,
+            "speed": 13.889,
+            "edge_id": "NEW3",
+            "kind": "add_edge"
+          }
+        ],
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "derive_network"
+      },
+      {
+        "demand_id": {
+          "step": 1
+        },
+        "network_id": {
+          "step": 6
+        },
+        "depends_on": [
+          1,
+          6
+        ],
+        "kind": "reroute_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "a",
+        "role": "comparison",
+        "purpose": "Alternative 'a', measured against the other alternatives.",
+        "interventions": [
+          {
+            "type": "lane_closure",
+            "target": {
+              "edge_id": "B0C0",
+              "lane_index": 1,
+              "kind": "lane"
+            },
+            "params": {},
+            "window": {
+              "start": 28800.0,
+              "end": 30600.0
+            },
+            "condition": null,
+            "description": null,
+            "expected_effect": null
+          }
+        ],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "b",
+        "role": "comparison",
+        "purpose": "Alternative 'b', measured against the other alternatives.",
+        "interventions": [
+          {
+            "type": "speed_limit",
+            "target": {
+              "edge_id": "B2C2",
+              "kind": "edge"
+            },
+            "params": {
+              "speed": 8.333
+            },
+            "window": {
+              "start": 28800.0,
+              "end": 32400.0
+            },
+            "condition": null,
+            "description": null,
+            "expected_effect": null
+          }
+        ],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      },
+      {
+        "network_id": {
+          "step": 2
+        },
+        "demand_id": {
+          "step": 3
+        },
+        "arm": "widened_a",
+        "role": "comparison",
+        "purpose": "Alternative 'widened_a', measured against the other alternatives.",
+        "interventions": [
+          {
+            "type": "lane_closure",
+            "target": {
+              "edge_id": "B0C0",
+              "lane_index": 1,
+              "kind": "lane"
+            },
+            "params": {},
+            "window": {
+              "start": 28800.0,
+              "end": 30600.0
+            },
+            "condition": null,
+            "description": null,
+            "expected_effect": null
+          }
+        ],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          2,
+          3
+        ],
+        "kind": "build_scenario"
+      },
+      {
+        "network_id": {
+          "step": 2
+        },
+        "demand_id": {
+          "step": 3
+        },
+        "arm": "widened_c",
+        "role": "comparison",
+        "purpose": "Alternative 'widened_c', measured against the other alternatives.",
+        "interventions": [
+          {
+            "type": "signal_program",
+            "target": {
+              "tls_id": "C2",
+              "kind": "tls"
+            },
+            "params": {
+              "program_id": "1"
+            },
+            "window": {
+              "start": 28800.0,
+              "end": 32400.0
+            },
+            "condition": null,
+            "description": null,
+            "expected_effect": null
+          }
+        ],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          2,
+          3
+        ],
+        "kind": "build_scenario"
+      },
+      {
+        "network_id": {
+          "step": 4
+        },
+        "demand_id": {
+          "step": 5
+        },
+        "arm": "removed_b",
+        "role": "treatment",
+        "purpose": "Arm 'removed_b', the change the question asks about.",
+        "interventions": [
+          {
+            "type": "speed_limit",
+            "target": {
+              "edge_id": "B2C2",
+              "kind": "edge"
+            },
+            "params": {
+              "speed": 8.333
+            },
+            "window": {
+              "start": 28800.0,
+              "end": 32400.0
+            },
+            "condition": null,
+            "description": null,
+            "expected_effect": null
+          }
+        ],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          4,
+          5
+        ],
+        "kind": "build_scenario"
+      },
+      {
+        "network_id": {
+          "step": 6
+        },
+        "demand_id": {
+          "step": 7
+        },
+        "arm": "new_edge",
+        "role": "treatment",
+        "purpose": "Arm 'new_edge', the change the question asks about.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          6,
+          7
+        ],
+        "kind": "build_scenario"
+      },
+      {
+        "network_id": {
+          "step": 6
+        },
+        "demand_id": {
+          "step": 7
+        },
+        "arm": "new_edge_d",
+        "role": "treatment",
+        "purpose": "Arm 'new_edge_d', the change the question asks about.",
+        "interventions": [
+          {
+            "type": "speed_limit",
+            "target": {
+              "edge_id": "NEW3",
+              "kind": "edge"
+            },
+            "params": {
+              "speed": 8.333
+            },
+            "window": {
+              "start": 28800.0,
+              "end": 32400.0
+            },
+            "condition": null,
+            "description": null,
+            "expected_effect": null
+          }
+        ],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          6,
+          7
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R066": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a run question, arms: base, treatment.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": null,
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "base_network_id": {
+          "step": 0
+        },
+        "modifications": [
+          {
+            "from_junction": "A3",
+            "to_junction": "B4",
+            "lanes": 1,
+            "speed": 13.889,
+            "edge_id": null,
+            "kind": "add_edge"
+          }
+        ],
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "derive_network"
+      },
+      {
+        "demand_id": {
+          "step": 1
+        },
+        "network_id": {
+          "step": 2
+        },
+        "depends_on": [
+          1,
+          2
+        ],
+        "kind": "reroute_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      },
+      {
+        "network_id": {
+          "step": 2
+        },
+        "demand_id": {
+          "step": 3
+        },
+        "arm": "treatment",
+        "role": "treatment",
+        "purpose": "Arm 'treatment', the change the question asks about.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          2,
+          3
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R067": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a run question, arms: base, treatment.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": "peak",
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "treatment",
+        "role": "treatment",
+        "purpose": "Arm 'treatment', the change the question asks about.",
+        "interventions": [
+          {
+            "type": "lane_closure",
+            "target": {
+              "edge_id": "B0C0",
+              "lane_index": 1,
+              "kind": "lane"
+            },
+            "params": {},
+            "window": {
+              "start": 27000.0,
+              "end": 28800.0
+            },
+            "condition": null,
+            "description": null,
+            "expected_effect": null
+          }
+        ],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R068": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a run question, arms: base, treatment.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": null,
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "base_network_id": {
+          "step": 0
+        },
+        "modifications": [
+          {
+            "edge_id": "D3E3",
+            "kind": "remove_edge"
+          }
+        ],
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "derive_network"
+      },
+      {
+        "demand_id": {
+          "step": 1
+        },
+        "network_id": {
+          "step": 2
+        },
+        "depends_on": [
+          1,
+          2
+        ],
+        "kind": "reroute_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      },
+      {
+        "network_id": {
+          "step": 2
+        },
+        "demand_id": {
+          "step": 3
+        },
+        "arm": "treatment",
+        "role": "treatment",
+        "purpose": "Arm 'treatment', the change the question asks about.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          2,
+          3
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R069": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a run question, arms: base, treatment.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": "low",
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "treatment",
+        "role": "treatment",
+        "purpose": "Arm 'treatment', the change the question asks about.",
+        "interventions": [
+          {
+            "type": "speed_limit",
+            "target": {
+              "edge_id": "A1B1",
+              "kind": "edge"
+            },
+            "params": {
+              "speed": 11.111
+            },
+            "window": {
+              "start": 61200.0,
+              "end": 64800.0
+            },
+            "condition": null,
+            "description": null,
+            "expected_effect": null
+          }
+        ],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R070": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a run question, arms: base, treatment.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": null,
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "base_network_id": {
+          "step": 0
+        },
+        "modifications": [
+          {
+            "edge_id": "C3D3",
+            "lanes": 2,
+            "kind": "set_lanes"
+          }
+        ],
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "derive_network"
+      },
+      {
+        "demand_id": {
+          "step": 1
+        },
+        "network_id": {
+          "step": 2
+        },
+        "depends_on": [
+          1,
+          2
+        ],
+        "kind": "reroute_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      },
+      {
+        "network_id": {
+          "step": 2
+        },
+        "demand_id": {
+          "step": 3
+        },
+        "arm": "treatment",
+        "role": "treatment",
+        "purpose": "Arm 'treatment', the change the question asks about.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          2,
+          3
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R071": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a run question, arms: base, treatment.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": null,
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "treatment",
+        "role": "treatment",
+        "purpose": "Arm 'treatment', the change the question asks about.",
+        "interventions": [
+          {
+            "type": "signal_program",
+            "target": {
+              "tls_id": "A2",
+              "kind": "tls"
+            },
+            "params": {
+              "program_id": "1"
+            },
+            "window": {
+              "start": 28800.0,
+              "end": 32400.0
+            },
+            "condition": null,
+            "description": null,
+            "expected_effect": null
+          }
+        ],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R072": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a diagnose question, arms: base.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": "typical Monday",
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R073": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a diagnose question, arms: base.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": "peak",
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R074": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "The question is about the network alone: obtain it and stop.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      }
+    ]
+  },
+  "R075": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "The question is about the network alone: obtain it and stop.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      }
+    ]
+  },
+  "R076": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "The question is about the network alone: obtain it and stop.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      }
+    ]
+  },
+  "R077": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a describe question, arms: base.",
+    "steps": [
+      {
+        "network_ref": "DEV-NET",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": "usual traffic",
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R078": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a describe question, arms: base.",
+    "steps": [
+      {
+        "network_ref": "Berlin-Mitte",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": "morning peak",
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R079": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a describe question, arms: base.",
+    "steps": [
+      {
+        "network_ref": "Eixample",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": "rush-hour traffic",
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  },
+  "R080": {
+    "network_id": {
+      "step": 0
+    },
+    "rationale": "Phase 0 of a describe question, arms: base.",
+    "steps": [
+      {
+        "network_ref": "4x4 grid",
+        "goals": [],
+        "min_scc_ratio": 0.95,
+        "probe_teleport_threshold": 0,
+        "max_rounds": null,
+        "depends_on": [],
+        "kind": "obtain_network"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "seed": 0,
+        "demand_ref": "low traffic",
+        "tolerance": 0.15,
+        "max_calibration_rounds": null,
+        "depends_on": [
+          0
+        ],
+        "kind": "obtain_demand"
+      },
+      {
+        "network_id": {
+          "step": 0
+        },
+        "demand_id": {
+          "step": 1
+        },
+        "arm": "base",
+        "role": "baseline",
+        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "interventions": [],
+        "context_tags": [],
+        "allow_script": true,
+        "depends_on": [
+          0,
+          1
+        ],
+        "kind": "build_scenario"
+      }
+    ]
+  }
+}
