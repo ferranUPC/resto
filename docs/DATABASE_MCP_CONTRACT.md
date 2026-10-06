@@ -12,10 +12,12 @@ is authoritative for *why* the model looks like this.
 point 3, the GP-10 row of §2) is replaced by `raw_demand_data`. The body below is not edited until E7.2.*
 
 *Amended by [ADR-0037](adr/0037-specialists-resolve-network-and-demand.md): the reader of the database is the
-specialist, not the Coordinator. The Network Author calls `find_network` and the Demand Generator calls
-`find_demand`; the Coordinator has no database tools. Wherever the body below says the Coordinator asks, finds
-or negotiates, read the specialist: a request that cannot be answered ends in `NeedsUser` and the study waits
-in `awaiting_user`. The body is not edited until E7.2.*
+specialist, not the planner. The Network Author calls `find_network` and the Demand Generator calls
+`find_demand`; the planner is code and has no database tools. Amended again by
+[ADR-0039](adr/0039-deterministic-planner-replaces-the-coordinator.md): the Coordinator agent no longer
+exists. Where the body below once named it, the specialist asks, finds or negotiates: a request that cannot
+be answered ends in `NeedsUser` and the study waits in `awaiting_user`, and the Executor holds the guarantee
+of zero redundant simulations.*
 
 Scope:
 
@@ -37,7 +39,7 @@ capability call.
 present** in `tools/list`. A partially implemented group is not a capability: a server exposing
 `store_note` and `search_notes` but not `update_note_status` does **not** have `notes`.
 
-**Negotiation at start-up** (the Coordinator, work-plan E1.6):
+**Negotiation at start-up** (the capability-listing helper, work-plan E1.6):
 
 | Situation | Behaviour |
 |---|---|
@@ -100,7 +102,7 @@ must treat them as opaque strings and must not mint, rewrite or normalise them.
 | `ExpertNote` | `note_id` | UUID |
 
 **`store_*` is idempotent.** Storing an entity whose id already exists, with byte-identical
-content, is a successful no-op. This is load-bearing: the Coordinator's "zero redundant
+content, is a successful no-op. This is load-bearing: the Executor's "zero redundant
 simulations" guarantee (DoD §4.2) works by computing an id and storing unconditionally, and
 callers retry on transient failures.
 
@@ -152,7 +154,7 @@ form of the same contract. `A | null` means the field may be absent.
 | `list_networks` | — | `Network[]` |
 | `find_network` | `source: str \| null`, `derived_from: str \| null`, `label: str \| null` | `Network[]` |
 
-`find_network` is how the Coordinator answers "do we already have this network?" without a
+`find_network` is how a specialist answers "do we already have this network?" without a
 content hash, since the hash is only known after building it. All three arguments are filters
 combined with AND; with none given, it is equivalent to `list_networks`. `source` matches
 `Network.recipe.source.value` exactly; `derived_from` matches `Network.derived_from` exactly;
@@ -161,7 +163,7 @@ combined with AND; with none given, it is equivalent to `list_networks`. `source
 **`label`** (resolves open point 1, §10) is a human-facing, opaque handle — e.g. `"berlin"` for a
 hand-picked base network, or `"berlin/remove_edge_118"` for one of several derived from it. It is
 metadata, not identity: it plays no part in `network_id` (still the content hash of the `.net.xml`,
-per §3), and a `/` in it is a naming convention the Coordinator and its user may use to express
+per §3), and a `/` in it is a naming convention the specialists and the user may use to express
 grouping (e.g. "all networks derived from Berlin") — the server treats it as an opaque string, the
 way an object store treats a key as a path it never parses. There is no separate `NetworkGroup`
 aggregate: the concrete need this serves (finding every network someone derived from a given base
@@ -361,7 +363,7 @@ a third-party server must use the same prefix or its errors surface as plain `Ru
 | `INTERNAL` | Anything else; the message must not leak connection strings or credentials | yes |
 
 **`get_*` never raises `NOT_FOUND`.** A missing entity is a `null` return, because "does this
-exist?" is the question the Coordinator asks constantly and an exception is the wrong shape for a
+exist?" is the question the specialists and the Executor ask constantly and an exception is the wrong shape for a
 routine negative. `NOT_FOUND` is reserved for operations that cannot proceed without the row.
 
 `INVALID_ARGUMENT` must name the offending field. It is fed back into an agent's single retry
