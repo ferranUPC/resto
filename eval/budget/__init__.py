@@ -15,6 +15,7 @@ from eval.budget.model import (
     load_plan,
 )
 from eval.budget.render import render_full_plan
+from eval.budget.short import render_short_version
 
 __all__ = [
     "BasisMissingError",
@@ -30,4 +31,5 @@ __all__ = [
     "compute",
     "load_plan",
     "render_full_plan",
+    "render_short_version",
 ]
