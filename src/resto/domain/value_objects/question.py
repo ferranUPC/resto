@@ -12,7 +12,6 @@ from resto.domain.value_objects.topology_modification import TopologyModificatio
 class Intent(StrEnum):
     DESCRIBE = "describe"
     DIAGNOSE = "diagnose"
-    COUNTERFACTUAL = "counterfactual"
     COMPARE = "compare"
     RUN = "run"
 

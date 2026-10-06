@@ -219,8 +219,8 @@ def test_an_invalid_prediction_fails_every_graded_field() -> None:
 
 
 def test_an_ambiguous_gold_scores_detection_and_intent_only_when_set() -> None:
-    flagged = _question(intent=Intent.COUNTERFACTUAL, ambiguities=("which edge?",))
-    with_intent = score_request(AmbiguousGold("edge", Intent.COUNTERFACTUAL), flagged)
+    flagged = _question(intent=Intent.COMPARE, ambiguities=("which edge?",))
+    with_intent = score_request(AmbiguousGold("edge", Intent.COMPARE), flagged)
     assert with_intent.ambiguity_detected and with_intent.intent
     assert with_intent.interventions is None
     without = score_request(AmbiguousGold("gibberish"), _question())
@@ -349,12 +349,12 @@ def test_the_bank_holds_bases_and_verified_variants_only() -> None:
 
 
 def test_an_accepted_second_intent_counts_for_intent_but_not_for_intent_strict() -> None:
-    gold = _question(intent=Intent.COUNTERFACTUAL)
+    gold = _question(intent=Intent.COMPARE)
     pred = _question(intent=Intent.RUN)
     lenient = score_request(gold, pred, frozenset({Intent.RUN}))
     assert lenient.intent is True and lenient.intent_strict is False
     assert score_request(gold, pred).intent is False
-    unclear = AmbiguousGold("edge", Intent.COUNTERFACTUAL)
+    unclear = AmbiguousGold("edge", Intent.COMPARE)
     flagged = replace(pred, ambiguities=("which edge?",))
     assert score_request(unclear, flagged, frozenset({Intent.RUN})).intent is True
     assert score_request(unclear, flagged, frozenset({Intent.RUN})).intent_strict is False

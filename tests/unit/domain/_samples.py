@@ -144,7 +144,7 @@ from tests.unit.domain._fixtures import (
 def question() -> Question:
     return Question(
         text="what if we close lane 1 of E12 at peak?",
-        intent=Intent.COUNTERFACTUAL,
+        intent=Intent.COMPARE,
         mode=Mode.FREE,
         network_ref="dev-net",
         interventions=(static_intervention(),),

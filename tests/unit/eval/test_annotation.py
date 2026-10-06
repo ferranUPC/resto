@@ -105,7 +105,7 @@ def test_an_annotation_equal_to_gold_agrees_on_every_field():
 
 def test_a_clear_reading_of_an_ambiguous_concept_misses_the_ambiguity():
     assert isinstance(concept_by_id("R042").gold, AmbiguousGold)
-    guess = Question(text="t", intent=Intent.COUNTERFACTUAL, network_ref="DEV-NET")
+    guess = Question(text="t", intent=Intent.COMPARE, network_ref="DEV-NET")
     export = parse_export(_export("a", [_item("R042", _dump(guess))]))
     [(_, _, score)] = score_against_gold(export)
     assert score.ambiguity_detected is False
