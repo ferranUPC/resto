@@ -142,6 +142,7 @@ dmypy.json
 .DS_Store*
 
 CLAUDE.md
+CODING_STANDARDS.md
 
 # Personal scratch notes, never meant to be shared
 docs/private/
