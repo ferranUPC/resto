@@ -5,54 +5,126 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Evaluation budget</title>
 <style>
-  :root { --bg:#fff; --fg:#1b1f24; --muted:#59636e; --line:#d0d7de; --card:#f6f8fa; --bad:#b42318; --ok:#1a7f37; --accent:#0969da; }
+  :root { --bg:#f6f7f9; --fg:#14181f; --muted:#5d6672; --line:#dfe3e8; --card:#fff; --soft:#eef1f4; --bad:#b42318; --bad-soft:#fdecea; --ok:#14733a; --ok-soft:#e6f4ea; --accent:#2a5fd6; --accent-soft:#e6eefc; --warn:#9a5b00; --warn-soft:#fff3dc; --r:14px; }
   @media (prefers-color-scheme: dark) {
-    :root { --bg:#0d1117; --fg:#e6edf3; --muted:#8b949e; --line:#30363d; --card:#161b22; --bad:#ff7b72; --ok:#56d364; --accent:#58a6ff; }
+    :root { --bg:#0d1014; --fg:#e8edf2; --muted:#98a2ad; --line:#272d36; --card:#151a21; --soft:#1e252e; --bad:#ff8a80; --bad-soft:#35191a; --ok:#5fd37a; --ok-soft:#14291c; --accent:#7aa5ff; --accent-soft:#1b2a47; --warn:#e8ae4a; --warn-soft:#33270f; }
   }
-  * { box-sizing: border-box; }
-  body { margin:0; padding:16px; background:var(--bg); color:var(--fg); font:15px/1.45 system-ui, sans-serif; max-width:60rem; margin-inline:auto; }
-  h1 { font-size:1.4rem; margin:0 0 .25rem; }
-  h2 { font-size:1.1rem; margin:1.5rem 0 .5rem; }
-  p, li { color:var(--muted); }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:12px; margin:0 0 12px; }
-  .card h3 { margin:0 0 .25rem; font-size:1rem; }
-  .row { display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin:.5rem 0; }
-  label { display:flex; flex-direction:column; font-size:.85rem; color:var(--muted); gap:2px; }
-  select, input { font:inherit; padding:6px 8px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--fg); min-width:7rem; }
-  table { border-collapse:collapse; width:100%; }
-  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
-  .num { text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  * { box-sizing:border-box; }
+  [hidden] { display:none !important; }
+  body { margin:0 auto; padding:16px 16px 48px; background:var(--bg); color:var(--fg); font:15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; max-width:60rem; }
+  h1 { font-size:1.4rem; margin:.5rem 0 .15rem; letter-spacing:-.01em; }
+  h2 { font-size:1rem; margin:2rem 0 .6rem; }
+  .sub { color:var(--muted); margin:0 0 1rem; max-width:44rem; }
+  .small, .muted { color:var(--muted); font-size:.85rem; }
+  .num { font-variant-numeric:tabular-nums; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:var(--r); padding:16px 18px; margin:0 0 12px; }
+  button { font:inherit; padding:7px 14px; border:1px solid var(--line); border-radius:9px; background:var(--card); color:var(--fg); cursor:pointer; }
+  button:hover:not(:disabled) { border-color:var(--accent); }
+  button:disabled { opacity:.35; cursor:default; }
+  button:focus-visible, input:focus-visible, summary:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+
+  /* summary */
+  .summary { position:sticky; top:8px; z-index:5; box-shadow:0 6px 24px rgba(0,0,0,.10); padding:14px 18px; }
+  .sum-main { display:flex; flex-wrap:wrap; gap:4px 28px; align-items:flex-end; justify-content:space-between; }
+  .sum-label { color:var(--muted); font-size:.8rem; }
+  .big { font-size:2rem; line-height:1.1; font-weight:700; letter-spacing:-.02em; }
+  .big small { font-size:.9rem; font-weight:500; color:var(--muted); letter-spacing:0; }
+  .passes { display:flex; gap:20px; }
+  .passes b { display:block; font-size:1.05rem; }
+  .bar { position:relative; height:12px; border-radius:99px; background:var(--soft); margin:12px 0 8px; }
+  .bar .hi { position:absolute; inset:0 auto 0 0; border-radius:99px; background:var(--accent-soft); box-shadow:inset 0 0 0 1px var(--accent); }
+  .bar .lo { position:absolute; inset:0 auto 0 0; border-radius:99px; background:var(--accent); }
+  .bar .cap { position:absolute; top:-4px; bottom:-4px; width:3px; border-radius:2px; background:var(--fg); }
+  .bar .cap-label { position:absolute; top:16px; transform:translateX(-50%); font-size:.72rem; color:var(--muted); white-space:nowrap; }
+  .verdict { display:inline-block; margin-top:14px; padding:3px 12px; border-radius:99px; font-size:.85rem; font-weight:600; }
+  .verdict.ok { background:var(--ok-soft); color:var(--ok); }
+  .verdict.bad { background:var(--bad-soft); color:var(--bad); }
+  .verdict.maybe { background:var(--warn-soft); color:var(--warn); }
+  .tools { display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center; margin:10px 0 14px; }
+  .tools .push { margin-left:auto; }
+
+  /* suites */
+  .suite-head { display:flex; justify-content:space-between; gap:14px; align-items:flex-start; }
+  .suite-head h3 { margin:0; font-size:1.05rem; }
+  .suite-head p { margin:2px 0 0; }
+  .cost { text-align:right; white-space:nowrap; }
+  .cost .hi { font-size:1.25rem; font-weight:700; }
+  .cost .lo { font-size:.8rem; color:var(--muted); }
+  .tags { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .tag { font-size:.72rem; padding:1px 9px; border-radius:99px; background:var(--soft); color:var(--muted); }
+  .tag.warn { background:var(--warn-soft); color:var(--warn); }
+  .row { display:flex; flex-wrap:wrap; gap:10px 16px; align-items:center; margin-top:14px; }
+  .row .lab { font-size:.8rem; color:var(--muted); min-width:5.5rem; }
+  .seg { display:inline-flex; padding:3px; gap:2px; border-radius:99px; background:var(--soft); }
+  .seg button { border:0; background:transparent; padding:5px 16px; border-radius:99px; font-size:.88rem; text-transform:capitalize; }
+  .seg button[aria-pressed="true"] { background:var(--accent); color:#fff; font-weight:600; }
+  .seg button.custom[aria-pressed="true"] { background:var(--fg); color:var(--bg); }
+  .sizes { font-size:.82rem; color:var(--muted); margin-top:6px; }
+  details.more { margin-top:12px; border-top:1px solid var(--line); padding-top:8px; }
+  details.more > summary { cursor:pointer; font-size:.88rem; color:var(--accent); font-weight:600; padding:4px 0; }
+  .field { margin-top:14px; }
+  .field-head { display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
+  .field-head b { font-size:.92rem; }
+  .field-note { margin:0 0 6px; }
+  .step { display:inline-flex; align-items:center; gap:6px; }
+  .step button { width:30px; height:30px; padding:0; line-height:1; border-radius:99px; font-size:1.05rem; }
+  .step input[type=number] { width:4.2rem; text-align:center; font:inherit; font-weight:650; padding:4px 6px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--fg); }
+  input[type=range] { width:100%; accent-color:var(--accent); margin:6px 0 0; }
+  .models { display:grid; grid-template-columns:7rem 1fr; gap:8px 12px; align-items:start; margin-top:8px; }
+  .models .fam { font-size:.82rem; color:var(--muted); padding-top:6px; }
+  .grades { display:flex; flex-wrap:wrap; gap:8px; }
+  .grade { border:1px solid var(--line); border-radius:12px; padding:6px 10px; background:var(--soft); min-width:9.5rem; }
+  .grade.on { border-color:var(--accent); background:var(--accent-soft); }
+  .grade .gname { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .grade .gname button { border:0; background:none; padding:0; font-weight:600; font-size:.88rem; text-align:left; }
+  .grade .gname button:disabled { opacity:1; cursor:default; }
+  .grade .step { margin-top:6px; }
+  .grade .step span { font-size:.74rem; color:var(--muted); }
+  .grade .step button { width:24px; height:24px; font-size:.9rem; }
+  .grade .step input[type=number] { width:2.8rem; padding:2px 4px; }
+  .grade .pend { font-size:.7rem; color:var(--warn); }
+  .foot { margin-top:12px; }
+
+  /* table */
+  table { border-collapse:collapse; width:100%; font-size:.9rem; }
+  th, td { text-align:left; padding:9px 10px; border-bottom:1px solid var(--line); vertical-align:middle; }
+  th { font-size:.76rem; color:var(--muted); font-weight:600; }
+  td.n, th.n { text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  td.n small { display:block; color:var(--muted); font-size:.74rem; }
+  tfoot td { font-weight:700; border-top:2px solid var(--fg); border-bottom:0; }
+  tbody tr:last-child td { border-bottom:0; }
+  tbody td:first-child { font-weight:600; }
+  td.size { text-transform:capitalize; color:var(--muted); }
   .scroll { overflow-x:auto; }
-  .tag { display:inline-block; font-size:.75rem; padding:1px 6px; border:1px solid var(--line); border-radius:999px; color:var(--muted); }
-  .bad { color:var(--bad); font-weight:600; }
-  .ok { color:var(--ok); font-weight:600; }
-  .small { font-size:.85rem; color:var(--muted); }
-  .grid { display:grid; grid-template-columns:minmax(8rem,1fr) 6rem 6rem; gap:6px 12px; align-items:center; margin:.5rem 0; }
-  .grid input { min-width:0; width:100%; }
-  .grid .head { font-size:.8rem; color:var(--muted); }
-  button { font:inherit; padding:6px 10px; border:1px solid var(--line); border-radius:6px; background:var(--card); color:var(--fg); cursor:pointer; }
+  details.card > summary { cursor:pointer; font-weight:600; }
+  @media (max-width:640px) {
+    .summary { position:static; }
+    .suite-head { flex-direction:column; }
+    .cost { text-align:left; }
+    .models { grid-template-columns:1fr; }
+  }
 </style>
 </head>
 <body>
 <h1>Evaluation budget</h1>
-<p>For each suite, start from a preset (minimum, planned, extended) or set your own: how many inputs to run in each pass, which capability levels to test, how many models per level and how many repetitions. The bounds come from the cost data. Totals are low to high, in USD, with V1 and V2 apart and combined against the cap. The selection is kept in the page address: copy the link to share exactly this choice.</p>
+<p class="sub">Pick a size for each test suite and see what it costs in USD. Each cost is a range, from the cheapest to the most expensive outcome. Open "Customize" on a suite to change the details. The link keeps your choices, so you can send it.</p>
 
-<div class="card" id="summary" aria-live="polite"></div>
-<div class="row">
-  <label>Global contingency (%)<input id="g" type="number" min="0" max="500" step="1" inputmode="decimal"></label>
-  <button id="reset" type="button">Reset to defaults</button>
+<div class="card summary" id="summary" aria-live="polite"></div>
+<div class="tools">
+  <button id="reset" type="button">Reset to planned</button>
   <button id="copy" type="button">Copy link</button>
   <span class="small" id="copied"></span>
+  <label class="small push" title="Extra margin added on top of everything, for surprises">Extra margin on the whole budget <input id="g" class="gin" type="number" min="0" max="500" step="1" inputmode="decimal" style="width:4rem"> %</label>
 </div>
 
-<h2>Suites</h2>
 <div id="suites"></div>
 
-<h2>Capability levels</h2>
-<div class="scroll"><table id="levels"></table></div>
-<p class="small">Figures marked measured rest on a recorded run; proxy figures are estimates. Reviewer effort is manual time in hours and is never converted to dollars.</p>
+<h2>All suites side by side</h2>
+<div class="card scroll" id="overview"></div>
 
-<script id="data" type="application/json">/*DATA*/</script>
+<details class="card"><summary>Prices per model level</summary><div class="scroll"><table id="levels"></table></div>
+<p class="small">Measured figures rest on a recorded run; proxy figures are estimates. The quick check (V1) runs only the default level. Reviewer effort is manual time and is never converted to dollars.</p></details>
+
 <script id="data" type="application/json">/*DATA*/</script>
 <script id="core">
 "use strict";
@@ -185,7 +257,12 @@ function totals(data, state) {
     });
     data.bases.forEach(function (b) { byBasis[b] = add(byBasis[b], t.basis[b]); });
     hours = add(hours, t.hours);
-    rows.push({ id: s.id, net: own, reserve: ownReserve, pending: t.pending, hours: t.hours });
+    var passC = {}, owned = zero;
+    data.passes.forEach(function (p) {
+      passC[p] = times(add(t.net[p], times(t.net[p], state.c[s.id])), 1 + state.g);
+      owned = add(owned, passC[p]);
+    });
+    rows.push({ id: s.id, net: own, reserve: ownReserve, pending: t.pending, hours: t.hours, passC: passC, withC: owned });
   });
   var without = zero, withC = zero;
   data.passes.forEach(function (p) {
@@ -206,129 +283,260 @@ function totals(data, state) {
   var data = JSON.parse(document.getElementById("data").textContent);
   var state = parseFragment(data, location.hash);
   var $ = function (id) { return document.getElementById(id); };
-  var usd = function (r) { return "$" + r[0].toFixed(2) + " to $" + r[1].toFixed(2); };
-  var pct = function (part, whole) {
-    return (whole[1] ? Math.round(100 * part[1] / whole[1]) : 0) + "%";
-  };
+  var money = function (v) { return "$" + (v >= 100 ? v.toFixed(0) : v.toFixed(2)); };
+  var usd = function (r) { return money(r[0]) + " to " + money(r[1]); };
+  var pct = function (part, whole) { return (whole[1] ? Math.round(100 * part[1] / whole[1]) : 0) + "%"; };
+  var PASS_NAME = { V1: "Quick check", V2: "Final run" };
+  var passName = function (p) { return PASS_NAME[p] || p; };
+  var family = function (name) { return name.indexOf("non-") === 0 ? "Without reasoning" : "With reasoning"; };
+  var grade = function (name) { var g = name.split("-").pop(); return g.charAt(0).toUpperCase() + g.slice(1); };
   function el(tag, text, cls) {
     var e = document.createElement(tag);
     if (text !== undefined) e.textContent = text;
     if (cls) e.className = cls;
     return e;
   }
-  function row(table, cells, head) {
-    var tr = el("tr");
-    cells.forEach(function (c, i) {
-      var td = el(head ? "th" : "td", c, i > 0 && !head && /^\$/.test(c) ? "num" : "");
-      tr.appendChild(td);
-    });
-    table.appendChild(tr);
+  function cell(tr, text, cls, head) { var c = el(head ? "th" : "td", text, cls); tr.appendChild(c); return c; }
+  function money2(cellNode, r) {
+    cellNode.textContent = r[1] ? money(r[1]) : "-";
+    if (r[1]) cellNode.appendChild(el("small", "from " + money(r[0])));
   }
-  function numberInput(min, max) {
-    var i = el("input");
-    i.type = "number"; i.min = String(min); i.max = String(max); i.step = "1"; i.inputMode = "numeric";
-    return i;
+  // A number box with - and + buttons. `set` is called with the typed or stepped value.
+  function stepper(get, set, lo, hi, label) {
+    var box = el("span", undefined, "step");
+    var minus = el("button", "-"), plus = el("button", "+"), input = el("input");
+    minus.type = plus.type = "button";
+    input.type = "number"; input.min = lo; input.max = hi; input.step = 1; input.inputMode = "numeric";
+    minus.setAttribute("aria-label", "Less " + label); plus.setAttribute("aria-label", "More " + label);
+    input.setAttribute("aria-label", label);
+    minus.addEventListener("click", function () { set(get() - 1); });
+    plus.addEventListener("click", function () { set(get() + 1); });
+    input.addEventListener("change", function () { set(input.value); });
+    box.appendChild(minus); box.appendChild(input); box.appendChild(plus);
+    return {
+      box: box, lo: lo, hi: hi,
+      show: function (v) { input.value = v; minus.disabled = v <= lo; plus.disabled = v >= hi; }
+    };
   }
+  function suiteTotal(s, cfg) {
+    var t = suiteCost(data, s, cfg), r = [0, 0];
+    data.passes.forEach(function (p) { r = add(r, t.net[p]); });
+    return times(r, (1 + state.c[s.id]) * (1 + state.g));
+  }
+  function fixedText(s) { return s.fixed ? "" : "Scope not final"; }
   var nodes = {};
-  function buildSuites() {
-    var host = $("suites");
-    data.suites.forEach(function (s) {
-      var ex = s.explore, n = { inputs: {}, models: {}, reps: {}, tags: {} };
-      var card = el("div", undefined, "card");
-      card.appendChild(el("h3", s.name));
-      card.appendChild(el("div", s.measures + " (" + s.threshold + ")", "small"));
-      card.appendChild(el("div", "Varies " + s.varies + (s.fixed ? "" : ". Shape unfixed until its benchmark is designed."), "small"));
-      var top = el("div", undefined, "row");
-      var tl = el("label", "Preset"); n.preset = el("select");
-      Object.keys(s.tiers).concat(["custom"]).forEach(function (t) {
-        var o = el("option", t); o.value = t; n.preset.appendChild(o);
-      });
-      n.preset.addEventListener("change", function () {
-        if (n.preset.value !== "custom") { state.cfg[s.id] = presetCfg(data, s, n.preset.value); update(); }
-      });
-      tl.appendChild(n.preset); top.appendChild(tl);
-      Object.keys(ex.inputs).forEach(function (p) {
-        var b = ex.inputs[p], l = el("label", "Inputs in " + p + " (" + b.min + " to " + b.max + ")");
-        var inp = numberInput(b.min, b.max);
-        inp.addEventListener("change", function () { state.cfg[s.id].inputs[p] = inp.value; edit(s); });
-        l.appendChild(inp); top.appendChild(l); n.inputs[p] = inp;
-      });
-      var cl = el("label", "Contingency (%)"); n.cont = numberInput(0, 500);
-      n.cont.addEventListener("input", function () {
-        state.c[s.id] = share(String(n.cont.value / 100), state.c[s.id]); update(true);
-      });
-      cl.appendChild(n.cont); top.appendChild(cl);
-      card.appendChild(top);
-      var grid = el("div", undefined, "grid");
-      grid.appendChild(el("span", "Capability level", "head"));
-      grid.appendChild(el("span", "Models (0 to " + ex.modelsMax + ")", "head"));
-      grid.appendChild(el("span", "Repetitions (" + data.repetitionFloor + " to " + ex.repsMax + ")", "head"));
-      data.levels.forEach(function (l) {
-        var name = el("span", l.name === data.defaultLevel ? l.name + " (default)" : l.name);
-        n.tags[l.name] = el("span", " pending policy approval", "tag"); name.appendChild(n.tags[l.name]);
-        var m = numberInput(l.name === data.defaultLevel ? 1 : 0, ex.modelsMax), r = numberInput(data.repetitionFloor, ex.repsMax);
-        m.addEventListener("change", function () { state.cfg[s.id].models[l.name] = m.value; edit(s); });
-        r.addEventListener("change", function () { state.cfg[s.id].reps[l.name] = r.value; edit(s); });
-        grid.appendChild(name); grid.appendChild(m); grid.appendChild(r);
-        n.models[l.name] = m; n.reps[l.name] = r;
-      });
-      card.appendChild(grid);
-      card.appendChild(el("div", "V1 runs only the default level, at no more repetitions than the planned preset's V1.", "small"));
-      n.out = el("div"); card.appendChild(n.out);
-      host.appendChild(card);
-      nodes[s.id] = n;
+
+  function buildSuite(s) {
+    var ex = s.explore, n = { segBtn: {}, passes: {}, grades: {} };
+    var card = el("div", undefined, "card");
+
+    var head = el("div", undefined, "suite-head"), left = el("div");
+    left.appendChild(el("h3", s.name));
+    left.appendChild(el("p", s.measures, "small"));
+    var tags = el("div", undefined, "tags");
+    if (fixedText(s)) tags.appendChild(el("span", fixedText(s), "tag"));
+    n.pending = el("span", "Uses models not yet approved", "tag warn");
+    n.pending.title = "A model level in this size is pending policy approval";
+    tags.appendChild(n.pending);
+    left.appendChild(tags);
+    n.cost = el("div", undefined, "cost");
+    n.costHi = el("div", undefined, "hi num"); n.costLo = el("div", undefined, "lo num");
+    n.cost.appendChild(n.costHi); n.cost.appendChild(n.costLo);
+    head.appendChild(left); head.appendChild(n.cost); card.appendChild(head);
+
+    var row = el("div", undefined, "row");
+    row.appendChild(el("span", "Size", "lab"));
+    n.seg = el("div", undefined, "seg");
+    n.seg.setAttribute("role", "group"); n.seg.setAttribute("aria-label", "Size of " + s.name);
+    ["minimum", "planned", "extended"].filter(function (t) { return s.tiers[t]; }).forEach(function (t) {
+      var b = el("button"); b.type = "button";
+      b.addEventListener("click", function () { state.cfg[s.id] = presetCfg(data, s, t); update(); });
+      n.seg.appendChild(b); n.segBtn[t] = b;
     });
+    n.custom = el("button", "custom", "custom"); n.custom.type = "button"; n.custom.disabled = true;
+    n.custom.title = "You changed the details below";
+    n.seg.appendChild(n.custom);
+    row.appendChild(n.seg); card.appendChild(row);
+
+    var more = el("details", undefined, "more");
+    more.appendChild(el("summary", "Customize"));
+
+    Object.keys(ex.inputs).forEach(function (p) {
+      var b = ex.inputs[p], f = el("div", undefined, "field"), h = el("div", undefined, "field-head");
+      h.appendChild(el("b", "Test cases in the " + passName(p).toLowerCase() + " (" + p + ")"));
+      var st = stepper(function () { return state.cfg[s.id].inputs[p]; },
+        function (v) { state.cfg[s.id].inputs[p] = v; edit(s); }, b.min, b.max, "test cases in " + p);
+      h.appendChild(st.box); f.appendChild(h);
+      f.appendChild(el("p", p === "V1"
+        ? "A test case is one request or question the models must answer. The quick check runs a small set to catch problems early. Allowed: " + b.min + " to " + b.max + "."
+        : "The definitive run on the full set. Allowed: " + b.min + " to " + b.max + ".", "small field-note"));
+      var r = el("input"); r.type = "range"; r.min = b.min; r.max = b.max; r.step = 1;
+      r.setAttribute("aria-label", "Test cases in " + p);
+      r.addEventListener("input", function () { state.cfg[s.id].inputs[p] = r.value; edit(s); });
+      f.appendChild(r); more.appendChild(f);
+      n.passes[p] = { st: st, range: r };
+    });
+
+    var mf = el("div", undefined, "field");
+    mf.appendChild(el("b", "Models to compare"));
+    mf.appendChild(el("p", "Switch a model level on to test it. For each one choose how many different models to try and how many times each test case is repeated (repeats show how stable the answers are). Levels marked ! are pending policy approval. The quick check always uses the default level only.", "small field-note"));
+    var models = el("div", undefined, "models");
+    ["Without reasoning", "With reasoning"].forEach(function (fam) {
+      models.appendChild(el("div", fam, "fam"));
+      var gr = el("div", undefined, "grades");
+      data.levels.filter(function (l) { return family(l.name) === fam; }).forEach(function (l) {
+        var isDef = l.name === data.defaultLevel, g = el("div", undefined, "grade"), nm = el("div", undefined, "gname");
+        var tog = el("button", grade(l.name) + (isDef ? " (default)" : "")); tog.type = "button";
+        tog.setAttribute("aria-pressed", "false");
+        if (isDef) { tog.disabled = true; tog.title = "Always on"; }
+        tog.addEventListener("click", function () { state.cfg[s.id].models[l.name] = state.cfg[s.id].models[l.name] ? 0 : 1; edit(s); });
+        nm.appendChild(tog);
+        var pend = ex.levels[l.name].pending;
+        if (pend) { var w = el("span", "!", "pend"); w.title = "Pending policy approval"; nm.appendChild(w); }
+        g.appendChild(nm);
+        var body = el("div"), mrow = el("div", undefined, "step"), rrow = el("div", undefined, "step");
+        mrow.appendChild(el("span", "Models"));
+        var ms = stepper(function () { return state.cfg[s.id].models[l.name]; },
+          function (v) { state.cfg[s.id].models[l.name] = v; edit(s); }, isDef ? 1 : 0, ex.modelsMax, "models at " + l.name);
+        mrow.appendChild(ms.box);
+        rrow.appendChild(el("span", "Repeats"));
+        var rs = stepper(function () { return state.cfg[s.id].reps[l.name]; },
+          function (v) { state.cfg[s.id].reps[l.name] = v; edit(s); }, data.repetitionFloor, ex.repsMax, "repeats at " + l.name);
+        rrow.appendChild(rs.box);
+        body.appendChild(mrow); body.appendChild(rrow); g.appendChild(body);
+        gr.appendChild(g);
+        n.grades[l.name] = { card: g, body: body, tog: tog, ms: ms, rs: rs };
+      });
+      models.appendChild(gr);
+    });
+    mf.appendChild(models); more.appendChild(mf);
+
+    var rf = el("div", undefined, "field"), rh = el("div", undefined, "field-head");
+    rh.appendChild(el("b", "Reserve for reruns"));
+    var wrap = el("span", undefined, "step");
+    n.cont = el("input"); n.cont.type = "number"; n.cont.min = 0; n.cont.max = 500; n.cont.step = 1;
+    n.cont.setAttribute("aria-label", "Reserve for reruns, percent");
+    n.cont.addEventListener("input", function () { state.c[s.id] = share(String(n.cont.value / 100), state.c[s.id]); update(true); });
+    wrap.appendChild(n.cont); wrap.appendChild(el("span", "%", "small"));
+    rh.appendChild(wrap); rf.appendChild(rh);
+    rf.appendChild(el("p", "Extra money held back for this suite in case runs must be repeated.", "small field-note"));
+    more.appendChild(rf);
+    more.appendChild(el("p", "Goal to compare against: " + s.threshold, "small foot"));
+    card.appendChild(more);
+
+    n.out = el("div", undefined, "small foot"); card.appendChild(n.out);
+    $("suites").appendChild(card); nodes[s.id] = n;
   }
+
   function edit(s) { clamp(data, s, state.cfg[s.id]); update(); }
+
   function sync() {
     data.suites.forEach(function (s) {
-      var n = nodes[s.id], cfg = state.cfg[s.id];
-      n.preset.value = presetOf(data, s, cfg) || "custom";
-      Object.keys(n.inputs).forEach(function (p) { n.inputs[p].value = cfg.inputs[p]; });
+      var n = nodes[s.id], cfg = state.cfg[s.id], preset = presetOf(data, s, cfg);
+      Object.keys(n.segBtn).forEach(function (t) {
+        n.segBtn[t].setAttribute("aria-pressed", String(t === preset));
+      });
+      n.custom.hidden = preset !== null;
+      n.custom.setAttribute("aria-pressed", String(preset === null));
+      Object.keys(n.passes).forEach(function (p) {
+        n.passes[p].st.show(cfg.inputs[p]); n.passes[p].range.value = cfg.inputs[p];
+      });
       data.levels.forEach(function (l) {
-        n.models[l.name].value = cfg.models[l.name];
-        n.reps[l.name].value = cfg.reps[l.name];
-        n.reps[l.name].disabled = !cfg.models[l.name];
+        var g = n.grades[l.name], on = cfg.models[l.name] > 0;
+        g.card.className = "grade" + (on ? " on" : "");
+        g.tog.setAttribute("aria-pressed", String(on));
+        g.body.hidden = !on;
+        g.ms.show(cfg.models[l.name]); g.rs.show(cfg.reps[l.name]);
       });
       n.cont.value = Math.round(state.c[s.id] * 1000) / 10;
     });
     $("g").value = Math.round(state.g * 1000) / 10;
   }
+
+  function used(s) {
+    var names = data.levels.filter(function (l) { return state.cfg[s.id].models[l.name]; }).map(function (l) {
+      var c = state.cfg[s.id].models[l.name];
+      return grade(l.name) + (family(l.name) === "With reasoning" ? " reasoning" : "") + (c > 1 ? " x" + c : "");
+    });
+    return names.join(", ");
+  }
+
+  function renderSummary(t) {
+    var box = $("summary"); box.textContent = "";
+    var main = el("div", undefined, "sum-main"), a = el("div");
+    a.appendChild(el("div", "Estimated total", "sum-label"));
+    var big = el("div", undefined, "big num");
+    big.appendChild(document.createTextNode(money(t.withContingency[0]) + " to " + money(t.withContingency[1])));
+    a.appendChild(big); main.appendChild(a);
+    var ps = el("div", undefined, "passes");
+    data.passes.forEach(function (p) {
+      var d = el("div", undefined, "num small"); d.appendChild(document.createTextNode(passName(p)));
+      d.appendChild(el("b", usd(t.byPass[p]))); ps.appendChild(d);
+    });
+    main.appendChild(ps); box.appendChild(main);
+
+    var scale = Math.max(data.cap, t.withContingency[1]) * 1.05, bar = el("div", undefined, "bar");
+    var hi = el("div", undefined, "hi"), lo = el("div", undefined, "lo"), cap = el("div", undefined, "cap");
+    var label = el("div", "Cap " + money(data.cap), "cap-label");
+    hi.style.width = 100 * t.withContingency[1] / scale + "%"; lo.style.width = 100 * t.withContingency[0] / scale + "%";
+    cap.style.left = label.style.left = 100 * data.cap / scale + "%";
+    bar.appendChild(hi); bar.appendChild(lo); bar.appendChild(cap); bar.appendChild(label); box.appendChild(bar);
+
+    var v;
+    if (t.excess[1] <= 0) v = el("span", "Within the $" + data.cap + " cap", "verdict ok");
+    else if (t.excess[0] > 0) v = el("span", "Over the $" + data.cap + " cap by " + usd(t.excess), "verdict bad");
+    else v = el("span", "May exceed the $" + data.cap + " cap: the low total is within it, the high total is over by up to $" + t.excess[1].toFixed(2), "verdict maybe");
+    box.appendChild(v);
+    box.appendChild(el("div", "Dark bar is the low estimate, light bar the high one. " + pct(t.byBasis.measured, t.withoutContingency) + " of the cost rests on measured runs, the rest on estimates." + (t.hours[1] ? " Manual review: " + t.hours[0].toFixed(1) + " to " + t.hours[1].toFixed(1) + " hours." : ""), "small"));
+  }
+
+  function renderTable(t) {
+    var ov = $("overview"); ov.textContent = "";
+    var table = el("table"), thead = el("thead"), hr = el("tr");
+    cell(hr, "Suite", "", true); cell(hr, "Size", "", true); cell(hr, "Models", "", true);
+    data.passes.forEach(function (p) { cell(hr, passName(p), "n", true); });
+    cell(hr, "Total", "n", true);
+    thead.appendChild(hr); table.appendChild(thead);
+    var tbody = el("tbody");
+    t.rows.forEach(function (r, i) {
+      var s = data.suites[i], tr = el("tr");
+      cell(tr, s.name); cell(tr, presetOf(data, s, state.cfg[s.id]) || "custom", "size"); cell(tr, used(s), "small");
+      data.passes.forEach(function (p) { money2(cell(tr, "", "n"), r.passC[p]); });
+      money2(cell(tr, "", "n"), r.withC); tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    var foot = el("tfoot"), fr = el("tr");
+    cell(fr, "Total"); cell(fr, ""); cell(fr, "");
+    data.passes.forEach(function (p) { money2(cell(fr, "", "n"), t.byPass[p]); });
+    money2(cell(fr, "", "n"), t.withContingency);
+    foot.appendChild(fr); table.appendChild(foot); ov.appendChild(table);
+    ov.appendChild(el("p", "Each row includes its reserve and the extra margin, so the rows add up to the total. Big number is the high estimate, \"from\" is the low one.", "small"));
+  }
+
   function update(keepInputs) {
     var t = totals(data, state);
     if (!keepInputs) sync();
     history.replaceState(null, "", location.pathname + location.search + toFragment(data, state));
     t.rows.forEach(function (r, i) {
       var s = data.suites[i], n = nodes[s.id];
-      data.levels.forEach(function (l) {
-        n.tags[l.name].hidden = !(state.cfg[s.id].models[l.name] && s.explore.levels[l.name].pending);
+      n.costHi.textContent = money(r.withC[1]);
+      n.costLo.textContent = "from " + money(r.withC[0]);
+      n.pending.hidden = r.pending.length === 0;
+      n.out.textContent = "Models: " + used(s) + (r.hours[1] ? " · manual review " + r.hours[0].toFixed(1) + " to " + r.hours[1].toFixed(1) + " h" : "");
+      Object.keys(n.segBtn).forEach(function (k) {
+        n.segBtn[k].textContent = k + " · " + money(suiteTotal(s, presetCfg(data, s, k))[1]);
       });
-      n.out.textContent = "";
-      n.out.appendChild(el("div", "Without contingency " + usd(r.net) + "; reserve " + usd(r.reserve)));
-      if (r.hours[1]) n.out.appendChild(el("div", "Reviewer effort " + r.hours[0].toFixed(1) + " to " + r.hours[1].toFixed(1) + " hours", "small"));
     });
-    var box = $("summary"); box.textContent = "";
-    var table = el("table");
-    row(table, ["", "Low to high"], true);
-    row(table, ["Without contingency", usd(t.withoutContingency)]);
-    data.passes.forEach(function (p) {
-      row(table, [p + " with contingency", usd(t.byPass[p])]);
-    });
-    row(table, ["Total with contingency", usd(t.withContingency)]);
-    row(table, ["Measured share of cost", pct(t.byBasis.measured, t.withoutContingency) + " of the high (rest is proxy: " + usd(t.byBasis.proxy) + ")"]);
-    if (t.hours[1]) row(table, ["Reviewer effort", t.hours[0].toFixed(1) + " to " + t.hours[1].toFixed(1) + " hours"]);
-    box.appendChild(table);
-    var verdict = t.excess[1] <= 0
-      ? el("p", "Within the $" + data.cap + " cap.", "ok")
-      : t.excess[0] > 0
-        ? el("p", "Over the $" + data.cap + " cap by " + usd(t.excess) + " (V1 and V2 combined).", "bad")
-        : el("p", "May exceed the $" + data.cap + " cap: the low total is within it, the high total is over by up to $" + t.excess[1].toFixed(2) + " (V1 and V2 combined).", "bad");
-    box.appendChild(verdict);
+    renderSummary(t); renderTable(t);
   }
-  buildSuites();
-  var lv = $("levels");
-  row(lv, ["Level", "Policy"], true);
-  data.levels.forEach(function (l) { row(lv, [l.name, l.policy]); });
+
+  data.suites.forEach(buildSuite);
+  var lv = $("levels"), hr = el("tr");
+  ["Level", "USD per million tokens, in / out", "Policy"].forEach(function (h) { cell(hr, h, "", true); });
+  lv.appendChild(hr);
+  data.levels.forEach(function (l) {
+    var tr = el("tr"); cell(tr, grade(l.name) + ", " + family(l.name).toLowerCase()); cell(tr, l["in"] + " / " + l.out); cell(tr, l.policy); lv.appendChild(tr);
+  });
   $("g").addEventListener("input", function () {
     state.g = share(String($("g").value / 100), state.g); update(true);
   });
