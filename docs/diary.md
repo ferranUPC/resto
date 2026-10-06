@@ -2,6 +2,14 @@
 
 A short summary of what happened on each working day. The most recent entry comes first, and days with no activity have no entry. `progress-review` adds the new entries.
 
+## 05.10.2026
+
+The plan bank gets a rules script that derives a gold `StudyPlan` for each of the 54 request-bank
+concepts that has a question, plus 24 follow-on cases for counterfactual questions whose first phase
+already ran. A review page lists every proposed plan, flagging the ones with multiple arms, a derived
+network or a nested counterfactual, so each one can be checked before the bank is frozen; that review
+has not happened yet. The now-redundant study-flows document is removed.
+
 ## 02.10.2026
 
 ADR-0037's refactor is implemented: `obtain_network` and `obtain_demand` plan steps replace the old
