@@ -69,7 +69,7 @@ def test_flags_mark_the_delicate_shapes():
         only_network = len(plan.steps) == 1 and isinstance(plan.steps[0], ObtainNetworkStep)
         assert ("network_only" in flags) == only_network
     assert any("no_demand_ref" in i["flags"] for i in by_id.values())
-    assert any("nested_counterfactual" in i["flags"] for i in by_id.values())
+    assert any("nested_arms" in i["flags"] for i in by_id.values())
 
 
 def test_the_rendered_page_embeds_the_items_and_cannot_be_closed_by_them():

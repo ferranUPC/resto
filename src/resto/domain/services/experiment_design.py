@@ -33,9 +33,10 @@ def mode_for(question: Question, round_no: int, max_rounds: int) -> Mode:
 
 
 def needed_arms(question: Question, phase: int) -> tuple[str, ...]:
-    """The arms a phase must have realised: every arm the question needs, from phase 0 (ADR-0038).
-    `describe` and `diagnose` need only the base. A `network_only` question needs none: the plan
-    stops at `obtain_network`."""
+    """The arms a phase must have realised (ADR-0038). `run` and `compare` need every arm the
+    question needs from phase 0. `describe` and `diagnose` need only the base in phase 0, and every
+    required arm from phase 1 on. A `network_only` question needs none: the plan stops at
+    `obtain_network`."""
     if question.network_only:
         return ()
     if phase >= 1 or question.intent in (Intent.RUN, Intent.COMPARE):
