@@ -80,7 +80,6 @@ def test_the_shipped_plan_lists_unfixed_suites_and_reviewer_effort_apart():
     assert "Output Composer" in unfixed and "Input Parser" not in unfixed
     assert "Reviewer effort" in text and "hours" in text
     assert "| extended |" in text
-    assert "removed by r13" in text
 
 
 def test_a_possible_excess_is_stated_as_possible(tmp_path):

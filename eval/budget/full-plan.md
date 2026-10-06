@@ -347,10 +347,6 @@ Measured $0.00 to $0.00, proxy $1.57 to $4.29 (before contingency).
 |---|---|---|---|---|---|
 | V2 | 11 x 5 | 1 x reasoning-low | 150,000-400,000 in, 10,000-30,000 out | proxy: work plan figure for this suite ($1-3 at 11 paths x 3 repetitions); tokens are an assumed full-pipeline run, no run exists | $1.57 to $4.29 |
 
-### Plan bank routing (`plan-bank-routing`)
-
-Excluded from every total: removed by r13 (the Coordinator is replaced by a deterministic planner); delete once the r13 ADR is accepted.
-
 ## Totals
 
 Tier per suite: `planned` (the default selection). The $30 reference

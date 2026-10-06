@@ -1058,17 +1058,3 @@ tokens_out_low = 10000
 tokens_out_high = 30000
 basis = "proxy"
 derived_from = "work plan figure for this suite ($1-3 at 11 paths x 3 repetitions); tokens are an assumed full-pipeline run, no run exists"
-
-# ---- Suite: Plan bank routing (removed by refactor r13) --------------------------------------------------
-# The Coordinator is replaced by a deterministic planner, so this suite disappears. Kept with a mark and left
-# out of every total until the ADR is accepted; delete the entry then.
-
-[[suites]]
-id = "plan-bank-routing"
-name = "Plan bank routing"
-measures = "Coordinator routing over the plan bank"
-threshold = "none (suite removed)"
-varies = "repetitions"
-contingency = 0.0
-fixed = false
-removed = "removed by r13 (the Coordinator is replaced by a deterministic planner); delete once the r13 ADR is accepted"

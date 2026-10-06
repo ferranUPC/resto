@@ -150,23 +150,12 @@ SUITE_IDS = [
     "expert-learning-effect",
     "output-composer",
     "golden-path",
-    "plan-bank-routing",
 ]
 
 
-def test_the_shipped_data_covers_every_suite_and_marks_the_routing_suite_removed():
+def test_the_shipped_data_covers_every_suite():
     plan = load_plan(DATA)
     assert [s.id for s in plan.suites] == SUITE_IDS
-    removed = [s.id for s in plan.suites if s.removed]
-    assert removed == ["plan-bank-routing"]
-    assert "r13" in plan.suites[-1].removed
-
-
-def test_the_removed_suite_is_excluded_from_the_totals():
-    plan = load_plan(DATA)
-    totals = compute(plan)
-    assert "plan-bank-routing" not in [r.suite_id for r in totals.suites]
-    assert len(totals.suites) == len(SUITE_IDS) - 1
 
 
 def test_every_live_suite_offers_three_tiers_that_cost_more_as_they_grow():
