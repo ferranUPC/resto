@@ -50,6 +50,7 @@ def _pinned_sumo_version() -> None:
         )
 
 
+# "" is kept: an empty host in `connect` means the local machine, which the loopback servers use.
 _LOOPBACK_HOSTS = {"localhost", "127.0.0.1", "::1", ""}
 
 

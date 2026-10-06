@@ -13,6 +13,7 @@ from pathlib import Path
 
 SRC = Path(__file__).resolve().parents[2] / "src"
 FORBIDDEN_FROM_APPLICATION = {"adapters", "interface"}
+RULES = ("domain", "application", "eval", "private")
 
 
 def _imports(tree: ast.AST) -> list[tuple[str, list[str]]]:
@@ -32,7 +33,7 @@ def _is_private(name: str) -> bool:
 
 def _violations(root: Path) -> dict[str, list[str]]:
     """Map each rule to the offending `file: import` lines found under `root`/resto."""
-    out: dict[str, list[str]] = {"domain": [], "application": [], "eval": [], "private": []}
+    out: dict[str, list[str]] = {rule: [] for rule in RULES}
     for path in sorted((root / "resto").rglob("*.py")):
         layer = path.relative_to(root / "resto").parts[0]
         for module, names in _imports(ast.parse(path.read_text())):
@@ -55,7 +56,7 @@ def _violations(root: Path) -> dict[str, list[str]]:
 
 
 def test_src_follows_layer_direction_and_never_imports_eval() -> None:
-    assert _violations(SRC) == {"domain": [], "application": [], "eval": [], "private": []}
+    assert _violations(SRC) == {rule: [] for rule in RULES}
 
 
 def test_scan_flags_each_violation_kind(tmp_path: Path) -> None:
