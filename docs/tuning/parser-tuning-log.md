@@ -35,6 +35,31 @@ All runs: `deepseek/deepseek-v4.1-flash`, 1 repetition, estimated cost at the co
 | v5 | Intent by meaning, not by the verb (eval/decisions-log.md, 2026-09-24): `run` = the figures of a given setup with nothing to compare against; `counterfactual` = the effect of changes against today or another named setup ("try X and see", "with and without X"); `compare` = a choice between alternatives, with or without the word. The old "form of the question decides" rule removed. | `v5-dev`, 212 (gold of R035 now `counterfactual`) | every threshold met: validity, interventions, topology, metrics 100 %; intent 96.2 %; ambiguity 98.9 %; arm structure 97.7 %; no spurious ambiguity | $0.241 |
 | v6 | Intent is what the user wants, never what it takes to answer: "run/simulate X and report Y" is `counterfactual`; `run` is kept for an action wanted as an end in itself ("add an edge from J7 to J9"), with no question about its effect; the prompt says whether to simulate is decided later. | `v6-dev`, 212 (the ten `run` concepts now `counterfactual`); +20 requests of the new `run` concepts R066/R067/R070/R071, all correct ($0.020) | every threshold met: validity, interventions, topology, metrics 100 %; intent 99.4 %; ambiguity 97.7 %; arm structure 95.3 %; no spurious ambiguity; consistency 88.9 % | $0.244 |
 | v7 | Contract change (ADR-0035): `demand_ref` as a short English phrase, `time_window` as the period asked about whatever the intent, new `network_only` rule, `network_ref` takes a described network. No other edit. | `v7-dev`, 255 (new bank) | every threshold met: validity 99.6 %, intent 99.5 %, interventions, topology, metrics 100 %, ambiguity 95.6 %, arm structure 100 %; `network_only` 100 %, `demand_ref` 93.3 %, `time_window` 84.1 % (not graded) | $0.194 |
+| v8 | ADR-0038: four intents. `counterfactual` is gone from the prompt; `compare` = a contrast between setups, today's included ("what would happen to X if Y", "with and without", "does Y help", or a choice between alternatives); `run` = the figures of one setup with nothing to compare them against ("run X and report Y"), or an action wanted as an end in itself; tie-break "when in doubt, compare". Examples 1 and 3 now read `compare`. No other edit. | `v8-dev`, 255 (gold relabelled, r9 ticket 03) | every threshold met: validity 98.4 %, intent 95.6 %, interventions 97.0 %, topology 98.8 %, metrics 98.8 %, ambiguity 94.5 %, arm structure 90.7 %; consistency 72.2 % | $0.211 real |
+
+**v8: ADR-0038, one development run.** The prompt was written once from the ADR rule and checked with a
+single development run on dev (255 requests, default model, held-out not read; the maintainer approved
+this one run). No second iteration, so the numbers below are what the first draft gives. Every E5.1 dev
+threshold is met, arm structure only just (90.7 %, 39/43, 10 concepts). Cost $0.211 real ($0.332
+estimated). Compared with v7 (`v7-dev`, other gold, other prompt): validity 99.6 → 98.4 %, interventions
+100 → 97.0 %, ambiguity 95.6 → 94.5 %, arm structure 100 → 90.7 %. Those drops come from the long
+multi-arm requests (R065 in Spanish and Chinese, out of budget; R065 and R025.ca-typos on arm
+structure), which no intent rule touches; read it as run-to-run variation with no temperature set, not
+as an effect of v8, until a second run says otherwise.
+
+The 9 intent misses (194/203): R001.en-telegraphic and R011.en-technical (gold `compare`, read `run`:
+"Close lane 1... What is mean travel time?" and "Simulate... Apply a 30 % increase... Report the
+teleports"), R006.de-technical and the four R080 variants ("what is the mean delay with low traffic",
+gold `describe`, read `run`: a question about a given setup that no rule of the prompt separates from a
+figures request), R065.es and R065.zh (no valid output). Not acted on: the `describe`/`run` boundary for
+a fact about traffic as it is is a new finding for the maintainer, not a v8 edit. Stored runs v3 to v7
+(and the smoke and ministral runs) keep their raw files; their reports carry a note that `intent` is
+superseded by ADR-0038 and were not re-scored, because those Parsers taught `counterfactual` and a
+re-score against the new gold would measure the removed label (`intent` rows of 2026-09-24 in
+`eval/decisions-log.md` are marked too). The contract (the JSON schema) still lists `counterfactual`
+until `Intent.COUNTERFACTUAL` is deleted (r9 ticket 05); the v8 prompt never teaches it.
+
+Spent on Parser runs by r9 ticket 04: $0.211 real (`v8-dev`, development run).
 
 **v7: contract change (ADR-0035), not tuning.** The request bank was rewritten for ADR-0035 (E3.11
 tickets 04 and 05: concepts name a demand or spread it across the text, 3 network-only `describe`
