@@ -2,7 +2,7 @@
 
 Expert: v2 · Model: deepseek/deepseek-v4.1-flash · 15 questions × repetitions [1] = 15 runs · budget stops: 1 · estimated cost: $0.137
 
-Scoring rules: docs/evaluating-resto.md §4.4. Thresholds: DoD §4.7 (DEV-NET).
+Scoring rules: eval/README.md §4.4. Thresholds: DoD §4.7 (DEV-NET).
 
 | Metric | Mean | Std | DoD |
 |---|---|---|---|

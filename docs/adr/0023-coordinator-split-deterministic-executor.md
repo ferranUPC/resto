@@ -134,7 +134,7 @@ Generator, not just one simulation, so the per-`Study` budget guard of §2.4 is 
   unchanged (GP-3 already reads "Expert (`needs_simulation`) → Coord → Builder → Runner → Expert").
 - In free mode the executed steps are not all in `phases[0].plan`; that is expected, not a routing error.
 - Domain changes: `Phase`, `Study.phases`, typed `PlanStep` + `FromStep`, `ExpertRound` without
-  `triggered_experiments`; `schemas/Study.json` and `docs/class_diagram.md` regenerated when implemented.
+  `triggered_experiments`; `schemas/Study.json` regenerated when implemented.
 - The v1.0 body (the "Changes vs v0.2" agents bullet, §2.1 Coordinator row, §2.2 Coordinator rows, §2.3 `Study` invariants and
   loop, §2.4 Coordinator paragraph, §4.1 heading, §7 ADR-0001 bullet, §8 re-ask question) is superseded
   here, not edited, per the frozen-document rule.

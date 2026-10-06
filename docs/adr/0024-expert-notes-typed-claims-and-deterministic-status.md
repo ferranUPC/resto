@@ -7,7 +7,7 @@
   (`ExpertNote`), §2.4, §4.7; [ADR-0011](0011-network-expert-knowledge-model.md),
   [ADR-0018](0018-network-expert-tools-and-evidence-refs.md),
   [ADR-0019](0019-typed-expert-answer-values.md);
-  [`evaluating-resto.md`](../evaluating-resto.md) §4.8; work-plan E4.6
+  [`eval/README.md`](../../eval/README.md) §4.8; work-plan E4.6
 
 ## Context
 

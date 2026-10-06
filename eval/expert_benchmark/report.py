@@ -1,4 +1,4 @@
-"""Scores stored benchmark runs and aggregates them (docs/evaluating-resto.md §4.4–§4.6): metrics
+"""Scores stored benchmark runs and aggregates them (eval/README.md §4.4–§4.6): metrics
 per repetition, then mean ± std across repetitions, compared with the DoD §4.7 thresholds."""
 
 from __future__ import annotations
@@ -112,7 +112,7 @@ def _cause_accuracy(runs: Sequence[ScoredRun]) -> float | None:
 def _abstention_metrics(
     forced: Sequence[ScoredRun], free: Sequence[ScoredRun]
 ) -> tuple[float | None, float | None]:
-    """Pairs forced/free runs of the same question (docs/evaluating-resto.md §4.5).
+    """Pairs forced/free runs of the same question (eval/README.md §4.5).
 
     "Abstained" means the free-mode answer exists and has `needs_simulation = True`, regardless of
     whether promotion later rejected it (a malformed `proposed_experiment` is still an abstention
@@ -261,7 +261,7 @@ def render_markdown(name: str, summary: Mapping[str, Any], scored: Sequence[Scor
         f"{summary['repetitions']} = {summary['runs']} runs · budget stops: "
         f"{summary['budget_stops']} · cost: {cost}",
         "",
-        "Scoring rules: docs/evaluating-resto.md §4.4. Thresholds: DoD §4.7 (DEV-NET).",
+        "Scoring rules: eval/README.md §4.4. Thresholds: DoD §4.7 (DEV-NET).",
         "",
         "| Metric | Mean | Std | DoD |",
         "|---|---|---|---|",

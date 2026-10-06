@@ -1,4 +1,4 @@
-"""Aggregates stored probe runs into the hygiene pass rate (docs/evaluating-resto.md §4.8;
+"""Aggregates stored probe runs into the hygiene pass rate (eval/README.md §4.8;
 docs/_old/tfm-architecture-and-dod-v0.2.md §4.7). Unlike the family-accuracy thresholds in
 `eval/expert_benchmark/report.py`, this is a hard rule: any violation fails the run, not a graded
 percentage — a single unverified, extrapolated note treated as observed fact is exactly the failure
