@@ -289,12 +289,12 @@ planning rate, not carried over.
 | **M0** | Fri 18 Sep | Fri 18 Sep | Foundations frozen | Contracts v1 merged; DEV-NET runs the three demand profiles; CI green; architecture v1.0 |
 | **M1** | Fri 16 Oct | Fri 16 Oct | Tooling complete | All MCPs Done (§4.9); Builder & Runner Minimal; DEV-NET scenario matrix stored |
 | **M2** | **Tue 20 Oct** (~~Fri 9 Oct~~) | Fri 13 Nov | **Expert built on DEV-NET** | E3.8 ✅ (clock-time bank); E4.2–E4.4 ⏳ with a development sweep on the E3.8 bank, per-family figures stated; E4.5 ⏳. EXP-01 is ready to run in V2 (command and cost cap written); E3.9 ✅ (evaluation budget for the supervisors) |
-| **M3** | **Mon 26 Oct** | Fri 27 Nov | **Planner loop built** | E5.13, E3.11, E3.7, E5.14, E5.2, E5.15, E5.3, E5.4 ✅; GP-1 … GP-5 and GP-9 pass (E9.1) |
+| **M3** | **Mon 26 Oct** | Fri 27 Nov | **Planner loop built** | E5.13, E3.11, E3.7, E5.14, E5.15, E5.3, E5.4 ✅ (E5.2 cancelled, r14: the planner is r13's); GP-1 … GP-5 and GP-9 pass (E9.1) |
 | **M4** | **Fri 6 Nov** | Fri 11 Dec | **Builder and Runner built** | E3.10 ✅ (Decisions log trimmed); E2.5, E2.6 ✅; E2.7 ✅ or ⏳; GP-6 and GP-7 pass (E9.2) |
 | **M5** | **Mon 30 Nov** | Fri 15 Jan | **Generators built** | E6.1, E7.1, E3.12, E7.2, E7.3 ✅; E6.2, E7.4 ✅ or ⏳ (both need E8.1, the frozen REAL-NET); GP-8 and GP-11 pass (E9.8) |
 | **M6** | **Tue 8 Dec** | Fri 22 Jan | **REAL-NET ready (built)** | REAL-NET frozen with fix log (E8.1); profiles, matrix and question bank stored (E8.2, E8.3, E8.4 ✅); E8.5 ⏳ (ported and tuned on REAL-NET, development evidence stated). The figures come from V2 → E4.10 → E10.5 |
-| **M7** | **Fri 15 Jan** (~~Fri 11 Dec~~) | ~~Fri 5 Feb~~ Fri 29 Jan | **All modules built** | E5.5 ✅ or ⏳ (built before V1; measured through the golden paths and failure injection in V2); E5.6, E5.7 (checker), E9.3 ✅ or ⏳; E7.5, E7.6 ✅ or ⏳; E4.9 ⏳ (learning-effect setup on DEV-NET ready to run); 11 golden paths pass as tests; failure injection green |
-| **V1** | Mon 14 → Fri 18 Dec | Fri 18 Dec | Validation 1 | Reduced checkpoints of every module built by 11 Dec (M2–M6 and E5.5) on dev splits, figures recorded as interim. Wave 5 is not in V1. If a milestone slips, V1 covers what is built on 14 Dec and does not move |
+| **M7** | **Fri 15 Jan** (~~Fri 11 Dec~~) | ~~Fri 5 Feb~~ Fri 29 Jan | **All modules built** | E5.6, E5.7 (checker), E9.3 ✅ or ⏳ (E5.5 cancelled, r14: the Executor's failure behaviour is E9.3's and its zero-redundant-simulations counter is E5.3's); E7.5, E7.6 ✅ or ⏳; E4.9 ⏳ (learning-effect setup on DEV-NET ready to run); 11 golden paths pass as tests; failure injection green |
+| **V1** | Mon 14 → Fri 18 Dec | Fri 18 Dec | Validation 1 | Reduced checkpoints of every module built by 11 Dec (M2–M6) on dev splits, figures recorded as interim. Wave 5 is not in V1. If a milestone slips, V1 covers what is built on 14 Dec and does not move |
 | **FF** | **Fri 22 Jan** | Fri 29 Jan | Feature freeze | No behaviour change after it; V1 fixes and slips absorbed by the buffer of 18 → 22 Jan and the margin days |
 | **V2** | Mon 25 → Fri 29 Jan | Fri 5 Feb | Validation 2 | Every measurement suite run once at its definitive size (under the $30 cap), held-out included; a missed threshold is a result |
 | **M8** | **Thu 18 Feb** | Thu 18 Feb | **End of full-time work** | Code frozen and tagged (E9.6, 10 Feb); V2 done; thesis chapters E10.1–E10.4 written and E10.5 written (E10.6 may move to the M9 window, §5); E4.7, E4.10, E5.8, E9.4 and E9.5 done; full draft v1 sent to supervisors (E10.7) |
@@ -313,18 +313,18 @@ by the DAG (§4), not by the week.
 | Wave | Weeks | Content (in order) | Cum. pts | Target | Deadline |
 |---|---|---|---|---|---|
 | 1a | 24 Sep → 9 Oct | E3.8 → E5.13 (accept/change ADR-0027) → E4.2–E4.4 development sweep and tuning | 68 | **M2: Tue 20 Oct** | 13 Nov |
-| 1b | 12 → 26 Oct | E3.11 → E5.14 → E3.7 → E5.2 → E5.15 → E5.3 → E5.4 → E9.1; E8.1 (REAL-NET) in the gaps; E3.9 evaluation budget (before ~24 Oct); E3.10 Decisions-log trim | 141 | **M3: Mon 26 Oct** | 27 Nov |
-| 2 | 27 Oct → 6 Nov | E2.5 → E2.6 → E9.2 → E2.7 | 199 | **M4: Fri 6 Nov** | 11 Dec |
-| 3 | 9 → 30 Nov | E6.1, E7.1 → E3.12, E7.2 → E7.3, E6.2, E7.4, E9.8 (E8.1 here if it missed 1b) | 310 | **M5: Mon 30 Nov** | 15 Jan |
-| 4 | 1 → 11 Dec | E8.2 → E8.3 → E8.4 → E8.5 (354 pts, M6); E5.5 last (365 pts, Fri 11 Dec), so V1 sees the finished Executor | 365 | **M6: Tue 8 Dec** | 22 Jan |
+| 1b | 12 → 26 Oct | E3.11 → E5.14 → E3.7 → E5.15 → E5.3 → E5.4 → E9.1; E8.1 (REAL-NET) in the gaps; E3.9 evaluation budget (before ~24 Oct); E3.10 Decisions-log trim | 134 | **M3: Mon 26 Oct** | 27 Nov |
+| 2 | 27 Oct → 6 Nov | E2.5 → E2.6 → E9.2 → E2.7 | 192 | **M4: Fri 6 Nov** | 11 Dec |
+| 3 | 9 → 30 Nov | E6.1, E7.1 → E3.12, E7.2 → E7.3, E6.2, E7.4, E9.8 (E8.1 here if it missed 1b) | 303 | **M5: Mon 30 Nov** | 15 Jan |
+| 4 | 1 → 11 Dec | E8.2 → E8.3 → E8.4 → E8.5 (347 pts, M6); E5.2 and E5.5 are cancelled (r14), so V1 sees the Executor and planner built by r13 and E5.3 | 347 | **M6: Tue 8 Dec** | 22 Jan |
 | V1 | 14 → 18 Dec | Validation 1 (modules built by 11 Dec) | — | Fri 18 Dec | 18 Dec |
 | — | 21 → 23 Dec | Margin (working days), not planned | — | — | — |
 | — | **24 Dec → 2 Jan** | **Break, zero work** | — | — | — |
-| 5 | 4 → 15 Jan | E5.6, E9.3, E7.5 → E4.9, E5.7 (checker), E7.6 | 425 | **M7 = all built: Fri 15 Jan** | 29 Jan |
+| 5 | 4 → 15 Jan | E5.6, E9.3, E7.5 → E4.9, E5.7 (checker), E7.6 | 407 | **M7 = all built: Fri 15 Jan** | 29 Jan |
 
 Cumulative points leave out E3.9 and E3.10 (7 pts, counted apart in §0.1). Wave 5 holds only work that V1 does not measure (no suite of §4.2's V1 checkpoints reads it), so it can sit
-after the break. Cumulative points before the break are 365, within the 379 the planning rate gives by
-11 Dec; v0.3 asked for 434 by that date.
+after the break. Cumulative points before the break are 347, within the 379 the planning rate gives by
+11 Dec (32 pts of room since r14 took 18 out of waves 1b and 4; no date moves); v0.3 asked for 434 by that date.
 
 ### Writing track
 
@@ -351,8 +351,8 @@ after the break. Cumulative points before the break are 365, within the 379 the 
 
 ## 4. Dependencies
 
-The plan is **limited by capacity, not by dependencies**: the longest chain of pending build work is 79
-of 425 points (≈ 19 %), so the order within a wave is mostly free. Two DAGs: what must be **built**
+The plan is **limited by capacity, not by dependencies**: the longest chain of pending build work is 72
+of 407 points (≈ 18 %), so the order within a wave is mostly free. Two DAGs: what must be **built**
 before V2, and which **measurement suites** turn ⏳ into ✅.
 
 ### 4.1 Build DAG
@@ -367,6 +367,7 @@ flowchart LR
   classDef await fill:#fff4d6,stroke:#b8860b,color:#000
   classDef risk fill:#fde2e2,stroke:#c62828,stroke-dasharray:5 3,color:#000
   classDef ms fill:#1f3b73,stroke:#1f3b73,color:#fff
+  classDef cancelled fill:#eee,stroke:#999,stroke-dasharray:4 4,color:#888
 
   E513{{"E5.13 accept/change ADR-0027 · 2<br/>(arms & contrasts, still Proposed)"}}:::risk
   XNET{{"RISK: multi-network ExpertTask<br/>(decided inside E5.3)"}}:::risk
@@ -383,14 +384,14 @@ flowchart LR
   subgraph SPINE["Planner spine"]
     E311["E3.11 described demand (ADR-0035) · 12"]:::frontier
     E514["E5.14 ADR-0037 refactor · 5"]:::pending
-    E37["E3.7 plan bank · 4"]:::pending
-    E52["E5.2 planner · 3"]:::pending
-    E515["E5.15 r13 wiring · 3"]:::pending
+    E37["E3.7 plan bank (review) · 2"]:::pending
+    E52["E5.2 planner · cancelled r14"]:::cancelled
+    E515["E5.15 r13 leftovers check · 1"]:::pending
     E53["E5.3 loop closure · 14"]:::pending
     E54["E5.4 Composer Min · 6"]:::frontier
     E51["E5.1 Input Parser ⏳"]:::await
     E91["E9.1 golden-path fw, GP-1…5 + GP-9 · 10"]:::pending
-    E55["E5.5 Executor Done (build) · 11"]:::pending
+    E55["E5.5 Executor Done · cancelled r14"]:::cancelled
     E57["E5.7 traceability checker · 12"]:::pending
     E56["E5.6 capability neg. + GP-10 · 8"]:::pending
   end
@@ -434,9 +435,9 @@ flowchart LR
   E42 & E43 & E44 & E45 --> M2
 
   %% Planner spine (critical for M3, M4, M5, M7)
-  E38 ==> E311 ==> E514 ==> E37 ==> E52 ==> E515 ==> E53 ==> E91 ==> E92
+  E38 ==> E311 ==> E514 ==> E37 ==> E515 ==> E53 ==> E91 ==> E92
   E91 ==> E98 ==> E93
-  E515 --> E55
+  %% E5.2 and E5.5 are cancelled (r14): no edges, their dependents inherited their blockers
   E45 --> E53
   E51 --> E91
   E54 --> E91
@@ -470,10 +471,10 @@ flowchart LR
   E81 ==> E82 ==> E83 ==> E84 ==> E85
   E62 & E74 & E98 --> M5
   E82 & E83 & E84 & E85 --> M6
-  E49 & E55 & E56 & E57 & E93 --> M7
+  E49 & E56 & E57 & E93 --> M7
 
   %% risks
-  E513 -.-> E37 & E52 & E54 & E98
+  E513 -.-> E37 & E54 & E98
   E514 -.-> E61 & E71
   XNET -.-> E53 & E98
 ```
@@ -496,7 +497,7 @@ flowchart LR
   classDef suite fill:#e8eefc,stroke:#1f3b73,color:#000
   classDef task fill:#fff,stroke:#555,color:#000
 
-  BUILT(("built before V1<br/>M2–M6 + E5.5 · 11 Dec")):::pass
+  BUILT(("built before V1<br/>M2–M6 · 11 Dec")):::pass
   V1{{"Validation 1 · 14–18 Dec<br/>dev splits, interim, turns nothing ✅"}}:::pass
   BUF["Wave 5 (M7 · 15 Jan) + V1 fixes · 4–22 Jan"]:::task
   FRZ{{"Feature freeze · 22 Jan<br/>(deadline 29 Jan)"}}:::pass
@@ -522,7 +523,7 @@ flowchart LR
   S6 --> T6["✅ E7.4"]:::task
   S7 --> T7["✅ E8.5"]:::task
   S8 --> T8["✅ E4.9"]:::task
-  S9 --> T9["✅ E5.5 · E9.5 · 10 · E9.4 · 6 · E5.7 rubric · GP-2 repro"]:::task
+  S9 --> T9["✅ E9.5 · 10 · E9.4 · 6 · E5.7 rubric · GP-2 repro"]:::task
 
   S1 & S8 --> E410["E4.10 calibration + ablation · 8"]:::task
   T1 & T7 & T8 & E410 --> E105["E10.5 results · 20 · by 12 Feb"]:::task
@@ -538,18 +539,18 @@ flowchart LR
 | Target | Points | Chain |
 |---|---|---|
 | M2 (build) | 34 | E3.8 → E4.4 |
-| M3 (build) | 61 | E3.8 → E3.11 → E5.14 → E3.7 → E5.2 → E5.15 → E5.3 → E9.1 |
-| M4 (build) | 67 | E3.8 → E3.11 → E5.14 → E3.7 → E5.2 → E5.15 → E5.3 → E9.1 → E9.2 (the Builder chain E2.5 → E2.6 → E2.7 is 52) |
-| M5 (build) | 69 | E3.8 → E3.11 → E5.14 → E3.7 → E5.2 → E5.15 → E5.3 → E9.1 → E9.8 |
+| M3 (build) | 54 | E3.8 → E3.11 → E5.14 → E3.7 → E5.15 → E5.3 → E9.1 |
+| M4 (build) | 60 | E3.8 → E3.11 → E5.14 → E3.7 → E5.15 → E5.3 → E9.1 → E9.2 (the Builder chain E2.5 → E2.6 → E2.7 is 52) |
+| M5 (build) | 62 | E3.8 → E3.11 → E5.14 → E3.7 → E5.15 → E5.3 → E9.1 → E9.8 |
 | M6 (build) | 60 | E8.1 → E8.2 → E8.3 → E8.4 → E8.5 |
-| M7 (build) = all built | **79** | E3.8 → E3.11 → E5.14 → E3.7 → E5.2 → E5.15 → E5.3 → E9.1 → E9.8 → E9.3 (E4.9: E3.8 → E4.4 → E4.9 = 52) |
+| M7 (build) = all built | **72** | E3.8 → E3.11 → E5.14 → E3.7 → E5.15 → E5.3 → E9.1 → E9.8 → E9.3 (E4.9: E3.8 → E4.4 → E4.9 = 52) |
 | Tail after V2 | 68 + V2 runs | E4.10 → E10.5 → E10.6 → E10.7 → (E10.8 in M9) |
 
 ### 4.4 What to watch
 
-- **The planner spine is the critical path of the whole plan.** E3.8 → E3.11 → E5.14 → E3.7 → E5.2 → E5.15 → E5.3 → E9.1
+- **The planner spine is the critical path of the whole plan.** E3.8 → E3.11 → E5.14 → E3.7 → E5.15 → E5.3 → E9.1
   feeds M3, M4, M5 (GP-8/GP-11 need the planner and the golden-path framework) and M7. Start it first.
-- **ADR-0027 sits at the root of the spine** (E3.7, E5.2, E5.4, E9.8 build on arms): E5.13 settles it
+- **ADR-0027 sits at the root of the spine** (E3.7, E5.4, E9.8 build on arms; the planner already does): E5.13 settles it
   right after E3.8, before E3.7 starts.
 - **Multi-network `ExpertTask`** (risk, decided inside E5.3): `ExpertTask` carries one `network_id`; the
   Expert's topology tools are built over one `NetworkQuery`, `ask_expert` rejects `values` naming an edge
