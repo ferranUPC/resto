@@ -19,7 +19,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from eval.plan_bank.bank import PLANS_PATH, load_plans, save_corrected, save_plans
+from eval.plan_bank.bank import PLANS_PATH, load_plans, question_basis, save_corrected, save_plans
 from eval.request_bank.concepts import concept_by_id
 
 # No public coverage check exists: `plan_problems` needs repositories a bank does not have.
@@ -84,6 +84,17 @@ def corrected_notes(review: dict[str, Any], key: str) -> dict[str, str]:
     }
 
 
+def corrected_basis(review: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """The arms and study window of each corrected concept's gold `Question` at review time, so a
+    later change of the `Question` shows in the tests instead of leaving the correction stale."""
+    result: dict[str, dict[str, Any]] = {}
+    for concept_id in corrected_notes(review, "plans"):
+        gold = concept_by_id(concept_id).gold
+        assert isinstance(gold, Question)
+        result[concept_id] = question_basis(gold)
+    return result
+
+
 def apply_review(plans: dict[str, StudyPlan], review: dict[str, Any]) -> dict[str, StudyPlan]:
     """The plans after the review: corrections replace proposals, accepted plans are kept. A
     corrected plan must cover the arms phase 0 needs and derive each topology once."""
@@ -109,7 +120,7 @@ def main(argv: list[str]) -> None:
     review = json.loads(Path(argv[0]).read_text(encoding="utf-8"))
     applied = apply_review(load_plans(), review)
     save_plans(applied)
-    save_corrected({"plans": corrected_notes(review, "plans")})
+    save_corrected({"plans": corrected_notes(review, "plans")}, basis=corrected_basis(review))
     print(f"wrote {len(applied)} reviewed plans to {PLANS_PATH}")
 
 
