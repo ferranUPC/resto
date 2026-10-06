@@ -42,6 +42,7 @@
   .verdict.maybe { background:var(--warn-soft); color:var(--warn); }
   .tools { display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center; margin:10px 0 14px; }
   .tools .push { margin-left:auto; }
+  .tools .gin { width:4rem; }
 
   /* suites */
   .suite-head { display:flex; justify-content:space-between; gap:14px; align-items:flex-start; }
@@ -63,6 +64,7 @@
   details.more { margin-top:12px; border-top:1px solid var(--line); padding-top:8px; }
   details.more > summary { cursor:pointer; font-size:.88rem; color:var(--accent); font-weight:600; padding:4px 0; }
   .field { margin-top:14px; }
+  .row + .field { margin-top:16px; }
   .field-head { display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
   .field-head b { font-size:.92rem; }
   .field-note { margin:0 0 6px; }
@@ -107,14 +109,14 @@
 </head>
 <body>
 <h1>Evaluation budget</h1>
-<p class="sub">Pick a size for each test suite and see what it costs in USD. Each cost is a range, from the cheapest to the most expensive outcome. Open "Customize" on a suite to change the details. The link keeps your choices, so you can send it.</p>
+<p class="sub">Pick a size for each test suite and see what it costs in USD. Each cost is a range, from the cheapest to the most expensive outcome. Each suite shows its test cases; open "Models and contingency" to change the rest. The link keeps your choices, so you can send it.</p>
 
 <div class="card summary" id="summary" aria-live="polite"></div>
 <div class="tools">
   <button id="reset" type="button">Reset to planned</button>
   <button id="copy" type="button">Copy link</button>
   <span class="small" id="copied"></span>
-  <label class="small push" title="Extra margin added on top of everything, for surprises">Extra margin on the whole budget <input id="g" class="gin" type="number" min="0" max="500" step="1" inputmode="decimal" style="width:4rem"> %</label>
+  <label class="small push" title="Share added on top of every suite and its own contingency, for surprises">Global contingency <input id="g" class="gin" type="number" min="0" max="500" step="1" inputmode="decimal"> %</label>
 </div>
 
 <div id="suites"></div>
@@ -156,7 +158,14 @@ function clamp(data, s, cfg) {
   });
   return cfg;
 }
-function sameCfg(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
+function sameCfg(a, b) {
+  var reps = function (c) {
+    var r = {};
+    Object.keys(c.reps).forEach(function (k) { if (c.models[k]) r[k] = c.reps[k]; });
+    return r;
+  };
+  return JSON.stringify([a.inputs, a.models, reps(a)]) === JSON.stringify([b.inputs, b.models, reps(b)]);
+}
 function presetOf(data, s, cfg) {
   var found = null;
   Object.keys(s.tiers).forEach(function (t) {
@@ -283,7 +292,7 @@ function totals(data, state) {
   var data = JSON.parse(document.getElementById("data").textContent);
   var state = parseFragment(data, location.hash);
   var $ = function (id) { return document.getElementById(id); };
-  var money = function (v) { return "$" + (v >= 100 ? v.toFixed(0) : v.toFixed(2)); };
+  var money = function (v) { return "$" + v.toFixed(2); };
   var usd = function (r) { return money(r[0]) + " to " + money(r[1]); };
   var pct = function (part, whole) { return (whole[1] ? Math.round(100 * part[1] / whole[1]) : 0) + "%"; };
   var PASS_NAME = { V1: "Quick check", V2: "Final run" };
@@ -333,6 +342,7 @@ function totals(data, state) {
     var head = el("div", undefined, "suite-head"), left = el("div");
     left.appendChild(el("h3", s.name));
     left.appendChild(el("p", s.measures, "small"));
+    left.appendChild(el("p", "Goal to compare against: " + s.threshold, "small"));
     var tags = el("div", undefined, "tags");
     if (fixedText(s)) tags.appendChild(el("span", fixedText(s), "tag"));
     n.pending = el("span", "Uses models not yet approved", "tag warn");
@@ -359,7 +369,7 @@ function totals(data, state) {
     row.appendChild(n.seg); card.appendChild(row);
 
     var more = el("details", undefined, "more");
-    more.appendChild(el("summary", "Customize"));
+    more.appendChild(el("summary", "Models and contingency"));
 
     Object.keys(ex.inputs).forEach(function (p) {
       var b = ex.inputs[p], f = el("div", undefined, "field"), h = el("div", undefined, "field-head");
@@ -368,12 +378,12 @@ function totals(data, state) {
         function (v) { state.cfg[s.id].inputs[p] = v; edit(s); }, b.min, b.max, "test cases in " + p);
       h.appendChild(st.box); f.appendChild(h);
       f.appendChild(el("p", p === "V1"
-        ? "A test case is one request or question the models must answer. The quick check runs a small set to catch problems early. Allowed: " + b.min + " to " + b.max + "."
-        : "The definitive run on the full set. Allowed: " + b.min + " to " + b.max + ".", "small field-note"));
+        ? "One request or question the models must answer. A small set catches problems early. Allowed: " + b.min + " to " + b.max + "."
+        : "The definitive run. Allowed: " + b.min + " to " + b.max + ".", "small field-note"));
       var r = el("input"); r.type = "range"; r.min = b.min; r.max = b.max; r.step = 1;
       r.setAttribute("aria-label", "Test cases in " + p);
       r.addEventListener("input", function () { state.cfg[s.id].inputs[p] = r.value; edit(s); });
-      f.appendChild(r); more.appendChild(f);
+      f.appendChild(r); card.appendChild(f);
       n.passes[p] = { st: st, range: r };
     });
 
@@ -412,16 +422,15 @@ function totals(data, state) {
     mf.appendChild(models); more.appendChild(mf);
 
     var rf = el("div", undefined, "field"), rh = el("div", undefined, "field-head");
-    rh.appendChild(el("b", "Reserve for reruns"));
+    rh.appendChild(el("b", "Contingency for reruns"));
     var wrap = el("span", undefined, "step");
     n.cont = el("input"); n.cont.type = "number"; n.cont.min = 0; n.cont.max = 500; n.cont.step = 1;
-    n.cont.setAttribute("aria-label", "Reserve for reruns, percent");
+    n.cont.setAttribute("aria-label", "Contingency for reruns, percent");
     n.cont.addEventListener("input", function () { state.c[s.id] = share(String(n.cont.value / 100), state.c[s.id]); update(true); });
     wrap.appendChild(n.cont); wrap.appendChild(el("span", "%", "small"));
     rh.appendChild(wrap); rf.appendChild(rh);
-    rf.appendChild(el("p", "Extra money held back for this suite in case runs must be repeated.", "small field-note"));
+    rf.appendChild(el("p", "Share of this suite's cost held back in case runs must be repeated.", "small field-note"));
     more.appendChild(rf);
-    more.appendChild(el("p", "Goal to compare against: " + s.threshold, "small foot"));
     card.appendChild(more);
 
     n.out = el("div", undefined, "small foot"); card.appendChild(n.out);
@@ -487,7 +496,7 @@ function totals(data, state) {
     else if (t.excess[0] > 0) v = el("span", "Over the $" + data.cap + " cap by " + usd(t.excess), "verdict bad");
     else v = el("span", "May exceed the $" + data.cap + " cap: the low total is within it, the high total is over by up to $" + t.excess[1].toFixed(2), "verdict maybe");
     box.appendChild(v);
-    box.appendChild(el("div", "Dark bar is the low estimate, light bar the high one. " + pct(t.byBasis.measured, t.withoutContingency) + " of the cost rests on measured runs, the rest on estimates." + (t.hours[1] ? " Manual review: " + t.hours[0].toFixed(1) + " to " + t.hours[1].toFixed(1) + " hours." : ""), "small"));
+    box.appendChild(el("div", "Without any contingency: " + usd(t.withoutContingency) + ". Dark bar is the low estimate, light bar the high one. " + pct(t.byBasis.measured, t.withoutContingency) + " of the cost rests on measured runs, the rest on estimates." + (t.hours[1] ? " Manual review: " + t.hours[0].toFixed(1) + " to " + t.hours[1].toFixed(1) + " hours." : ""), "small"));
   }
 
   function renderTable(t) {
@@ -510,7 +519,7 @@ function totals(data, state) {
     data.passes.forEach(function (p) { money2(cell(fr, "", "n"), t.byPass[p]); });
     money2(cell(fr, "", "n"), t.withContingency);
     foot.appendChild(fr); table.appendChild(foot); ov.appendChild(table);
-    ov.appendChild(el("p", "Each row includes its reserve and the extra margin, so the rows add up to the total. Big number is the high estimate, \"from\" is the low one.", "small"));
+    ov.appendChild(el("p", "Each row includes its contingency and the global contingency, so the rows add up to the total. Big number is the high estimate, \"from\" is the low one.", "small"));
   }
 
   function update(keepInputs) {
