@@ -8,7 +8,7 @@ First version, deliberately narrow: only network-wide `Quantity` claims (`mean_d
 Per-edge `Quantity`, `Edges`, `Change` and `BottleneckCauses` claims have no comparison target this
 simple a check can derive from one result alone (a `Change` claim needs its own baseline result,
 which nothing here is given); a note carrying only those stays `UNVERIFIED` rather than getting a
-guessed verdict. See docs/evaluating-resto.md §4.8 and ADR-0024 for the reasoning and where this
+guessed verdict. See eval/README.md §4.8 and ADR-0024 for the reasoning and where this
 could be widened.
 """
 

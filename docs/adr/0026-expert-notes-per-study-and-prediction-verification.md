@@ -6,7 +6,7 @@
   (`ExpertNote`), §2.4 (Network Expert), §4.7; [ADR-0011](0011-network-expert-knowledge-model.md),
   [ADR-0023](0023-coordinator-split-deterministic-executor.md), [ADR-0024](0024-expert-notes-typed-claims-and-deterministic-status.md),
   [ADR-0025](0025-executor-plan-shape-intent-rules-and-failures.md);
-  [`evaluating-resto.md`](../evaluating-resto.md) §4.8; work-plan E4.6, E4.9, E4.11, E5.10
+  [`eval/README.md`](../../eval/README.md) §4.8; work-plan E4.6, E4.9, E4.11, E5.10
 
 ## Context
 

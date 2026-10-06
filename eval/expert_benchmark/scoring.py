@@ -1,4 +1,4 @@
-"""Scores one Expert answer against its gold answer — pure, no I/O (docs/evaluating-resto.md §4.4).
+"""Scores one Expert answer against its gold answer — pure, no I/O (eval/README.md §4.4).
 
 A question is incorrect when there is no answer, when promotion rejected it, or when the expected
 typed value is missing; otherwise the family's rule decides. A diagnostic score also counts the

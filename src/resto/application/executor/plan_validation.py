@@ -1,4 +1,4 @@
-"""A plan's semantics against stored state and the phase's question (study-flows.md §5); its syntax
+"""A plan's semantics against stored state and the phase's question (ADR-0025); its syntax
 already held when the plan was built. `plan_problems` reads, never writes: planning turns what it
 finds into one `agent` failure."""
 

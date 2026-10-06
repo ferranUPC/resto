@@ -12,7 +12,7 @@
 # The default agent-run model (RESTO_LLM_DEFAULT_MODEL). Two values disagreed before this
 # manifest: adapters/llm/pricing.py carried (0.15, 0.60), eval/request_bank/llm.py carried
 # (0.10, 0.50). The pricing.py figure wins — it is the one every recorded cost in
-# docs/tuning/parser-tuning-log.md and docs/evaluating-resto.md was computed with, and its module
+# docs/tuning/parser-tuning-log.md and eval/README.md was computed with, and its module
 # docstring called it deliberately conservative (an upper bound, never an under-estimate); the
 # request_bank figure was the stale one.
 input_per_mtok = 0.15

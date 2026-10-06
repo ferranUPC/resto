@@ -1,5 +1,5 @@
 """Runs the Network Expert over benchmark questions × repetitions and stores every raw run
-(docs/evaluating-resto.md §4.2). One JSON line per (question, repetition, mode) in `out_file`: the
+(eval/README.md §4.2). One JSON line per (question, repetition, mode) in `out_file`: the
 Expert version, the answer, the promotion outcome, the tool calls, the per-step trace, the full
 evidence ledger, tokens and estimated/real cost. Scoring happens later from these lines
 (`report.py`), so a scoring rule can change without paying for the runs again.

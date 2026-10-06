@@ -3,7 +3,7 @@
 - Status: Accepted — adds a kind to ADR-0019's `AnswerValue`
 - Date: 2026-09-17
 - Architecture reference: [`tfm-architecture-and-dod.md`](../tfm-architecture-and-dod.md) §2.3, §4.7;
-  [ADR-0019](0019-typed-expert-answer-values.md); [`expert-tuning-log.md`](../expert-tuning-log.md) v0
+  [ADR-0019](0019-typed-expert-answer-values.md); [`expert-tuning-log.md`](../tuning/expert-tuning-log.md) v0
 
 ## Context
 

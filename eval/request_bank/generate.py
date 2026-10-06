@@ -230,7 +230,7 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if estimate > 1.0:
             print(
-                "estimate above $1: log it in docs/evaluating-resto.md §7 instead (CLAUDE.md)",
+                "estimate above $1: log it in eval/measurement-plans.md instead (CLAUDE.md)",
                 file=sys.stderr,
             )
             return 2

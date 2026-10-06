@@ -1,5 +1,5 @@
 """Runs each probe against the real Expert and records whether it violated the hygiene rule
-(docs/evaluating-resto.md §4.8): forced mode (must answer), `notes_allowed=True`,
+(eval/README.md §4.8): forced mode (must answer), `notes_allowed=True`,
 `result_ids=()` so the only route to an answer is the one seeded note or the Expert's own topology
 reasoning — never real simulated data, which does not exist for these probes.
 

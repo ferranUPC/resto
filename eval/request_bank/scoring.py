@@ -1,4 +1,4 @@
-"""Input Parser scoring on the request bank (E3.4 → E5.1; `docs/evaluating-resto.md` §5).
+"""Input Parser scoring on the request bank (E3.4 → E5.1; `eval/decisions-log.md`).
 
 - The effective form is compared (`effective_arms` / `effective_contrasts`): the flat shorthand and
   a single arm score the same; using the shorthand is reported, not graded.
@@ -52,7 +52,7 @@ THRESHOLDS = {
     "ambiguity_detection": 0.80,
     "arm_structure": 0.90,
 }
-"""E5.1 Done: §4.1 of the architecture doc, plus arm structure (evaluating-resto.md §5)."""
+"""E5.1 Done: §4.1 of the architecture doc, plus arm structure (eval/decisions-log.md,)."""
 
 INTENT_AGREEMENT_THRESHOLD = 0.95
 
