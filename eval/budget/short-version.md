@@ -25,8 +25,8 @@ Levels are those of the planned tier, with the models run at each (`x2` = two mo
 Basis shows the share of cost resting on a run or an estimate. Reviewer hours are manual
 time, never converted to USD. Runs, hours and cost (before contingency) are shown as
 minimum / planned. The suite varies repetitions or seeds as stated. The interactive page
-lets a reader set the inputs, the levels, the models per level and the repetitions of each
-suite within bounds fixed in the cost data, starting from any of these three sizes.
+lets a reader set the inputs, the levels, the models per level and the repetitions of
+each suite within bounds fixed in the cost data, starting from any of these sizes.
 
 | Suite | Pass | Levels tested | Varies | Runs | Basis | Reviewer hours | Cost |
 |---|---|---|---|---|---|---|---|
