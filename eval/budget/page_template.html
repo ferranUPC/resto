@@ -110,8 +110,6 @@
   <div class="seg" id="globalSize" role="group" aria-label="Size of all suites"></div>
   <button id="reset" type="button">Reset to planned</button>
   <button id="copy" type="button">Copy link</button>
-  <button id="mdDownload" type="button">Download Markdown</button>
-  <button id="mdCopy" type="button">Copy Markdown</button>
   <span class="small" id="copied"></span>
 </div>
 <div class="tools">
@@ -126,6 +124,13 @@
 
 <details class="card"><summary>Prices per model level</summary><div class="scroll"><table id="levels"></table></div>
 <p class="small">Measured figures rest on a recorded run; proxy figures are estimates. V1 runs only the default level. Reviewer effort is manual time and is never converted to dollars.</p></details>
+
+<div class="tools">
+  <span class="lab">Export</span>
+  <button id="mdDownload" type="button">Download Markdown</button>
+  <button id="mdCopy" type="button">Copy Markdown</button>
+  <span class="small" id="mdStatus"></span>
+</div>
 
 <script id="data" type="application/json">/*DATA*/</script>
 <script id="core">
@@ -625,15 +630,15 @@ function toMarkdown(data, state, date, link) {
   });
   var markdown = function () { return toMarkdown(data, state, new Date().toISOString().slice(0, 10), location.href); };
   $("mdCopy").addEventListener("click", function () {
-    var done = function () { $("copied").textContent = "Markdown copied."; };
-    if (navigator.clipboard) navigator.clipboard.writeText(markdown()).then(done, function () { $("copied").textContent = "Use Download Markdown instead."; });
-    else $("copied").textContent = "Use Download Markdown instead.";
+    var done = function () { $("mdStatus").textContent = "Markdown copied."; };
+    if (navigator.clipboard) navigator.clipboard.writeText(markdown()).then(done, function () { $("mdStatus").textContent = "Use Download Markdown instead."; });
+    else $("mdStatus").textContent = "Use Download Markdown instead.";
   });
   $("mdDownload").addEventListener("click", function () {
     var a = el("a"), url = URL.createObjectURL(new Blob([markdown()], { type: "text/markdown" }));
     a.href = url; a.download = "evaluation-budget-" + new Date().toISOString().slice(0, 10) + ".md";
     document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-    $("copied").textContent = "Markdown downloaded.";
+    $("mdStatus").textContent = "Markdown downloaded.";
   });
   window.addEventListener("hashchange", function () { state = withoutSuiteContingency(parseFragment(data, location.hash)); update(); });
   update();
