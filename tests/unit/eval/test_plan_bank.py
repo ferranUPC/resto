@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 from dataclasses import replace
 from pathlib import Path
+from typing import Any
 
 import pytest
 from eval.plan_bank.bank import (
@@ -155,7 +156,9 @@ def _windowed_concept() -> Concept:
     )
 
 
-def _corrected_with_basis(concept: Concept) -> tuple[dict[str, dict[str, str]], dict[str, object]]:
+def _corrected_with_basis(
+    concept: Concept,
+) -> tuple[dict[str, dict[str, str]], dict[str, dict[str, Any]]]:
     assert isinstance(concept.gold, Question)
     return {"plans": {concept.id: "why"}}, {concept.id: question_basis(concept.gold)}
 

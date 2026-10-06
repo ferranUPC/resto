@@ -181,5 +181,5 @@ def test_the_basis_of_each_corrected_row_is_its_questions_arms_and_window():
     from eval.request_bank.concepts import concept_by_id
 
     review = _review(overrides={"R001": {"status": "corrected"}})
-    assert corrected_basis(review) == {"R001": question_basis(concept_by_id("R001").gold)}
+    assert corrected_basis(review) == {"R001": question_basis(concept_by_id("R001").gold)}  # type: ignore[arg-type]
     assert corrected_basis(_review()) == {}
