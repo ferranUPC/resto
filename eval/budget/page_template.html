@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Evaluation budget</title>
+<style>
+  :root { --bg:#fff; --fg:#1b1f24; --muted:#59636e; --line:#d0d7de; --card:#f6f8fa; --bad:#b42318; --ok:#1a7f37; --accent:#0969da; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0d1117; --fg:#e6edf3; --muted:#8b949e; --line:#30363d; --card:#161b22; --bad:#ff7b72; --ok:#56d364; --accent:#58a6ff; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:16px; background:var(--bg); color:var(--fg); font:15px/1.45 system-ui, sans-serif; max-width:60rem; margin-inline:auto; }
+  h1 { font-size:1.4rem; margin:0 0 .25rem; }
+  h2 { font-size:1.1rem; margin:1.5rem 0 .5rem; }
+  p, li { color:var(--muted); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:12px; margin:0 0 12px; }
+  .card h3 { margin:0 0 .25rem; font-size:1rem; }
+  .row { display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin:.5rem 0; }
+  label { display:flex; flex-direction:column; font-size:.85rem; color:var(--muted); gap:2px; }
+  select, input { font:inherit; padding:6px 8px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--fg); min-width:7rem; }
+  table { border-collapse:collapse; width:100%; }
+  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  .num { text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .scroll { overflow-x:auto; }
+  .tag { display:inline-block; font-size:.75rem; padding:1px 6px; border:1px solid var(--line); border-radius:999px; color:var(--muted); }
+  .bad { color:var(--bad); font-weight:600; }
+  .ok { color:var(--ok); font-weight:600; }
+  .small { font-size:.85rem; color:var(--muted); }
+  button { font:inherit; padding:6px 10px; border:1px solid var(--line); border-radius:6px; background:var(--card); color:var(--fg); cursor:pointer; }
+</style>
+</head>
+<body>
+<h1>Evaluation budget</h1>
+<p>Pick a tier per suite and adjust the contingency. Totals are low to high, in USD, with V1 and V2 shown apart and combined against the cap. The selection is kept in the page address: copy the link to share exactly this choice.</p>
+
+<div class="card" id="summary" aria-live="polite"></div>
+<div class="row">
+  <label>Global contingency (%)<input id="g" type="number" min="0" max="500" step="1" inputmode="decimal"></label>
+  <button id="reset" type="button">Reset to defaults</button>
+  <button id="copy" type="button">Copy link</button>
+  <span class="small" id="copied"></span>
+</div>
+
+<h2>Suites</h2>
+<div id="suites"></div>
+
+<h2>Capability levels</h2>
+<div class="scroll"><table id="levels"></table></div>
+<p class="small">Figures marked measured rest on a recorded run; proxy figures are estimates. Reviewer effort is manual time in hours and is never converted to dollars.</p>
+
+<script id="data" type="application/json">/*DATA*/</script>
+<script id="core">
+"use strict";
+// Pure calculation: sums and shares over the precomputed per-suite figures. No DOM.
+function defaults(data) {
+  var tiers = {}, c = {};
+  data.suites.forEach(function (s) {
+    tiers[s.id] = s.tiers[data.defaultTier] ? data.defaultTier : Object.keys(s.tiers)[0];
+    c[s.id] = s.contingency;
+  });
+  return { tiers: tiers, c: c, g: data.globalContingency };
+}
+function share(text, fallback) {
+  var v = Number(text);
+  return text !== null && text !== "" && isFinite(v) && v >= 0 && v <= 5 ? v : fallback;
+}
+function parseFragment(data, fragment) {
+  var state = defaults(data);
+  var params = new URLSearchParams(String(fragment || "").replace(/^#/, ""));
+  data.suites.forEach(function (s) {
+    var t = params.get("tier." + s.id);
+    if (t !== null && Object.prototype.hasOwnProperty.call(s.tiers, t)) state.tiers[s.id] = t;
+    state.c[s.id] = share(params.get("c." + s.id), state.c[s.id]);
+  });
+  state.g = share(params.get("g"), state.g);
+  return state;
+}
+function toFragment(data, state) {
+  var d = defaults(data), params = new URLSearchParams();
+  data.suites.forEach(function (s) {
+    if (state.tiers[s.id] !== d.tiers[s.id]) params.set("tier." + s.id, state.tiers[s.id]);
+    if (state.c[s.id] !== d.c[s.id]) params.set("c." + s.id, String(state.c[s.id]));
+  });
+  if (state.g !== d.g) params.set("g", String(state.g));
+  var text = params.toString();
+  return text ? "#" + text : "";
+}
+function add(a, b) { return [a[0] + b[0], a[1] + b[1]]; }
+function times(a, f) { return [a[0] * f, a[1] * f]; }
+function totals(data, state) {
+  var zero = [0, 0], net = {}, reserve = {}, byPass = {}, byBasis = {}, hours = zero, rows = [];
+  data.passes.forEach(function (p) { net[p] = zero; reserve[p] = zero; });
+  data.bases.forEach(function (b) { byBasis[b] = zero; });
+  data.suites.forEach(function (s) {
+    var t = s.tiers[state.tiers[s.id]], own = zero, ownReserve = zero;
+    data.passes.forEach(function (p) {
+      net[p] = add(net[p], t.net[p]);
+      reserve[p] = add(reserve[p], times(t.net[p], state.c[s.id]));
+      own = add(own, t.net[p]);
+      ownReserve = add(ownReserve, times(t.net[p], state.c[s.id]));
+    });
+    data.bases.forEach(function (b) { byBasis[b] = add(byBasis[b], t.basis[b]); });
+    hours = add(hours, t.hours);
+    rows.push({ id: s.id, net: own, reserve: ownReserve, pending: t.pending });
+  });
+  var without = zero, withC = zero;
+  data.passes.forEach(function (p) {
+    byPass[p] = times(add(net[p], reserve[p]), 1 + state.g);
+    without = add(without, net[p]);
+    withC = add(withC, byPass[p]);
+  });
+  return {
+    withoutContingency: without, withContingency: withC, byPass: byPass, byBasis: byBasis,
+    netByPass: net, hours: hours, rows: rows,
+    excess: [Math.max(0, withC[0] - data.cap), Math.max(0, withC[1] - data.cap)]
+  };
+}
+</script>
+<script id="ui">
+"use strict";
+(function () {
+  var data = JSON.parse(document.getElementById("data").textContent);
+  var state = parseFragment(data, location.hash);
+  var $ = function (id) { return document.getElementById(id); };
+  var usd = function (r) { return "$" + r[0].toFixed(2) + " to $" + r[1].toFixed(2); };
+  var pct = function (part, whole) {
+    return (whole[1] ? Math.round(100 * part[1] / whole[1]) : 0) + "%";
+  };
+  function el(tag, text, cls) {
+    var e = document.createElement(tag);
+    if (text !== undefined) e.textContent = text;
+    if (cls) e.className = cls;
+    return e;
+  }
+  function row(table, cells, head) {
+    var tr = el("tr");
+    cells.forEach(function (c, i) {
+      var td = el(head ? "th" : "td", c, i > 0 && !head && /^\$/.test(c) ? "num" : "");
+      tr.appendChild(td);
+    });
+    table.appendChild(tr);
+  }
+  var nodes = {};
+  function buildSuites() {
+    var host = $("suites");
+    data.suites.forEach(function (s) {
+      var card = el("div", undefined, "card");
+      card.appendChild(el("h3", s.name));
+      card.appendChild(el("div", s.measures + " (" + s.threshold + ")", "small"));
+      if (!s.fixed) card.appendChild(el("div", "Shape unfixed until its benchmark is designed.", "small"));
+      var controls = el("div", undefined, "row");
+      var tl = el("label", "Tier"), sel = el("select");
+      Object.keys(s.tiers).forEach(function (t) {
+        var o = el("option", t); o.value = t; sel.appendChild(o);
+      });
+      sel.addEventListener("change", function () { state.tiers[s.id] = sel.value; update(); });
+      tl.appendChild(sel);
+      var cl = el("label", "Contingency (%)"), inp = el("input");
+      inp.type = "number"; inp.min = "0"; inp.max = "500"; inp.step = "1"; inp.inputMode = "decimal";
+      inp.addEventListener("input", function () {
+        state.c[s.id] = share(String(inp.value / 100), state.c[s.id]); update(true);
+      });
+      cl.appendChild(inp);
+      controls.appendChild(tl); controls.appendChild(cl);
+      card.appendChild(controls);
+      var out = el("div"); card.appendChild(out);
+      host.appendChild(card);
+      nodes[s.id] = { sel: sel, inp: inp, out: out };
+    });
+  }
+  function sync() {
+    data.suites.forEach(function (s) {
+      nodes[s.id].sel.value = state.tiers[s.id];
+      nodes[s.id].inp.value = Math.round(state.c[s.id] * 1000) / 10;
+    });
+    $("g").value = Math.round(state.g * 1000) / 10;
+  }
+  function update(keepInputs) {
+    var t = totals(data, state);
+    if (!keepInputs) sync();
+    history.replaceState(null, "", location.pathname + location.search + toFragment(data, state));
+    t.rows.forEach(function (r, i) {
+      var s = data.suites[i], tier = s.tiers[state.tiers[s.id]], n = nodes[s.id].out;
+      n.textContent = "";
+      n.appendChild(el("div", "Without contingency " + usd(r.net) + "; reserve " + usd(r.reserve)));
+      var meta = "Uses " + tier.levels.join(", ") + (tier.hours[1] ? "; reviewer effort " + tier.hours[0] + " to " + tier.hours[1] + " hours" : "");
+      n.appendChild(el("div", meta, "small"));
+      if (tier.pending) n.appendChild(el("span", "pending policy approval", "tag"));
+    });
+    var box = $("summary"); box.textContent = "";
+    var table = el("table");
+    row(table, ["", "Low to high"], true);
+    row(table, ["Without contingency", usd(t.withoutContingency)]);
+    data.passes.forEach(function (p) {
+      row(table, [p + " with contingency", usd(t.byPass[p])]);
+    });
+    row(table, ["Total with contingency", usd(t.withContingency)]);
+    row(table, ["Measured share of cost", pct(t.byBasis.measured, t.withoutContingency) + " of the high (rest is proxy: " + usd(t.byBasis.proxy) + ")"]);
+    if (t.hours[1]) row(table, ["Reviewer effort", t.hours[0] + " to " + t.hours[1] + " hours"]);
+    box.appendChild(table);
+    var verdict = t.excess[1] > 0
+      ? el("p", "Over the $" + data.cap + " cap by " + usd(t.excess) + " (V1 and V2 combined).", "bad")
+      : el("p", "Within the $" + data.cap + " cap.", "ok");
+    box.appendChild(verdict);
+  }
+  buildSuites();
+  var lv = $("levels");
+  row(lv, ["Level", "Policy"], true);
+  data.levels.forEach(function (l) { row(lv, [l.name, l.policy]); });
+  $("g").addEventListener("input", function () {
+    state.g = share(String($("g").value / 100), state.g); update(true);
+  });
+  $("reset").addEventListener("click", function () { state = defaults(data); update(); });
+  $("copy").addEventListener("click", function () {
+    var done = function () { $("copied").textContent = "Link copied."; };
+    if (navigator.clipboard) navigator.clipboard.writeText(location.href).then(done, function () { $("copied").textContent = "Copy the address bar instead."; });
+    else $("copied").textContent = "Copy the address bar instead.";
+  });
+  window.addEventListener("hashchange", function () { state = parseFragment(data, location.hash); update(); });
+  update();
+})();
+</script>
+</body>
+</html>
