@@ -39,6 +39,13 @@ Coordinator agent: planning becomes a deterministic function, the planner. The p
 E5.15 wiring step and is 2 pts shorter, and the plan bank routing suite leaves the $30 budget (E3.9). No
 other scope moves.
 
+r14 (2026-10-06) records that r13 delivered that work (PR #20: `planner.py`, the Executor calls it, the
+Coordinator is deleted, phase 1 case set with 57 cases). A new task status, **cancelled** (a cancelled task
+leaves the plan: no points, no pending work, and its dependents inherit its blockers unless a substitute is
+declared), applies to **E5.2** (3 pts) and **E5.5** (11 pts); **E5.15** goes 3 → 1 and **E3.7** 4 → 2. The
+plan goes from 991 to **973 pts**; the spine becomes E3.7 → E5.15 → E5.3 and is 7 pts shorter (§4.3).
+No scope is dropped: the pieces of E5.5 have owners (E5.3, E9.1, E9.3). No ADR.
+
 The notes v0.2 accumulated in its §0 (ADR-0023/0025/0026 scope, E3.4 split,
 estimates for E4.11 and E5.9–E5.12) are absorbed into the task rows; the old text is in
 [`_old/tfm-work-plan-v0.2.md`](_old/tfm-work-plan-v0.2.md). Task status lives in
@@ -57,9 +64,9 @@ estimates for E4.11 and E5.9–E5.12) are absorbed into the task rows; the old t
 | Christmas break | **24 Dec → 2 Jan, zero work** (21–23 Dec are working days) |
 | Planning rate | 40 pts/week nominal → **38.5 pts/week** after supervisor meetings (DLR + FIB, ~3 h every two weeks): ≈ 34.5 build + ≈ 4 writing |
 | Capacity to 18 Feb | ≈ **745 pts** |
-| Remaining work | ≈ **611 pts**: 425 build (incl. E3.8, E3.11, E3.12, E5.13, E5.14, E5.15 and E7.2, E7.3, E7.5, E7.6) + ≈ 47 measurement-only + ≈ 120 writing + 12 E9.6 + 7 (E3.9, E3.10) |
-| Slack | ≈ **+133 pts** (v0.2: −95 h; +170 before E3.11; −26 for E7.2, E7.3, E7.5, E7.6; −11 net for ADR-0037, tentative; +12 net for ADR-0039). Conservative: it still counts the writing that sits in the M9 window (second half of E10.7, E10.8, ≈ 18 pts) |
-| Plan total (every row of §1) | **991 pts**: 1003 before r13 (v0.2's 935 + E3.8 (10) + E3.9 (5) + E3.10 (2) + E3.11 (12) + E5.13 (2) + E7.2, E7.3, E7.5, E7.6 (26) + ADR-0037 net (+11: E5.14 +5, E3.12 +8, E6.1 +2, E7.1 +3, E3.7 −3, E5.2 −4) − 12 for ADR-0039 (E5.2 −5, E5.5 −7, E5.8 −3, E5.15 +3) |
+| Remaining work | ≈ **593 pts**: 407 build (incl. E3.8, E3.11, E3.12, E5.13, E5.14, E5.15 and E7.2, E7.3, E7.5, E7.6) + ≈ 47 measurement-only + ≈ 120 writing + 12 E9.6 + 7 (E3.9, E3.10) |
+| Slack | ≈ **+151 pts** (v0.2: −95 h; +170 before E3.11; −26 for E7.2, E7.3, E7.5, E7.6; −11 net for ADR-0037, tentative; +12 net for ADR-0039; +18 for r14). Conservative: it still counts the writing that sits in the M9 window (second half of E10.7, E10.8, ≈ 18 pts) |
+| Plan total (every row of §1) | **973 pts**: 991 before r14 and 1003 before r13 (v0.2's 935 + E3.8 (10) + E3.9 (5) + E3.10 (2) + E3.11 (12) + E5.13 (2) + E7.2, E7.3, E7.5, E7.6 (26) + ADR-0037 net (+11: E5.14 +5, E3.12 +8, E6.1 +2, E7.1 +3, E3.7 −3, E5.2 −4) − 12 for ADR-0039 (E5.2 −5, E5.5 −7, E5.8 −3, E5.15 +3)); r14 takes 18 more (E5.2 −3 cancelled, E5.5 −11 cancelled, E5.15 −2, E3.7 −2) |
 | After 18 Feb | ~7 h/week from about March (the maintainer likely has a job), reserved for revisions, the thesis and the defense: M9 window, not planned here |
 
 The slack is not a licence for Stretch work: it is the January buffer (§3) and the first step of the
