@@ -93,6 +93,7 @@ textarea { width: 100%; resize: vertical; }
 .card-head .id { font-family: var(--mono); font-weight: 500; }
 .chip { font-size: 12px; font-weight: 500; padding: 2px 9px; border-radius: 99px; background: var(--sunk); color: var(--muted); }
 .chip.flag { background: var(--warn-soft); color: var(--warn); }
+.chip.changed { background: var(--accent-soft, var(--sunk)); color: var(--accent, var(--warn)); border: 1px solid currentColor; }
 .chip.done { background: var(--ok-soft); color: var(--ok); }
 .question { font-family: var(--serif); font-size: 19px; line-height: 1.45; margin: 0; overflow-wrap: anywhere; }
 .facts { font-size: 13px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 16px; }
@@ -133,6 +134,7 @@ const ITEMS = /*__ITEMS__*/[];
 ITEMS.forEach((it) => { it.key = it.concept_id; });
 const ALL = ITEMS;
 const FORMAT = /*__FORMAT__*/"";
+const SNAPSHOT_COMMIT = /*__SNAPSHOT_COMMIT__*/"";
 const STORE_KEY = "resto-plan-review-v1";
 const FLAG_HELP = {
   multi_arm: "more than one arm",
@@ -142,7 +144,14 @@ const FLAG_HELP = {
   network_only: "network-only question",
 };
 
-let state = { reviewer: "", tab: "phase0", onlyFlagged: false, onlyPending: false, plans: {} };
+let state = { reviewer: "", tab: "phase0", onlyFlagged: false, onlyPending: false, onlyChanged: false, sort: "delicate", plans: {} };
+const nChanged = () => ITEMS.filter((it) => it.changes.length).length;
+/* ITEMS arrive delicate first; "changed" brings the changed plans to the top, "id" sorts by concept id. */
+const SORTS = {
+  delicate: ["Delicate first", null],
+  changed: ["Changed since last review first", (a, b) => (b.changes.length > 0) - (a.changes.length > 0) || b.flags.length - a.flags.length || a.concept_id.localeCompare(b.concept_id)],
+  id: ["Concept id", (a, b) => a.concept_id.localeCompare(b.concept_id)],
+};
 for (const it of ALL) state.plans[it.key] = { status: "pending", note: "", plan_text: JSON.stringify(it.plan, null, 2) };
 
 function load() {
@@ -166,6 +175,9 @@ function cardHTML(it) {
   const p = state.plans[it.key];
   const q = it.question;
   const flags = it.flags.map((f) => `<span class="chip flag">${esc(FLAG_HELP[f] || f)}</span>`).join("");
+  const changed = it.changes.length
+    ? `<span class="chip changed" title="The gold fields differ from the plan you reviewed earlier (commit ${esc(SNAPSHOT_COMMIT)})">changed since last review</span>` : "";
+  const changes = it.changes.length ? `<div class="facts changes"><span>changes: ${esc(it.changes.join("; "))}</span></div>` : "";
   let err = "";
   if (p.status === "corrected") { const r = parsePlan(p.plan_text); if (r.error) err = `<p class="err">The plan is not valid JSON: ${esc(r.error)}</p>`; }
   const editor = p.status === "corrected"
@@ -173,11 +185,12 @@ function cardHTML(it) {
        <textarea class="json" id="plan-${esc(it.key)}" rows="14" data-id="${esc(it.key)}" data-k="plan_text">${esc(p.plan_text)}</textarea>${err}`
     : "";
   return `<article class="card ${esc(p.status)}" id="card-${esc(it.key)}">
-    <div class="card-head"><span class="id">${esc(it.concept_id)}</span><span class="chip">${esc(it.split)}</span>${flags}
+    <div class="card-head"><span class="id">${esc(it.concept_id)}</span><span class="chip">${esc(it.split)}</span>${flags}${changed}
       <span class="chip ${p.status === "pending" ? "" : "done"}" style="margin-left:auto">${esc(p.status)}</span></div>
     <p class="question">${esc(q.text)}</p>
     <div class="facts"><span>intent: <b>${esc(q.intent)}</b></span><span>network: ${esc(q.network_ref ?? "none")}</span><span>demand: ${esc(q.demand_ref ?? "none")}</span>
       <span>arms: ${esc(q.arms.join(", "))}</span>${q.contrasts.length ? `<span>contrasts: ${esc(q.contrasts.join(", "))}</span>` : ""}</div>
+    ${changes}
     ${it.realised ? `<div class="facts"><span>already realised in phase 0: <b>${esc(it.realised.join(", "))}</b></span></div>` : ""}
     <ol class="steps">${it.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>
     <div class="verdict">
@@ -190,10 +203,14 @@ function cardHTML(it) {
   </article>`;
 }
 function phase0HTML() {
-  const shown = ITEMS.filter((it) => (!state.onlyFlagged || it.flags.length) && (!state.onlyPending || state.plans[it.key].status === "pending"));
-  return `<div class="panel"><p class="hint">All ${ITEMS.length} proposed plans, delicate ones first. Accept the plan as proposed, or mark it corrected and edit its JSON. Gold fields are step kinds and dependencies, the arm and role of each scenario, the modifications of each derive_network and whether demand_ref is present; free text is not gold.</p>
+  const order = (SORTS[state.sort] || SORTS.delicate)[1];
+  const shown = ITEMS.filter((it) => (!state.onlyFlagged || it.flags.length) && (!state.onlyChanged || it.changes.length) && (!state.onlyPending || state.plans[it.key].status === "pending"));
+  if (order) shown.sort(order);
+  return `<div class="panel"><p class="hint">All ${ITEMS.length} proposed plans, delicate ones first by default. ${nChanged()} of them changed since the review of commit ${esc(SNAPSHOT_COMMIT)} (a gold field moved: arms, step kinds or dependencies, derive_network modifications, demand_ref presence). Accept the plan as proposed, or mark it corrected and edit its JSON. Gold fields are step kinds and dependencies, the arm and role of each scenario, the modifications of each derive_network and whether demand_ref is present; free text is not gold.</p>
     <div class="filters"><label><input type="checkbox" data-f="onlyFlagged" ${state.onlyFlagged ? "checked" : ""}> Flagged only</label>
+    <label><input type="checkbox" data-f="onlyChanged" ${state.onlyChanged ? "checked" : ""}> Changed since last review only</label>
     <label><input type="checkbox" data-f="onlyPending" ${state.onlyPending ? "checked" : ""}> Pending only</label>
+    <label>Sort: <select data-sort="1">${Object.entries(SORTS).map(([k, [label]]) => `<option value="${k}" ${state.sort === k ? "selected" : ""}>${esc(label)}</option>`).join("")}</select></label>
     <span class="muted mono">${shown.length} shown, ${reviewedCount()} / ${ITEMS.length} reviewed</span></div></div>
     ${shown.map(cardHTML).join("") || '<div class="panel muted">Nothing to show with these filters.</div>'}`;
 }
@@ -240,6 +257,7 @@ document.addEventListener("input", (ev) => {
 });
 document.addEventListener("change", (ev) => {
   const el = ev.target;
+  if (el.dataset && el.dataset.sort) { state.sort = el.value; save(); render(); return; }
   if (el.dataset && el.dataset.f) { state[el.dataset.f] = el.checked; save(); render(); return; }
   if (el.dataset && el.dataset.k === "status") { state.plans[el.dataset.id].status = el.value; save(); render(); }
 });
