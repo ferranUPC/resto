@@ -15,12 +15,14 @@ class StepStatus(StrEnum):
 
 class StepErrorKind(StrEnum):
     """What the user can do about a failure (ADR-0025 §3): rephrase, narrow or raise the budget,
-    retry or change the approach, or nothing (logs given)."""
+    retry or change the approach, or nothing (logs given). `PLANNING` is the planner's: it cannot
+    plan the question, or the plan it made does not validate (ADR-0039)."""
 
     USER_INPUT = "user_input"
     BUDGET = "budget"
     AGENT = "agent"
     INFRASTRUCTURE = "infrastructure"
+    PLANNING = "planning"
 
 
 @dataclass(frozen=True, slots=True)

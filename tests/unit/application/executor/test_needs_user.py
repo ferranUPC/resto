@@ -1,6 +1,6 @@
 """A specialist that returns `NeedsUser` through `execute_study` with the scripted agents (ADR-0037
 §4): the study ends in `awaiting_user` at that step, never in `failed`, and never goes back to the
-Coordinator."""
+planner."""
 
 from pathlib import Path
 
@@ -89,7 +89,7 @@ def test_the_demand_generator_needing_the_user_keeps_what_was_found(
     assert world.builder.calls == [] and world.expert.calls == []
 
 
-def test_the_study_never_goes_back_to_the_coordinator(tmp_path: Path) -> None:
+def test_the_study_never_goes_back_to_the_planner(tmp_path: Path) -> None:
     world = World(
         tmp_path,
         plans=(_obtain_plan(),),
@@ -98,7 +98,7 @@ def test_the_study_never_goes_back_to_the_coordinator(tmp_path: Path) -> None:
 
     world.run()
 
-    assert len(world.coordinator.calls) == 1
+    assert len(world.planner.calls) == 1
 
 
 def test_a_rerun_after_awaiting_user_reuses_what_was_promoted(tmp_path: Path) -> None:
@@ -124,7 +124,7 @@ def test_the_waiting_study_renders_without_a_model_call(tmp_path: Path) -> None:
     needs = _needs(SeveralCandidates(), ("peak-a", "peak-b"), found=(FoundItem("network", NET),))
     world = World(tmp_path, plans=(_obtain_plan(),), generator=(run_of(needs),))
     study = world.run()
-    calls = [len(a.calls) for a in (world.parser, world.coordinator, world.author, world.generator)]
+    calls = [len(a.calls) for a in (world.parser, world.planner, world.author, world.generator)]
 
     text = render_study(study)
 
@@ -134,5 +134,5 @@ def test_the_waiting_study_renders_without_a_model_call(tmp_path: Path) -> None:
     assert f"- `obtain_network` ok: {NET}" in text
     assert "Ask again, naming the one you mean." in text
     assert calls == [
-        len(a.calls) for a in (world.parser, world.coordinator, world.author, world.generator)
+        len(a.calls) for a in (world.parser, world.planner, world.author, world.generator)
     ]

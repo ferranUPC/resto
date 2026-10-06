@@ -269,7 +269,6 @@ def _build_scenario(
         demand_id=_id(step.demand_id),
         interventions=step.interventions,
         context_tags=step.context_tags,
-        allow_script=step.allow_script,
     )
     requested = scenario_id_for(
         scenario_task.network_id,

@@ -9,9 +9,9 @@ from eval.plan_bank.bank import (
     build_plans,
     concept_id_of,
     dump_plans,
+    gold_plan_of,
     load_corrected,
     load_plans,
-    plan_for,
     split_of,
     window_for,
 )
@@ -142,12 +142,12 @@ class TestLookup:
                 request_id = concept.variant_id(spec)
                 assert split_of(request_id) == SPLITS[concept.id]
                 if concept.id in PLANS:
-                    assert plan_for(request_id) == PLANS[concept.id]
+                    assert gold_plan_of(request_id) == PLANS[concept.id]
 
     def test_concept_without_a_plan_raises(self) -> None:
         unplanned = next(c.id for c in CONCEPTS if c.id not in PLANS)
         with pytest.raises(KeyError):
-            plan_for(unplanned)
+            gold_plan_of(unplanned)
 
     def test_window_is_computed_from_the_gold_question(self) -> None:
         concept = next(c for c in CONCEPTS if isinstance(c.gold, Question))

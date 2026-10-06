@@ -11,7 +11,7 @@ from resto.domain.value_objects.outcomes import NeedsUser
 from resto.domain.value_objects.question import Mode, Question
 from resto.domain.value_objects.report import Report
 from resto.domain.value_objects.step_record import StepRecord, StepStatus
-from resto.domain.value_objects.study_plan import ClarificationRequest, StudyPlan
+from resto.domain.value_objects.study_plan import StudyPlan
 
 
 class StudyStatus(StrEnum):
@@ -27,30 +27,24 @@ class Phase:
     """One question planned and executed, then put to the Expert (ADR-0023 §4). `phases[0]` holds
     the Input Parser's question; each later phase the previous round's `proposed_experiment`.
 
-    `clarification` is the Coordinator asking the user instead of planning (phase 0 only). A phase
-    without a plan ran nothing: its only possible step is the failed planning itself.
+    A phase without a plan ran nothing: its only possible step is the failed planning itself.
 
     `needs_user` is a specialist asking the user to act (ADR-0037 §4): the step that returned it
     has status `needs_user` and the rest of the plan is skipped, as after a failure."""
 
     question: Question
     plan: StudyPlan | None = None
-    clarification: ClarificationRequest | None = None
     needs_user: NeedsUser | None = None
     steps: tuple[StepRecord, ...] = ()
     experiments: tuple[Experiment, ...] = ()
     round: ExpertRound | None = None
 
     def __post_init__(self) -> None:
-        if self.plan is not None and self.clarification is not None:
-            raise ValueError("the Coordinator returns either a plan or a clarification")
         if self.plan is None:
             if len(self.steps) > 1 or any(s.status is not StepStatus.FAILED for s in self.steps):
                 raise ValueError("a phase without a plan holds at most its failed planning step")
             if self.experiments or self.round is not None:
                 raise ValueError("experiments and the Expert round need a plan")
-        if self.clarification is not None and self.steps:
-            raise ValueError("a clarification is not a failure: it records no step")
         waiting = [i for i, s in enumerate(self.steps) if s.status is StepStatus.NEEDS_USER]
         if (self.needs_user is not None) != bool(waiting):
             raise ValueError("a phase holds needs_user if and only if a step needed the user")
@@ -107,8 +101,6 @@ class Study:
                 raise ValueError(
                     "round max_rounds of a free study, and only that one, is forced by the limit"
                 )
-        if any(p.clarification is not None for p in self.phases[1:]):
-            raise ValueError("only phase 0 has a user to ask: later clarifications fail the round")
 
     def _check_status(self) -> None:
         first, last = self.phases[0], self.phases[-1]
@@ -119,18 +111,14 @@ class Study:
             or self.status is not StudyStatus.AWAITING_USER
         ):
             raise ValueError("an ambiguous question puts the study in awaiting_user with no steps")
-        if first.clarification is not None and self.status is not StudyStatus.AWAITING_USER:
-            raise ValueError("a Coordinator clarification puts the study in awaiting_user")
         if any(p.needs_user is not None for p in self.phases[:-1]):
             raise ValueError("a step that needed the user ends the study: only the last phase")
         if last.needs_user is not None and self.status is not StudyStatus.AWAITING_USER:
             raise ValueError("a step that needed the user puts the study in awaiting_user")
         if self.status is StudyStatus.AWAITING_USER and not (
-            self.question.is_ambiguous
-            or first.clarification is not None
-            or last.needs_user is not None
+            self.question.is_ambiguous or last.needs_user is not None
         ):
-            raise ValueError("awaiting_user needs the ambiguities, the candidates or a message")
+            raise ValueError("awaiting_user needs the ambiguities or a specialist's message")
         failures = [s for p in self.phases for s in p.steps if s.status is StepStatus.FAILED]
         if (self.status is StudyStatus.FAILED) != bool(failures):
             raise ValueError("a study is failed if and only if a step failed")

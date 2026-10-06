@@ -3,7 +3,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a compare question, arms: base, treatment.",
+    "rationale": "Phase 0 of a compare question, arms: base, treatment. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -36,10 +36,9 @@
         },
         "arm": "base",
         "role": "baseline",
-        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "purpose": "Baseline arm 'base': the network and demand unchanged, the reference for the contrasts.",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
@@ -55,7 +54,7 @@
         },
         "arm": "treatment",
         "role": "treatment",
-        "purpose": "Arm 'treatment', the change the question asks about.",
+        "purpose": "Treatment arm 'treatment': the change the question asks about. Changes: lane_closure on lane B0C0_1 from 08:00 to 08:30.",
         "interventions": [
           {
             "type": "lane_closure",
@@ -75,12 +74,31 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 2
+        },
+        "seeds": null,
+        "depends_on": [
+          2
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 3
+        },
+        "seeds": null,
+        "depends_on": [
+          3
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -88,7 +106,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a describe question, arms: base.",
+    "rationale": "Phase 0 of a describe question, arms: base. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -121,15 +139,24 @@
         },
         "arm": "base",
         "role": "baseline",
-        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "purpose": "Baseline arm 'base': the network and demand unchanged, the reference for the contrasts.",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 2
+        },
+        "seeds": null,
+        "depends_on": [
+          2
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -137,7 +164,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a compare question, arms: base, closure, speed_limit.",
+    "rationale": "Phase 0 of a compare question, arms: base, closure, speed_limit. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -170,10 +197,9 @@
         },
         "arm": "base",
         "role": "baseline",
-        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "purpose": "Baseline arm 'base': the network and demand unchanged, the reference for the contrasts.",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
@@ -189,7 +215,7 @@
         },
         "arm": "closure",
         "role": "treatment",
-        "purpose": "Arm 'closure', the change the question asks about.",
+        "purpose": "Treatment arm 'closure': the change the question asks about. Changes: edge_closure on edge C0D0 from 08:00 to 08:30.",
         "interventions": [
           {
             "type": "edge_closure",
@@ -208,7 +234,6 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
@@ -224,7 +249,7 @@
         },
         "arm": "speed_limit",
         "role": "treatment",
-        "purpose": "Arm 'speed_limit', the change the question asks about.",
+        "purpose": "Treatment arm 'speed_limit': the change the question asks about. Changes: speed_limit on edge B2C2 (speed=8.333) from 08:00 to 08:30.",
         "interventions": [
           {
             "type": "speed_limit",
@@ -245,12 +270,41 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 2
+        },
+        "seeds": null,
+        "depends_on": [
+          2
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 3
+        },
+        "seeds": null,
+        "depends_on": [
+          3
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 4
+        },
+        "seeds": null,
+        "depends_on": [
+          4
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -258,7 +312,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a run question, arms: treatment.",
+    "rationale": "Phase 0 of a run question, arms: treatment. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -291,7 +345,7 @@
         },
         "arm": "treatment",
         "role": "treatment",
-        "purpose": "Arm 'treatment', the change the question asks about.",
+        "purpose": "Treatment arm 'treatment': the change the question asks about. Changes: lane_closure on lane B0C0_1 from 08:00 to 08:30; speed_limit on edge B2C2 (speed=8.333) from 08:00 to 08:30.",
         "interventions": [
           {
             "type": "lane_closure",
@@ -328,12 +382,21 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 2
+        },
+        "seeds": null,
+        "depends_on": [
+          2
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -341,7 +404,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a describe question, arms: base.",
+    "rationale": "Phase 0 of a describe question, arms: base. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -374,15 +437,24 @@
         },
         "arm": "base",
         "role": "baseline",
-        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "purpose": "Baseline arm 'base': the network and demand unchanged, the reference for the contrasts.",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 2
+        },
+        "seeds": null,
+        "depends_on": [
+          2
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -390,7 +462,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a describe question, arms: base.",
+    "rationale": "Phase 0 of a describe question, arms: base. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -423,15 +495,24 @@
         },
         "arm": "base",
         "role": "baseline",
-        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "purpose": "Baseline arm 'base': the network and demand unchanged, the reference for the contrasts.",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 2
+        },
+        "seeds": null,
+        "depends_on": [
+          2
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -439,7 +520,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a diagnose question, arms: base.",
+    "rationale": "Phase 0 of a diagnose question, arms: base. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -472,15 +553,24 @@
         },
         "arm": "base",
         "role": "baseline",
-        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "purpose": "Baseline arm 'base': the network and demand unchanged, the reference for the contrasts.",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 2
+        },
+        "seeds": null,
+        "depends_on": [
+          2
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -488,7 +578,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a diagnose question, arms: base.",
+    "rationale": "Phase 0 of a diagnose question, arms: base. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -521,15 +611,24 @@
         },
         "arm": "base",
         "role": "baseline",
-        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "purpose": "Baseline arm 'base': the network and demand unchanged, the reference for the contrasts.",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 2
+        },
+        "seeds": null,
+        "depends_on": [
+          2
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -537,7 +636,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a compare question, arms: base, treatment.",
+    "rationale": "Phase 0 of a compare question, arms: base, treatment. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -570,10 +669,9 @@
         },
         "arm": "base",
         "role": "baseline",
-        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "purpose": "Baseline arm 'base': the network and demand unchanged, the reference for the contrasts.",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
@@ -589,7 +687,7 @@
         },
         "arm": "treatment",
         "role": "treatment",
-        "purpose": "Arm 'treatment', the change the question asks about.",
+        "purpose": "Treatment arm 'treatment': the change the question asks about. Changes: speed_limit on edge C1D1 (speed=5.556) from 08:00 to 09:00.",
         "interventions": [
           {
             "type": "speed_limit",
@@ -610,12 +708,31 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 2
+        },
+        "seeds": null,
+        "depends_on": [
+          2
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 3
+        },
+        "seeds": null,
+        "depends_on": [
+          3
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -623,7 +740,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a compare question, arms: base, treatment.",
+    "rationale": "Phase 0 of a compare question, arms: base, treatment. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -656,10 +773,9 @@
         },
         "arm": "base",
         "role": "baseline",
-        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "purpose": "Baseline arm 'base': the network and demand unchanged, the reference for the contrasts.",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
@@ -675,7 +791,7 @@
         },
         "arm": "treatment",
         "role": "treatment",
-        "purpose": "Arm 'treatment', the change the question asks about.",
+        "purpose": "Treatment arm 'treatment': the change the question asks about. Changes: demand_scale (factor=1.3) from 08:00 to 09:00.",
         "interventions": [
           {
             "type": "demand_scale",
@@ -693,12 +809,31 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 2
+        },
+        "seeds": null,
+        "depends_on": [
+          2
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 3
+        },
+        "seeds": null,
+        "depends_on": [
+          3
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -706,7 +841,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a compare question, arms: base, treatment.",
+    "rationale": "Phase 0 of a compare question, arms: base, treatment. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -739,10 +874,9 @@
         },
         "arm": "base",
         "role": "baseline",
-        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "purpose": "Baseline arm 'base': the network and demand unchanged, the reference for the contrasts.",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
@@ -758,7 +892,7 @@
         },
         "arm": "treatment",
         "role": "treatment",
-        "purpose": "Arm 'treatment', the change the question asks about.",
+        "purpose": "Treatment arm 'treatment': the change the question asks about. Changes: signal_program on traffic light C2 (program_id=1) from 08:00 to 08:30.",
         "interventions": [
           {
             "type": "signal_program",
@@ -779,12 +913,31 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 2
+        },
+        "seeds": null,
+        "depends_on": [
+          2
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 3
+        },
+        "seeds": null,
+        "depends_on": [
+          3
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -792,7 +945,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a run question, arms: treatment.",
+    "rationale": "Phase 0 of a run question, arms: treatment. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -857,15 +1010,24 @@
         },
         "arm": "treatment",
         "role": "treatment",
-        "purpose": "Arm 'treatment', the change the question asks about.",
+        "purpose": "Treatment arm 'treatment': the change the question asks about. Changes: remove edge B1C1.",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           2,
           3
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 4
+        },
+        "seeds": null,
+        "depends_on": [
+          4
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -873,7 +1035,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a compare question, arms: base, treatment.",
+    "rationale": "Phase 0 of a compare question, arms: base, treatment. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -942,10 +1104,9 @@
         },
         "arm": "base",
         "role": "baseline",
-        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "purpose": "Baseline arm 'base': the network and demand unchanged, the reference for the contrasts.",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
@@ -961,15 +1122,34 @@
         },
         "arm": "treatment",
         "role": "treatment",
-        "purpose": "Arm 'treatment', the change the question asks about.",
+        "purpose": "Treatment arm 'treatment': the change the question asks about. Changes: add edge from B1 to C2 (2 lanes, 13.889 m/s).",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           2,
           3
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 4
+        },
+        "seeds": null,
+        "depends_on": [
+          4
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 5
+        },
+        "seeds": null,
+        "depends_on": [
+          5
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -977,7 +1157,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a run question, arms: treatment.",
+    "rationale": "Phase 0 of a run question, arms: treatment. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -1010,7 +1190,7 @@
         },
         "arm": "treatment",
         "role": "treatment",
-        "purpose": "Arm 'treatment', the change the question asks about.",
+        "purpose": "Treatment arm 'treatment': the change the question asks about. Changes: speed_limit on edge B2C2 (speed=8.333) when vehicle_count of B2C2 > 40.",
         "interventions": [
           {
             "type": "speed_limit",
@@ -1033,12 +1213,21 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 2
+        },
+        "seeds": null,
+        "depends_on": [
+          2
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -1046,7 +1235,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a compare question, arms: base, treatment.",
+    "rationale": "Phase 0 of a compare question, arms: base, treatment. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -1079,10 +1268,9 @@
         },
         "arm": "base",
         "role": "baseline",
-        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "purpose": "Baseline arm 'base': the network and demand unchanged, the reference for the contrasts.",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
@@ -1098,7 +1286,7 @@
         },
         "arm": "treatment",
         "role": "treatment",
-        "purpose": "Arm 'treatment', the change the question asks about.",
+        "purpose": "Treatment arm 'treatment': the change the question asks about. Changes: lane_closure on lane B0C0_0 from 08:15 to 08:45.",
         "interventions": [
           {
             "type": "lane_closure",
@@ -1118,12 +1306,31 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 2
+        },
+        "seeds": null,
+        "depends_on": [
+          2
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 3
+        },
+        "seeds": null,
+        "depends_on": [
+          3
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -1131,7 +1338,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a run question, arms: treatment.",
+    "rationale": "Phase 0 of a run question, arms: treatment. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -1197,15 +1404,24 @@
         },
         "arm": "treatment",
         "role": "treatment",
-        "purpose": "Arm 'treatment', the change the question asks about.",
+        "purpose": "Treatment arm 'treatment': the change the question asks about. Changes: set edge C0D0 to 3 lanes.",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           2,
           3
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 4
+        },
+        "seeds": null,
+        "depends_on": [
+          4
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -1213,7 +1429,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a compare question, arms: base, treatment.",
+    "rationale": "Phase 0 of a compare question, arms: base, treatment. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -1246,10 +1462,9 @@
         },
         "arm": "base",
         "role": "baseline",
-        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "purpose": "Baseline arm 'base': the network and demand unchanged, the reference for the contrasts.",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
@@ -1265,7 +1480,7 @@
         },
         "arm": "treatment",
         "role": "treatment",
-        "purpose": "Arm 'treatment', the change the question asks about.",
+        "purpose": "Treatment arm 'treatment': the change the question asks about. Changes: edge_closure on edge D1D2 from 17:00 to 18:00.",
         "interventions": [
           {
             "type": "edge_closure",
@@ -1284,12 +1499,31 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 2
+        },
+        "seeds": null,
+        "depends_on": [
+          2
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 3
+        },
+        "seeds": null,
+        "depends_on": [
+          3
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -1297,7 +1531,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a run question, arms: treatment.",
+    "rationale": "Phase 0 of a run question, arms: treatment. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -1363,15 +1597,24 @@
         },
         "arm": "treatment",
         "role": "treatment",
-        "purpose": "Arm 'treatment', the change the question asks about.",
+        "purpose": "Treatment arm 'treatment': the change the question asks about. Changes: set edge B3C3 speed to 8.333 m/s.",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           2,
           3
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 4
+        },
+        "seeds": null,
+        "depends_on": [
+          4
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -1379,7 +1622,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a compare question, arms: base, speed_limit, signal, less_demand.",
+    "rationale": "Phase 0 of a compare question, arms: base, speed_limit, signal, less_demand. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -1412,10 +1655,9 @@
         },
         "arm": "base",
         "role": "baseline",
-        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "purpose": "Baseline arm 'base': the network and demand unchanged, the reference for the contrasts.",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
@@ -1431,7 +1673,7 @@
         },
         "arm": "speed_limit",
         "role": "treatment",
-        "purpose": "Arm 'speed_limit', the change the question asks about.",
+        "purpose": "Treatment arm 'speed_limit': the change the question asks about. Changes: speed_limit on edge B2C2 (speed=11.111) from 08:00 to 09:00.",
         "interventions": [
           {
             "type": "speed_limit",
@@ -1452,7 +1694,6 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
@@ -1468,7 +1709,7 @@
         },
         "arm": "signal",
         "role": "treatment",
-        "purpose": "Arm 'signal', the change the question asks about.",
+        "purpose": "Treatment arm 'signal': the change the question asks about. Changes: signal_program on traffic light C2 (program_id=1) from 08:00 to 09:00.",
         "interventions": [
           {
             "type": "signal_program",
@@ -1489,7 +1730,6 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
@@ -1505,7 +1745,7 @@
         },
         "arm": "less_demand",
         "role": "treatment",
-        "purpose": "Arm 'less_demand', the change the question asks about.",
+        "purpose": "Treatment arm 'less_demand': the change the question asks about. Changes: demand_scale (factor=0.9) from 08:00 to 09:00.",
         "interventions": [
           {
             "type": "demand_scale",
@@ -1523,12 +1763,51 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 2
+        },
+        "seeds": null,
+        "depends_on": [
+          2
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 3
+        },
+        "seeds": null,
+        "depends_on": [
+          3
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 4
+        },
+        "seeds": null,
+        "depends_on": [
+          4
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 5
+        },
+        "seeds": null,
+        "depends_on": [
+          5
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -1536,7 +1815,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a compare question, arms: lane_1, lane_0.",
+    "rationale": "Phase 0 of a compare question, arms: lane_1, lane_0. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -1569,7 +1848,7 @@
         },
         "arm": "lane_1",
         "role": "comparison",
-        "purpose": "Alternative 'lane_1', measured against the other alternatives.",
+        "purpose": "Comparison arm 'lane_1': an alternative, measured against the other alternatives. Changes: lane_closure on lane B0C0_1 from 08:00 to 08:30.",
         "interventions": [
           {
             "type": "lane_closure",
@@ -1589,7 +1868,6 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
@@ -1605,7 +1883,7 @@
         },
         "arm": "lane_0",
         "role": "comparison",
-        "purpose": "Alternative 'lane_0', measured against the other alternatives.",
+        "purpose": "Comparison arm 'lane_0': an alternative, measured against the other alternatives. Changes: lane_closure on lane B0C0_0 from 08:00 to 08:30.",
         "interventions": [
           {
             "type": "lane_closure",
@@ -1625,12 +1903,31 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 2
+        },
+        "seeds": null,
+        "depends_on": [
+          2
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 3
+        },
+        "seeds": null,
+        "depends_on": [
+          3
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -1638,7 +1935,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a compare question, arms: base, new_edge, new_edge_closure.",
+    "rationale": "Phase 0 of a compare question, arms: base, new_edge, new_edge_closure. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -1707,10 +2004,9 @@
         },
         "arm": "base",
         "role": "baseline",
-        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "purpose": "Baseline arm 'base': the network and demand unchanged, the reference for the contrasts.",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
@@ -1726,10 +2022,9 @@
         },
         "arm": "new_edge",
         "role": "treatment",
-        "purpose": "Arm 'new_edge', the change the question asks about.",
+        "purpose": "Treatment arm 'new_edge': the change the question asks about. Changes: add edge from C1 to D2 (1 lanes, 13.889 m/s).",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           2,
           3
@@ -1745,7 +2040,7 @@
         },
         "arm": "new_edge_closure",
         "role": "treatment",
-        "purpose": "Arm 'new_edge_closure', the change the question asks about.",
+        "purpose": "Treatment arm 'new_edge_closure': the change the question asks about. Changes: add edge from C1 to D2 (1 lanes, 13.889 m/s); edge_closure on edge C2D2 from 08:00 to 08:30.",
         "interventions": [
           {
             "type": "edge_closure",
@@ -1764,12 +2059,41 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           2,
           3
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 4
+        },
+        "seeds": null,
+        "depends_on": [
+          4
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 5
+        },
+        "seeds": null,
+        "depends_on": [
+          5
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 6
+        },
+        "seeds": null,
+        "depends_on": [
+          6
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -1777,7 +2101,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a compare question, arms: new_edge, new_edge_closure.",
+    "rationale": "Phase 0 of a compare question, arms: new_edge, new_edge_closure. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -1846,10 +2170,9 @@
         },
         "arm": "new_edge",
         "role": "treatment",
-        "purpose": "Arm 'new_edge', the change the question asks about.",
+        "purpose": "Treatment arm 'new_edge': the change the question asks about. Changes: add edge NEW1 from B3 to C2 (2 lanes, 13.889 m/s).",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           2,
           3
@@ -1865,7 +2188,7 @@
         },
         "arm": "new_edge_closure",
         "role": "treatment",
-        "purpose": "Arm 'new_edge_closure', the change the question asks about.",
+        "purpose": "Treatment arm 'new_edge_closure': the change the question asks about. Changes: add edge NEW1 from B3 to C2 (2 lanes, 13.889 m/s); lane_closure on lane NEW1_0 from 08:00 to 08:30.",
         "interventions": [
           {
             "type": "lane_closure",
@@ -1885,12 +2208,31 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           2,
           3
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 4
+        },
+        "seeds": null,
+        "depends_on": [
+          4
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 5
+        },
+        "seeds": null,
+        "depends_on": [
+          5
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -1898,7 +2240,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a compare question, arms: base, removed, one_lane.",
+    "rationale": "Phase 0 of a compare question, arms: base, removed, one_lane. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -1996,10 +2338,9 @@
         },
         "arm": "base",
         "role": "baseline",
-        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "purpose": "Baseline arm 'base': the network and demand unchanged, the reference for the contrasts.",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
@@ -2015,10 +2356,9 @@
         },
         "arm": "removed",
         "role": "treatment",
-        "purpose": "Arm 'removed', the change the question asks about.",
+        "purpose": "Treatment arm 'removed': the change the question asks about. Changes: remove edge B0C0.",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           2,
           3
@@ -2034,15 +2374,44 @@
         },
         "arm": "one_lane",
         "role": "treatment",
-        "purpose": "Arm 'one_lane', the change the question asks about.",
+        "purpose": "Treatment arm 'one_lane': the change the question asks about. Changes: set edge B0C0 to 1 lanes.",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           4,
           5
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 6
+        },
+        "seeds": null,
+        "depends_on": [
+          6
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 7
+        },
+        "seeds": null,
+        "depends_on": [
+          7
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 8
+        },
+        "seeds": null,
+        "depends_on": [
+          8
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -2050,7 +2419,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a compare question, arms: base, closure, speed_limit, both.",
+    "rationale": "Phase 0 of a compare question, arms: base, closure, speed_limit, both. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -2083,10 +2452,9 @@
         },
         "arm": "base",
         "role": "baseline",
-        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "purpose": "Baseline arm 'base': the network and demand unchanged, the reference for the contrasts.",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
@@ -2102,7 +2470,7 @@
         },
         "arm": "closure",
         "role": "treatment",
-        "purpose": "Arm 'closure', the change the question asks about.",
+        "purpose": "Treatment arm 'closure': the change the question asks about. Changes: lane_closure on lane B0C0_1 from 08:00 to 08:30.",
         "interventions": [
           {
             "type": "lane_closure",
@@ -2122,7 +2490,6 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
@@ -2138,7 +2505,7 @@
         },
         "arm": "speed_limit",
         "role": "treatment",
-        "purpose": "Arm 'speed_limit', the change the question asks about.",
+        "purpose": "Treatment arm 'speed_limit': the change the question asks about. Changes: speed_limit on edge A0B0 (speed=8.333) from 08:00 to 08:30.",
         "interventions": [
           {
             "type": "speed_limit",
@@ -2159,7 +2526,6 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
@@ -2175,7 +2541,7 @@
         },
         "arm": "both",
         "role": "treatment",
-        "purpose": "Arm 'both', the change the question asks about.",
+        "purpose": "Treatment arm 'both': the change the question asks about. Changes: lane_closure on lane B0C0_1 from 08:00 to 08:30; speed_limit on edge A0B0 (speed=8.333) from 08:00 to 08:30.",
         "interventions": [
           {
             "type": "lane_closure",
@@ -2212,12 +2578,51 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 2
+        },
+        "seeds": null,
+        "depends_on": [
+          2
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 3
+        },
+        "seeds": null,
+        "depends_on": [
+          3
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 4
+        },
+        "seeds": null,
+        "depends_on": [
+          4
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 5
+        },
+        "seeds": null,
+        "depends_on": [
+          5
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -2225,7 +2630,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a compare question, arms: base, closure, speed_limit, both.",
+    "rationale": "Phase 0 of a compare question, arms: base, closure, speed_limit, both. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -2258,10 +2663,9 @@
         },
         "arm": "base",
         "role": "baseline",
-        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "purpose": "Baseline arm 'base': the network and demand unchanged, the reference for the contrasts.",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
@@ -2277,7 +2681,7 @@
         },
         "arm": "closure",
         "role": "treatment",
-        "purpose": "Arm 'closure', the change the question asks about.",
+        "purpose": "Treatment arm 'closure': the change the question asks about. Changes: edge_closure on edge C0D0 from 08:00 to 08:30.",
         "interventions": [
           {
             "type": "edge_closure",
@@ -2296,7 +2700,6 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
@@ -2312,7 +2715,7 @@
         },
         "arm": "speed_limit",
         "role": "treatment",
-        "purpose": "Arm 'speed_limit', the change the question asks about.",
+        "purpose": "Treatment arm 'speed_limit': the change the question asks about. Changes: speed_limit on edge B2C2 (speed=8.333) from 08:00 to 08:30.",
         "interventions": [
           {
             "type": "speed_limit",
@@ -2333,7 +2736,6 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
@@ -2349,7 +2751,7 @@
         },
         "arm": "both",
         "role": "treatment",
-        "purpose": "Arm 'both', the change the question asks about.",
+        "purpose": "Treatment arm 'both': the change the question asks about. Changes: edge_closure on edge C0D0 from 08:00 to 08:30; speed_limit on edge B2C2 (speed=8.333) from 08:00 to 08:30.",
         "interventions": [
           {
             "type": "edge_closure",
@@ -2385,12 +2787,51 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 2
+        },
+        "seeds": null,
+        "depends_on": [
+          2
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 3
+        },
+        "seeds": null,
+        "depends_on": [
+          3
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 4
+        },
+        "seeds": null,
+        "depends_on": [
+          4
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 5
+        },
+        "seeds": null,
+        "depends_on": [
+          5
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -2398,7 +2839,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a compare question, arms: widened, widened_closure, widened_limit.",
+    "rationale": "Phase 0 of a compare question, arms: widened, widened_closure, widened_limit. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -2464,10 +2905,9 @@
         },
         "arm": "widened",
         "role": "treatment",
-        "purpose": "Arm 'widened', the change the question asks about.",
+        "purpose": "Treatment arm 'widened': the change the question asks about. Changes: set edge C3D3 to 3 lanes.",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           2,
           3
@@ -2483,7 +2923,7 @@
         },
         "arm": "widened_closure",
         "role": "treatment",
-        "purpose": "Arm 'widened_closure', the change the question asks about.",
+        "purpose": "Treatment arm 'widened_closure': the change the question asks about. Changes: set edge C3D3 to 3 lanes; lane_closure on lane C3D3_2 from 08:00 to 08:30.",
         "interventions": [
           {
             "type": "lane_closure",
@@ -2503,7 +2943,6 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           2,
           3
@@ -2519,7 +2958,7 @@
         },
         "arm": "widened_limit",
         "role": "treatment",
-        "purpose": "Arm 'widened_limit', the change the question asks about.",
+        "purpose": "Treatment arm 'widened_limit': the change the question asks about. Changes: set edge C3D3 to 3 lanes; speed_limit on edge C3D3 (speed=8.333) from 08:00 to 08:30.",
         "interventions": [
           {
             "type": "speed_limit",
@@ -2540,12 +2979,41 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           2,
           3
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 4
+        },
+        "seeds": null,
+        "depends_on": [
+          4
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 5
+        },
+        "seeds": null,
+        "depends_on": [
+          5
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 6
+        },
+        "seeds": null,
+        "depends_on": [
+          6
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -2553,7 +3021,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a compare question, arms: base, plus_20, plus_40.",
+    "rationale": "Phase 0 of a compare question, arms: base, plus_20, plus_40. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -2586,10 +3054,9 @@
         },
         "arm": "base",
         "role": "baseline",
-        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "purpose": "Baseline arm 'base': the network and demand unchanged, the reference for the contrasts.",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
@@ -2605,7 +3072,7 @@
         },
         "arm": "plus_20",
         "role": "treatment",
-        "purpose": "Arm 'plus_20', the change the question asks about.",
+        "purpose": "Treatment arm 'plus_20': the change the question asks about. Changes: demand_scale (factor=1.2) from 08:00 to 09:00.",
         "interventions": [
           {
             "type": "demand_scale",
@@ -2623,7 +3090,6 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
@@ -2639,7 +3105,7 @@
         },
         "arm": "plus_40",
         "role": "treatment",
-        "purpose": "Arm 'plus_40', the change the question asks about.",
+        "purpose": "Treatment arm 'plus_40': the change the question asks about. Changes: demand_scale (factor=1.4) from 08:00 to 09:00.",
         "interventions": [
           {
             "type": "demand_scale",
@@ -2657,12 +3123,41 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 2
+        },
+        "seeds": null,
+        "depends_on": [
+          2
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 3
+        },
+        "seeds": null,
+        "depends_on": [
+          3
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 4
+        },
+        "seeds": null,
+        "depends_on": [
+          4
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -2670,7 +3165,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a compare question, arms: base, early, late.",
+    "rationale": "Phase 0 of a compare question, arms: base, early, late. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -2703,10 +3198,9 @@
         },
         "arm": "base",
         "role": "baseline",
-        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "purpose": "Baseline arm 'base': the network and demand unchanged, the reference for the contrasts.",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
@@ -2722,7 +3216,7 @@
         },
         "arm": "early",
         "role": "treatment",
-        "purpose": "Arm 'early', the change the question asks about.",
+        "purpose": "Treatment arm 'early': the change the question asks about. Changes: edge_closure on edge B1C1 from 07:00 to 07:30.",
         "interventions": [
           {
             "type": "edge_closure",
@@ -2741,7 +3235,6 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
@@ -2757,7 +3250,7 @@
         },
         "arm": "late",
         "role": "treatment",
-        "purpose": "Arm 'late', the change the question asks about.",
+        "purpose": "Treatment arm 'late': the change the question asks about. Changes: edge_closure on edge B1C1 from 08:00 to 08:30.",
         "interventions": [
           {
             "type": "edge_closure",
@@ -2776,12 +3269,41 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 2
+        },
+        "seeds": null,
+        "depends_on": [
+          2
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 3
+        },
+        "seeds": null,
+        "depends_on": [
+          3
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 4
+        },
+        "seeds": null,
+        "depends_on": [
+          4
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -2789,7 +3311,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a compare question, arms: base, signal, widened.",
+    "rationale": "Phase 0 of a compare question, arms: base, signal, widened. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -2855,10 +3377,9 @@
         },
         "arm": "base",
         "role": "baseline",
-        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "purpose": "Baseline arm 'base': the network and demand unchanged, the reference for the contrasts.",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
@@ -2874,7 +3395,7 @@
         },
         "arm": "signal",
         "role": "treatment",
-        "purpose": "Arm 'signal', the change the question asks about.",
+        "purpose": "Treatment arm 'signal': the change the question asks about. Changes: signal_program on traffic light D2 (program_id=1) from 07:00 to 10:00.",
         "interventions": [
           {
             "type": "signal_program",
@@ -2895,7 +3416,6 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
@@ -2911,15 +3431,44 @@
         },
         "arm": "widened",
         "role": "treatment",
-        "purpose": "Arm 'widened', the change the question asks about.",
+        "purpose": "Treatment arm 'widened': the change the question asks about. Changes: set edge C2D2 to 2 lanes.",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           2,
           3
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 4
+        },
+        "seeds": null,
+        "depends_on": [
+          4
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 5
+        },
+        "seeds": null,
+        "depends_on": [
+          5
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 6
+        },
+        "seeds": null,
+        "depends_on": [
+          6
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -2927,7 +3476,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a compare question, arms: base, speed_limit, signal.",
+    "rationale": "Phase 0 of a compare question, arms: base, speed_limit, signal. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -2960,10 +3509,9 @@
         },
         "arm": "base",
         "role": "baseline",
-        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "purpose": "Baseline arm 'base': the network and demand unchanged, the reference for the contrasts.",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
@@ -2979,7 +3527,7 @@
         },
         "arm": "speed_limit",
         "role": "treatment",
-        "purpose": "Arm 'speed_limit', the change the question asks about.",
+        "purpose": "Treatment arm 'speed_limit': the change the question asks about. Changes: speed_limit on edge B2C2 (speed=8.333) when vehicle_count of B2C2 > 40.",
         "interventions": [
           {
             "type": "speed_limit",
@@ -3002,7 +3550,6 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
@@ -3018,7 +3565,7 @@
         },
         "arm": "signal",
         "role": "treatment",
-        "purpose": "Arm 'signal', the change the question asks about.",
+        "purpose": "Treatment arm 'signal': the change the question asks about. Changes: signal_program on traffic light C2 (program_id=1) when vehicle_count of B2C2 > 40.",
         "interventions": [
           {
             "type": "signal_program",
@@ -3041,12 +3588,41 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 2
+        },
+        "seeds": null,
+        "depends_on": [
+          2
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 3
+        },
+        "seeds": null,
+        "depends_on": [
+          3
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 4
+        },
+        "seeds": null,
+        "depends_on": [
+          4
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -3054,7 +3630,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a run question, arms: treatment.",
+    "rationale": "Phase 0 of a run question, arms: treatment. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -3119,7 +3695,7 @@
         },
         "arm": "treatment",
         "role": "treatment",
-        "purpose": "Arm 'treatment', the change the question asks about.",
+        "purpose": "Treatment arm 'treatment': the change the question asks about. Changes: remove edge B1C1; demand_scale (factor=1.15) from 08:00 to 09:00.",
         "interventions": [
           {
             "type": "demand_scale",
@@ -3137,12 +3713,21 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           2,
           3
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 4
+        },
+        "seeds": null,
+        "depends_on": [
+          4
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -3150,7 +3735,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a compare question, arms: base, treatment.",
+    "rationale": "Phase 0 of a compare question, arms: base, treatment. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -3183,10 +3768,9 @@
         },
         "arm": "base",
         "role": "baseline",
-        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "purpose": "Baseline arm 'base': the network and demand unchanged, the reference for the contrasts.",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
@@ -3202,7 +3786,7 @@
         },
         "arm": "treatment",
         "role": "treatment",
-        "purpose": "Arm 'treatment', the change the question asks about.",
+        "purpose": "Treatment arm 'treatment': the change the question asks about. Changes: edge_closure on edge C1C2 from 08:00 to 08:30; edge_closure on edge C2C3 from 08:00 to 08:30.",
         "interventions": [
           {
             "type": "edge_closure",
@@ -3236,12 +3820,31 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 2
+        },
+        "seeds": null,
+        "depends_on": [
+          2
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 3
+        },
+        "seeds": null,
+        "depends_on": [
+          3
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -3249,7 +3852,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a run question, arms: treatment.",
+    "rationale": "Phase 0 of a run question, arms: treatment. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -3318,7 +3921,7 @@
         },
         "arm": "treatment",
         "role": "treatment",
-        "purpose": "Arm 'treatment', the change the question asks about.",
+        "purpose": "Treatment arm 'treatment': the change the question asks about. Changes: add edge NEW2 from D1 to E2 (1 lanes, 11.111 m/s); lane_closure on lane NEW2_0 from 08:00 to 08:30.",
         "interventions": [
           {
             "type": "lane_closure",
@@ -3338,12 +3941,21 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           2,
           3
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 4
+        },
+        "seeds": null,
+        "depends_on": [
+          4
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -3351,7 +3963,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a compare question, arms: base, treatment.",
+    "rationale": "Phase 0 of a compare question, arms: base, treatment. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -3384,10 +3996,9 @@
         },
         "arm": "base",
         "role": "baseline",
-        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "purpose": "Baseline arm 'base': the network and demand unchanged, the reference for the contrasts.",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
@@ -3403,7 +4014,7 @@
         },
         "arm": "treatment",
         "role": "treatment",
-        "purpose": "Arm 'treatment', the change the question asks about.",
+        "purpose": "Treatment arm 'treatment': the change the question asks about. Changes: speed_limit on edge A1B1 (speed=8.333) from 08:00 to 09:00; signal_program on traffic light B2 (program_id=1) from 08:00 to 09:00.",
         "interventions": [
           {
             "type": "speed_limit",
@@ -3441,12 +4052,31 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 2
+        },
+        "seeds": null,
+        "depends_on": [
+          2
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 3
+        },
+        "seeds": null,
+        "depends_on": [
+          3
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -3454,7 +4084,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a compare question, arms: base, treatment.",
+    "rationale": "Phase 0 of a compare question, arms: base, treatment. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -3524,10 +4154,9 @@
         },
         "arm": "base",
         "role": "baseline",
-        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "purpose": "Baseline arm 'base': the network and demand unchanged, the reference for the contrasts.",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
@@ -3543,15 +4172,34 @@
         },
         "arm": "treatment",
         "role": "treatment",
-        "purpose": "Arm 'treatment', the change the question asks about.",
+        "purpose": "Treatment arm 'treatment': the change the question asks about. Changes: set edge C2C3 to 3 lanes; remove edge C3C4.",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           2,
           3
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 4
+        },
+        "seeds": null,
+        "depends_on": [
+          4
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 5
+        },
+        "seeds": null,
+        "depends_on": [
+          5
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -3559,7 +4207,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a compare question, arms: base, treatment.",
+    "rationale": "Phase 0 of a compare question, arms: base, treatment. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -3592,10 +4240,9 @@
         },
         "arm": "base",
         "role": "baseline",
-        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "purpose": "Baseline arm 'base': the network and demand unchanged, the reference for the contrasts.",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
@@ -3611,7 +4258,7 @@
         },
         "arm": "treatment",
         "role": "treatment",
-        "purpose": "Arm 'treatment', the change the question asks about.",
+        "purpose": "Treatment arm 'treatment': the change the question asks about. Changes: edge_closure on edge C0D0 from 08:00 to 08:30.",
         "interventions": [
           {
             "type": "edge_closure",
@@ -3630,12 +4277,31 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 2
+        },
+        "seeds": null,
+        "depends_on": [
+          2
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 3
+        },
+        "seeds": null,
+        "depends_on": [
+          3
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -3643,7 +4309,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a compare question, arms: base, treatment.",
+    "rationale": "Phase 0 of a compare question, arms: base, treatment. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -3676,10 +4342,9 @@
         },
         "arm": "base",
         "role": "baseline",
-        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "purpose": "Baseline arm 'base': the network and demand unchanged, the reference for the contrasts.",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
@@ -3695,7 +4360,7 @@
         },
         "arm": "treatment",
         "role": "treatment",
-        "purpose": "Arm 'treatment', the change the question asks about.",
+        "purpose": "Treatment arm 'treatment': the change the question asks about. Changes: edge_closure on edge B1C1 from 08:00 to 08:30.",
         "interventions": [
           {
             "type": "edge_closure",
@@ -3714,12 +4379,31 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 2
+        },
+        "seeds": null,
+        "depends_on": [
+          2
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 3
+        },
+        "seeds": null,
+        "depends_on": [
+          3
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -3727,7 +4411,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a run question, arms: treatment.",
+    "rationale": "Phase 0 of a run question, arms: treatment. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -3760,7 +4444,7 @@
         },
         "arm": "treatment",
         "role": "treatment",
-        "purpose": "Arm 'treatment', the change the question asks about.",
+        "purpose": "Treatment arm 'treatment': the change the question asks about. Changes: speed_limit on edge C1C2 (speed=8.333) from 08:00 to 09:00.",
         "interventions": [
           {
             "type": "speed_limit",
@@ -3781,12 +4465,21 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 2
+        },
+        "seeds": null,
+        "depends_on": [
+          2
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -3794,7 +4487,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a compare question, arms: base, a, b, widened_a, widened_c, removed_b, new_edge, new_edge_d.",
+    "rationale": "Phase 0 of a compare question, arms: base, a, b, widened_a, widened_c, removed_b, new_edge, new_edge_d. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -3928,10 +4621,9 @@
         },
         "arm": "base",
         "role": "baseline",
-        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "purpose": "Baseline arm 'base': the network and demand unchanged, the reference for the contrasts.",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
@@ -3947,7 +4639,7 @@
         },
         "arm": "a",
         "role": "comparison",
-        "purpose": "Alternative 'a', measured against the other alternatives.",
+        "purpose": "Comparison arm 'a': an alternative, measured against the other alternatives. Changes: lane_closure on lane B0C0_1 from 08:00 to 08:30.",
         "interventions": [
           {
             "type": "lane_closure",
@@ -3967,7 +4659,6 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
@@ -3983,7 +4674,7 @@
         },
         "arm": "b",
         "role": "comparison",
-        "purpose": "Alternative 'b', measured against the other alternatives.",
+        "purpose": "Comparison arm 'b': an alternative, measured against the other alternatives. Changes: speed_limit on edge B2C2 (speed=8.333) from 08:00 to 09:00.",
         "interventions": [
           {
             "type": "speed_limit",
@@ -4004,7 +4695,6 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
@@ -4020,7 +4710,7 @@
         },
         "arm": "widened_a",
         "role": "comparison",
-        "purpose": "Alternative 'widened_a', measured against the other alternatives.",
+        "purpose": "Comparison arm 'widened_a': an alternative, measured against the other alternatives. Changes: set edge C0D0 to 3 lanes; lane_closure on lane B0C0_1 from 08:00 to 08:30.",
         "interventions": [
           {
             "type": "lane_closure",
@@ -4040,7 +4730,6 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           2,
           3
@@ -4056,7 +4745,7 @@
         },
         "arm": "widened_c",
         "role": "comparison",
-        "purpose": "Alternative 'widened_c', measured against the other alternatives.",
+        "purpose": "Comparison arm 'widened_c': an alternative, measured against the other alternatives. Changes: set edge C0D0 to 3 lanes; signal_program on traffic light C2 (program_id=1) from 08:00 to 09:00.",
         "interventions": [
           {
             "type": "signal_program",
@@ -4077,7 +4766,6 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           2,
           3
@@ -4093,7 +4781,7 @@
         },
         "arm": "removed_b",
         "role": "treatment",
-        "purpose": "Arm 'removed_b', the change the question asks about.",
+        "purpose": "Treatment arm 'removed_b': the change the question asks about. Changes: remove edge B1C1; speed_limit on edge B2C2 (speed=8.333) from 08:00 to 09:00.",
         "interventions": [
           {
             "type": "speed_limit",
@@ -4114,7 +4802,6 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           4,
           5
@@ -4130,10 +4817,9 @@
         },
         "arm": "new_edge",
         "role": "treatment",
-        "purpose": "Arm 'new_edge', the change the question asks about.",
+        "purpose": "Treatment arm 'new_edge': the change the question asks about. Changes: add edge NEW3 from B1 to C2 (2 lanes, 13.889 m/s).",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           6,
           7
@@ -4149,7 +4835,7 @@
         },
         "arm": "new_edge_d",
         "role": "treatment",
-        "purpose": "Arm 'new_edge_d', the change the question asks about.",
+        "purpose": "Treatment arm 'new_edge_d': the change the question asks about. Changes: add edge NEW3 from B1 to C2 (2 lanes, 13.889 m/s); speed_limit on edge NEW3 (speed=8.333) from 08:00 to 09:00.",
         "interventions": [
           {
             "type": "speed_limit",
@@ -4170,12 +4856,91 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           6,
           7
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 8
+        },
+        "seeds": null,
+        "depends_on": [
+          8
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 9
+        },
+        "seeds": null,
+        "depends_on": [
+          9
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 10
+        },
+        "seeds": null,
+        "depends_on": [
+          10
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 11
+        },
+        "seeds": null,
+        "depends_on": [
+          11
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 12
+        },
+        "seeds": null,
+        "depends_on": [
+          12
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 13
+        },
+        "seeds": null,
+        "depends_on": [
+          13
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 14
+        },
+        "seeds": null,
+        "depends_on": [
+          14
+        ],
+        "kind": "run_simulation"
+      },
+      {
+        "scenario_id": {
+          "step": 15
+        },
+        "seeds": null,
+        "depends_on": [
+          15
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -4183,7 +4948,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a run question, arms: treatment.",
+    "rationale": "Phase 0 of a run question, arms: treatment. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -4252,15 +5017,24 @@
         },
         "arm": "treatment",
         "role": "treatment",
-        "purpose": "Arm 'treatment', the change the question asks about.",
+        "purpose": "Treatment arm 'treatment': the change the question asks about. Changes: add edge from A3 to B4 (1 lanes, 13.889 m/s).",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           2,
           3
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 4
+        },
+        "seeds": null,
+        "depends_on": [
+          4
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -4268,7 +5042,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a run question, arms: treatment.",
+    "rationale": "Phase 0 of a run question, arms: treatment. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -4301,7 +5075,7 @@
         },
         "arm": "treatment",
         "role": "treatment",
-        "purpose": "Arm 'treatment', the change the question asks about.",
+        "purpose": "Treatment arm 'treatment': the change the question asks about. Changes: lane_closure on lane B0C0_1 from 07:30 to 08:00.",
         "interventions": [
           {
             "type": "lane_closure",
@@ -4321,12 +5095,21 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 2
+        },
+        "seeds": null,
+        "depends_on": [
+          2
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -4334,7 +5117,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a run question, arms: treatment.",
+    "rationale": "Phase 0 of a run question, arms: treatment. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -4399,15 +5182,24 @@
         },
         "arm": "treatment",
         "role": "treatment",
-        "purpose": "Arm 'treatment', the change the question asks about.",
+        "purpose": "Treatment arm 'treatment': the change the question asks about. Changes: remove edge D3E3.",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           2,
           3
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 4
+        },
+        "seeds": null,
+        "depends_on": [
+          4
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -4415,7 +5207,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a run question, arms: treatment.",
+    "rationale": "Phase 0 of a run question, arms: treatment. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -4448,7 +5240,7 @@
         },
         "arm": "treatment",
         "role": "treatment",
-        "purpose": "Arm 'treatment', the change the question asks about.",
+        "purpose": "Treatment arm 'treatment': the change the question asks about. Changes: speed_limit on edge A1B1 (speed=11.111) from 17:00 to 18:00.",
         "interventions": [
           {
             "type": "speed_limit",
@@ -4469,12 +5261,21 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 2
+        },
+        "seeds": null,
+        "depends_on": [
+          2
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -4482,7 +5283,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a run question, arms: treatment.",
+    "rationale": "Phase 0 of a run question, arms: treatment. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -4548,15 +5349,24 @@
         },
         "arm": "treatment",
         "role": "treatment",
-        "purpose": "Arm 'treatment', the change the question asks about.",
+        "purpose": "Treatment arm 'treatment': the change the question asks about. Changes: set edge C3D3 to 2 lanes.",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           2,
           3
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 4
+        },
+        "seeds": null,
+        "depends_on": [
+          4
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -4564,7 +5374,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a run question, arms: treatment.",
+    "rationale": "Phase 0 of a run question, arms: treatment. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -4597,7 +5407,7 @@
         },
         "arm": "treatment",
         "role": "treatment",
-        "purpose": "Arm 'treatment', the change the question asks about.",
+        "purpose": "Treatment arm 'treatment': the change the question asks about. Changes: signal_program on traffic light A2 (program_id=1) from 08:00 to 09:00.",
         "interventions": [
           {
             "type": "signal_program",
@@ -4618,12 +5428,21 @@
           }
         ],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 2
+        },
+        "seeds": null,
+        "depends_on": [
+          2
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -4631,7 +5450,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a diagnose question, arms: base.",
+    "rationale": "Phase 0 of a diagnose question, arms: base. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -4664,15 +5483,24 @@
         },
         "arm": "base",
         "role": "baseline",
-        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "purpose": "Baseline arm 'base': the network and demand unchanged, the reference for the contrasts.",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 2
+        },
+        "seeds": null,
+        "depends_on": [
+          2
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -4680,7 +5508,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a diagnose question, arms: base.",
+    "rationale": "Phase 0 of a diagnose question, arms: base. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -4713,15 +5541,24 @@
         },
         "arm": "base",
         "role": "baseline",
-        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "purpose": "Baseline arm 'base': the network and demand unchanged, the reference for the contrasts.",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 2
+        },
+        "seeds": null,
+        "depends_on": [
+          2
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -4780,7 +5617,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a describe question, arms: base.",
+    "rationale": "Phase 0 of a describe question, arms: base. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -4813,15 +5650,24 @@
         },
         "arm": "base",
         "role": "baseline",
-        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "purpose": "Baseline arm 'base': the network and demand unchanged, the reference for the contrasts.",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 2
+        },
+        "seeds": null,
+        "depends_on": [
+          2
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -4829,7 +5675,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a describe question, arms: base.",
+    "rationale": "Phase 0 of a describe question, arms: base. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "Berlin-Mitte",
@@ -4862,15 +5708,24 @@
         },
         "arm": "base",
         "role": "baseline",
-        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "purpose": "Baseline arm 'base': the network and demand unchanged, the reference for the contrasts.",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 2
+        },
+        "seeds": null,
+        "depends_on": [
+          2
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -4878,7 +5733,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a describe question, arms: base.",
+    "rationale": "Phase 0 of a describe question, arms: base. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "Eixample",
@@ -4911,15 +5766,24 @@
         },
         "arm": "base",
         "role": "baseline",
-        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "purpose": "Baseline arm 'base': the network and demand unchanged, the reference for the contrasts.",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 2
+        },
+        "seeds": null,
+        "depends_on": [
+          2
+        ],
+        "kind": "run_simulation"
       }
     ]
   },
@@ -4927,7 +5791,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a describe question, arms: base.",
+    "rationale": "Phase 0 of a describe question, arms: base. Each arm is built on the study's demand and run once.",
     "steps": [
       {
         "network_ref": "4x4 grid",
@@ -4960,15 +5824,24 @@
         },
         "arm": "base",
         "role": "baseline",
-        "purpose": "The network and demand as they are, the reference for the contrasts.",
+        "purpose": "Baseline arm 'base': the network and demand unchanged, the reference for the contrasts.",
         "interventions": [],
         "context_tags": [],
-        "allow_script": true,
         "depends_on": [
           0,
           1
         ],
         "kind": "build_scenario"
+      },
+      {
+        "scenario_id": {
+          "step": 2
+        },
+        "seeds": null,
+        "depends_on": [
+          2
+        ],
+        "kind": "run_simulation"
       }
     ]
   }

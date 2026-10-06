@@ -30,6 +30,7 @@ from resto.domain.value_objects.study_plan import (
     ObtainNetworkStep,
     PlanStep,
     RunSimulationStep,
+    StudyPlan,
 )
 from resto.domain.value_objects.time_window import TimeWindow
 from resto.domain.value_objects.traci_script import DeclaredRule, TraciScript
@@ -182,6 +183,16 @@ def build_step(
 def run_step(step: int, seeds: tuple[int, ...] | None = None) -> RunSimulationStep:
     """A plan step running the scenario that step `step` builds."""
     return RunSimulationStep(scenario_id=FromStep(step), seeds=seeds, depends_on=(step,))
+
+
+def study_plan(*steps: PlanStep, network: str | None = None) -> StudyPlan:
+    """A plan made of exactly `steps`, as written, on the study network `network` (step 0, the
+    `obtain_network` step, unless told otherwise)."""
+    return StudyPlan(
+        network_id=FromStep(0) if network is None else network,
+        rationale="A plan by hand.",
+        steps=steps,
+    )
 
 
 def _shifted(value: Any) -> Any:

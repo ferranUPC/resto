@@ -1,6 +1,7 @@
 # ADR-0030: The Executor lives in `application/executor/`, one module per stage of the study flow
 
-- Status: Accepted
+- Status: Accepted. Amended by [ADR-0039](0039-deterministic-planner-replaces-the-coordinator.md) (accepted): the
+  `planning` module calls the deterministic planner instead of a Coordinator agent and has no `ClarificationRequest`
 - Date: 2026-09-28
 - Architecture reference: [ADR-0023](0023-coordinator-split-deterministic-executor.md),
   [ADR-0025](0025-executor-plan-shape-intent-rules-and-failures.md),

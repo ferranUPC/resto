@@ -1,4 +1,4 @@
-"""What the composition root builds to run a `Study`: the agents, the promotions not
+"""What the composition root builds to run a `Study`: the agents, the planner, the promotions not
 implemented yet, and the repositories and adapters. The study's settings are `StudySettings`."""
 
 from __future__ import annotations
@@ -8,7 +8,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from resto.application.ports.agents.composer import ComposerAgent
-from resto.application.ports.agents.coordinator import CoordinatorAgent
 from resto.application.ports.agents.demand_generator import DemandGeneratorAgent
 from resto.application.ports.agents.expert import ExpertAgent
 from resto.application.ports.agents.input_parser import InputParserAgent
@@ -36,8 +35,11 @@ from resto.domain.constants import (
 from resto.domain.entities.demand import Demand
 from resto.domain.entities.network import Network
 from resto.domain.entities.study import Study
+from resto.domain.services.planner import PlanningContext
 from resto.domain.value_objects.drafts import DemandDraft, NetworkDraft
+from resto.domain.value_objects.question import Question
 from resto.domain.value_objects.report import Report
+from resto.domain.value_objects.study_plan import StudyPlan
 from resto.domain.value_objects.tasks import NetworkTask, ObtainDemandTask, ObtainNetworkTask
 
 
@@ -61,13 +63,11 @@ class StudySettings:
     calibration_max_rounds: int
     """Demand calibration rounds for a step that sets none (`RESTO_CALIBRATION_MAX_ROUNDS`)."""
     budget: StudyBudget = field(default_factory=StudyBudget)
-    has_historical_demand: bool = False
 
 
 @dataclass(frozen=True, slots=True)
 class StudyAgents:
     parser: InputParserAgent
-    coordinator: CoordinatorAgent
     network_author: NetworkAuthorAgent
     demand_generator: DemandGeneratorAgent
     scenario_builder: ScenarioBuilderAgent
@@ -92,6 +92,12 @@ class StudyPromotions:
     report: Callable[[Study, AgentRun[Report]], Report]
 
 
+Planner = Callable[[Question, PlanningContext], StudyPlan]
+"""The planning function the Executor calls for each phase (`resto.domain.services.planner.
+plan_study` in production). It raises `PlanningError` for a question it cannot plan. Injected so the
+Executor's tests control the plan without an agent."""
+
+
 @dataclass(frozen=True, slots=True)
 class StudyDeps:
     agents: StudyAgents
@@ -106,3 +112,4 @@ class StudyDeps:
     run_dirs: RunDirectories
     network_query_loader: NetworkQueryLoader
     tracer: Tracer
+    planner: Planner

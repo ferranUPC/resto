@@ -46,32 +46,30 @@ def _obtain_plan(
     network_ref: str = "RIVERSIDE",
     max_rounds: int | None = None,
     max_calibration_rounds: int | None = None,
-) -> object:
+) -> StudyPlan:
     """Obtain the network and the demand, then build and run the base arm on what they produced."""
-    return run_of(
-        StudyPlan(
-            network_id=FromStep(0),
-            rationale="as needed",
-            steps=(
-                ObtainNetworkStep(network_ref, max_rounds=max_rounds),
-                ObtainDemandStep(
-                    network_id=FromStep(0),
-                    seed=1,
-                    demand_ref="the peak",
-                    max_calibration_rounds=max_calibration_rounds,
-                    depends_on=(0,),
-                ),
-                BuildScenarioStep(
-                    network_id=FromStep(0),
-                    demand_id=FromStep(1),
-                    arm="base",
-                    role=ExperimentRole.BASELINE,
-                    purpose="reference",
-                    depends_on=(0, 1),
-                ),
-                RunSimulationStep(scenario_id=FromStep(2), depends_on=(2,)),
+    return StudyPlan(
+        network_id=FromStep(0),
+        rationale="as needed",
+        steps=(
+            ObtainNetworkStep(network_ref, max_rounds=max_rounds),
+            ObtainDemandStep(
+                network_id=FromStep(0),
+                seed=1,
+                demand_ref="the peak",
+                max_calibration_rounds=max_calibration_rounds,
+                depends_on=(0,),
             ),
-        )
+            BuildScenarioStep(
+                network_id=FromStep(0),
+                demand_id=FromStep(1),
+                arm="base",
+                role=ExperimentRole.BASELINE,
+                purpose="reference",
+                depends_on=(0, 1),
+            ),
+            RunSimulationStep(scenario_id=FromStep(2), depends_on=(2,)),
+        ),
     )
 
 
@@ -133,12 +131,10 @@ def test_a_specialist_that_returns_a_draft_has_it_promoted_by_code(tmp_path: Pat
 
 
 def test_a_network_only_question_runs_as_a_one_step_plan(tmp_path: Path) -> None:
-    only_network = run_of(
-        StudyPlan(
-            network_id=FromStep(0),
-            rationale="network only",
-            steps=(ObtainNetworkStep("RIVERSIDE"),),
-        )
+    only_network = StudyPlan(
+        network_id=FromStep(0),
+        rationale="network only",
+        steps=(ObtainNetworkStep("RIVERSIDE"),),
     )
     world = World(tmp_path, question=NETWORK_ONLY, plans=(only_network,), expert=(answers(),))
 

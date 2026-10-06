@@ -1,82 +1,59 @@
-"""Planning one phase (ADR-0025): the Coordinator call, its `ClarificationRequest` and the plan's
-semantic check (`plan_validation`)."""
+"""Planning one phase (ADR-0025, ADR-0039): the planner call and the plan's semantic check
+(`plan_validation`). One path: planner, then validation, then the `plan` step recorded."""
 
 from __future__ import annotations
 
 from dataclasses import replace
 
-from resto.application.executor.deps import StudyDeps, StudySettings
-from resto.application.executor.failures import StepFailed, draft_of
+from resto.application.executor.deps import StudyDeps
+from resto.application.executor.failures import StepFailed
 from resto.application.executor.plan_validation import plan_problems
 from resto.application.executor.recorder import StudyRecorder, data
-from resto.application.executor.spend import StudySpend
-from resto.application.ports.agents.coordinator import PlanningContext
-from resto.domain.entities.study import StudyStatus
+from resto.domain.services.planner import PlanningContext, PlanningError
 from resto.domain.value_objects.step_record import StepError, StepErrorKind, StepRecord, StepStatus
-from resto.domain.value_objects.study_plan import ClarificationRequest, StudyPlan
+from resto.domain.value_objects.study_plan import StudyPlan
 
 
 def plan_phase(
-    recorder: StudyRecorder,
-    spend: StudySpend,
-    deps: StudyDeps,
-    settings: StudySettings,
-    network_id: str | None,
+    recorder: StudyRecorder, deps: StudyDeps, network_id: str | None
 ) -> StudyPlan | None:
     """The valid plan of the current phase, recorded as its `plan` step; or nothing, once the
-    study awaits the user (a clarification in phase 0) or has failed."""
+    planner could not plan it or the plan did not validate (both a failed `plan` step of kind
+    `planning`)."""
     k = recorder.phase_index
     phase = recorder.phase
-    earlier = tuple(e for p in recorder.study.phases[:-1] for e in p.experiments)
-    context = PlanningContext(
-        phase=k,
-        network_id=network_id,
-        experiments=earlier,
-        has_historical_demand=settings.has_historical_demand,
-    )
+    realised = _realised(recorder)
     task = {"phase": k, "question": data(phase.question)}
     try:
-        coordinator = deps.agents.coordinator
-        run = spend.agent_call(lambda: coordinator.plan(phase.question, context))
-        output = draft_of(run, "coordinator")
-    except StepFailed as failed:
-        recorder.record_failure("plan", task, failed)
-        return None
-    if isinstance(output, ClarificationRequest):
-        if k == 0:
-            recorder.clarification_asked(output.reason)
-            recorder.replace_phase(
-                replace(phase, clarification=output), status=StudyStatus.AWAITING_USER
-            )
-            return None
-        failure = StepFailed(
-            StepError(
-                StepErrorKind.AGENT,
-                f"the Coordinator could not plan the experiment proposed in round {k}",
-                (output.reason, *output.candidates),
-            ),
-            run.usage,
+        plan = deps.planner(
+            phase.question, PlanningContext(phase=k, network_id=network_id, realised=realised)
         )
-        recorder.record_failure("plan", task, failure)
+    except PlanningError as e:
+        error = StepError(StepErrorKind.PLANNING, f"the question cannot be planned: {e}")
+        recorder.record_failure("plan", task, StepFailed(error))
         return None
     problems = plan_problems(
-        output,
+        plan,
         phase.question,
         phase=k,
-        realised={e.arm for e in earlier},
+        realised=realised,
         network_id=network_id,
         networks=deps.networks,
         demands=deps.demands,
         scenarios=deps.scenarios,
     )
     if problems:
-        failure = StepFailed(
-            StepError(StepErrorKind.AGENT, f"the plan of phase {k} is invalid", tuple(problems)),
-            run.usage,
+        error = StepError(
+            StepErrorKind.PLANNING, f"the plan of phase {k} is invalid", tuple(problems)
         )
         recorder.record_failure(
-            "plan", task, failure, phase=replace(phase, plan=output), pending=output.steps
+            "plan", task, StepFailed(error), phase=replace(phase, plan=plan), pending=plan.steps
         )
         return None
-    recorder.plan_made(output, StepRecord("plan", StepStatus.OK, task, usage=run.usage))
-    return output
+    recorder.plan_made(plan, StepRecord("plan", StepStatus.OK, task))
+    return plan
+
+
+def _realised(recorder: StudyRecorder) -> tuple[str, ...]:
+    """The arms the phases before the current one realised, in order."""
+    return tuple(e.arm for p in recorder.study.phases[:-1] for e in p.experiments)

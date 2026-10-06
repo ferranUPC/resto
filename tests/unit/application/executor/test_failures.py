@@ -77,16 +77,14 @@ def test_promote_attaches_the_usage_passed_in() -> None:
 
 
 def test_draft_of_returns_the_draft_of_a_run_stopped_on_output() -> None:
-    assert draft_of(_run(StopReason.OUTPUT, "plan"), "coordinator") == "plan"
+    assert draft_of(_run(StopReason.OUTPUT, "plan"), "expert") == "plan"
 
 
 def test_draft_of_classifies_a_run_stopped_by_its_budget_as_budget() -> None:
     with pytest.raises(StepFailed) as caught:
-        draft_of(_run(StopReason.BUDGET), "coordinator")
+        draft_of(_run(StopReason.BUDGET), "expert")
 
-    assert caught.value.error == StepError(
-        StepErrorKind.BUDGET, "coordinator ran out of its budget"
-    )
+    assert caught.value.error == StepError(StepErrorKind.BUDGET, "expert ran out of its budget")
     assert caught.value.usage == USAGE
 
 

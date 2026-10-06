@@ -1,7 +1,7 @@
 # Agentic Traffic Simulation Framework — Work Plan (v0.4)
 
 Scope: reach **Done** on every module of the Architecture & DoD document (**v1.0**, frozen) as amended by
-**ADR-0001 … ADR-0037**, plus the thesis document, between **Wed 9 Sep 2026** and **Thu 18 Feb 2027**
+**ADR-0001 … ADR-0039**, plus the thesis document, between **Wed 9 Sep 2026** and **Thu 18 Feb 2027**
 (end of full-time work, M8). The thesis is delivered in **May 2027** (M9, date TBC), which this plan
 records but does not schedule. Stretch items are explicitly out of plan.
 
@@ -27,11 +27,17 @@ and after):
   **E7 Demand Generator**, **E8 REAL-NET** (E6.3, E6.6, E3.5, E3.6, E4.8). Integration moves to **E9**
   and gains GP-8 / GP-11 (E9.8); the thesis moves to **E10**. Every old id maps to a new one in §8; ids in
   ADRs, the diary and past reviews keep their v0.3 spelling and are read through that table.
-- **Milestones.** M3–M7 are one per block of work, in build order (M3 Coordinator loop, M4 Builder and
+- **Milestones.** M3–M7 are one per block of work, in build order (M3 Planner loop, M4 Builder and
   Runner, M5 Generators, M6 REAL-NET, M7 all built). End of full-time work is now M8 and delivery M9.
 - **Calendar.** Waves 3–5 asked for 55 pts more than the planning rate gives by 11 Dec. The six tasks
   that Validation 1 does not measure (E4.9, E5.6, E5.7, E7.5, E7.6, E9.3, 60 pts) move to a wave 5 after
   V1, 4 → 15 Jan. Every latest due is now on or before the feature freeze (22 Jan).
+
+r13 (2026-10-06, [ADR-0039](adr/0039-deterministic-planner-replaces-the-coordinator.md)) removes the
+Coordinator agent: planning becomes a deterministic function, the planner. The plan goes from 1003 to
+**991 pts** (E5.2 8 → 3, E5.5 18 → 11, E5.8 8 → 5, new E5.15 +3), the E3.7 → E5.2 → E5.3 spine gains the
+E5.15 wiring step and is 2 pts shorter, and the plan bank routing suite leaves the $30 budget (E3.9). No
+other scope moves.
 
 The notes v0.2 accumulated in its §0 (ADR-0023/0025/0026 scope, E3.4 split,
 estimates for E4.11 and E5.9–E5.12) are absorbed into the task rows; the old text is in
@@ -51,9 +57,9 @@ estimates for E4.11 and E5.9–E5.12) are absorbed into the task rows; the old t
 | Christmas break | **24 Dec → 2 Jan, zero work** (21–23 Dec are working days) |
 | Planning rate | 40 pts/week nominal → **38.5 pts/week** after supervisor meetings (DLR + FIB, ~3 h every two weeks): ≈ 34.5 build + ≈ 4 writing |
 | Capacity to 18 Feb | ≈ **745 pts** |
-| Remaining work | ≈ **623 pts**: 434 build (incl. E3.8, E3.11, E3.12, E5.13, E5.14 and E7.2, E7.3, E7.5, E7.6) + ≈ 50 measurement-only + ≈ 120 writing + 12 E9.6 + 7 (E3.9, E3.10) |
-| Slack | ≈ **+121 pts** (v0.2: −95 h; +170 before E3.11; −26 for E7.2, E7.3, E7.5, E7.6; −11 net for ADR-0037, tentative). Conservative: it still counts the writing that sits in the M9 window (second half of E10.7, E10.8, ≈ 18 pts) |
-| Plan total (every row of §1) | 1003 pts: v0.2's 935 + E3.8 (10) + E3.9 (5) + E3.10 (2) + E3.11 (12) + E5.13 (2) + E7.2, E7.3, E7.5, E7.6 (26) + ADR-0037 net (+11: E5.14 +5, E3.12 +8, E6.1 +2, E7.1 +3, E3.7 −3, E5.2 −4) |
+| Remaining work | ≈ **611 pts**: 425 build (incl. E3.8, E3.11, E3.12, E5.13, E5.14, E5.15 and E7.2, E7.3, E7.5, E7.6) + ≈ 47 measurement-only + ≈ 120 writing + 12 E9.6 + 7 (E3.9, E3.10) |
+| Slack | ≈ **+133 pts** (v0.2: −95 h; +170 before E3.11; −26 for E7.2, E7.3, E7.5, E7.6; −11 net for ADR-0037, tentative; +12 net for ADR-0039). Conservative: it still counts the writing that sits in the M9 window (second half of E10.7, E10.8, ≈ 18 pts) |
+| Plan total (every row of §1) | **991 pts**: 1003 before r13 (v0.2's 935 + E3.8 (10) + E3.9 (5) + E3.10 (2) + E3.11 (12) + E5.13 (2) + E7.2, E7.3, E7.5, E7.6 (26) + ADR-0037 net (+11: E5.14 +5, E3.12 +8, E6.1 +2, E7.1 +3, E3.7 −3, E5.2 −4) − 12 for ADR-0039 (E5.2 −5, E5.5 −7, E5.8 −3, E5.15 +3) |
 | After 18 Feb | ~7 h/week from about March (the maintainer likely has a job), reserved for revisions, the thesis and the defense: M9 window, not planned here |
 
 The slack is not a licence for Stretch work: it is the January buffer (§3) and the first step of the
@@ -141,7 +147,7 @@ measurement suite is left (built; ⏳ once the tracker syncs) · `F` final stret
 | E1.3 | DatabaseMCP reference implementation (SQLite + in-process cosine, ADR-0012; filesystem artifact store): `networks`, `demands`, `scenarios`, `results` (incl. `query_edgedata`), `notes` (in-process vector search), `historical_demand` capability groups; in-process repository adapters + `mcp_client` adapter | server + adapters | 24 | — | 30 Sep |
 | E1.4 | `find_similar_scenario` (exact `scenario_id` match, else intervention + `context_tags` overlap), `search_notes` with `status`/`basis` filters, `query_edgedata` on windows/edge sets; 10 + 5 + 5 test cases | tests | 12 | — | 1 Oct |
 | E1.5 | DatabaseMCP conformance suite runnable against any implementation through the `mcp_client` adapter | `conformance/` | 10 | — | 2 Oct |
-| E1.6 | Capability-listing helper for the Coordinator; latency benchmark of every tool on DEV-NET | benchmark report | 8 | — | 2 Oct |
+| E1.6 | Capability-listing helper for the specialists; latency benchmark of every tool on DEV-NET | benchmark report | 8 | — | 2 Oct |
 
 ### E2 — Scenario Builder & Simulation Runner (110) · DoD §4.5, §4.6
 
@@ -163,9 +169,9 @@ measurement suite is left (built; ⏳ once the tracker syncs) · `F` final stret
 | E3.2 | Question templates (descriptive / diagnostic / counterfactual) + generator + programmatic gold answers from the matrix; ≥60 questions on DEV-NET. *(Rebuilt in clock time by E3.8; not reopened.)* | question bank | 16 | — | 23 Oct |
 | E3.3 | Metrics: exact match, Jaccard top-k, direction, magnitude band, Brier, abstention P/R; harness with repeated runs, mean ± std, report generation | `eval/` | 16 | — | 27 Oct |
 | E3.4 | Request bank (text → `Question`, Input Parser): ~60 hand-written **concepts**, each an English base request + gold `Question` (single treatment per `intent`, 10+ multi-arm with gold `arms`/`contrasts` per ADR-0027, combined-treatment controls, ambiguous, unintelligible, out of scope, adversarial), expanded to ~250 requests by **variants** that share the concept's gold (translations, registers, *vaguised* variants, code-made typos); variants LLM-generated and field-verified by families not under evaluation, human-reviewed, frozen; 70/30 dev/held-out split by concept. Code and rules: `eval/request_bank/`, `eval/decisions-log.md`. Consumer: E5.1 | request bank + variant pipeline | 12 | — | 18 Nov |
-| E3.7 | Plan bank (`Question` → `StudyPlan`, Coordinator), reshaped by ADR-0037: one gold plan per E3.4 concept that has a gold `Question` (54 of 80), which its variants share (a request id resolves through its concept, split inherited), independent of the database. Plans follow ADR-0025 §2 (rules by `intent`, role/purpose per scenario, no `ask_expert`/`compose_report` steps), ADR-0027 (exactly `required_arms`, reference side only for `counterfactual`, one `derive_network` per distinct topology) and ADR-0037 (`obtain_network` and `obtain_demand` with the references as the Parser wrote them and the study window derived by code; a network-only question is one `obtain_network` step). Gold proposed by a rules script that imports nothing from the Coordinator, reviewed on an HTML page with flags like the Parser's; one gold per concept in V1. Gold fields: step kinds and dependencies, arm and role per scenario, study window; free text (`purpose`, `rationale`, the wording of the references) is not gold. The DB states, distractors and resolution cases moved to E3.12. Consumers: E5.2, E5.5 | plan bank | 4 | 1b | 20 Nov |
+| E3.7 | Plan bank (`Question` → `StudyPlan`), reshaped by ADR-0037 and, from ADR-0039, the regression snapshot the planner is compared with (a difference is a diff to review, not evidence): one gold plan per E3.4 concept that has a gold `Question` (54 of 80), which its variants share (a request id resolves through its concept, split inherited), independent of the database. Plans follow ADR-0025 §2 (rules by `intent`, role/purpose per scenario, no `ask_expert`/`compose_report` steps), ADR-0027 (exactly `required_arms`, reference side only for `counterfactual`, one `derive_network` per distinct topology) and ADR-0037 (`obtain_network` and `obtain_demand` with the references as the Parser wrote them and the study window derived by code; a network-only question is one `obtain_network` step). Gold proposed by a rules script that imports only domain types (its logic becomes the planner in E5.2), reviewed on an HTML page with flags like the Parser's; one gold per concept in V1. Gold fields: step kinds and dependencies, arm and role per scenario, study window; free text (`purpose`, `rationale`, the wording of the references) is not gold. The DB states, distractors and resolution cases moved to E3.12. The phase 1 case set is rebuilt from real Expert requests inside E5.15. Consumers: E5.2, E5.5 | plan bank | 4 | 1b | 20 Nov |
 | E3.8 | *(new 2026-09-24)* ADR-0028 migration to clock time: the three DEV-NET demands move from `[0, 3600)` to `[28800, 32400)` (08:00–09:00; `low`/`peak`/`incident` are intensity labels, not times) — `eval/dev-net/demand/` (`generate_demand.sh`, trips/routes, `control_counts.json`, verification notebook re-run over 9 sim seeds, README); `eval/scenario_matrix/` windows `[0, 300)` → `[28800, 29100)`, `matrix.db`, report; `eval/question_bank/` (`DEFAULT_WINDOW`, question text in clock time, `question-bank.json`, report); `verify/` tests; the expert benchmark's bank loader; the evaluation document's citations (now `eval/README.md`). Not touched: synthetic unit tests, the request bank, old expert runs (history). DoD: rebuilt assets pass the checks they already passed (`peak` congestion 10–20 %, `incident` teleport-free over 9 seeds, every matrix row's §4.5 effect check, ≥ 60 questions, `verify/` green). No paid runs | demands + matrix + question bank | 10 | 1a | 23 Oct |
-| E3.9 | *(new 2026-09-24)* Evaluation budget document for the supervisors (FIB/DLR): short, in English, one row per measurement suite (what it measures, which threshold, which pass, full vs minimum size, cost measured vs proxy), totals against the $30 cap; takes over the suites table of `eval/measurement-plans.md`. First version with whatever is known, **before the funding request (~24 Oct)**; each suite's row is refined when its benchmark is designed | document | 5 | 1b | 23 Oct |
+| E3.9 | *(new 2026-09-24)* Evaluation budget document for the supervisors (FIB/DLR): short, in English, one row per measurement suite (what it measures, which threshold, which pass, full vs minimum size, cost measured vs proxy), totals against the $30 cap, **without the plan bank routing suite** (ADR-0039: planning is checked by deterministic tests, so $0.3–4.5 leaves the budget and the estimated total of §4.2 falls from $9.9–25.4 to $9.6–20.9); takes over the suites table of `eval/measurement-plans.md`. First version with whatever is known, **before the funding request (~24 Oct)**; each suite's row is refined when its benchmark is designed | document | 5 | 1b | 23 Oct |
 | E3.10 | *(new 2026-09-24)* Trim `eval/decisions-log.md` to one line per decision, linking the tuning logs | doc edit | 2 | 1b | 11 Dec |
 | E3.11 | *(new 2026-09-30, widened by its grilling the same day)* ADR-0035 described demand, found while triaging E3.7: `Demand.description` (required) + free `labels` (domain, `DemandDraft`, schemas, both `Database` backends, DatabaseMCP demand record; `matrix.db` rebuilt); DEV-NET's three demands described; `Question.network_only` marked by the Parser; `time_window` is the period the user asks about for every `intent`; `demand_ref` becomes a short English phrase, scored by presence; DatabaseMCP contract and GP-10 ask instead of falling back to random demand; request bank (E3.4): concepts that need a demand name it (some with the demand spread across the text), a few stay without one on purpose, + 3 network-only `describe` concepts and one traffic counterexample, + 3 concepts on networks not in the DB (Berlin-Mitte, the Eixample, a 4x4 grid), variants regenerated and reviewed, new concepts placed by the frozen split rule (`concepts.py`); module docstring's "peak hour" rule updated; Parser (E5.1) development pass on dev, logged as one contract change (bank + the `demand_ref`/`time_window`/`network_only` prompt rules). DoD: bank rebuilt and verified, Parser dev thresholds still met, tests green. Development runs only (≈ $0.30) | domain + DEV-NET demands + request bank | 12 | 1b | 13 Nov |
 | E3.12 | *(new 2026-10-01, from the E3.7 grilling)* Resolution banks for the specialists (ADR-0037): the DB states built by functions in `eval/` from `matrix.db` (nothing, network, network + demands, results exist), all four for a stratified subset of ~15 concepts and "results exist" with synthetic marked results for the rest; distractors (`DEV-NET-2`, `Eixample-1347` and `Eixample-1211`, demands described by day); the 32-row demand resolution table (reuse only when the stored window contains the study window, generate otherwise, ask for typical-day phrases without raw data, ask for the period when none is derivable, `random traffic` always generates); gold per case as `Found`, draft or `NeedsUser` with candidates, reviewed on an annotation page. Single gold in V1. Detail in `.scratch/unplanned/issues/04`. Used by E6.1 and E7.1 (their resolution is tuned against it, so it follows them) | resolution banks | 8 | 3 | 11 Dec |
@@ -185,24 +191,25 @@ measurement suite is left (built; ⏳ once the tracker syncs) · `F` final stret
 | E4.10 | Calibration analysis (Brier, accuracy by `basis`) and ablation facts-only vs facts + notes, read from EXP-01 and E4.9's V2 runs (store size 0 is the facts-only arm) | figures | 8 | F | 9 Feb |
 | E4.11 | Notes per ADR-0026: note writer returns 0–3 `ExpertNoteDraft`s, each with a `scenario_ref` from an allow-list (study scenarios + predicted `scenario_id`); `write_note` validates the ref and sets `provenance = simulation` only if that scenario has results in the study; tests with the fake agent | notes v2 + tests | 6 | — | 12 Nov |
 
-### E5 — Input Parser, Coordinator, Executor, Output Composer (141) · DoD §4.1, §4.2, §4.8
+### E5 — Input Parser, Planner, Executor, Output Composer (129) · DoD §4.1, §4.2, §4.8
 
 | ID | Task | Output | pts | Wave | Latest due |
 |---|---|---|---|---|---|
-| E5.1 | Input Parser (own agent, ADR-0023): text → `Question`, no tools, retry-then-fail, `ambiguities[]` → `awaiting_user` before the Coordinator runs; `InputParserAgent` port implementation (ADR-0025); tuned on dev (§4.1 + arm structure ≥ 90 %). **Measured in V2:** held-out, second use (N4) | parser agent + report | 14 | V2 | 5 Feb |
-| E5.2 | Coordinator Minimal (ADR-0023 as changed by ADR-0037): one `ToolAgent.run` per `Question`, no database tools → typed `StudyPlan`; planning rules by `intent` (ADR-0025 §2), role/purpose in the plan, planning per arm (ADR-0027), `obtain_network` and `obtain_demand` with the references and the derived study window; `CoordinatorAgent` port | coordinator agent | 8 | 1b | 23 Nov |
-| E5.3 | Loop closure (ADR-0023): `needs_simulation` → Coordinator plans the `proposed_experiment` as a new phase → Executor runs it → re-ask with the original question and all phases' results, `max_rounds` respected with the last round forced (`forced_by_limit`, ADR-0025); `ExpertTask` over base + derived networks (decided here, §4 risks); GP-3 / GP-4 / GP-5 passing | tests | 14 | 1b | 26 Nov |
+| E5.1 | Input Parser (own agent, ADR-0023): text → `Question`, no tools, retry-then-fail, `ambiguities[]` → `awaiting_user` before the planner runs; `InputParserAgent` port implementation (ADR-0025); tuned on dev (§4.1 + arm structure ≥ 90 %). **Measured in V2:** held-out, second use (N4) | parser agent + report | 14 | V2 | 5 Feb |
+| E5.2 | Planner (ADR-0039, which replaces the Coordinator agent of ADR-0023/0037): the rules of the gold script move into the domain layer as the pure function `plan(question, context) -> StudyPlan` (ADR-0025 §2, ADR-0027, ADR-0038): `obtain_network` and `obtain_demand` with the references and the derived study window, planning per arm, one `derive_network` per distinct topology, phase 1 (a missing `network_ref` from the context, a `proposed_experiment` plans as a `run`, arms already realised are not planned again), a typed planning error, `purpose` and `rationale` as templates. Validated without circularity: a hand-frozen oracle of 12–15 plans written before the code moves, properties on every plan, metamorphic tests, the plan bank as a regression snapshot. No agent, prompt or port | planner + tests | 3 | 1b | 23 Nov |
+| E5.3 | Loop closure (ADR-0023): `needs_simulation` → the planner plans the `proposed_experiment` as a new phase → Executor runs it → re-ask with the original question and all phases' results, `max_rounds` respected with the last round forced (`forced_by_limit`, ADR-0025); `ExpertTask` over base + derived networks (decided here, §4 risks); GP-3 / GP-4 / GP-5 passing | tests | 14 | 1b | 26 Nov |
 | E5.4 | Output Composer Minimal (agent): completed `Study` → `Report` (claims with `evidence_refs`) → Markdown with evidence table; experiments table marks reused experiments; fixed limitation line added by code when the last round was `forced_by_limit` (ADR-0025) | composer | 6 | 1b | 27 Nov |
-| E5.5 | Coordinator Done (build): routing harness on `StudyPlan` vs gold plan (plan bank, E3.7); `StepRecord` trace vs expected checked by tests with the fake agent; zero redundant simulations (counter); failure injection (incl. agent budget exhausted) yields named failing step with the right `StepError.kind` (ADR-0025). **Measured in V2:** routing ≥90 %, 3 reps (serves E5.8 too) | report | 18 | 4 | 11 Dec |
+| E5.5 | Executor Done (build, ADR-0039): `StepRecord` trace vs expected checked by tests with the fake world; zero redundant simulations (counter); failure injection yields named failing step with the right `StepError.kind` (ADR-0025), including the planning error. No routing harness and no measured repetitions. **Measured in V2:** through the golden paths (S9) and the failure-injection suite (E9.3) | tests + report | 11 | 4 | 11 Dec |
 | E5.6 | Capability negotiation with DatabaseMCP (`raw_demand_data` group and `list_demand_data`, ADR-0036); GP-10 | tests | 8 | 5 | 12 Jan |
 | E5.7 | Output Composer Done: automatic traceability checker (numbers ↔ artifacts), built in wave 5; faithfulness rubric on 20 reports taken from E9.5's V2 studies (F) | checker + report | 12 | 5 | 22 Jan (checker) · 9 Feb (rubric) |
-| E5.8 | Stability: 3 repeated runs of Input Parser and Coordinator benchmarks, read from V2 (Parser: N4; Coordinator: E5.5's 3-rep run) | report | 8 | F | 9 Feb |
+| E5.8 | Stability: 3 repeated runs of the Input Parser benchmark, read from V2 (N4). The Coordinator half is gone with the agent (ADR-0039) | report | 5 | F | 9 Feb |
 | E5.9 | Domain change for ADR-0023/0025: `Phase`, `Study.phases`, typed `PlanStep` union with `FromStep`, `ExpertRound` without `triggered_experiments`, `StudyPlan.network_id` + `reused`, zero-step plans, `Experiment.reused`, `StepError`, `ExpertRound.forced_by_limit`; schemas and class diagram regenerated | domain + tests | 12 | — | 13 Nov |
 | E5.10 | Executor (`run_study`, deterministic code, not an agent): resolves `FromStep`, calls specialists, promotes drafts, records `StepRecord`s per phase, guards in code, runs `ask_expert` and `compose_report` itself, mechanical closing status; agent ports + composition root, `StepError`, forced last round, `DEFAULT_SEEDS`, note writer after the final round (ADR-0025/0026) | run_study | 24 | — | 25 Nov |
 | E5.11 | Deterministic rendering (ADR-0025) of `failed` and `awaiting_user` studies in `interface/render.py`; CLI error when no `Study` is created | render + tests | 4 | — | 27 Nov |
 | E5.12 | Domain change for ADR-0027: `Arm`, `Contrast`, `Question.arms`/`contrasts`, `required_arms`/`reference_arms`, `AddEdge.edge_id`, `arm` on `BuildScenarioStep`/`ReusedExperiment`/`Experiment` | domain + tests | 6 | — | 13 Nov |
 | E5.13 | *(new 2026-09-24)* ADR-0027 (arms and contrasts, still *Proposed*): Accept it, or change it and Accept, before E3.7 starts — it roots E3.7, E5.2, E5.4 and E9.8 | ADR status | 2 | 1a | 13 Nov |
 | E5.14 | *(new 2026-10-01, from the E3.7 grilling)* ADR-0037 refactor of what E5.9 and E5.10 built: `GenerateNetworkStep` and `GenerateDemandStep` become `obtain_network` and `obtain_demand` (reference + study window; ids flow by `FromStep`); `StudyPlan` loses `reused` and zero-step plans; the `NeedsUser` outcome of a specialist puts the `Study` in `awaiting_user` with the candidates and what was found (rendered by E5.11); the Executor looks a scenario up by the hash of the typed request before calling the Scenario Builder and marks it `reused` (verify that the hash before the call equals the one after); study window derived by code from the `Question`; DatabaseMCP contract and GP-10 point at the specialist. DoD: unit tests on both outcomes and on the lookup, schemas regenerated | domain + Executor change | 5 | 1b | 13 Nov |
+| E5.15 | *(new 2026-10-06, refactor r13, ADR-0039)* Wiring and deleting on the built Executor: it calls the planner where it called the agent; the planning error becomes a failed step with its own `StepError` kind; removed are the `CoordinatorAgent` port and its `StudyPlan \| Clarification` output, the clarification request and the `Phase` field that held it, the adapter and tool placeholders, the composition-root slot, the agent-call spend of planning, `allow_script` (plan step and Builder task) and the published schemas of the removed types (the rest regenerated); study tests seed a plan through an injected planner; phase 1 case set rebuilt from real Expert requests; loop-closure and failure tests rescoped; thesis architecture text updated. The eleven golden paths keep their trace shape | code + schemas + tests | 3 | 1b | 24 Nov |
 
 ### E6 — Network Author (42) · DoD §4.3
 
@@ -253,9 +260,9 @@ fresh (~4 pts/week of writing from now on).
 | ID | Task | Output | pts | Wave | Latest due |
 |---|---|---|---|---|---|
 | E10.1 | Outline mapped to epics; state-of-the-art chapter from the existing SoA matrix work | outline + SoA chapter | 16 | W (Oct) | 30 Oct |
-| E10.2 | Architecture & contracts chapter (from doc v1.0, ADRs), once ADR-0027 is settled and the Coordinator spine is closed | chapter | 12 | W (Nov) | 27 Nov |
+| E10.2 | Architecture & contracts chapter (from doc v1.0, ADRs), once ADR-0027 is settled and the planner spine is closed; records the r13 finding (agents stay where the uncertainty is linguistic or about the domain, not where rules suffice) | chapter | 12 | W (Nov) | 27 Nov |
 | E10.3 | Evaluation methodology chapter (assets, banks, metrics, DoD approach, validation passes), **before V1** | chapter | 12 | W | 11 Dec |
-| E10.4 | Module sections written at the close of each wave (Builder/Runner, Expert, generators, Coordinator) | sections | 20 | W | rolling |
+| E10.4 | Module sections written at the close of each wave (Builder/Runner, Expert, generators, planner and Executor) | sections | 20 | W | rolling |
 | E10.5 | Results chapter: DEV-NET, REAL-NET, learning-effect curve, calibration, ablation (from V2) | chapter | 20 | F | 12 Feb |
 | E10.6 | Discussion, limitations, threats to validity, conclusions | chapter | 12 | F | 16 Feb |
 | E10.7 | Full draft v1 to supervisors (FIB + DLR) → **M8** (10) · revision round → v2 (10, M9 window, not planned) | draft v1 → v2 | 20 | F / M9 | **18 Feb** (v1) |
@@ -274,11 +281,11 @@ planning rate, not carried over.
 | **M0** | Fri 18 Sep | Fri 18 Sep | Foundations frozen | Contracts v1 merged; DEV-NET runs the three demand profiles; CI green; architecture v1.0 |
 | **M1** | Fri 16 Oct | Fri 16 Oct | Tooling complete | All MCPs Done (§4.9); Builder & Runner Minimal; DEV-NET scenario matrix stored |
 | **M2** | **Tue 20 Oct** (~~Fri 9 Oct~~) | Fri 13 Nov | **Expert built on DEV-NET** | E3.8 ✅ (clock-time bank); E4.2–E4.4 ⏳ with a development sweep on the E3.8 bank, per-family figures stated; E4.5 ⏳. EXP-01 is ready to run in V2 (command and cost cap written); E3.9 ✅ (evaluation budget for the supervisors) |
-| **M3** | **Mon 26 Oct** | Fri 27 Nov | **Coordinator loop built** | E5.13, E3.11, E3.7, E5.14, E5.2, E5.3, E5.4 ✅; GP-1 … GP-5 and GP-9 pass (E9.1) |
+| **M3** | **Mon 26 Oct** | Fri 27 Nov | **Planner loop built** | E5.13, E3.11, E3.7, E5.14, E5.2, E5.15, E5.3, E5.4 ✅; GP-1 … GP-5 and GP-9 pass (E9.1) |
 | **M4** | **Fri 6 Nov** | Fri 11 Dec | **Builder and Runner built** | E3.10 ✅ (Decisions log trimmed); E2.5, E2.6 ✅; E2.7 ✅ or ⏳; GP-6 and GP-7 pass (E9.2) |
 | **M5** | **Mon 30 Nov** | Fri 15 Jan | **Generators built** | E6.1, E7.1, E3.12, E7.2, E7.3 ✅; E6.2, E7.4 ✅ or ⏳ (both need E8.1, the frozen REAL-NET); GP-8 and GP-11 pass (E9.8) |
 | **M6** | **Tue 8 Dec** | Fri 22 Jan | **REAL-NET ready (built)** | REAL-NET frozen with fix log (E8.1); profiles, matrix and question bank stored (E8.2, E8.3, E8.4 ✅); E8.5 ⏳ (ported and tuned on REAL-NET, development evidence stated). The figures come from V2 → E4.10 → E10.5 |
-| **M7** | **Fri 15 Jan** (~~Fri 11 Dec~~) | ~~Fri 5 Feb~~ Fri 29 Jan | **All modules built** | E5.5 ✅ or ⏳ (built before V1, which checkpoints routing); E5.6, E5.7 (checker), E9.3 ✅ or ⏳; E7.5, E7.6 ✅ or ⏳; E4.9 ⏳ (learning-effect setup on DEV-NET ready to run); 11 golden paths pass as tests; failure injection green |
+| **M7** | **Fri 15 Jan** (~~Fri 11 Dec~~) | ~~Fri 5 Feb~~ Fri 29 Jan | **All modules built** | E5.5 ✅ or ⏳ (built before V1; measured through the golden paths and failure injection in V2); E5.6, E5.7 (checker), E9.3 ✅ or ⏳; E7.5, E7.6 ✅ or ⏳; E4.9 ⏳ (learning-effect setup on DEV-NET ready to run); 11 golden paths pass as tests; failure injection green |
 | **V1** | Mon 14 → Fri 18 Dec | Fri 18 Dec | Validation 1 | Reduced checkpoints of every module built by 11 Dec (M2–M6 and E5.5) on dev splits, figures recorded as interim. Wave 5 is not in V1. If a milestone slips, V1 covers what is built on 14 Dec and does not move |
 | **FF** | **Fri 22 Jan** | Fri 29 Jan | Feature freeze | No behaviour change after it; V1 fixes and slips absorbed by the buffer of 18 → 22 Jan and the margin days |
 | **V2** | Mon 25 → Fri 29 Jan | Fri 5 Feb | Validation 2 | Every measurement suite run once at its definitive size (under the $30 cap), held-out included; a missed threshold is a result |
@@ -298,17 +305,17 @@ by the DAG (§4), not by the week.
 | Wave | Weeks | Content (in order) | Cum. pts | Target | Deadline |
 |---|---|---|---|---|---|
 | 1a | 24 Sep → 9 Oct | E3.8 → E5.13 (accept/change ADR-0027) → E4.2–E4.4 development sweep and tuning | 68 | **M2: Tue 20 Oct** | 13 Nov |
-| 1b | 12 → 26 Oct | E3.11 → E5.14 → E3.7 → E5.2 → E5.3 → E5.4 → E9.1; E8.1 (REAL-NET) in the gaps; E3.9 evaluation budget (before ~24 Oct); E3.10 Decisions-log trim | 143 | **M3: Mon 26 Oct** | 27 Nov |
-| 2 | 27 Oct → 6 Nov | E2.5 → E2.6 → E9.2 → E2.7 | 201 | **M4: Fri 6 Nov** | 11 Dec |
-| 3 | 9 → 30 Nov | E6.1, E7.1 → E3.12, E7.2 → E7.3, E6.2, E7.4, E9.8 (E8.1 here if it missed 1b) | 312 | **M5: Mon 30 Nov** | 15 Jan |
-| 4 | 1 → 11 Dec | E8.2 → E8.3 → E8.4 → E8.5 (356 pts, M6); E5.5 last (374 pts, Fri 11 Dec), so V1 can checkpoint routing | 374 | **M6: Tue 8 Dec** | 22 Jan |
+| 1b | 12 → 26 Oct | E3.11 → E5.14 → E3.7 → E5.2 → E5.15 → E5.3 → E5.4 → E9.1; E8.1 (REAL-NET) in the gaps; E3.9 evaluation budget (before ~24 Oct); E3.10 Decisions-log trim | 141 | **M3: Mon 26 Oct** | 27 Nov |
+| 2 | 27 Oct → 6 Nov | E2.5 → E2.6 → E9.2 → E2.7 | 199 | **M4: Fri 6 Nov** | 11 Dec |
+| 3 | 9 → 30 Nov | E6.1, E7.1 → E3.12, E7.2 → E7.3, E6.2, E7.4, E9.8 (E8.1 here if it missed 1b) | 310 | **M5: Mon 30 Nov** | 15 Jan |
+| 4 | 1 → 11 Dec | E8.2 → E8.3 → E8.4 → E8.5 (354 pts, M6); E5.5 last (365 pts, Fri 11 Dec), so V1 sees the finished Executor | 365 | **M6: Tue 8 Dec** | 22 Jan |
 | V1 | 14 → 18 Dec | Validation 1 (modules built by 11 Dec) | — | Fri 18 Dec | 18 Dec |
 | — | 21 → 23 Dec | Margin (working days), not planned | — | — | — |
 | — | **24 Dec → 2 Jan** | **Break, zero work** | — | — | — |
-| 5 | 4 → 15 Jan | E5.6, E9.3, E7.5 → E4.9, E5.7 (checker), E7.6 | 434 | **M7 = all built: Fri 15 Jan** | 29 Jan |
+| 5 | 4 → 15 Jan | E5.6, E9.3, E7.5 → E4.9, E5.7 (checker), E7.6 | 425 | **M7 = all built: Fri 15 Jan** | 29 Jan |
 
 Cumulative points leave out E3.9 and E3.10 (7 pts, counted apart in §0.1). Wave 5 holds only work that V1 does not measure (no suite of §4.2's V1 checkpoints reads it), so it can sit
-after the break. Cumulative points before the break are 374, within the 379 the planning rate gives by
+after the break. Cumulative points before the break are 365, within the 379 the planning rate gives by
 11 Dec; v0.3 asked for 434 by that date.
 
 ### Writing track
@@ -316,7 +323,7 @@ after the break. Cumulative points before the break are 374, within the 379 the 
 | When | Content |
 |---|---|
 | Oct | E10.1 outline + state of the art |
-| Nov | E10.2 architecture, once ADR-0027 is settled and the Coordinator spine is closed |
+| Nov | E10.2 architecture, once ADR-0027 is settled and the planner spine is closed |
 | before V1 (by 11 Dec) | E10.3 evaluation methodology |
 | close of each wave | E10.4 module sections |
 
@@ -336,8 +343,8 @@ after the break. Cumulative points before the break are 374, within the 379 the 
 
 ## 4. Dependencies
 
-The plan is **limited by capacity, not by dependencies**: the longest chain of pending build work is 81
-of 434 points (≈ 19 %), so the order within a wave is mostly free. Two DAGs: what must be **built**
+The plan is **limited by capacity, not by dependencies**: the longest chain of pending build work is 79
+of 425 points (≈ 19 %), so the order within a wave is mostly free. Two DAGs: what must be **built**
 before V2, and which **measurement suites** turn ⏳ into ✅.
 
 ### 4.1 Build DAG
@@ -365,16 +372,17 @@ flowchart LR
     E49["E4.9 learning-effect setup (DEV-NET) · 18"]:::pending
   end
 
-  subgraph SPINE["Coordinator spine"]
+  subgraph SPINE["Planner spine"]
     E311["E3.11 described demand (ADR-0035) · 12"]:::frontier
     E514["E5.14 ADR-0037 refactor · 5"]:::pending
     E37["E3.7 plan bank · 4"]:::pending
-    E52["E5.2 Coordinator Min · 8"]:::pending
+    E52["E5.2 planner · 3"]:::pending
+    E515["E5.15 r13 wiring · 3"]:::pending
     E53["E5.3 loop closure · 14"]:::pending
     E54["E5.4 Composer Min · 6"]:::frontier
     E51["E5.1 Input Parser ⏳"]:::await
     E91["E9.1 golden-path fw, GP-1…5 + GP-9 · 10"]:::pending
-    E55["E5.5 Coordinator Done (build) · 18"]:::pending
+    E55["E5.5 Executor Done (build) · 11"]:::pending
     E57["E5.7 traceability checker · 12"]:::pending
     E56["E5.6 capability neg. + GP-10 · 8"]:::pending
   end
@@ -406,7 +414,7 @@ flowchart LR
   end
 
   M2(("M2<br/>20 Oct / 13 Nov")):::ms
-  M3(("M3 Coordinator<br/>26 Oct / 27 Nov")):::ms
+  M3(("M3 Planner loop<br/>26 Oct / 27 Nov")):::ms
   M4(("M4 Builder, Runner<br/>6 Nov / 11 Dec")):::ms
   M5(("M5 Generators<br/>30 Nov / 15 Jan")):::ms
   M6(("M6 REAL-NET<br/>8 Dec / 22 Jan")):::ms
@@ -417,11 +425,10 @@ flowchart LR
   E42 & E43 & E44 --> E49
   E42 & E43 & E44 & E45 --> M2
 
-  %% Coordinator spine (critical for M3, M4, M5, M7)
-  E38 ==> E311 ==> E514 ==> E37 ==> E52 ==> E53 ==> E91 ==> E92
+  %% Planner spine (critical for M3, M4, M5, M7)
+  E38 ==> E311 ==> E514 ==> E37 ==> E52 ==> E515 ==> E53 ==> E91 ==> E92
   E91 ==> E98 ==> E93
-  E52 --> E55
-  E37 --> E55
+  E515 --> E55
   E45 --> E53
   E51 --> E91
   E54 --> E91
@@ -471,7 +478,9 @@ trim (2), E10.1–E10.4 (writing track).
 Suites run only inside a validation pass (§0.2). Costs are the estimates of
 [Inventory of pending paid runs](https://github.com/ferranUPC/resto/issues/2#issuecomment-5814898247)
 at the default model; only EXP-01 is designed so far (`eval/measurement-plans.md`), the rest get their
-final shape in E3.9 and in their benchmark's design.
+final shape in E3.9 and in their benchmark's design. The plan bank routing suite is gone (ADR-0039):
+planning is checked by deterministic tests that must pass at 100 %, not measured, and the suites below
+sum to $9.6–20.9 against the $30 cap.
 
 ```mermaid
 flowchart LR
@@ -488,7 +497,6 @@ flowchart LR
   S1(["EXP-01 forced×3 + free abstention · $3.9–5.8"]):::suite
   S2(["N4 Parser held-out, 2nd use · ≈ $0.4"]):::suite
   S3(["Builder bank ×3 · $0.5–1.2"]):::suite
-  S4(["Plan bank routing ×3 · $0.3–4.5"]):::suite
   S5(["Author GEN-LOCATIONS + derivation ×3 · $0.6–3"]):::suite
   S6(["Demand calibration · $0.2–1"]):::suite
   S7(["REAL-NET Expert ×3 · $1–2.5"]):::suite
@@ -496,18 +504,17 @@ flowchart LR
   S9(["Golden paths 11×3 · $1–3"]):::suite
 
   BUILT --> V1 --> BUF --> FRZ --> V2
-  V1 -.->|"reduced checkpoints"| S1 & S3 & S4
-  V2 --> S1 & S2 & S3 & S4 & S5 & S6 & S7 & S8 & S9
+  V1 -.->|"reduced checkpoints"| S1 & S3
+  V2 --> S1 & S2 & S3 & S5 & S6 & S7 & S8 & S9
 
   S1 --> T1["✅ E4.2 E4.3 E4.4 E4.5 · E4.7 report · 8"]:::task
-  S2 --> T2["✅ E5.1 · Parser half of E5.8"]:::task
+  S2 --> T2["✅ E5.1 · E5.8"]:::task
   S3 --> T3["✅ E2.7"]:::task
-  S4 --> T4["✅ E5.5 · E5.8 · 8"]:::task
   S5 --> T5["✅ E6.2"]:::task
   S6 --> T6["✅ E7.4"]:::task
   S7 --> T7["✅ E8.5"]:::task
   S8 --> T8["✅ E4.9"]:::task
-  S9 --> T9["✅ E9.5 · 10 · E9.4 · 6 · E5.7 rubric · GP-2 repro"]:::task
+  S9 --> T9["✅ E5.5 · E9.5 · 10 · E9.4 · 6 · E5.7 rubric · GP-2 repro"]:::task
 
   S1 & S8 --> E410["E4.10 calibration + ablation · 8"]:::task
   T1 & T7 & T8 & E410 --> E105["E10.5 results · 20 · by 12 Feb"]:::task
@@ -522,17 +529,17 @@ flowchart LR
 | Target | Points | Chain |
 |---|---|---|
 | M2 (build) | 34 | E3.8 → E4.4 |
-| M3 (build) | 63 | E3.8 → E3.11 → E5.14 → E3.7 → E5.2 → E5.3 → E9.1 |
-| M4 (build) | 69 | E3.8 → E3.11 → E5.14 → E3.7 → E5.2 → E5.3 → E9.1 → E9.2 (the Builder chain E2.5 → E2.6 → E2.7 is 52) |
-| M5 (build) | 71 | E3.8 → E3.11 → E5.14 → E3.7 → E5.2 → E5.3 → E9.1 → E9.8 |
+| M3 (build) | 61 | E3.8 → E3.11 → E5.14 → E3.7 → E5.2 → E5.15 → E5.3 → E9.1 |
+| M4 (build) | 67 | E3.8 → E3.11 → E5.14 → E3.7 → E5.2 → E5.15 → E5.3 → E9.1 → E9.2 (the Builder chain E2.5 → E2.6 → E2.7 is 52) |
+| M5 (build) | 69 | E3.8 → E3.11 → E5.14 → E3.7 → E5.2 → E5.15 → E5.3 → E9.1 → E9.8 |
 | M6 (build) | 60 | E8.1 → E8.2 → E8.3 → E8.4 → E8.5 |
-| M7 (build) = all built | **81** | E3.8 → E3.11 → E5.14 → E3.7 → E5.2 → E5.3 → E9.1 → E9.8 → E9.3 (E4.9: E3.8 → E4.4 → E4.9 = 52) |
+| M7 (build) = all built | **79** | E3.8 → E3.11 → E5.14 → E3.7 → E5.2 → E5.15 → E5.3 → E9.1 → E9.8 → E9.3 (E4.9: E3.8 → E4.4 → E4.9 = 52) |
 | Tail after V2 | 68 + V2 runs | E4.10 → E10.5 → E10.6 → E10.7 → (E10.8 in M9) |
 
 ### 4.4 What to watch
 
-- **The Coordinator spine is the critical path of the whole plan.** E3.8 → E3.11 → E5.14 → E3.7 → E5.2 → E5.3 → E9.1
-  feeds M3, M4, M5 (GP-8/GP-11 need the Coordinator and the golden-path framework) and M7. Start it first.
+- **The planner spine is the critical path of the whole plan.** E3.8 → E3.11 → E5.14 → E3.7 → E5.2 → E5.15 → E5.3 → E9.1
+  feeds M3, M4, M5 (GP-8/GP-11 need the planner and the golden-path framework) and M7. Start it first.
 - **ADR-0027 sits at the root of the spine** (E3.7, E5.2, E5.4, E9.8 build on arms): E5.13 settles it
   right after E3.8, before E3.7 starts.
 - **Multi-network `ExpertTask`** (risk, decided inside E5.3): `ExpertTask` carries one `network_id`; the
@@ -550,7 +557,7 @@ flowchart LR
 - **E7.1 before E6.2 and E9.8**: the derivation bank and GP-11 use `reroute_demand`.
 - **Wave 5 sits after V1 on purpose.** E4.9, E5.6, E5.7, E7.5, E7.6 and E9.3 feed no V1 checkpoint, so they
   are built 4 → 15 Jan. A defect in them first shows in V2; the 18 → 22 Jan buffer is the margin for it.
-- **The measurement-only work (≈ 50 pts) sits between V2 and E10.5.** That window (25 Jan → 9 Feb) is
+- **The measurement-only work (≈ 47 pts) sits between V2 and E10.5.** That window (25 Jan → 9 Feb) is
   the real crunch of the calendar; the January buffer exists to keep V2 on its target.
 - **E10.5 needs E4.9 and E4.10's figures**, which is why the learning-effect setup is in wave 5, not
   after.
@@ -616,6 +623,7 @@ the numbering.
 | r9 | Planning has no `counterfactual` rule; `run` has no default contrast | Phase 0 held back the treatment of a counterfactual for the Expert to ask for, which it always does, and `run` planned a base nobody asked for. | [0038](adr/0038-no-counterfactual-intent-contrast-decides-the-arms.md) | E3.7, E5.2, E5.5 |
 | r10 | Request bank gold `intent` without `counterfactual` | 32 gold concepts carry an intent that ADR-0038 removes; the Parser and the plan bank score against them. | [0038](adr/0038-no-counterfactual-intent-contrast-decides-the-arms.md) | E3.7, E5.1 |
 | r11 | The Input Parser reads four intents | The prompt teaches five; the `compare`/`run` boundary replaces the unstable `counterfactual` one. | [0038](adr/0038-no-counterfactual-intent-contrast-decides-the-arms.md) | E5.1, E5.8 |
+| r13 | Planning is a deterministic function; the Coordinator agent is removed | After ADR-0037 and ADR-0038 the agent decided nothing that code did not already decide (no database tools, arms fixed by the contrast, plans validated by the Executor), and its routing metric would have measured imitation of the gold script. Adds E5.15 (3 pts); E5.2 8 → 3, E5.5 18 → 11, E5.8 8 → 5; the plan bank routing suite leaves the $30 budget (E3.9). Net 12 pts fewer. | [0039](adr/0039-deterministic-planner-replaces-the-coordinator.md) | E3.7, E5.2, E5.3, E5.5, E5.8, E3.9 |
 
 A new refactor adds a row here in the same change that opens it.
 
@@ -649,7 +657,7 @@ E3.5 and E3.6, E4 except E4.8, E5).
 | v0.3 milestone | v0.4 |
 |---|---|
 | M0, M1, M2 | M0, M1, M2 |
-| M3 End-to-end loop built | M3 Coordinator loop built and M4 Builder and Runner built |
+| M3 End-to-end loop built | M3 Planner loop built and M4 Builder and Runner built |
 | M4 Real network ready | M5 Generators built (E6.1, E7.x, E3.12, E9.8) and M6 REAL-NET ready (E8.x) |
 | M5 Thesis result built | M6 (E8.5) and M7 (E4.9) |
 | M6 All modules built | M7 |

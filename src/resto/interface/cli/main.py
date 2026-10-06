@@ -1,7 +1,7 @@
 """CLI entrypoint and composition root (ADR-0025 §6): the one place where the Executor's agent
 ports meet their implementations and the infrastructure is bound.
 
-Agents that do not exist yet — Coordinator (E5.2), Output Composer (E5.4), Network Author (E6.1),
+Agents that do not exist yet — Output Composer (E5.4), Network Author (E6.1),
 Demand Generator (E7.1) — and the promotions of their drafts are placeholders that raise
 `NotImplementedError`. A request the Input Parser cannot turn into a `Question` ends in
 `ParserFailed`, and the CLI reports it without creating a Study.
@@ -39,6 +39,7 @@ from resto.application.tools.expert import ExpertCollaborators
 from resto.application.tools.scenario_builder import BuilderCollaborators
 from resto.application.use_cases.run_study import ParserFailed, run_study
 from resto.domain.entities.study import StudyStatus
+from resto.domain.services.planner import plan_study
 from resto.domain.value_objects.question import Mode
 from resto.interface.render import render_study
 
@@ -55,7 +56,7 @@ class _Pending:
     def __call__(self, *args: object) -> NoReturn:
         raise NotImplementedError(f"the {self._what} is not implemented yet ({self._task_id})")
 
-    parse = plan = author = obtain = compose = __call__
+    parse = author = obtain = compose = __call__
 
 
 def build_deps(
@@ -64,12 +65,11 @@ def build_deps(
     """Studies are kept in memory: there is no persistent `StudyRepository` yet, and the SQLite
     database is the DatabaseMCP reference backend, which does not hold them (ADR-0002).
     `out_dir` here is only the Builder's; the study's own settings are `StudySettings`.
-    `has_historical_demand` stays false until capability negotiation is wired (E5.6)."""
+    """
     network_query_loader = StoredNetworkQueryLoader(db.networks)
     return StudyDeps(
         agents=StudyAgents(
             parser=InputParserPort(agent=agent, budget=budget),
-            coordinator=_Pending("Coordinator", "E5.2"),
             network_author=_Pending("Network Author", "E6.1"),
             demand_generator=_Pending("Demand Generator", "E7.1"),
             scenario_builder=ScenarioBuilderPort(
@@ -117,6 +117,7 @@ def build_deps(
         run_dirs=FilesystemRunDirectories(),
         network_query_loader=network_query_loader,
         tracer=tracer,
+        planner=plan_study,
     )
 
 

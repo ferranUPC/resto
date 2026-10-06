@@ -1,5 +1,4 @@
-"""Writes `review.html`: the review page with the 54 proposed plans embedded, delicate ones first,
-and the phase-1 cases in a section of their own.
+"""Writes `review.html`: the review page with the 54 proposed plans embedded, delicate ones first.
 
 Each item carries the concept's gold `Question` in short form, the plan's steps as one line each,
 the flags that make a plan delicate and the plan itself as JSON (the page edits it to correct).
@@ -15,7 +14,6 @@ from typing import Any
 
 from eval.plan_bank.annotation.review import FORMAT
 from eval.plan_bank.bank import load_plans, planned_concepts
-from eval.plan_bank.phase1 import load_phase1, phase1_question
 from eval.request_bank.concepts import SPLITS
 from resto.application.schemas import adapter_for
 from resto.domain.value_objects.arm import BASE_ARM, contains
@@ -35,7 +33,6 @@ HERE = Path(__file__).parent
 TEMPLATE = HERE / "template.html"
 OUTPUT = HERE / "review.html"
 _PLACEHOLDER = "/*__ITEMS__*/[]"
-_PHASE1_PLACEHOLDER = "/*__PHASE1__*/[]"
 _FORMAT_PLACEHOLDER = "/*__FORMAT__*/"
 
 
@@ -118,42 +115,23 @@ def plan_items() -> list[dict[str, Any]]:
     return items
 
 
-def phase1_items() -> list[dict[str, Any]]:
-    """One item per phase-1 case: the question, the arms phase 0 realised and the gold plan."""
-    return [
-        _item(
-            cid,
-            phase1_question(cid),
-            case.plan,
-            realised=[e.arm for e in case.context.experiments],
-            flags=[],
-        )
-        for cid, case in sorted(load_phase1().items())
-    ]
-
-
 def _embed(items: list[dict[str, Any]]) -> str:
     # `</` is escaped so a question text can never close the <script> element.
     return json.dumps(items, ensure_ascii=False).replace("</", "<\\/")
 
 
-def render(
-    template: str, items: list[dict[str, Any]], phase1: list[dict[str, Any]] | None = None
-) -> str:
-    for placeholder in (_PLACEHOLDER, _PHASE1_PLACEHOLDER):
-        if placeholder not in template:
-            raise ValueError(f"template has no {placeholder} placeholder")
-    return (
-        template.replace(_PLACEHOLDER, _embed(items))
-        .replace(_PHASE1_PLACEHOLDER, _embed(phase1 or []))
-        .replace(_FORMAT_PLACEHOLDER + '""', json.dumps(FORMAT))
+def render(template: str, items: list[dict[str, Any]]) -> str:
+    if _PLACEHOLDER not in template:
+        raise ValueError(f"template has no {_PLACEHOLDER} placeholder")
+    return template.replace(_PLACEHOLDER, _embed(items)).replace(
+        _FORMAT_PLACEHOLDER + '""', json.dumps(FORMAT)
     )
 
 
 def main() -> None:
-    items, phase1 = plan_items(), phase1_items()
-    OUTPUT.write_text(render(TEMPLATE.read_text(encoding="utf-8"), items, phase1), encoding="utf-8")
-    print(f"{OUTPUT} written with {len(items)} plans and {len(phase1)} phase-1 cases")
+    items = plan_items()
+    OUTPUT.write_text(render(TEMPLATE.read_text(encoding="utf-8"), items), encoding="utf-8")
+    print(f"{OUTPUT} written with {len(items)} plans")
 
 
 if __name__ == "__main__":

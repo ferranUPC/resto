@@ -1,8 +1,10 @@
 """The plan bank: one gold `StudyPlan` per concept that has a gold `Question`, keyed by concept id
 and stored in `plans.json` with the same `TypeAdapter` the framework uses.
 
-The stored plans are proposals from `propose_plan` until the maintainer reviews them (E3.7 ticket
-03). The study window is not stored: it is computed from the gold `Question` with `study_window`.
+The stored plans are what the planner (`resto.domain.services.planner`) returns, kept as a
+reviewed regression snapshot (r13 ticket 04): a change in the rules shows up as a diff of
+`plans.json`. The study window is not stored: it is computed from the gold `Question` with
+`study_window`.
 Regenerate the file with `python -m eval.plan_bank.bank` after a reviewed change, unless the
 review corrected plans (`corrected.json`): regenerating would overwrite the corrections.
 """
@@ -13,10 +15,10 @@ import json
 from pathlib import Path
 from typing import Any
 
-from eval.plan_bank.propose import propose_plan
 from eval.request_bank.concepts import CONCEPTS, SPLITS, Concept, concept_by_id
 from resto.application.schemas import adapter_for
 from resto.domain.services.experiment_design import study_window
+from resto.domain.services.planner import PlanningContext, plan_study
 from resto.domain.value_objects.question import Question
 from resto.domain.value_objects.study_plan import StudyPlan
 from resto.domain.value_objects.time_window import TimeWindow
@@ -27,14 +29,14 @@ CORRECTED_PATH = Path(__file__).parent / "corrected.json"
 
 def planned_concepts(concepts: tuple[Concept, ...] = CONCEPTS) -> list[Concept]:
     """The concepts whose gold is a `Question`: ambiguous, unintelligible and out-of-scope
-    concepts never reach the Coordinator."""
+    concepts never reach the planner."""
     return [c for c in concepts if isinstance(c.gold, Question)]
 
 
 def build_plans(concepts: tuple[Concept, ...] = CONCEPTS) -> dict[str, StudyPlan]:
-    """Run the rules script over every planned concept."""
+    """Run the planner over every planned concept, in phase 0."""
     return {
-        c.id: propose_plan(c.gold)
+        c.id: plan_study(c.gold, PlanningContext(phase=0))
         for c in planned_concepts(concepts)
         if isinstance(c.gold, Question)
     }
@@ -61,15 +63,15 @@ def load_plans(path: Path = PLANS_PATH) -> dict[str, StudyPlan]:
 
 
 def load_corrected(path: Path = CORRECTED_PATH) -> dict[str, dict[str, str]]:
-    """The concepts the maintainer corrected, per section (`plans`, `phase1`), each with the note
+    """The concepts the maintainer corrected, per section (`plans`), each with the note
     that justifies the correction. The regeneration tests leave their gold fields out of the
-    comparison with the rules script; `eval.plan_bank.annotation.review` writes the file."""
+    comparison with the planner; `eval.plan_bank.annotation.review` writes the file."""
     rows = json.loads(path.read_text(encoding="utf-8"))
-    return {"plans": dict(rows["plans"]), "phase1": dict(rows["phase1"])}
+    return {"plans": dict(rows["plans"])}
 
 
 def save_corrected(corrected: dict[str, dict[str, str]], path: Path = CORRECTED_PATH) -> None:
-    rows = {key: dict(sorted(corrected[key].items())) for key in ("plans", "phase1")}
+    rows = {key: dict(sorted(corrected[key].items())) for key in ("plans",)}
     path.write_text(json.dumps(rows, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
@@ -86,7 +88,7 @@ def split_of(request_id: str) -> str:
     return SPLITS[concept_id_of(request_id)]
 
 
-def plan_for(request_id: str, plans: dict[str, StudyPlan] | None = None) -> StudyPlan:
+def gold_plan_of(request_id: str, plans: dict[str, StudyPlan] | None = None) -> StudyPlan:
     """The gold plan of a request; raises `KeyError` when its concept has no plan."""
     stored = load_plans() if plans is None else plans
     return stored[concept_id_of(request_id)]

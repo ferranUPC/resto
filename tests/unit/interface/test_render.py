@@ -16,7 +16,6 @@ from resto.domain.value_objects.step_record import (
 )
 from resto.domain.value_objects.study_plan import (
     BuildScenarioStep,
-    ClarificationRequest,
     FromStep,
     ObtainNetworkStep,
     RunSimulationStep,
@@ -101,20 +100,6 @@ def test_an_ambiguous_question_lists_its_ambiguities() -> None:
 
     assert "The question is ambiguous:\n- which edge?" in text
     assert "## What you can do" in text
-
-
-def test_a_coordinator_clarification_lists_the_candidates() -> None:
-    clarification = ClarificationRequest("two networks are labelled Gran Via", ("gv-1", "gv-2"))
-    study = Study(
-        study_id="st-c",
-        status=StudyStatus.AWAITING_USER,
-        phases=(Phase(question=QUESTION, clarification=clarification),),
-    )
-
-    text = render_study(study)
-
-    assert "two networks are labelled Gran Via" in text
-    assert "Candidates:\n- gv-1\n- gv-2" in text
 
 
 def test_a_completed_study_is_not_rendered_here() -> None:

@@ -34,7 +34,7 @@ def execute_study(
         return recorder.study
     network_id: str | None = None
     while True:
-        plan = plan_phase(recorder, spend, deps, settings, network_id)
+        plan = plan_phase(recorder, deps, network_id)
         if plan is None:
             return recorder.study
         network_id = execute_plan(plan, recorder, spend, deps, settings)

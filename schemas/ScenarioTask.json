@@ -245,11 +245,6 @@
     }
   },
   "properties": {
-    "allow_script": {
-      "default": true,
-      "title": "Allow Script",
-      "type": "boolean"
-    },
     "context_tags": {
       "default": [],
       "items": {

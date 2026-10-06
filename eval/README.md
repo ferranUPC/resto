@@ -53,7 +53,7 @@ hexagon; imports `resto.application`.
 | Expert benchmark harness | Network Expert | built (E3.3) | `eval/expert_benchmark/` |
 | Request bank (73 concepts, 346 requests; text → gold `Question`) | Input Parser | built (E3.4) | `eval/request_bank/` |
 | Blind annotation of held-out + external request split | Input Parser (gold check) | page built, annotations pending | `eval/request_bank/annotation/` |
-| Plan bank (gold phase-0 `StudyPlan` per request, fixed DB state) | Coordinator | pending (E3.7) | — |
+| Plan bank (gold phase-0 `StudyPlan` per request; the regression snapshot of the planner, ADR-0039) | Planner | pending (E3.7) | — |
 | Builder bank (25–30 specs) | Scenario Builder | pending (E2.7) | — |
 | Derivation bank (10 modifications) | Network Author | pending (E6.2) | — |
 | GEN-LOCATIONS (10 raw OSM locations) | Network Author | pending (E6.2) | — |
@@ -70,7 +70,7 @@ already fixes; each procedure is written here when its benchmark task starts, no
 | Module | Benchmark asset | Metrics (DoD) | Procedure |
 |---|---|---|---|
 | Input Parser | request bank | schema validity, field match, ambiguity detection, `intent` agreement (§4.1); arm structure ≥ 90 % on multi-arm requests ([`decisions-log.md`](decisions-log.md), 2026-09-23) | E5.1 (`eval/parser_benchmark`, [`docs/tuning/parser-tuning-log.md`](../docs/tuning/parser-tuning-log.md)), E5.8 |
-| Coordinator | plan bank | routing vs gold plan (§4.2); the `StepRecord` trace is Executor behaviour, checked by fake-agent tests (ADR-0023) | E5.5, E5.8 |
+| Planner and Executor | plan bank, hand-frozen oracle | deterministic tests that must pass at 100 %, no measured suite: a hand-frozen oracle, properties of every plan, metamorphic tests and the plan bank as a regression snapshot (ADR-0039, restating §4.2's routing metric); the `StepRecord` trace is Executor behaviour, checked by tests with a fake world and the golden paths | E3.7, E5.2, E5.5 |
 | Network Author | GEN-LOCATIONS, derivation bank | loadable networks, sanity report, replay determinism, agent stability (§4.3) | E6.2 |
 | Demand Generator | demand profiles, control counts | calibration fidelity ±15 % DEV / ±25 % REAL, replay determinism (§4.4) | E7.4 |
 | Scenario Builder | builder bank | mechanism selection, validity, effect verification ≥ 27/30, authoring determinism (§4.5) | E2.7 |

@@ -1,4 +1,4 @@
-"""The Coordinator's output: a typed, immutable plan the Executor walks (ADR-0023 §2, ADR-0025).
+"""The planner's output: a typed, immutable plan the Executor walks (ADR-0023 §2, ADR-0025).
 
 Ids that do not exist at planning time are written as `FromStep(i)`: the Executor substitutes the id
 produced by step `i`. Each step variant mirrors the typed task of the use case it calls, with every
@@ -151,7 +151,7 @@ class RerouteDemandStep:
 
 @dataclass(frozen=True, slots=True)
 class BuildScenarioStep:
-    """`arm`, `role` and `purpose` are the Coordinator's: the Executor copies them into the
+    """`arm`, `role` and `purpose` are the planner's: the Executor copies them into the
     `Experiment` this scenario and its runs become (ADR-0025 §5, ADR-0027 §3)."""
 
     network_id: str | FromStep
@@ -161,7 +161,6 @@ class BuildScenarioStep:
     purpose: str
     interventions: tuple[Intervention, ...] = ()
     context_tags: frozenset[str] = frozenset()
-    allow_script: bool = True
     depends_on: tuple[int, ...] = ()
     kind: Literal["build_scenario"] = "build_scenario"
 
@@ -223,7 +222,7 @@ steps: the Executor always runs them (ADR-0023 §2)."""
 
 @dataclass(frozen=True, slots=True)
 class StudyPlan:
-    """Emitted by the Coordinator, one per phase; measured against gold plans. `network_id` is the
+    """Emitted by the planner, one per phase; measured against gold plans. `network_id` is the
     network the study is about (`FromStep` when the plan creates it). A plan always contains an
     `obtain_network` step (ADR-0037 §2), so it is never empty."""
 
@@ -260,19 +259,3 @@ class StudyPlan:
             raise ValueError(
                 f"{where}: FromStep({ref.step}) produces a {produced}, a {expected} is expected"
             )
-
-
-@dataclass(frozen=True, slots=True)
-class ClarificationRequest:
-    """The Coordinator's other possible output: an ambiguity only the database reveals, e.g. two
-    networks labelled "Gran Via". `candidates` are what the user picks from."""
-
-    reason: str
-    candidates: tuple[str, ...] = ()
-
-    def __post_init__(self) -> None:
-        if not self.reason.strip():
-            raise ValueError("a ClarificationRequest requires a reason")
-
-
-CoordinatorOutput = StudyPlan | ClarificationRequest

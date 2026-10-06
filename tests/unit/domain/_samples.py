@@ -20,6 +20,7 @@ from resto.domain.entities.scenario import Scenario
 from resto.domain.entities.simulation_result import RunMode, RunStatus, SimulationResult
 from resto.domain.entities.study import Phase, Study, StudyStatus
 from resto.domain.services.note_ranking import ScoredNote
+from resto.domain.services.planner import PlanningContext
 from resto.domain.value_objects.answer_value import (
     BottleneckCause,
     BottleneckCauses,
@@ -98,7 +99,6 @@ from resto.domain.value_objects.step_record import (
 )
 from resto.domain.value_objects.study_plan import (
     BuildScenarioStep,
-    ClarificationRequest,
     DeriveNetworkStep,
     FromStep,
     ObtainDemandStep,
@@ -337,9 +337,7 @@ SAMPLES: dict[type, Callable[[], object]] = {
     # study internals
     Question: question,
     StudyPlan: study_plan,
-    Phase: lambda: Phase(
-        question=question(), clarification=ClarificationRequest("two networks match")
-    ),
+    Phase: lambda: Phase(question=question()),
     FromStep: lambda: FromStep(0),
     ObtainNetworkStep: lambda: ObtainNetworkStep(
         network_ref="Barcelona, Eixample", goals=("drivable",)
@@ -378,14 +376,12 @@ SAMPLES: dict[type, Callable[[], object]] = {
         interventions=(static_intervention(),),
     ),
     Contrast: lambda: Contrast(treatment="new-edge+closure", reference="new-edge"),
-    ClarificationRequest: lambda: ClarificationRequest(
-        reason='two networks match "Gran Via"', candidates=("gv-2024", "gv-old")
-    ),
     StepRecord: lambda: StepRecord(tool="ask_expert", status=StepStatus.OK),
     StepError: lambda: StepError(
         StepErrorKind.USER_INPUT, "the Builder rejected an intervention", ("E99: unknown edge",)
     ),
     Usage: lambda: Usage(input_tokens=120, output_tokens=45, simulations=1),
+    PlanningContext: lambda: PlanningContext(phase=1, network_id="n1", realised=("base",)),
     Experiment: lambda: Experiment(
         scenario_id="s1", arm="base", role=ExperimentRole.BASELINE, purpose="ref"
     ),
