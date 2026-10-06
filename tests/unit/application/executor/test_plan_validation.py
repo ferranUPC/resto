@@ -48,12 +48,12 @@ NEW_EDGE = AddEdge("J7", "J9", lanes=2, speed=13.9, edge_id="J7J9")
 
 DESCRIBE = Question(text="how congested is the peak?", intent=Intent.DESCRIBE)
 WHAT_IF = Question(
-    text="what if we close lane 1 of E12?", intent=Intent.COUNTERFACTUAL, interventions=(CLOSURE,)
+    text="what if we close lane 1 of E12?", intent=Intent.COMPARE, interventions=(CLOSURE,)
 )
 PROPOSED = Question(text="close lane 1 of E12", intent=Intent.RUN, interventions=(CLOSURE,))
 NEW_ROAD = Question(
     text="what does the J7-J9 edge do?",
-    intent=Intent.RUN,
+    intent=Intent.COMPARE,
     arms=(Arm("edge", topology_changes=(NEW_EDGE,)),),
 )
 
@@ -154,9 +154,14 @@ def test_a_valid_plan_has_no_problems(stored: Stored) -> None:
         ),
         (DESCRIBE, plan(), ["arm 'base' is needed but not planned"]),
         (
-            WHAT_IF,
+            PROPOSED,
             plan(build_step(), run_step(0), build_step("treatment", (CLOSURE,)), run_step(2)),
-            ["arm 'treatment' is not needed by this phase"],
+            ["arm 'base' is not needed by this phase"],
+        ),
+        (
+            WHAT_IF,
+            plan(build_step(), run_step(0)),
+            ["arm 'treatment' is needed but not planned"],
         ),
         (DESCRIBE, plan(build_step()), ["step 1: arm 'base' is built but never run"]),
         (
@@ -169,7 +174,8 @@ def test_a_valid_plan_has_no_problems(stored: Stored) -> None:
         "unknown-network",
         "unknown-demand",
         "missing-arm",
-        "extra-arm",
+        "run-has-no-base",
+        "change-needs-both-sides",
         "built-never-run",
         "wrong-interventions",
     ],

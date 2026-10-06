@@ -9,22 +9,14 @@ from resto.domain.value_objects.experiment import Experiment, ExperimentRole
 from tests.unit.application._world import (
     BASE_SID,
     BASELINE_PLAN,
-    CLOSURE,
     CLOSURE_SID,
-    PROPOSED,
+    WHAT_IF,
+    WHAT_IF_PLAN,
     World,
     answers,
-    plan,
     run_of,
 )
-from tests.unit.domain._fixtures import artifact, build_step, run_step
-
-BOTH_ARMS = plan(
-    build_step(),
-    run_step(0),
-    build_step("treatment", (CLOSURE,), role=ExperimentRole.TREATMENT),
-    run_step(2),
-)
+from tests.unit.domain._fixtures import artifact
 
 
 def test_a_scenario_with_ok_results_is_reused_without_calling_the_builder(tmp_path: Path) -> None:
@@ -57,13 +49,13 @@ def test_the_hash_before_the_builder_call_is_the_one_it_stores(tmp_path: Path) -
     """If the two differed, the second identical request would call the Builder again."""
     world = World(
         tmp_path,
-        question=PROPOSED,
-        plans=(BOTH_ARMS, BOTH_ARMS),
+        question=WHAT_IF,
+        plans=(WHAT_IF_PLAN, WHAT_IF_PLAN),
         expert=(answers(), answers()),
     )
 
     first = world.run()
-    world.parser.items.append(run_of(PROPOSED, tokens=50))
+    world.parser.items.append(run_of(WHAT_IF, tokens=50))
     second = world.run()
 
     assert [(e.scenario_id, e.reused) for e in first.phases[0].experiments] == [
@@ -90,8 +82,8 @@ def test_when_the_hashes_differ_the_builder_runs_and_the_duplicate_is_found(
     )
     world = World(
         tmp_path,
-        question=PROPOSED,
-        plans=(BOTH_ARMS,),
+        question=WHAT_IF,
+        plans=(WHAT_IF_PLAN,),
         builder=(run_of(narrowed, tokens=100),),
         expert=(answers(),),
     )

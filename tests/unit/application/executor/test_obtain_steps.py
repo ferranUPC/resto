@@ -1,6 +1,7 @@
 """The two specialist steps through `execute_study` with the scripted agents (ADR-0037 §2, §3): a
 specialist ends in a found id or in a draft that code promotes."""
 
+from dataclasses import replace
 from pathlib import Path
 
 from resto.application.ports.llm import StopReason
@@ -190,7 +191,12 @@ def test_a_specialist_cut_by_its_budget_fails_the_step_as_budget(tmp_path: Path)
 def test_the_demand_task_carries_the_study_window_derived_from_the_question(
     tmp_path: Path,
 ) -> None:
-    world = World(tmp_path, question=WHAT_IF, plans=(_obtain_plan(),), expert=(answers(),))
+    world = World(
+        tmp_path,
+        question=replace(WHAT_IF, intent=Intent.DESCRIBE),
+        plans=(_obtain_plan(),),
+        expert=(answers(),),
+    )
 
     world.run()
 
