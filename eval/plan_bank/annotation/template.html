@@ -130,10 +130,8 @@ textarea.json { font-family: var(--mono); font-size: 12px; }
 
 <script>
 const ITEMS = /*__ITEMS__*/[];
-const ITEMS1 = /*__PHASE1__*/[];
 ITEMS.forEach((it) => { it.key = it.concept_id; });
-ITEMS1.forEach((it) => { it.key = "p1:" + it.concept_id; });
-const ALL = [...ITEMS, ...ITEMS1];
+const ALL = ITEMS;
 const FORMAT = /*__FORMAT__*/"";
 const STORE_KEY = "resto-plan-review-v1";
 const FLAG_HELP = {
@@ -200,16 +198,6 @@ function phase0HTML() {
     ${shown.map(cardHTML).join("") || '<div class="panel muted">Nothing to show with these filters.</div>'}`;
 }
 
-/* ---------- phase 1: the plans for what phase 0 left ---------- */
-function phase1HTML() {
-  const shown = ITEMS1.filter((it) => !state.onlyPending || state.plans[it.key].status === "pending");
-  return `<section id="phase1" class="panel"><h2 style="font-size:18px">Phase 1 cases</h2>
-    <p class="hint">${ITEMS1.length} counterfactual concepts replanned once phase 0 has realised their reference arms. The gold is the plan with only the treatment arms: it must not build an arm listed as already realised. Accept it or mark it corrected and edit its JSON; a corrected plan is checked against the plan validation's coverage rule when the review is applied. These cases do not count towards the 54 phase-0 plans.</p>
-    <div class="filters"><label><input type="checkbox" data-f="onlyPending" ${state.onlyPending ? "checked" : ""}> Pending only</label>
-    <span class="muted mono">${shown.length} shown, ${reviewedCount(ITEMS1)} / ${ITEMS1.length} reviewed</span></div></section>
-    ${shown.map(cardHTML).join("") || '<div class="panel muted">Nothing to show with these filters.</div>'}`;
-}
-
 /* ---------- export ---------- */
 function exportPayload() {
   const rows = (items) => items.map((it) => {
@@ -218,16 +206,16 @@ function exportPayload() {
     if (p.status === "corrected") { const r = parsePlan(p.plan_text); row.plan = r.plan ?? null; }
     return row;
   });
-  return { format: FORMAT, reviewer: state.reviewer.trim(), exported_at: new Date().toISOString(), plans: rows(ITEMS), phase1: rows(ITEMS1) };
+  return { format: FORMAT, reviewer: state.reviewer.trim(), exported_at: new Date().toISOString(), plans: rows(ITEMS) };
 }
 function exportHTML() {
   const p = exportPayload();
-  const every = [...p.plans, ...p.phase1];
+  const every = p.plans;
   const n = (s) => every.filter((r) => r.status === s).length;
   const badJson = every.filter((r) => r.status === "corrected" && !r.plan).length;
   return `<div class="panel"><h2 style="font-size:18px">Export</h2>
     <div class="stats"><div><b>${n("accepted")}</b><span>accepted</span></div><div><b>${n("corrected")}</b><span>corrected</span></div><div><b>${n("pending")}</b><span>pending</span></div></div>
-    ${n("pending") ? `<p class="toast err">${n("pending")} plans and phase-1 cases are still pending: the apply step refuses a review that does not cover every one.</p>` : ""}
+    ${n("pending") ? `<p class="toast err">${n("pending")} plans are still pending: the apply step refuses a review that does not cover every one.</p>` : ""}
     ${badJson ? `<p class="toast err">${badJson} corrected plans have invalid JSON.</p>` : ""}
     ${state.reviewer.trim() ? "" : `<p class="toast err">Enter your name or initials at the top before exporting.</p>`}
     <p class="hint">Apply it with <code>python -m eval.plan_bank.annotation.review plan-review.json</code>.</p>
@@ -236,11 +224,11 @@ function exportHTML() {
     <details><summary class="hint">Show the full JSON</summary><textarea id="export-text" rows="12" readonly class="mono" style="font-size:12px">${esc(JSON.stringify(p, null, 2))}</textarea></details></div>`;
 }
 
-const TABS = [["phase0", "Phase 0 plans"], ["phase1", "Phase 1"], ["export", "Export"]];
+const TABS = [["phase0", "Phase 0 plans"], ["export", "Export"]];
 function render() {
   document.getElementById("tabs").innerHTML = TABS.map(([k, label]) =>
-    `<button role="tab" data-tab="${k}" aria-selected="${state.tab === k}">${label}${k === "phase0" ? `<span class="count">${reviewedCount()}/${ITEMS.length}</span>` : k === "phase1" ? `<span class="count">${reviewedCount(ITEMS1)}/${ITEMS1.length}</span>` : ""}</button>`).join("");
-  document.getElementById("main").innerHTML = state.tab === "phase0" ? phase0HTML() : state.tab === "phase1" ? phase1HTML() : exportHTML();
+    `<button role="tab" data-tab="${k}" aria-selected="${state.tab === k}">${label}${k === "phase0" ? `<span class="count">${reviewedCount()}/${ITEMS.length}</span>` : ""}</button>`).join("");
+  document.getElementById("main").innerHTML = state.tab === "phase0" ? phase0HTML() : exportHTML();
 }
 
 document.addEventListener("input", (ev) => {

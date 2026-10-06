@@ -63,15 +63,15 @@ def load_plans(path: Path = PLANS_PATH) -> dict[str, StudyPlan]:
 
 
 def load_corrected(path: Path = CORRECTED_PATH) -> dict[str, dict[str, str]]:
-    """The concepts the maintainer corrected, per section (`plans`, `phase1`), each with the note
+    """The concepts the maintainer corrected, per section (`plans`), each with the note
     that justifies the correction. The regeneration tests leave their gold fields out of the
     comparison with the planner; `eval.plan_bank.annotation.review` writes the file."""
     rows = json.loads(path.read_text(encoding="utf-8"))
-    return {"plans": dict(rows["plans"]), "phase1": dict(rows["phase1"])}
+    return {"plans": dict(rows["plans"])}
 
 
 def save_corrected(corrected: dict[str, dict[str, str]], path: Path = CORRECTED_PATH) -> None:
-    rows = {key: dict(sorted(corrected[key].items())) for key in ("plans", "phase1")}
+    rows = {key: dict(sorted(corrected[key].items())) for key in ("plans",)}
     path.write_text(json.dumps(rows, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 

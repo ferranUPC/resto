@@ -7,9 +7,7 @@ their notes go to `corrected.json`, which the regeneration tests read to skip th
 
     python -m eval.plan_bank.annotation.review path/to/plan-review.json
 
-The `phase1` key of the export holds the same rows for the phase-1 cases (`eval.plan_bank.phase1`):
-every case reviewed once, and a corrected plan must still pass the plan validation's coverage check
-for the case's context. `apply_review` ignores that key; `main` applies both.
+The phase-1 cases (`eval.plan_bank.phase1`) hold no plan, so they have nothing to review.
 """
 
 from __future__ import annotations
@@ -22,20 +20,13 @@ from typing import Any
 from pydantic import ValidationError
 
 from eval.plan_bank.bank import PLANS_PATH, load_plans, save_corrected, save_plans
-from eval.plan_bank.phase1 import (
-    PHASE1_PATH,
-    Phase1Case,
-    load_phase1,
-    phase1_question,
-    save_phase1,
-)
+from eval.request_bank.concepts import concept_by_id
 
 # No public coverage check exists: `plan_problems` needs repositories a bank does not have.
 from resto.application.executor.plan_validation import _coverage_problems  # noqa: PLC2701
 from resto.application.schemas import adapter_for
-from resto.domain.value_objects.experiment import ExperimentRole
 from resto.domain.value_objects.question import Question
-from resto.domain.value_objects.study_plan import BuildScenarioStep, DeriveNetworkStep, StudyPlan
+from resto.domain.value_objects.study_plan import DeriveNetworkStep, StudyPlan
 
 FORMAT = "resto-plan-review/v1"
 REVIEWED = ("accepted", "corrected")
@@ -103,38 +94,12 @@ def apply_review(plans: dict[str, StudyPlan], review: dict[str, Any]) -> dict[st
             result[concept_id] = plans[concept_id]
             continue
         plan = _corrected(concept_id, rows[concept_id])
-        problems = _phase0_problems(plan, phase1_question(concept_id))
+        gold = concept_by_id(concept_id).gold
+        assert isinstance(gold, Question)
+        problems = _phase0_problems(plan, gold)
         if problems:
             raise ValueError(f"{concept_id}: the corrected plan is not a phase-0 plan: {problems}")
         result[concept_id] = plan
-    return result
-
-
-def apply_phase1_review(
-    cases: dict[str, Phase1Case], review: dict[str, Any]
-) -> dict[str, Phase1Case]:
-    """The phase-1 cases after the review. A correction replaces the plan only: the context is what
-    phase 0 realised. The corrected plan must cover what the phase still needs and repeat nothing
-    the context realised."""
-    rows = _rows(review, "phase1", set(cases))
-    result: dict[str, Phase1Case] = {}
-    for concept_id in sorted(cases):
-        case = cases[concept_id]
-        if rows[concept_id]["status"] == "corrected":
-            plan = _corrected(concept_id, rows[concept_id])
-            realised = {e.arm for e in case.context.experiments}
-            problems = _coverage_problems(plan, phase1_question(concept_id), 1, realised)
-            if any(
-                isinstance(s, BuildScenarioStep) and s.role is ExperimentRole.BASELINE
-                for s in plan.steps
-            ):
-                problems.append("a phase-1 plan has no baseline arm")
-            if problems:
-                raise ValueError(
-                    f"{concept_id}: the corrected plan is not a phase-1 plan: {problems}"
-                )
-            case = Phase1Case(case.context, plan)
-        result[concept_id] = case
     return result
 
 
@@ -143,14 +108,9 @@ def main(argv: list[str]) -> None:
         raise SystemExit("usage: python -m eval.plan_bank.annotation.review <export.json>")
     review = json.loads(Path(argv[0]).read_text(encoding="utf-8"))
     applied = apply_review(load_plans(), review)
-    applied_phase1 = apply_phase1_review(load_phase1(), review)
     save_plans(applied)
-    save_phase1(applied_phase1)
-    save_corrected(
-        {"plans": corrected_notes(review, "plans"), "phase1": corrected_notes(review, "phase1")}
-    )
+    save_corrected({"plans": corrected_notes(review, "plans")})
     print(f"wrote {len(applied)} reviewed plans to {PLANS_PATH}")
-    print(f"wrote {len(applied_phase1)} reviewed phase-1 cases to {PHASE1_PATH}")
 
 
 if __name__ == "__main__":

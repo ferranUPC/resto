@@ -1,152 +1,59 @@
-"""The phase-1 section of the plan bank (E3.7 ticket 04): one case per former
-counterfactual concept.
+"""The phase-1 case set of the planner (r13 ticket 07): the part of planning the 54 phase-0 plans
+do not exercise.
 
-Stopgap until E3.7 reworks this set (ADR-0038): phase 0 now plans every arm a question needs, so
-the planner no longer leaves treatments for the Expert. The cases keep the old shape by building
-their context locally: the realised arms are the reference side of the contrasts, and the case asks
-for the treatments (ADR-0025 §2, replaced). A phase-1 case gives the planner the question plus
-a `PlanningContext` with the phase-0 experiments already realised, and its gold is the plan with
-only the arms still missing: the treatments. It tests that the planner does not repeat a
-realised arm (`plan_validation._coverage_problems`).
+Each case is an experiment the Network Expert asks for after phase 0 realised the base arm of its
+network. The experiments are the 57 counterfactual questions of the Expert benchmark
+(`eval/question_bank/question-bank.json`, ids `S01-cf-dir` and its kin): each is a typed `Question`
+with one intervention that the Expert can only settle by simulating it, and each entry stores the
+baseline scenario and results phase 0 leaves behind. Nothing here calls a model, and no case
+stores a plan: the expected plan is stated in `tests/unit/eval/test_phase1_cases.py` from the
+stored question, not produced by the planner.
 
-The cases are stored in `phase1.json`, apart from the 54 phase-0 plans (`plans.json`), and do not
-count towards them. The ids of the context (network, scenarios) are placeholders: a bank has no
-database, and the scorer reads the arms, not the ids. Regenerate with `python -m
-eval.plan_bank.phase1` after a reviewed change.
+The question is the experiment as the Expert proposes it: it names no network, so the planner takes
+the study's network from the context (user story 8 of the refactor).
 """
 
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Any
 
-from eval.plan_bank.bank import load_plans, planned_concepts
-from eval.request_bank.concepts import Concept, concept_by_id
 from resto.application.schemas import adapter_for
-from resto.domain.services.planner import PlanningContext as PlannerContext
-from resto.domain.services.planner import plan_study
+from resto.domain.services.planner import PlanningContext
 from resto.domain.value_objects.arm import BASE_ARM
-from resto.domain.value_objects.experiment import Experiment
 from resto.domain.value_objects.question import Question
-from resto.domain.value_objects.study_plan import BuildScenarioStep, StudyPlan
 
-PHASE1_PATH = Path(__file__).parent / "phase1.json"
-PHASE = 1
-
-# The sixteen concepts that were gold `counterfactual` and are `compare` after r9 ticket 03. The
-# eight that became `run` plan no base arm, so they have no reference side to realise first.
-PHASE1_IDS = (
-    "R001", "R010", "R011", "R012", "R014", "R016", "R018", "R022",
-    "R023", "R026", "R028", "R033", "R035", "R036", "R061", "R062",
-)  # fmt: skip
-
-
-@dataclass(frozen=True, slots=True)
-class PlanningContext:
-    """The stored shape of a case's context (`phase1.json`): the phase-0 experiments and the
-    historical-demand flag of the retired agent port. The planner's own context is
-    `resto.domain.services.planner.PlanningContext`; E3.7 (r13 ticket 07) rebuilds this set from
-    real Expert requests and drops this type."""
-
-    phase: int
-    network_id: str | None = None
-    experiments: tuple[Experiment, ...] = ()
-    has_historical_demand: bool = field(default=False)
+QUESTION_BANK_PATH = Path(__file__).resolve().parents[1] / "question_bank" / "question-bank.json"
 
 
 @dataclass(frozen=True, slots=True)
 class Phase1Case:
+    id: str
+    question: Question
+    """The experiment the Expert asks for; `network_ref` is empty: the context names it."""
     context: PlanningContext
-    plan: StudyPlan
+    """What phase 0 realised: the base arm, on the benchmark's network."""
+    baseline_result_ids: tuple[str, ...]
+    """The stored results of that base arm, which the Expert read before it asked."""
 
 
-def phase1_concepts() -> list[Concept]:
-    """The concepts that get a phase-1 case: the former counterfactual ones that are `compare`."""
-    return [c for c in planned_concepts() if c.id in PHASE1_IDS]
-
-
-def phase1_question(concept_id: str) -> Question:
-    gold = concept_by_id(concept_id).gold
-    if not isinstance(gold, Question):
-        raise KeyError(concept_id)
-    return gold
-
-
-def _reference_side(question: Question) -> tuple[str, ...]:
-    """The reference side of every contrast, in the question's order (the retired phase-0 rule)."""
-    contrasts = question.effective_contrasts
-    if not contrasts:
-        return (BASE_ARM,)
-    wanted = {c.reference for c in contrasts}
-    ordered = [BASE_ARM, *(a.label for a in question.effective_arms)]
-    return tuple(label for label in ordered if label in wanted)
-
-
-def build_case(concept_id: str, question: Question, phase0: StudyPlan | None = None) -> Phase1Case:
-    """The context phase 0 leaves behind and the plan for what is still missing. `phase0` is the
-    stored (possibly corrected) phase-0 plan; the proposal when not given."""
-    phase0 = plan_study(question, PlannerContext(phase=0)) if phase0 is None else phase0
-    reference = _reference_side(question)
-    experiments = tuple(
-        Experiment(
-            scenario_id=f"scenario-{concept_id}-{s.arm}",
-            arm=s.arm,
-            role=s.role,
-            purpose=s.purpose,
+def load_phase1(path: Path = QUESTION_BANK_PATH) -> dict[str, Phase1Case]:
+    """One case per counterfactual entry of the Expert benchmark, in file order. Every stored
+    question is validated on load."""
+    adapter = adapter_for(Question)
+    cases: dict[str, Phase1Case] = {}
+    for entry in json.loads(path.read_text(encoding="utf-8")):
+        if not entry["id"].split("-", 1)[1].startswith("cf-"):
+            continue
+        stored = adapter.validate_python(entry["question"])
+        baseline = tuple(entry["evidence"]["baseline_result_ids"])
+        if stored.network_ref is None or not baseline:
+            raise ValueError(f"{entry['id']}: no network or no stored baseline: not a phase-1 case")
+        cases[entry["id"]] = Phase1Case(
+            id=entry["id"],
+            question=replace(stored, network_ref=None),
+            context=PlanningContext(phase=1, network_id=stored.network_ref, realised=(BASE_ARM,)),
+            baseline_result_ids=baseline,
         )
-        for s in phase0.steps
-        if isinstance(s, BuildScenarioStep) and s.arm in reference
-    )
-    if tuple(e.arm for e in experiments) != reference:
-        raise ValueError(f"{concept_id}: phase 0 does not realise the arms it needs")
-    context = PlanningContext(
-        phase=PHASE, network_id=f"network-{concept_id}", experiments=experiments
-    )
-    plan = plan_study(
-        question,
-        PlannerContext(
-            phase=PHASE, network_id=context.network_id, realised=tuple(e.arm for e in experiments)
-        ),
-    )
-    return Phase1Case(context, plan)
-
-
-def build_phase1() -> dict[str, Phase1Case]:
-    """The cases, with the context taken from the stored phase-0 plans, so a corrected phase-0 plan
-    cannot desync phase 1."""
-    plans = load_plans()
-    return {c.id: build_case(c.id, phase1_question(c.id), plans[c.id]) for c in phase1_concepts()}
-
-
-def dump_phase1(cases: dict[str, Phase1Case]) -> str:
-    context, plan = adapter_for(PlanningContext), adapter_for(StudyPlan)
-    rows: dict[str, Any] = {
-        cid: {
-            "context": context.dump_python(cases[cid].context, mode="json"),
-            "plan": plan.dump_python(cases[cid].plan, mode="json"),
-        }
-        for cid in sorted(cases)
-    }
-    return json.dumps(rows, ensure_ascii=False, indent=2) + "\n"
-
-
-def save_phase1(cases: dict[str, Phase1Case], path: Path = PHASE1_PATH) -> None:
-    path.write_text(dump_phase1(cases), encoding="utf-8")
-
-
-def load_phase1(path: Path = PHASE1_PATH) -> dict[str, Phase1Case]:
-    """Every stored case is validated on load, so its own invariants check the gold."""
-    context, plan = adapter_for(PlanningContext), adapter_for(StudyPlan)
-    rows = json.loads(path.read_text(encoding="utf-8"))
-    return {
-        cid: Phase1Case(context.validate_python(r["context"]), plan.validate_python(r["plan"]))
-        for cid, r in rows.items()
-    }
-
-
-if __name__ == "__main__":
-    built = build_phase1()
-    save_phase1(built)
-    print(f"wrote {len(built)} phase-1 cases to {PHASE1_PATH}")
+    return cases
