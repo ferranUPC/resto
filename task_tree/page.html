@@ -11,7 +11,7 @@
     --bg: #46341f; --card: #33241a; --card-hi: #40301f; --line: #a07d4c; --fg: #f1e3c8;
     --muted: #bea684; --dim: #85704f; --brass: #b08d57;
     --needs-triage: #dba63f; --ready: #6fa8c9; --specified: #ab8dc6; --ticketed: #5fb3a1;
-    --done: #93b86c; --wontfix: #85704f; --needs-info: #db8b9c; --blocked: #8d7c69;
+    --done: #93b86c; --wontfix: #85704f; --cancelled: #7a6a58; --needs-info: #db8b9c; --blocked: #8d7c69;
     --milestone: #f2c45c; --suite: #92b3c9; --validates: #bcae91;
     --in: #f2c45c; --out: #7fb8d9;
     --serif: "Fraunces", "Iowan Old Style", Georgia, serif;
@@ -82,6 +82,10 @@
   .glyph { font-size: 15px; font-weight: 700; text-anchor: middle; }
   .node.blocked .name { fill: var(--muted); }
   .node.blocked .card { fill: url(#plank-dark); }
+  .node.cancelled { opacity: .5; }
+  .node.cancelled .card { fill: url(#plank-dark); stroke-dasharray: 5 4; }
+  .node.cancelled .name, .node.cancelled .effort { fill: var(--dim); text-decoration: line-through; }
+  .node.cancelled .accent { stroke-dasharray: 5 4; }
   .node.actionable .card { fill: url(#plank-hi); }
   .node.milestone .card { fill: url(#plank-gold); }
   .node.milestone .name { fill: var(--milestone); }
@@ -113,6 +117,9 @@
   .ticket:hover .pill { fill: rgba(255,228,180,.1); }
   .ticket text { fill: var(--muted); font-size: 12px; }
   .ticket.done text { text-decoration: line-through; fill: var(--dim); }
+  .ticket.cancelled { opacity: .55; }
+  .ticket.cancelled text { text-decoration: line-through; fill: var(--dim); }
+  .ticket.cancelled .pill { stroke-dasharray: 3 2; stroke: var(--dim); }
   .band { fill: rgba(14,8,3,.55); }
   .rail { fill: rgba(14,8,3,.62); stroke: rgba(196,158,98,.55); stroke-width: 1.5; }
   .rail-mark { fill: var(--milestone); opacity: .85; }
@@ -210,6 +217,7 @@
 <div id="toolbar">
   <h1>RESTO Tech Tree</h1>
   <label><input type="checkbox" id="show-done" checked> Completed</label>
+  <label title="Tasks dropped from the plan; their dependents wait on what they waited on"><input type="checkbox" id="show-cancelled" checked> Cancelled</label>
   <label><input type="checkbox" id="all-edges"> All edges</label>
   <label title="Highlight the heaviest chain of unfinished work (weighted by points)"><input type="checkbox" id="crit-path"> Critical path</label>
   <button id="next-task" class="next-btn" title="Centre on the task to work on next: the startable one with the earliest due date">Next task</button>
@@ -294,9 +302,9 @@ const effortLabel = points => {
 const FINISHED = ["done", "wontfix"];
 const DAG_KINDS = ["milestone", "suite", "validates"];
 const GLYPHS = { "needs-triage": "○", ready: "▶", specified: "◆", ticketed: "≡", done: "✓",
-  wontfix: "✕", "needs-info": "?", milestone: "⚑", suite: "▦", validates: "🏁" };
+  wontfix: "✕", cancelled: "⊘", "needs-info": "?", milestone: "⚑", suite: "▦", validates: "🏁" };
 const LABELS = { "needs-triage": "needs triage", ready: "ready", specified: "specified",
-  ticketed: "ticketed", done: "done", wontfix: "won't fix", "needs-info": "needs info" };
+  ticketed: "ticketed", done: "done", wontfix: "won't fix", cancelled: "cancelled", "needs-info": "needs info" };
 const color = s => `var(--${s})`;
 // One border color per epic, cycled by epic number. Tasks outside an epic (refactors) stay neutral.
 const EPIC_COLORS = ["#d9695a", "#dba63f", "#b5c25a", "#93b86c", "#5fb3a1", "#6fa8c9", "#ab8dc6",
@@ -308,7 +316,7 @@ const epicColor = id => {
 const MARKS = { awaiting: ["⏳", "awaiting measurement"], blocked: ["🚧", "blocked externally"] };
 const isDag = n => DAG_KINDS.includes(n.kind);
 const accentOf = (item, stages) => isDag(item) ? item.kind
-  : item.blocked && !FINISHED.includes(item.stage) ? "blocked"
+  : item.blocked && !FINISHED.includes(item.stage) && item.stage !== "cancelled" ? "blocked"
   : stages.includes(item.stage) ? item.stage : "needs-triage";
 
 function el(name, attrs, parent) {
@@ -464,7 +472,7 @@ function makeArrows() {
 }
 
 function drawGlyph(g, item, accent, x, y) {
-  if (item.blocked && !FINISHED.includes(item.stage) && !isDag(item)) {
+  if (item.blocked && !FINISHED.includes(item.stage) && item.stage !== "cancelled" && !isDag(item)) {
     // small padlock
     el("rect", { x: x - 5, y: y - 1, width: 10, height: 8, rx: 1.5, fill: color(accent) }, g);
     el("path", { d: `M${x - 3},${y - 1} v-2.5 a3,3 0 0 1 6,0 v2.5`, fill: "none",
@@ -481,7 +489,9 @@ function draw() {
   const showDone = document.getElementById("show-done").checked;
   // A collapsible rail (refactors) shows only a header until it is opened.
   const folded = new Set(tree.rails.flatMap((r, i) => isFolded(r) ? [i] : []));
-  const active = tree.nodes.filter(n => (showDone || !FINISHED.includes(n.stage)) && !folded.has(n.rail));
+  const showCancelled = document.getElementById("show-cancelled").checked;
+  const active = tree.nodes.filter(n => (showDone || !FINISHED.includes(n.stage))
+    && (showCancelled || n.stage !== "cancelled") && !folded.has(n.rail));
   const pendingIds = new Set(tree.nodes.filter(n => n.lane !== "done").map(n => n.id));
   // The frontier is the finished tasks that directly block a pending one. They sit next to the graph.
   const frontierIds = new Set(tree.edges.filter(e => pendingIds.has(e.to)).map(e => e.from));
@@ -641,7 +651,7 @@ function draw() {
     if (it.dummy) continue;
     const n = it.node, accent = accentOf(n, stages), dag = isDag(n);
     const cls = ["node", dag ? `dag ${n.kind}` : "", n.critical ? "critical" : "", n.blocked && !dag ? "blocked" : "",
-      !dag && !n.blocked ? "actionable" : ""].join(" ");
+      n.stage === "cancelled" ? "cancelled" : "", !dag && !n.blocked && n.stage !== "cancelled" ? "actionable" : ""].join(" ");
     const node = el("g", { class: cls, transform: `translate(${it.x},${it.y})` }, g);
     nodeEls[n.id] = node;
     const h = heightOf(n);
@@ -699,9 +709,9 @@ function draw() {
       ...n.warnings.map(w => "warning: " + w)].join("\n");
     n.tickets.forEach((t, i) => {
       const label = `${t.id}  ${t.name}`;
-      const tacc = t.blocked && !FINISHED.includes(t.stage) ? "blocked"
+      const tacc = t.blocked && !FINISHED.includes(t.stage) && t.stage !== "cancelled" ? "blocked"
         : stages.includes(t.stage) ? t.stage : "needs-triage";
-      const row = el("g", { class: "ticket" + (FINISHED.includes(t.stage) ? " done" : ""),
+      const row = el("g", { class: "ticket" + (FINISHED.includes(t.stage) ? " done" : t.stage === "cancelled" ? " cancelled" : ""),
         transform: `translate(${ROW_INSET},${H + ROW_GAP + i * RH})` }, node);
       el("rect", { class: "pill", width: W - 2 * ROW_INSET, height: RH - ROW_GAP, rx: 5 }, row);
       el("circle", { cx: 10, cy: (RH - ROW_GAP) / 2, r: 3.5, fill: color(tacc) }, row);
@@ -804,7 +814,7 @@ function select(id) { selected = id; highlight(id); showTask(id); }
 
 function drawLegend() {
   const legend = document.getElementById("legend"); legend.innerHTML = "";
-  const entries = [...tree.stages.filter(s => s !== "done" && s !== "wontfix"), "blocked", "done",
+  const entries = [...tree.stages.filter(s => s !== "done" && s !== "wontfix" && s !== "cancelled"), "blocked", "done", "cancelled",
     "milestone", "suite"];
   for (const s of entries) {
     const span = document.createElement("span");
@@ -886,6 +896,7 @@ window.addEventListener("mousemove", ev => { if (drag) {
 canvas.addEventListener("click", () => { if (!moved && selected) { selected = null; highlight(null); } });
 document.getElementById("fit").addEventListener("click", fit);
 document.getElementById("show-done").addEventListener("change", () => { draw(); fit(); });
+document.getElementById("show-cancelled").addEventListener("change", () => { draw(); fit(); });
 document.getElementById("all-edges").addEventListener("change", () => view && applyEdgeMode());
 document.getElementById("crit-path").addEventListener("change", applyCriticalMode);
 document.getElementById("next-task").addEventListener("click", goToNext);
@@ -1042,10 +1053,10 @@ async function showTask(id) {
     d.warnings.forEach(w => field(dl, "Warning", w));
     const actions = actionsBar();
     // A ticketed task with no takeable ticket has no next step, and the server would reject it.
-    const takeable = d.tickets.some(t => !FINISHED.includes(t.stage) && !t.blocked);
+    const takeable = d.tickets.some(t => !FINISHED.includes(t.stage) && t.stage !== "cancelled" && !t.blocked);
     if (d.has_spec && NEXT_LABELS[d.stage] && (d.stage !== "ticketed" || takeable))
       launchButton(NEXT_LABELS[d.stage], { id: d.id, action: "next" }, actions);
-    if (d.stage !== "done" && d.has_spec) launchButton("Grill", { id: d.id, action: "grill" }, actions);
+    if (d.stage !== "done" && d.stage !== "cancelled" && d.has_spec) launchButton("Grill", { id: d.id, action: "grill" }, actions);
     if (d.markdown) markdownButton("View spec", `${d.id} ${d.name} · spec.md`, d.markdown, actions);
     if (d.plan_excerpt) { text("h3", "Work plan", detail); text("div", d.plan_excerpt, detail); }
     if (d.tickets.length) {
@@ -1140,6 +1151,8 @@ function goTo(hit) {
   let redraw = false;
   const doneBox = document.getElementById("show-done");
   if (FINISHED.includes(node.stage) && !doneBox.checked) { doneBox.checked = true; redraw = true; }
+  const cancelledBox = document.getElementById("show-cancelled");
+  if (node.stage === "cancelled" && !cancelledBox.checked) { cancelledBox.checked = true; redraw = true; }
   const rail = tree.rails[node.rail];
   if (rail && isFolded(rail)) {
     flippedRails.has(rail.id) ? flippedRails.delete(rail.id) : flippedRails.add(rail.id);
