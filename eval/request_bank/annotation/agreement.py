@@ -72,7 +72,7 @@ def _current_intents(question: Any) -> Any:
     if not isinstance(question, Mapping):
         return question
     intent = question.get("intent")
-    return {**question, "intent": _OLD_INTENT_LABELS.get(intent, intent)}
+    return {**question, "intent": _OLD_INTENT_LABELS.get(str(intent), intent)}
 
 
 def parse_export(data: Mapping[str, Any]) -> Export:
