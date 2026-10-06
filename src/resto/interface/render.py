@@ -4,8 +4,8 @@
 E5.11): the Executor already knows what went wrong, so the Output Composer only runs for `completed`
 studies. A failed study is shown in three blocks — what happened, what was done (a rerun of the same
 request reuses it), what the user can do (by `StepError.kind`); an `awaiting_user` study lists the
-Input Parser's ambiguities, the Coordinator's candidates, or what a specialist needs from the
-user. Rendering a completed study's `Report` is E5.4.
+Input Parser's ambiguities, or what a specialist needs from the user. Rendering a completed
+study's `Report` is E5.4.
 """
 
 from __future__ import annotations
@@ -81,7 +81,6 @@ def render_awaiting_user(study: Study) -> str:
         raise ValueError("not a study awaiting the user")
     question = study.question
     lines = [f"# Study {study.study_id}: awaiting your answer", "", f"> {question.text}", ""]
-    clarification = study.phases[0].clarification
     needs = study.phases[-1].needs_user
     if needs is not None:
         lines += ["## What happened", "", needs.message]
@@ -102,17 +101,10 @@ def render_awaiting_user(study: Study) -> str:
         lines += ["", "## What you can do", ""]
         lines += [f"- {r}" for r in needs.recommendations]
         return "\n".join(lines) + "\n"
-    if question.is_ambiguous:
-        lines += ["## What happened", "", "The question is ambiguous:"]
-        lines += [f"- {a}" for a in question.ambiguities]
-        what_to_do = "Ask again, saying precisely what you mean for each point above."
-    else:
-        assert clarification is not None  # Study invariant: awaiting_user needs one of the three
-        lines += ["## What happened", "", clarification.reason]
-        if clarification.candidates:
-            lines += ["", "Candidates:"]
-            lines += [f"- {c}" for c in clarification.candidates]
-        what_to_do = "Ask again, naming the one you mean."
+    assert question.is_ambiguous  # Study invariant: awaiting_user needs ambiguities or a message
+    lines += ["## What happened", "", "The question is ambiguous:"]
+    lines += [f"- {a}" for a in question.ambiguities]
+    what_to_do = "Ask again, saying precisely what you mean for each point above."
     lines += ["", "## What was done", "", "Nothing was run: the study stopped before planning."]
     lines += ["", "## What you can do", "", what_to_do]
     return "\n".join(lines) + "\n"

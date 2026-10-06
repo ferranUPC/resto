@@ -312,28 +312,6 @@
       "title": "Claim",
       "type": "object"
     },
-    "ClarificationRequest": {
-      "description": "The Coordinator's other possible output: an ambiguity only the database reveals, e.g. two\nnetworks labelled \"Gran Via\". `candidates` are what the user picks from.",
-      "properties": {
-        "candidates": {
-          "default": [],
-          "items": {
-            "type": "string"
-          },
-          "title": "Candidates",
-          "type": "array"
-        },
-        "reason": {
-          "title": "Reason",
-          "type": "string"
-        }
-      },
-      "required": [
-        "reason"
-      ],
-      "title": "ClarificationRequest",
-      "type": "object"
-    },
     "Condition": {
       "description": "Runtime predicate `metric(target) op value` evaluated by the script's `when(...)`.",
       "properties": {
@@ -1208,19 +1186,8 @@
       "type": "string"
     },
     "Phase": {
-      "description": "One question planned and executed, then put to the Expert (ADR-0023 \u00a74). `phases[0]` holds\nthe Input Parser's question; each later phase the previous round's `proposed_experiment`.\n\n`clarification` is the Coordinator asking the user instead of planning (phase 0 only). A phase\nwithout a plan ran nothing: its only possible step is the failed planning itself.\n\n`needs_user` is a specialist asking the user to act (ADR-0037 \u00a74): the step that returned it\nhas status `needs_user` and the rest of the plan is skipped, as after a failure.",
+      "description": "One question planned and executed, then put to the Expert (ADR-0023 \u00a74). `phases[0]` holds\nthe Input Parser's question; each later phase the previous round's `proposed_experiment`.\n\nA phase without a plan ran nothing: its only possible step is the failed planning itself.\n\n`needs_user` is a specialist asking the user to act (ADR-0037 \u00a74): the step that returned it\nhas status `needs_user` and the rest of the plan is skipped, as after a failure.",
       "properties": {
-        "clarification": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/ClarificationRequest"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        },
         "experiments": {
           "default": [],
           "items": {
@@ -1794,7 +1761,7 @@
       "type": "string"
     },
     "StudyPlan": {
-      "description": "Emitted by the Coordinator, one per phase; measured against gold plans. `network_id` is the\nnetwork the study is about (`FromStep` when the plan creates it). A plan always contains an\n`obtain_network` step (ADR-0037 \u00a72), so it is never empty.",
+      "description": "Emitted by the planner, one per phase; measured against gold plans. `network_id` is the\nnetwork the study is about (`FromStep` when the plan creates it). A plan always contains an\n`obtain_network` step (ADR-0037 \u00a72), so it is never empty.",
       "properties": {
         "network_id": {
           "anyOf": [

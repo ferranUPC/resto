@@ -7,7 +7,7 @@ This module only does *promotion* — it takes the agent's run as a finished fac
 to call: `application/` never imports `adapters/`, and running the Builder (assembling the
 `AgentTask`/tools and calling `ToolAgent.run`, `adapters/llm/agents/scenario_builder.py`) is an
 adapter-layer concern. Whatever wires the two together (today: a script or a test; later: the
-Coordinator's `build_scenario` tool, work-plan E5.2) calls `run_scenario_builder` first and hands
+Executor's `build_scenario` step, work-plan E5.2) calls `run_scenario_builder` first and hands
 its result here.
 
 Promotion order (ADR-0001):

@@ -10,7 +10,6 @@ from resto.domain.value_objects.outcomes import NeedsUser, WindowMissing
 from resto.domain.value_objects.question import Intent, Mode, Question
 from resto.domain.value_objects.step_record import StepError, StepErrorKind, StepRecord, StepStatus
 from resto.domain.value_objects.study_plan import (
-    ClarificationRequest,
     FromStep,
     ObtainNetworkStep,
     StudyPlan,
@@ -96,11 +95,6 @@ def test_experiments_and_the_round_require_a_plan() -> None:
         Phase(question=_question(), round=_round(_answer()))
 
 
-def test_a_phase_holds_a_plan_or_a_clarification() -> None:
-    with pytest.raises(ValueError, match="either"):
-        Phase(question=_question(), plan=PLAN, clarification=ClarificationRequest("two networks"))
-
-
 def test_steps_after_the_first_failure_are_skipped() -> None:
     with pytest.raises(ValueError, match="skipped"):
         Phase(question=_question(), plan=PLAN, steps=(FAILED, OK))
@@ -163,13 +157,6 @@ def test_forced_mode_has_one_phase_and_never_asks_for_a_simulation() -> None:
     Study(study_id="s", status=StudyStatus.COMPLETED, phases=(answers,), report=report())
 
 
-def test_later_phases_cannot_ask_the_user() -> None:
-    first = Phase(question=_question(), plan=PLAN, round=_round(_abstain()))
-    later = Phase(question=PROPOSED, clarification=ClarificationRequest("two demands match"))
-    with pytest.raises(ValueError, match="phase 0"):
-        Study(study_id="s", status=StudyStatus.RUNNING, phases=(first, later))
-
-
 # --- Study: status --------------------------------------------------------------------------
 
 
@@ -182,13 +169,6 @@ def test_ambiguous_question_waits_for_the_user() -> None:
             study_id="s", status=StudyStatus.AWAITING_USER, phases=(Phase(question=q, plan=PLAN),)
         )
     Study(study_id="s", status=StudyStatus.AWAITING_USER, phases=(Phase(question=q),))
-
-
-def test_a_coordinator_clarification_waits_for_the_user() -> None:
-    phase = Phase(question=_question(), clarification=ClarificationRequest("two networks match"))
-    with pytest.raises(ValueError, match="clarification"):
-        Study(study_id="s", status=StudyStatus.RUNNING, phases=(phase,))
-    Study(study_id="s", status=StudyStatus.AWAITING_USER, phases=(phase,))
 
 
 def test_awaiting_user_needs_something_to_ask() -> None:

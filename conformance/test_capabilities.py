@@ -4,7 +4,7 @@ tools) does not count as having that capability - the contract's own worked exam
 exposing `store_note`/`search_notes` but not `update_note_status`, which must NOT count as having
 `notes`.
 
-Exercises `resto.application.capability_negotiation` (work-plan E1.6) - the Coordinator-facing
+Exercises `resto.application.capability_negotiation` (work-plan E1.6) - the Executor-facing
 capability-listing helper - against a real server's `tools/list`, rather than duplicating the
 derivation rule: this is the acceptance check any DatabaseMCP backend (including a third-party
 one) must pass for that helper to negotiate it correctly at start-up."""

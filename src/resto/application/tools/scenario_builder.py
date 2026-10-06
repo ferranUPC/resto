@@ -183,7 +183,7 @@ def write_vss(ctx: BuilderRun, intervention_index: _InterventionIndex) -> Mappin
     """Writes the `variableSpeedSign` `.add.xml` for a static `speed_limit` intervention.
 
     The intervention's `params` must already carry `speed` and `revert_speed` (m/s) - set by
-    whoever assembled the intervention (the Coordinator's `ScenarioTask`); the Builder does not
+    whoever assembled the intervention (the planner's `ScenarioTask`); the Builder does not
     look the original speed up itself.
 
     Returns `{"file_kind": "vss", "path": <abs path>, "content_hash": <sha256>}` — use this
@@ -278,7 +278,7 @@ def write_sumocfg(ctx: BuilderRun) -> Mapping[str, Any]:
     (the Runner adds those per run). Paths are stored relative to the cfg.
 
     Takes no arguments: the network file and the simulated window come from the network and demand
-    the Coordinator already picked, the additional files are every one written so far in this run
+    the plan already picked, the additional files are every one written so far in this run
     (the agent cannot forget to list one), and the routes are the original demand's unless
     `scale_demand` ran (a `demand_scale` intervention is network-wide, so at most one such call
     matters per run).

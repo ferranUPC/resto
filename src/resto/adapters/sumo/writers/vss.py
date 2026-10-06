@@ -5,7 +5,7 @@ at its end.
 Pure deterministic code, no LLM involved. `variableSpeedSign` operates on lane ids, not edge ids,
 and this writer has no network access to expand an edge into its lanes — it only supports a
 `LaneTarget` (one lane). An edge-wide speed_limit needs one intervention per lane, decided by
-whoever assembles the interventions (agent or Coordinator), or is a case for `rejected[]`
+whoever assembles the interventions (agent or planner), or is a case for `rejected[]`
 (ADR-0007: no silent coercion).
 
 `params` contract (free-form on `Intervention`, fixed here by this writer):
