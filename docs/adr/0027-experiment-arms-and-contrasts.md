@@ -4,7 +4,7 @@
   implemented (E5.12, E5.13); planning and plan validation pending (E5.2, E5.10), Expert and Composer
   use pending (E5.3, E5.4); the `counterfactual` rule of §2 is replaced by
   [ADR-0038](0038-no-counterfactual-intent-contrast-decides-the-arms.md); where it says "the Coordinator",
-  read "the planner", a deterministic function ([ADR-0039](0039-deterministic-planner-replaces-the-coordinator.md), proposed)
+  read "the planner", a deterministic function ([ADR-0039](0039-deterministic-planner-replaces-the-coordinator.md), accepted)
 - Date: 2026-09-23
 - Architecture reference: [`tfm-architecture-and-dod.md`](../tfm-architecture-and-dod.md) §2.3
   (`Question`, `Experiment`), §2.4, §2.5 (Network vs Scenario boundary), §4.1, §4.2;

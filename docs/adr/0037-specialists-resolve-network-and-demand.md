@@ -5,7 +5,7 @@
   as the Coordinator's rules (they now bind the specialists), `StudyPlan.reused` and the "zero steps is
   valid" rule of [ADR-0025](0025-executor-plan-shape-intent-rules-and-failures.md) decision 1, and the
   "reuse, or build" half of ADR-0025 §2. Built by the tasks that change E5.2, E5.9, E5.10, E6.1 and E6.2. Amended by
-  [ADR-0039](0039-deterministic-planner-replaces-the-coordinator.md) (proposed): where this text says "the
+  [ADR-0039](0039-deterministic-planner-replaces-the-coordinator.md) (accepted): where this text says "the
   Coordinator", read "the planner", a deterministic function, not an agent
 - Architecture reference: [`tfm-architecture-and-dod.md`](../tfm-architecture-and-dod.md) §2.2, §2.4, §4.2;
   [ADR-0023](0023-coordinator-split-deterministic-executor.md), ADR-0025, ADR-0035,

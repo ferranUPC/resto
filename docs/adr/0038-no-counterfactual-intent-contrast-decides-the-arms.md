@@ -4,7 +4,7 @@
   [ADR-0025](0025-executor-plan-shape-intent-rules-and-failures.md) §2 and the `counterfactual` rule in
   [ADR-0027](0027-experiment-arms-and-contrasts.md) §2 (`reference_arms`); replaces the `intent` definitions
   of 2026-09-24 in `eval/decisions-log.md`. Where it says "the Coordinator", read "the planner", a deterministic function
-  ([ADR-0039](0039-deterministic-planner-replaces-the-coordinator.md), proposed). Built by refactors r9 (planning rule), r10 (request bank
+  ([ADR-0039](0039-deterministic-planner-replaces-the-coordinator.md), accepted). Built by refactors r9 (planning rule), r10 (request bank
   gold) and r11 (Parser, then the enum), and by E3.7 and E5.2 on top of them
 - Architecture reference: [`tfm-architecture-and-dod.md`](../tfm-architecture-and-dod.md) §2.3 (`Question`),
   §2.4 (Coordinator, Network Expert), §4.1, §4.2; ADR-0023 decision 3, ADR-0025, ADR-0027

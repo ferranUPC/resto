@@ -1,6 +1,6 @@
 # ADR-0039: Planning is a deterministic function; the Coordinator agent is removed
 
-- Status: Proposed (2026-10-06, refactor r13). If accepted, replaces the Coordinator row and the agent half of
+- Status: Accepted (2026-10-06, refactor r13). Replaces the Coordinator row and the agent half of
   the clarification text of [ADR-0023](0023-coordinator-split-deterministic-executor.md) decision 1, and the
   `CoordinatorAgent` port and the role/purpose clause of [ADR-0025](0025-executor-plan-shape-intent-rules-and-failures.md)
   (decisions 5 and 6, in part). Amends [ADR-0037](0037-specialists-resolve-network-and-demand.md),
