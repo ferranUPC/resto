@@ -3,6 +3,10 @@
 here takes data `build.py` has already fetched through `McpClientDatabase` (`query_edgedata`
 results, `SimulationResult.kpis`) and returns one or more `QuestionBankItem`s. No DatabaseMCP
 calls happen in this module, matching `gold.py`'s own "no I/O" split.
+
+"Counterfactual" here (the `counterfactual_*_item` functions and the `-cf-*` ids) names a family of
+Expert benchmark questions: what changes against the baseline. It is not an `Intent`, which ADR-0038
+removed from the Parser's vocabulary; the family keeps its name and its ids.
 """
 
 from __future__ import annotations

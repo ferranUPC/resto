@@ -98,9 +98,12 @@ def test_a_change_question_plans_both_sides_in_phase_0() -> None:
         assert needed_arms(what_if, 1) == (BASE_ARM, SHORTHAND_ARM)
 
 
-def test_describe_and_diagnose_still_plan_the_base() -> None:
+def test_describe_and_diagnose_plan_the_base_in_phase_0() -> None:
     for intent in (Intent.DESCRIBE, Intent.DIAGNOSE):
         assert needed_arms(_question(intent), 0) == (BASE_ARM,)
+        with_change = _question(intent, interventions=(CLOSURE,))
+        assert needed_arms(with_change, 0) == (BASE_ARM,)
+        assert needed_arms(with_change, 1) == (BASE_ARM, SHORTHAND_ARM)
 
 
 def test_a_run_has_no_default_contrast_so_it_plans_no_base() -> None:
@@ -125,6 +128,15 @@ def test_a_run_that_lists_the_base_as_an_arm_plans_it() -> None:
         contrasts=(Contrast("closure"),),
     )
     assert needed_arms(run, 0) == (BASE_ARM, "closure")
+
+
+def test_a_run_with_explicit_contrasts_plans_the_sides_they_declare() -> None:
+    arms = (Arm("closure", interventions=(CLOSURE,)), Arm("retime", interventions=(RETIME,)))
+    between_arms = _question(Intent.RUN, arms=arms, contrasts=(Contrast("closure", "retime"),))
+    against_base = _question(Intent.RUN, arms=arms, contrasts=(Contrast("closure"),))
+    for phase in (0, 1):
+        assert needed_arms(between_arms, phase) == ("closure", "retime")
+        assert needed_arms(against_base, phase) == (BASE_ARM, "closure")
 
 
 def test_a_run_with_nothing_to_simulate_still_needs_the_base() -> None:

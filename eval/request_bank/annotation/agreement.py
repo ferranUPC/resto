@@ -64,15 +64,26 @@ class Export:
 
 # Exports written before ADR-0038 carry labels the four-intent vocabulary no longer has. They stay
 # as written on disk; the scorer reads them through this table, keyed by the old label string.
+#
+# Bias: the table is many-to-one. An old annotator who put `counterfactual` on a concept whose gold
+# is now `run` is scored as a miss, because the label is read as `compare`. The scorer is left
+# as is on purpose; see eval/decisions-log.md.
 _OLD_INTENT_LABELS = {"counterfactual": "compare"}
 
 
-def _current_intents(question: Any) -> Any:
-    """A copy of a stored question dict with an old intent label mapped to a current one."""
-    if not isinstance(question, Mapping):
-        return question
+def _migrate_question(question: Mapping[str, Any]) -> dict[str, Any]:
+    """A copy of one stored question dict with an old intent label mapped to a current one."""
     intent = question.get("intent")
     return {**question, "intent": _OLD_INTENT_LABELS.get(str(intent), intent)}
+
+
+def _migrate_external(item: Mapping[str, Any]) -> dict[str, Any]:
+    """A copy of one external item whose question, if it has one, carries a current intent. An
+    item without a question, or with a null one, keeps exactly that shape."""
+    question = item.get("question")
+    if not isinstance(question, Mapping):
+        return dict(item)
+    return {**item, "question": _migrate_question(question)}
 
 
 def parse_export(data: Mapping[str, Any]) -> Export:
@@ -89,16 +100,13 @@ def parse_export(data: Mapping[str, Any]) -> Export:
             done=bool(item.get("done")),
             question=None
             if item.get("question") is None
-            else adapter.validate_python(_current_intents(item["question"])),
+            else adapter.validate_python(_migrate_question(item["question"])),
             notes=item.get("notes", ""),
             issues=tuple(item.get("issues", ())),
         )
         for item in data.get("held_out", ())
     )
-    external = tuple(
-        {**item, "question": _current_intents(item.get("question"))}
-        for item in data.get("external", ())
-    )
+    external = tuple(_migrate_external(item) for item in data.get("external", ()))
     return Export(annotator, held, external)
 
 

@@ -200,6 +200,26 @@ def test_external_requests_of_an_old_export_carry_a_current_intent():
     assert request["question"]["intent"] == "compare"
 
 
+def test_external_items_keep_their_shape_when_migrated():
+    question = _dump(Question(text="x", intent=Intent.DESCRIBE, network_ref="DEV-NET"))
+    old = {**question, "intent": "counterfactual"}
+    export = parse_export(
+        _export(
+            "ana",
+            [],
+            external=[
+                {"id": "N01", "text": "x", "done": True, "question": old},
+                {"id": "N02", "text": "y", "done": False},
+                {"id": "N03", "text": "z", "done": False, "question": None},
+            ],
+        )
+    )
+    first, without_key, null_question = export.external
+    assert first["question"]["intent"] == "compare"
+    assert "question" not in without_key
+    assert null_question["question"] is None
+
+
 def test_the_stored_exports_read_as_current_intents_and_are_not_rewritten():
     root = Path(__file__).parents[3] / "eval/request_bank/annotation/exports/submissions"
     stored = sorted(root.glob("*.json"))
