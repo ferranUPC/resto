@@ -102,6 +102,7 @@ class Stage:
 class Tier:
     name: str
     stages: tuple[Stage, ...]
+    reviewer_hours: Range = Range(0.0, 0.0)  # manual review time, never converted to USD
 
 
 @dataclass(frozen=True)
@@ -220,8 +221,10 @@ def _suite(raw: dict[str, Any], levels: dict[str, Level]) -> Suite:
     varies = _need(raw, "varies", f"suite {sid!r}")
     if varies not in VARIES:
         raise BudgetDataError(f"suite {sid!r}: varies must be one of {VARIES}")
+    removed = raw.get("removed", "")
     tiers = []
-    for raw_tier in _need(raw, "tiers", f"suite {sid!r}"):
+    raw_tiers = raw.get("tiers", []) if removed else _need(raw, "tiers", f"suite {sid!r}")
+    for raw_tier in raw_tiers:
         tname = _need(raw_tier, "name", f"suite {sid!r}")
         where = f"suite {sid!r} tier {tname!r}"
         if tname not in TIERS:
@@ -233,7 +236,10 @@ def _suite(raw: dict[str, Any], levels: dict[str, Level]) -> Suite:
             )
         if tname == MIN_TIER and any(lv != DEFAULT_LEVEL for st in stages for lv, _ in st.models):
             raise MinimumTierLevelError(f"{where}: must use only the {DEFAULT_LEVEL!r} level")
-        tiers.append(Tier(tname, stages))
+        hours = (
+            _range(raw_tier, "reviewer_hours", where) if "reviewer_hours_low" in raw_tier else ZERO
+        )
+        tiers.append(Tier(tname, stages, hours))
     return Suite(
         sid,
         _need(raw, "name", f"suite {sid!r}"),
@@ -243,7 +249,7 @@ def _suite(raw: dict[str, Any], levels: dict[str, Level]) -> Suite:
         float(_need(raw, "contingency", f"suite {sid!r}")),
         tuple(tiers),
         bool(raw.get("fixed", False)),
-        raw.get("removed", ""),
+        removed,
     )
 
 

@@ -136,8 +136,72 @@ def test_the_shipped_data_names_no_model_in_derived_from():
                 assert not any(n in stage.derived_from.lower() for n in names)
 
 
-def test_the_shipped_data_loads_with_both_suites():
+SUITE_IDS = [
+    "input-parser",
+    "scenario-builder",
+    "network-author",
+    "demand-generator",
+    "exp-01",
+    "expert-real-net",
+    "expert-learning-effect",
+    "output-composer",
+    "golden-path",
+    "plan-bank-routing",
+]
+
+
+def test_the_shipped_data_covers_every_suite_and_marks_the_routing_suite_removed():
     plan = load_plan(DATA)
-    assert [s.id for s in plan.suites] == ["input-parser", "exp-01"]
+    assert [s.id for s in plan.suites] == SUITE_IDS
+    removed = [s.id for s in plan.suites if s.removed]
+    assert removed == ["plan-bank-routing"]
+    assert "r13" in plan.suites[-1].removed
+
+
+def test_the_removed_suite_is_excluded_from_the_totals():
+    plan = load_plan(DATA)
     totals = compute(plan)
-    assert 0 < totals.with_contingency.low <= totals.with_contingency.high
+    assert "plan-bank-routing" not in [r.suite_id for r in totals.suites]
+    assert len(totals.suites) == len(SUITE_IDS) - 1
+
+
+def test_every_live_suite_offers_three_tiers_that_cost_more_as_they_grow():
+    plan = load_plan(DATA)
+    costs = {
+        tier: compute(plan, {s.id: tier for s in plan.suites}).without_contingency
+        for tier in ("minimum", "planned", "extended")
+    }
+    for r in costs.values():
+        assert 0 < r.low <= r.high
+    assert costs["minimum"].high <= costs["planned"].high <= costs["extended"].high
+
+
+def test_the_output_composer_states_reviewer_effort_apart_from_model_cost():
+    plan = load_plan(DATA)
+    composer = next(s for s in plan.suites if s.id == "output-composer")
+    for tier in composer.tiers:
+        assert 0 < tier.reviewer_hours.low <= tier.reviewer_hours.high
+    assert "hallucination" in composer.measures.lower()
+
+
+def test_a_suite_needing_an_unapproved_level_is_pending_policy_approval():
+    totals = compute(load_plan(DATA), {"output-composer": "extended"})
+    row = next(r for r in totals.suites if r.suite_id == "output-composer")
+    assert row.pending_policy_approval
+    assert not next(
+        r for r in compute(load_plan(DATA)).suites if r.suite_id == "golden-path"
+    ).pending_policy_approval
+
+
+def test_each_suite_states_what_varies():
+    for s in load_plan(DATA).suites:
+        assert s.varies in ("repetitions", "seeds")
+
+
+def test_a_removed_suite_needs_no_tiers(tmp_path):
+    raw = (
+        '\n[[suites]]\nid = "gone"\nname = "Gone"\nmeasures = "x"\nthreshold = "y"\n'
+        'varies = "repetitions"\ncontingency = 0.1\nremoved = "removed by r13"\n'
+    )
+    plan = load_plan(write(tmp_path, suite(), raw))
+    assert [r.suite_id for r in compute(plan).suites] == ["s1"]

@@ -86,9 +86,19 @@ def _suite(suite: Suite, plan: Plan) -> list[str]:
         parts = tier_cost_by_basis(tier, plan.levels)
         flag = pending_levels(suite, tier, plan.levels)
         note = f" ({PENDING}: {', '.join(flag)})" if flag else ""
+        hours = tier.reviewer_hours
         out += [
             f"#### {tier.name}{note}: {_usd(total)} before contingency",
             "",
+            *(
+                [
+                    f"Reviewer effort (separate from model cost, not in USD): "
+                    f"{hours.low:g} to {hours.high:g} hours.",
+                    "",
+                ]
+                if hours.high
+                else []
+            ),
             "Measured "
             + _usd(parts["measured"])
             + ", proxy "
@@ -157,6 +167,39 @@ def _totals(plan: Plan, totals: PlanTotals) -> list[str]:
     return out + [""]
 
 
+def _per_tier(plan: Plan) -> list[str]:
+    live = [s for s in plan.suites if not s.removed]
+    offered = [t for t in TIERS if all(any(x.name == t for x in s.tiers) for s in live)]
+    out = [
+        "## Totals per tier",
+        "",
+        f"Every live suite at the same tier, against the {_cap(plan)} reference (V1 and V2",
+        "combined, with contingency). Per-pass figures are with contingency.",
+        "",
+        "| Tier | Without contingency | V1 | V2 | With contingency | Excess over cap |",
+        "|---|---|---|---|---|---|",
+    ]
+    for tier in offered:
+        t = compute(plan, {s.id: tier for s in live})
+        excess = _usd(t.excess_over_cap) if t.excess_over_cap.high > 0 else "none"
+        out.append(
+            f"| {tier} | {_usd(t.without_contingency)} | {_usd(t.by_pass['V1'])} | "
+            f"{_usd(t.by_pass['V2'])} | {_usd(t.with_contingency)} | {excess} |"
+        )
+    return out + [""]
+
+
+def _unfixed(plan: Plan) -> list[str]:
+    open_ = [s for s in plan.suites if not s.removed and not s.fixed]
+    out = [
+        "## Suites whose shape is unfixed",
+        "",
+        "Early ranges for these are not a commitment; each is fixed once its benchmark exists.",
+        "",
+    ]
+    return out + [f"- {s.name} (`{s.id}`)" for s in open_] + [""]
+
+
 def render_full_plan(plan: Plan) -> str:
     """The full internal plan: levels, every suite with its tiers, totals against the cap."""
     totals = compute(plan)
@@ -174,4 +217,5 @@ def render_full_plan(plan: Plan) -> str:
     ]
     for suite in plan.suites:
         lines += _suite(suite, plan)
-    return "\n".join([*lines, *_totals(plan, totals)]).rstrip() + "\n"
+    body = [*lines, *_totals(plan, totals), *_per_tier(plan), *_unfixed(plan)]
+    return "\n".join(body).rstrip() + "\n"

@@ -62,3 +62,22 @@ def test_the_committed_plan_file_is_up_to_date():
     assert (root / "full-plan.md").read_text(encoding="utf-8") == render_full_plan(
         load_plan(root / "cost-data.toml")
     )
+
+
+def test_totals_are_shown_per_tier_with_the_excess_over_the_cap(tmp_path):
+    big = HEADER.replace("cap_usd = 30.0", "cap_usd = 1.0")
+    text = render_full_plan(load_plan(write(tmp_path, header=big)))
+    assert "## Totals per tier" in text
+    assert "| minimum |" in text and "| planned |" in text
+    assert "| extended |" not in text  # the fixture suite has no extended tier
+
+
+def test_the_shipped_plan_lists_unfixed_suites_and_reviewer_effort_apart():
+    root = Path(__file__).resolve().parents[3] / "eval" / "budget"
+    text = render_full_plan(load_plan(root / "cost-data.toml"))
+    assert "## Suites whose shape is unfixed" in text
+    unfixed = text.split("## Suites whose shape is unfixed")[1].split("\n## ")[0]
+    assert "Output Composer" in unfixed and "Input Parser" not in unfixed
+    assert "Reviewer effort" in text and "hours" in text
+    assert "| extended |" in text
+    assert "removed by r13" in text
