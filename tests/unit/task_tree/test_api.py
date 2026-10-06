@@ -64,6 +64,7 @@ flowchart LR
   T1 --> C1["E2.1 calibration · 8"]:::task
   S1 & S2 ==> T2["✅ E5.1"]:::task --> M7(("M7 · 18 Feb")):::pass
   C1 --> M7
+  C1 --> E299["E2.99 final delivery"]:::task
 end
 ```
 """
@@ -151,15 +152,15 @@ def scratch(tmp_path: Path) -> Path:
     return root
 
 
-def test_the_next_task_is_the_first_startable_one_on_the_critical_path(base_url):
+def test_the_next_task_is_the_startable_one_with_the_earliest_due_date(base_url):
     tree = _full_tree(base_url)
     nodes = {n["id"]: n for n in tree["nodes"]}
     critical = {i for i, n in nodes.items() if n["critical"]}
     assert critical and all(nodes[i]["stage"] not in ("done", "wontfix") for i in critical)
-    upcoming = [i for i, n in nodes.items() if n["next"]]
-    assert len(upcoming) <= 1
-    assert all(nodes[i]["frontier"] and nodes[i]["critical"] for i in upcoming)
     assert critical == set(tree["critical_path"])
+    upcoming = [i for i, n in nodes.items() if n["next"]]
+    assert upcoming == ["E2.4"]
+    assert nodes["E2.4"]["frontier"] and nodes["E2.4"]["due"] is not None
 
 
 @pytest.fixture
@@ -330,6 +331,13 @@ def test_a_task_a_milestone_lists_but_nobody_opened_is_a_node_that_needs_triage(
         assert json.load(response)["has_spec"] is False
     with urllib.request.urlopen(f"{base_url}/api/task/E2.3") as response:
         assert json.load(response)["has_spec"] is True
+
+
+def test_a_placeholder_task_is_blocked_by_the_task_the_plan_diagram_draws_before_it(base_url):
+    nodes = _tree(base_url)
+    assert nodes["E2.99"]["blocked_by"] == ["E2.1"]
+    assert nodes["E2.99"]["blocked"] is True
+    assert nodes["E2.99"]["frontier"] is False
 
 
 def test_task_nodes_carry_the_points_of_their_work_plan_row(base_url):

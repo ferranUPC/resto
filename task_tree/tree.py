@@ -549,6 +549,18 @@ def build_tree(scratch: Path, tracker: Path, plan: Path | None = None) -> dict[s
     dues = _due_dates(plan) if plan is not None else {}
     milestones, freeze = _parse_milestones(plan) if plan is not None else ([], None)
     member = _members(plan)
+    dag = parse_dag(plan) if plan is not None else None
+    dag_nodes: dict[str, tuple[str, str]] = {}
+    dag_edges: list[tuple[str, str]] = []
+    if dag is not None:
+        dag_nodes, dag_edges = link_tasks(dag, set(tasks))
+        dag_nodes, dag_edges = drop_time_markers(dag_nodes, dag_edges)
+    # A placeholder has no spec to say what blocks it, so the diagram's edges between tasks do.
+    placeholders = {t.id for t in tasks.values() if t.directory is None and t.stage not in FINISHED}
+    plan_edges = [(a, b) for a, b in dag_edges if a in tasks and b in placeholders]
+    for a, b in plan_edges:
+        tasks[b].blocked_by.append(a)
+    dag_edges = [e for e in dag_edges if e not in plan_edges]
     nodes: dict[str, dict[str, Any]] = {}
     for task in tasks.values():
         blocked = any(d in tasks and d not in done for d in task.blocked_by)
@@ -572,14 +584,10 @@ def build_tree(scratch: Path, tracker: Path, plan: Path | None = None) -> dict[s
             "warnings": task.warnings,
         }
     tree_warnings: list[str] = []
-    dag_edges: list[tuple[str, str]] = []
-    if plan is not None:
-        dag = parse_dag(plan)
+    if dag is not None:
         tree_warnings = dag.warnings
         if not milestones:
             tree_warnings.append("no milestone table (section 2) in the work plan")
-        dag_nodes, dag_edges = link_tasks(dag, set(tasks))
-        dag_nodes, dag_edges = drop_time_markers(dag_nodes, dag_edges)
         for dag_id, (kind, label) in dag_nodes.items():
             nodes[dag_id] = {
                 "id": dag_id,
@@ -621,8 +629,15 @@ def build_tree(scratch: Path, tracker: Path, plan: Path | None = None) -> dict[s
     edges += [{"from": a, "to": b, "done": a in done, "inferred": False} for a, b in dag_edges]
     path = critical_path(nodes, [(e["from"], e["to"]) for e in edges if not e["inferred"]])
     on_path = set(path)
-    # The task to work on next is the first one on the path that can start now.
-    next_id = next((i for i in path if nodes[i]["frontier"]), None)
+    # The task to work on next is the startable one with the earliest due date. Tasks without a
+    # due date come last, and ties go to the one earlier on the critical path.
+    rank = {i: n for n, i in enumerate(path)}
+    startable = [i for i, n in nodes.items() if n["frontier"]]
+    next_id = min(
+        startable,
+        key=lambda i: (dues.get(i, float("inf")), rank.get(i, len(rank)), i),
+        default=None,
+    )
     for node in nodes.values():
         node["critical"] = node["id"] in on_path
         node["next"] = node["id"] == next_id

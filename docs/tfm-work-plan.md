@@ -519,6 +519,7 @@ flowchart LR
   S1 & S8 --> E410["E4.10 calibration + ablation · 8"]:::task
   T1 & T7 & T8 & E410 --> E105["E10.5 results · 20 · by 12 Feb"]:::task
   E105 --> E106["E10.6 discussion · 12 · by 16 Feb"]:::task --> E107["E10.7 draft v1 · 10"]:::task
+  E107 --> E108["E10.8 final delivery · 8 · M9, May"]:::task
   T9 --> E96["E9.6 release packaging · 12 · 10 Feb"]:::task
   E107 & E96 --> M8(("M8 · 18 Feb<br/>end of full-time work")):::pass
   M8 -.-> M9(("M9 · May<br/>delivery, not planned")):::pass

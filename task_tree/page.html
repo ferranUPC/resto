@@ -212,7 +212,7 @@
   <label><input type="checkbox" id="show-done" checked> Completed</label>
   <label><input type="checkbox" id="all-edges"> All edges</label>
   <label title="Highlight the heaviest chain of unfinished work (weighted by points)"><input type="checkbox" id="crit-path"> Critical path</label>
-  <button id="next-task" class="next-btn" title="Centre on the task to work on next: the first startable one on the critical path">Next task</button>
+  <button id="next-task" class="next-btn" title="Centre on the task to work on next: the startable one with the earliest due date">Next task</button>
   <div id="search-box">
     <input id="search" type="search" placeholder="Search by ID or name  ( / )" autocomplete="off" spellcheck="false">
     <div id="results"></div>
@@ -689,7 +689,7 @@ function draw() {
     const tip = el("title", {}, node);
     tip.textContent = [dag ? n.name : `${n.id} ${n.name}`, dag ? `kind: ${n.kind}` : `stage: ${n.stage}`,
       ...(!dag && epicOf(n.id) !== "Other" ? [`epic: ${epicOf(n.id)}`] : []),
-      ...(n.next ? ["next: first startable task on the critical path"] : []),
+      ...(n.next ? ["next: startable task with the earliest due date"] : []),
       ...(n.critical ? ["on the critical path"] : []),
       ...(n.frontier ? ["frontier: can start now"] : []),
       ...(n.urgent ? ["priority: urgent"] : []),
