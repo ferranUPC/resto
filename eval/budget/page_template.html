@@ -1,0 +1,648 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Evaluation budget</title>
+<style>
+  :root { --bg:#f6f7f9; --fg:#14181f; --muted:#5d6672; --line:#dfe3e8; --card:#fff; --soft:#eef1f4; --bad:#b42318; --bad-soft:#fdecea; --ok:#14733a; --ok-soft:#e6f4ea; --accent:#2a5fd6; --accent-soft:#e6eefc; --warn:#9a5b00; --warn-soft:#fff3dc; --r:14px; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0d1014; --fg:#e8edf2; --muted:#98a2ad; --line:#272d36; --card:#151a21; --soft:#1e252e; --bad:#ff8a80; --bad-soft:#35191a; --ok:#5fd37a; --ok-soft:#14291c; --accent:#7aa5ff; --accent-soft:#1b2a47; --warn:#e8ae4a; --warn-soft:#33270f; }
+  }
+  * { box-sizing:border-box; }
+  [hidden] { display:none !important; }
+  body { margin:0 auto; padding:16px 16px 48px; background:var(--bg); color:var(--fg); font:15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; max-width:76rem; }
+  h1 { font-size:1.4rem; margin:.5rem 0 .15rem; letter-spacing:-.01em; }
+  h2 { font-size:1rem; margin:2rem 0 .6rem; }
+  .sub { color:var(--muted); margin:0 0 1rem; max-width:44rem; }
+  .small, .muted { color:var(--muted); font-size:.85rem; }
+  .num { font-variant-numeric:tabular-nums; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:var(--r); padding:16px 18px; margin:0 0 12px; }
+  button { font:inherit; padding:7px 14px; border:1px solid var(--line); border-radius:9px; background:var(--card); color:var(--fg); cursor:pointer; }
+  button:hover:not(:disabled) { border-color:var(--accent); }
+  button:disabled { opacity:.35; cursor:default; }
+  button:focus-visible, input:focus-visible, summary:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+
+  .tools { display:flex; flex-wrap:wrap; gap:10px 16px; align-items:center; margin:14px 0; }
+  .tools .push { margin-left:auto; }
+  .tools .lab { font-size:.85rem; font-weight:600; }
+
+  /* suites */
+  .suite-head { display:flex; justify-content:space-between; gap:14px; align-items:flex-start; }
+  .suite-head h3 { margin:0; font-size:1.05rem; }
+  .suite-head p { margin:2px 0 0; }
+  .cost { text-align:right; white-space:nowrap; }
+  .cost .hi .mid { font-size:1.5rem; font-weight:700; }
+  .cost .hi .dev { font-size:.85rem; }
+  .mid { font-weight:650; }
+  .dev { color:var(--muted); font-size:.75em; font-weight:400; margin-left:5px; }
+  .seg button .dev { color:inherit; opacity:.7; }
+  td .mid { font-size:1.05rem; }
+  tfoot tr.grand .mid { font-size:1.2rem; }
+  .cost .lo { font-size:.8rem; color:var(--muted); }
+  .tags { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .tag { font-size:.72rem; padding:1px 9px; border-radius:99px; background:var(--soft); color:var(--muted); }
+  .tag.warn { background:var(--warn-soft); color:var(--warn); }
+  .row { display:flex; flex-wrap:wrap; gap:10px 16px; align-items:center; margin-top:14px; }
+  .row .lab { font-size:.8rem; color:var(--muted); min-width:5.5rem; }
+  .seg { display:inline-flex; padding:3px; gap:2px; border-radius:99px; background:var(--soft); }
+  .seg button { border:0; background:transparent; padding:5px 16px; border-radius:99px; font-size:.88rem; text-transform:capitalize; }
+  .seg button[aria-pressed="true"] { background:var(--accent); color:#fff; font-weight:600; }
+  .seg button.custom[aria-pressed="true"] { background:var(--fg); color:var(--bg); }
+  .sizes { font-size:.82rem; color:var(--muted); margin-top:6px; }
+  details.more { margin-top:12px; border-top:1px solid var(--line); padding-top:8px; }
+  details.more > summary { cursor:pointer; font-size:.88rem; color:var(--accent); font-weight:600; padding:4px 0; }
+  .field { margin-top:14px; }
+  .row + .field { margin-top:16px; }
+  .field-head { display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
+  .field-head b { font-size:.92rem; }
+  .field-note { margin:0 0 6px; }
+  .step { display:inline-flex; align-items:center; gap:6px; }
+  .step button { width:30px; height:30px; padding:0; line-height:1; border-radius:99px; font-size:1.05rem; }
+  .step input[type=number] { width:3.6rem; text-align:center; font:inherit; font-weight:650; padding:3px 4px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--fg); }
+  .chipset { display:flex; flex-wrap:wrap; gap:8px; }
+  .chip { min-width:4.2rem; border-radius:99px; font-variant-numeric:tabular-nums; }
+  .chip[aria-pressed="true"] { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
+  .matrix { display:grid; grid-template-columns:7.5rem repeat(3, minmax(10.5rem, 1fr)); gap:8px; margin-top:10px; min-width:42rem; }
+  .matrix .colh { font-size:.78rem; font-weight:600; color:var(--muted); padding:0 4px; }
+  .matrix .rowh { font-size:.85rem; font-weight:600; align-self:center; }
+  .mcell { border:1px solid var(--line); border-radius:12px; padding:8px 10px; background:var(--soft); min-height:5.6rem; }
+  .mcell.on { border-color:var(--accent); background:var(--accent-soft); }
+  .mcell .top { display:flex; justify-content:space-between; align-items:center; gap:6px; }
+  .mcell .tog { border:0; background:none; padding:0; font-weight:600; font-size:.9rem; color:var(--muted); display:flex; gap:8px; align-items:center; cursor:pointer; }
+  .mcell.on .tog { color:var(--fg); }
+  .mcell .tog:disabled { opacity:1; cursor:default; }
+  .mcell .box { width:16px; height:16px; border:2px solid var(--muted); border-radius:4px; display:inline-block; position:relative; }
+  .mcell.on .box { background:var(--accent); border-color:var(--accent); }
+  .mcell.on .box::after { content:""; position:absolute; left:3px; top:0; width:4px; height:8px; border:solid #fff; border-width:0 2px 2px 0; transform:rotate(45deg); }
+  .mcell .state { font-size:.7rem; color:var(--muted); }
+  .mcell .state.warn { color:var(--warn); }
+  .mcell .ctl { display:grid; grid-template-columns:auto 1fr; gap:6px 10px; align-items:center; margin-top:8px; font-size:.8rem; color:var(--muted); }
+  .mcell .step button { width:24px; height:24px; font-size:.9rem; }
+  .scroll-x { overflow-x:auto; }
+  .foot { margin-top:12px; }
+
+  /* table */
+  table { border-collapse:collapse; width:100%; font-size:.9rem; }
+  th, td { text-align:left; padding:9px 10px; border-bottom:1px solid var(--line); vertical-align:middle; }
+  th { font-size:.76rem; color:var(--muted); font-weight:600; }
+  td.n, th.n { text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  td.tot, th.tot { border-left:1px solid var(--line); }
+  tfoot tr.sub td { font-weight:500; color:var(--muted); border-bottom:0; }
+  tfoot tr.grand td { font-weight:700; border-top:2px solid var(--fg); border-bottom:0; }
+  tbody tr:last-child td { border-bottom:0; }
+  tbody td:first-child { font-weight:600; }
+  td.size { text-transform:capitalize; color:var(--muted); }
+  .scroll { overflow-x:auto; }
+  details.card > summary { cursor:pointer; font-weight:600; }
+  @media (max-width:640px) {
+    .suite-head { flex-direction:column; }
+    .cost { text-align:left; }
+  }
+</style>
+</head>
+<body>
+<h1>Evaluation budget</h1>
+<p class="sub">Pick a size for each suite, or for all of them at once, and read the cost in the table at the bottom. Every cost is in USD, shown as the middle of the estimate plus or minus half the gap between its high and low values. Test cases are set on each suite and models under "Models and repeats". One global contingency is applied to the summed total. The link keeps your choices, so you can send it.</p>
+
+<div class="tools">
+  <span class="lab">All suites</span>
+  <div class="seg" id="globalSize" role="group" aria-label="Size of all suites"></div>
+  <button id="reset" type="button">Reset to planned</button>
+  <button id="copy" type="button">Copy link</button>
+  <span class="small" id="copied"></span>
+</div>
+<div class="tools">
+  <span class="lab" title="Share added on top of the summed total, for reruns and surprises">Global contingency</span>
+  <div class="seg" id="globalCont" role="group" aria-label="Global contingency"></div>
+</div>
+
+<div id="suites"></div>
+
+<h2>Budget by suite</h2>
+<div class="card scroll" id="overview" aria-live="polite"></div>
+
+<details class="card"><summary>Prices per model level</summary><div class="scroll"><table id="levels"></table></div>
+<p class="small">Measured figures rest on a recorded run; proxy figures are estimates. V1 runs only the default level. Reviewer effort is manual time and is never converted to dollars.</p></details>
+
+<div class="tools">
+  <span class="lab">Export</span>
+  <button id="mdDownload" type="button">Download Markdown</button>
+  <button id="mdCopy" type="button">Copy Markdown</button>
+  <span class="small" id="mdStatus"></span>
+</div>
+
+<script id="data" type="application/json">/*DATA*/</script>
+<script id="core">
+"use strict";
+// Pure calculation, no DOM. The cost formula is the model's: inputs x repetitions x calls x models x
+// (tokens x level price). A parity test checks it against the Python model.
+function clone(x) { return JSON.parse(JSON.stringify(x)); }
+function presetCfg(data, s, name) {
+  var p = s.explore.presets[name], plan = s.explore.presets[data.defaultTier];
+  var cfg = { inputs: clone(p.inputs), models: {}, reps: {} };
+  data.levels.forEach(function (l) {
+    cfg.models[l.name] = p.models[l.name] || 0;
+    cfg.reps[l.name] = p.reps[l.name] || plan.reps[data.defaultLevel] || data.repetitionFloor;
+  });
+  return cfg;
+}
+function whole(v, lo, hi, fallback) {
+  var n = Math.round(Number(v));
+  return isFinite(n) && v !== "" && v !== null ? Math.min(hi, Math.max(lo, n)) : fallback;
+}
+function clamp(data, s, cfg) {
+  var ex = s.explore;
+  Object.keys(ex.inputs).forEach(function (p) {
+    cfg.inputs[p] = whole(cfg.inputs[p], ex.inputs[p].min, ex.inputs[p].max, ex.inputs[p].default);
+  });
+  data.levels.forEach(function (l) {
+    var lo = l.name === data.defaultLevel ? 1 : 0;
+    cfg.models[l.name] = whole(cfg.models[l.name], lo, ex.modelsMax, lo);
+    cfg.reps[l.name] = whole(cfg.reps[l.name], data.repetitionFloor, ex.repsMax, data.repetitionFloor);
+  });
+  return cfg;
+}
+function sameCfg(a, b) {
+  var reps = function (c) {
+    var r = {};
+    Object.keys(c.reps).forEach(function (k) { if (c.models[k]) r[k] = c.reps[k]; });
+    return r;
+  };
+  return JSON.stringify([a.inputs, a.models, reps(a)]) === JSON.stringify([b.inputs, b.models, reps(b)]);
+}
+function presetOf(data, s, cfg) {
+  var found = null;
+  Object.keys(s.tiers).forEach(function (t) {
+    if (found === null && sameCfg(cfg, presetCfg(data, s, t))) found = t;
+  });
+  return found;
+}
+function defaults(data) {
+  var cfg = {}, c = {};
+  data.suites.forEach(function (s) {
+    cfg[s.id] = presetCfg(data, s, data.defaultTier);
+    c[s.id] = s.contingency;
+  });
+  return { cfg: cfg, c: c, g: data.globalContingency };
+}
+function share(text, fallback) {
+  var v = Number(text);
+  return text !== null && text !== "" && isFinite(v) && v >= 0 && v <= 5 ? v : fallback;
+}
+function parseFragment(data, fragment) {
+  var state = defaults(data);
+  var params = new URLSearchParams(String(fragment || "").replace(/^#/, ""));
+  data.suites.forEach(function (s) {
+    var t = params.get("tier." + s.id), cfg = state.cfg[s.id];
+    if (t !== null && Object.prototype.hasOwnProperty.call(s.tiers, t)) cfg = presetCfg(data, s, t);
+    Object.keys(s.explore.inputs).forEach(function (p) {
+      var v = params.get("n." + s.id + "." + p);
+      if (v !== null) cfg.inputs[p] = v;
+    });
+    data.levels.forEach(function (l) {
+      var m = params.get("m." + s.id + "." + l.name), r = params.get("r." + s.id + "." + l.name);
+      if (m !== null) cfg.models[l.name] = m;
+      if (r !== null) cfg.reps[l.name] = r;
+    });
+    state.cfg[s.id] = clamp(data, s, cfg);
+    state.c[s.id] = share(params.get("c." + s.id), state.c[s.id]);
+  });
+  state.g = share(params.get("g"), state.g);
+  return state;
+}
+function toFragment(data, state) {
+  var d = defaults(data), params = new URLSearchParams();
+  data.suites.forEach(function (s) {
+    var cfg = state.cfg[s.id], base = d.cfg[s.id], preset = presetOf(data, s, cfg);
+    if (preset !== null) {
+      if (preset !== data.defaultTier) params.set("tier." + s.id, preset);
+    } else {
+      Object.keys(cfg.inputs).forEach(function (p) {
+        if (cfg.inputs[p] !== base.inputs[p]) params.set("n." + s.id + "." + p, String(cfg.inputs[p]));
+      });
+      data.levels.forEach(function (l) {
+        if (cfg.models[l.name] !== base.models[l.name]) params.set("m." + s.id + "." + l.name, String(cfg.models[l.name]));
+        if (cfg.models[l.name] && cfg.reps[l.name] !== base.reps[l.name]) params.set("r." + s.id + "." + l.name, String(cfg.reps[l.name]));
+      });
+    }
+    if (state.c[s.id] !== d.c[s.id]) params.set("c." + s.id, String(state.c[s.id]));
+  });
+  if (state.g !== d.g) params.set("g", String(state.g));
+  var text = params.toString();
+  return text ? "#" + text : "";
+}
+function add(a, b) { return [a[0] + b[0], a[1] + b[1]]; }
+function times(a, f) { return [a[0] * f, a[1] * f]; }
+function suiteCost(data, s, cfg) {
+  var ex = s.explore, zero = [0, 0], net = {}, basis = {}, pending = [], slots = 0;
+  data.passes.forEach(function (p) { net[p] = zero; });
+  data.bases.forEach(function (b) { basis[b] = zero; });
+  data.levels.forEach(function (l) {
+    var count = cfg.models[l.name];
+    if (!count) return;
+    slots += count;
+    if (ex.levels[l.name].pending) pending.push(l.name);
+    data.passes.forEach(function (p) {
+      if (p === "V1" && l.name !== data.defaultLevel) return;
+      var reps = cfg.reps[l.name];
+      if (p === "V1") reps = Math.min(reps, ex.v1RepsCap);
+      (ex.levels[l.name].blocks[p] || []).forEach(function (b) {
+        var run = [0, 1].map(function (i) { return (b.in[i] * l.in + b.out[i] * l.out) / 1000000; });
+        var cost = times(run, (cfg.inputs[p] || 0) * reps * b.calls * count);
+        net[p] = add(net[p], cost);
+        basis[b.basis] = add(basis[b.basis], cost);
+      });
+    });
+  });
+  return { net: net, basis: basis, pending: pending, hours: times(ex.minutes, (cfg.inputs.V2 || 0) * slots / 60) };
+}
+function totals(data, state) {
+  var zero = [0, 0], net = {}, reserve = {}, byPass = {}, byBasis = {}, hours = zero, rows = [];
+  data.passes.forEach(function (p) { net[p] = zero; reserve[p] = zero; });
+  data.bases.forEach(function (b) { byBasis[b] = zero; });
+  data.suites.forEach(function (s) {
+    var t = suiteCost(data, s, state.cfg[s.id]), own = zero, ownReserve = zero;
+    data.passes.forEach(function (p) {
+      net[p] = add(net[p], t.net[p]);
+      reserve[p] = add(reserve[p], times(t.net[p], state.c[s.id]));
+      own = add(own, t.net[p]);
+      ownReserve = add(ownReserve, times(t.net[p], state.c[s.id]));
+    });
+    data.bases.forEach(function (b) { byBasis[b] = add(byBasis[b], t.basis[b]); });
+    hours = add(hours, t.hours);
+    var passC = {}, owned = zero;
+    data.passes.forEach(function (p) {
+      passC[p] = times(add(t.net[p], times(t.net[p], state.c[s.id])), 1 + state.g);
+      owned = add(owned, passC[p]);
+    });
+    rows.push({ id: s.id, net: own, reserve: ownReserve, pending: t.pending, hours: t.hours, passC: passC, withC: owned });
+  });
+  var without = zero, withC = zero;
+  data.passes.forEach(function (p) {
+    byPass[p] = times(add(net[p], reserve[p]), 1 + state.g);
+    without = add(without, net[p]);
+    withC = add(withC, byPass[p]);
+  });
+  return {
+    withoutContingency: without, withContingency: withC, byPass: byPass, byBasis: byBasis,
+    netByPass: net, hours: hours, rows: rows
+  };
+}
+function mdPrice(r) {
+  var m = function (v) { return "$" + v.toFixed(2); };
+  return r[1] ? m((r[0] + r[1]) / 2) + " ± " + m((r[1] - r[0]) / 2) : "-";
+}
+function mdModels(data, cfg) {
+  return data.levels.filter(function (l) { return cfg.models[l.name]; }).map(function (l) {
+    var parts = l.name.split("-"), fam = l.name.indexOf("non-") === 0 ? "NR" : "R";
+    return fam + " " + parts[parts.length - 1] + " (" + cfg.models[l.name] + "x" + cfg.reps[l.name] + ")";
+  }).join(", ");
+}
+// A short Markdown table of the current choice, for notes. Pure: the caller passes the date and link.
+function toMarkdown(data, state, date, link) {
+  var t = totals(data, state), cols = data.passes.concat(["Total"]);
+  var row = function (cells) { return "| " + cells.join(" | ") + " |"; };
+  var lines = ["# Evaluation budget", "", date + ". Prices are USD, as middle ± half the gap between the high and low estimate.", ""];
+  lines.push(row(["Suite", "Size", "Test cases"].concat(["Models (models x repeats)"], cols)));
+  lines.push(row(["---", "---", "---", "---"].concat(cols.map(function () { return "---:"; }))));
+  data.suites.forEach(function (s) {
+    var cfg = state.cfg[s.id], net = suiteCost(data, s, cfg).net, sum = [0, 0];
+    var cases = data.passes.filter(function (p) { return cfg.inputs[p] !== undefined; })
+      .map(function (p) { return p + " " + cfg.inputs[p]; }).join(", ");
+    var cells = [s.name, presetOf(data, s, cfg) || "custom", cases, mdModels(data, cfg)];
+    data.passes.forEach(function (p) { cells.push(mdPrice(net[p])); sum = add(sum, net[p]); });
+    cells.push(mdPrice(sum));
+    lines.push(row(cells));
+  });
+  var gc = times(t.withoutContingency, state.g), pad = ["", "", ""];
+  var foot = function (label, byPass, total, bold) {
+    var w = function (x) { return bold ? "**" + x + "**" : x; };
+    lines.push(row([w(label)].concat(pad, data.passes.map(function (p) { return w(mdPrice(byPass[p])); }), [w(mdPrice(total))])));
+  };
+  var gcBy = {};
+  data.passes.forEach(function (p) { gcBy[p] = times(t.netByPass[p], state.g); });
+  foot("Subtotal", t.netByPass, t.withoutContingency, false);
+  foot("Global contingency " + Math.round(state.g * 1000) / 10 + "%", gcBy, gc, false);
+  foot("Total", t.byPass, t.withContingency, true);
+  lines.push("", "Link to this exact choice: " + link, "");
+  return lines.join("\n");
+}
+</script>
+<script id="ui">
+"use strict";
+(function () {
+  var data = JSON.parse(document.getElementById("data").textContent);
+  // The page applies one global contingency to the summed total, so the suites carry none of their own.
+  data.suites.forEach(function (s) { s.contingency = 0; });
+  var withoutSuiteContingency = function (st) {
+    data.suites.forEach(function (s) { st.c[s.id] = 0; });
+    return st;
+  };
+  var state = withoutSuiteContingency(parseFragment(data, location.hash));
+  var $ = function (id) { return document.getElementById(id); };
+  var SIZES = ["minimum", "planned", "extended"];
+  var CONTINGENCIES = [5, 10, 15, 20];
+  var GRADES = ["low", "medium", "high"];
+  var FAMILIES = [
+    { label: "Without reasoning", prefix: "non-reasoning-" },
+    { label: "With reasoning", prefix: "reasoning-" }
+  ];
+  var money = function (v) { return "$" + v.toFixed(2); };
+  // The middle in strong type, the half-gap after it small and grey, so the middle reads first.
+  function setPrice(node, r, dash) {
+    node.textContent = "";
+    if (!r[1] && dash) { node.textContent = "-"; return; }
+    node.appendChild(el("span", money((r[0] + r[1]) / 2), "mid"));
+    node.appendChild(el("span", "± " + money((r[1] - r[0]) / 2), "dev"));
+  }
+  var pct = function (part, whole) { return (whole[1] ? Math.round(100 * part[1] / whole[1]) : 0) + "%"; };
+  var cap1 = function (w) { return w.charAt(0).toUpperCase() + w.slice(1); };
+  var family = function (name) { return name.indexOf("non-") === 0 ? "Without reasoning" : "With reasoning"; };
+  var grade = function (name) { return cap1(name.split("-").pop()); };
+  function el(tag, text, cls) {
+    var e = document.createElement(tag);
+    if (text !== undefined) e.textContent = text;
+    if (cls) e.className = cls;
+    return e;
+  }
+  function cell(tr, text, cls, head) { var c = el(head ? "th" : "td", text, cls); tr.appendChild(c); return c; }
+  // A number box with - and + buttons. `set` is called with the typed or stepped value.
+  function stepper(get, set, lo, hi, label) {
+    var box = el("span", undefined, "step");
+    var minus = el("button", "-"), plus = el("button", "+"), input = el("input");
+    minus.type = plus.type = "button";
+    input.type = "number"; input.min = lo; input.max = hi; input.step = 1; input.inputMode = "numeric";
+    minus.setAttribute("aria-label", "Less " + label); plus.setAttribute("aria-label", "More " + label);
+    input.setAttribute("aria-label", label);
+    minus.addEventListener("click", function () { set(get() - 1); });
+    plus.addEventListener("click", function () { set(get() + 1); });
+    input.addEventListener("change", function () { set(input.value); });
+    box.appendChild(minus); box.appendChild(input); box.appendChild(plus);
+    return {
+      box: box,
+      show: function (v) { input.value = v; minus.disabled = v <= lo; plus.disabled = v >= hi; }
+    };
+  }
+  // Cost of one suite for a configuration, both passes, before the global contingency.
+  function suiteNet(s, cfg) {
+    var t = suiteCost(data, s, cfg), r = [0, 0];
+    data.passes.forEach(function (p) { r = add(r, t.net[p]); });
+    return r;
+  }
+  // Three choices per pass: the values the sizes use, then the allowed bounds when sizes share a value.
+  function testCaseOptions(s, p) {
+    var b = s.explore.inputs[p], seen = [];
+    SIZES.filter(function (t) { return s.explore.presets[t]; }).map(function (t) { return s.explore.presets[t].inputs[p]; })
+      .concat([b.min, b.max]).forEach(function (v) { if (seen.length < 3 && seen.indexOf(v) < 0) seen.push(v); });
+    return seen.sort(function (x, y) { return x - y; });
+  }
+  var nodes = {};
+
+  function buildSuite(s) {
+    var ex = s.explore, n = { segBtn: {}, passes: {}, cells: {} };
+    var card = el("div", undefined, "card");
+
+    var head = el("div", undefined, "suite-head"), left = el("div");
+    left.appendChild(el("h3", s.name));
+    left.appendChild(el("p", s.measures, "small"));
+    left.appendChild(el("p", "Goal to compare against: " + s.threshold, "small"));
+    var tags = el("div", undefined, "tags");
+    if (!s.fixed) tags.appendChild(el("span", "Scope not final", "tag"));
+    n.pending = el("span", "Uses models not yet approved", "tag warn");
+    n.pending.title = "A model level in this size is pending policy approval";
+    tags.appendChild(n.pending);
+    left.appendChild(tags);
+    n.cost = el("div", undefined, "cost");
+    n.costHi = el("div", undefined, "hi num"); n.costLo = el("div", undefined, "lo num");
+    n.cost.appendChild(n.costHi); n.cost.appendChild(n.costLo);
+    head.appendChild(left); head.appendChild(n.cost); card.appendChild(head);
+
+    var row = el("div", undefined, "row");
+    row.appendChild(el("span", "Size", "lab"));
+    n.seg = el("div", undefined, "seg");
+    n.seg.setAttribute("role", "group"); n.seg.setAttribute("aria-label", "Size of " + s.name);
+    SIZES.filter(function (t) { return s.tiers[t]; }).forEach(function (t) {
+      var b = el("button"); b.type = "button";
+      b.addEventListener("click", function () { state.cfg[s.id] = presetCfg(data, s, t); update(); });
+      n.seg.appendChild(b); n.segBtn[t] = b;
+    });
+    n.custom = el("button", "custom", "custom"); n.custom.type = "button"; n.custom.disabled = true;
+    n.custom.title = "You changed the details below";
+    n.seg.appendChild(n.custom);
+    row.appendChild(n.seg); card.appendChild(row);
+
+    Object.keys(ex.inputs).forEach(function (p) {
+      var b = ex.inputs[p], r = el("div", undefined, "row"), chips = el("div", undefined, "chipset");
+      var lab = el("span", "Test cases " + p, "lab");
+      lab.title = "Requests or questions the models must answer in " + p + " (allowed " + b.min + " to " + b.max + ")";
+      r.appendChild(lab); r.appendChild(chips); card.appendChild(r);
+      n.passes[p] = { chips: chips, buttons: [], options: testCaseOptions(s, p) };
+      var make = function (v) {
+        var c = el("button", String(v), "chip"); c.type = "button";
+        c.addEventListener("click", function () { state.cfg[s.id].inputs[p] = v; edit(s); });
+        chips.appendChild(c); return c;
+      };
+      n.passes[p].options.forEach(function (v) { n.passes[p].buttons.push({ v: v, node: make(v) }); });
+      n.passes[p].extra = make(0); n.passes[p].extra.title = "Value from a shared link";
+    });
+
+    var more = el("details", undefined, "more");
+    more.appendChild(el("summary", "Models and repeats"));
+    var mf = el("div", undefined, "field");
+    mf.appendChild(el("b", "Models to compare"));
+    mf.appendChild(el("p", "Tick the levels to test. Models is how many different models to try at that level; Repeats is how many times each test case runs, to check how stable the answers are. V1 always uses the default level only.", "small field-note"));
+    var wrap = el("div", undefined, "scroll-x"), grid = el("div", undefined, "matrix");
+    grid.appendChild(el("div"));
+    GRADES.forEach(function (g) { grid.appendChild(el("div", cap1(g), "colh")); });
+    FAMILIES.forEach(function (fam) {
+      grid.appendChild(el("div", fam.label, "rowh"));
+      GRADES.forEach(function (g) {
+        var l = data.levels.filter(function (x) { return x.name === fam.prefix + g; })[0];
+        if (!l) { grid.appendChild(el("div")); return; }
+        var isDef = l.name === data.defaultLevel, c = el("div", undefined, "mcell"), top = el("div", undefined, "top");
+        var tog = el("button", undefined, "tog"); tog.type = "button";
+        tog.appendChild(el("span", undefined, "box")); tog.appendChild(el("span", cap1(g)));
+        tog.setAttribute("aria-label", fam.label + " " + g);
+        if (isDef) tog.disabled = true;
+        tog.addEventListener("click", function () { state.cfg[s.id].models[l.name] = state.cfg[s.id].models[l.name] ? 0 : 1; edit(s); });
+        top.appendChild(tog);
+        var pend = ex.levels[l.name].pending;
+        top.appendChild(el("span", isDef ? "default, always on" : pend ? "needs approval" : "approved", "state" + (pend && !isDef ? " warn" : "")));
+        c.appendChild(top);
+        var ctl = el("div", undefined, "ctl");
+        var ms = stepper(function () { return state.cfg[s.id].models[l.name]; },
+          function (v) { state.cfg[s.id].models[l.name] = v; edit(s); }, isDef ? 1 : 0, ex.modelsMax, "models at " + l.name);
+        var rs = stepper(function () { return state.cfg[s.id].reps[l.name]; },
+          function (v) { state.cfg[s.id].reps[l.name] = v; edit(s); }, data.repetitionFloor, ex.repsMax, "repeats at " + l.name);
+        ctl.appendChild(el("span", "Models")); ctl.appendChild(ms.box);
+        ctl.appendChild(el("span", "Repeats")); ctl.appendChild(rs.box);
+        c.appendChild(ctl); grid.appendChild(c);
+        n.cells[l.name] = { card: c, ctl: ctl, tog: tog, ms: ms, rs: rs };
+      });
+    });
+    wrap.appendChild(grid); mf.appendChild(wrap); more.appendChild(mf);
+
+    card.appendChild(more);
+
+    n.out = el("div", undefined, "small foot"); card.appendChild(n.out);
+    $("suites").appendChild(card); nodes[s.id] = n;
+  }
+
+  function edit(s) { clamp(data, s, state.cfg[s.id]); update(); }
+
+  // Pushes the configuration into the controls.
+  function sync() {
+    data.suites.forEach(function (s) {
+      var n = nodes[s.id], cfg = state.cfg[s.id], preset = presetOf(data, s, cfg);
+      Object.keys(n.segBtn).forEach(function (t) { n.segBtn[t].setAttribute("aria-pressed", String(t === preset)); });
+      n.custom.hidden = preset !== null;
+      n.custom.setAttribute("aria-pressed", String(preset === null));
+      Object.keys(n.passes).forEach(function (p) {
+        var ps = n.passes[p], v = cfg.inputs[p], known = false;
+        ps.buttons.forEach(function (b) {
+          var on = b.v === v; known = known || on;
+          b.node.setAttribute("aria-pressed", String(on));
+        });
+        ps.extra.hidden = known; ps.extra.textContent = v; ps.extra.setAttribute("aria-pressed", "true");
+      });
+      data.levels.forEach(function (l) {
+        var c = n.cells[l.name], on = cfg.models[l.name] > 0;
+        if (!c) return;
+        c.card.className = "mcell" + (on ? " on" : "");
+        c.tog.setAttribute("aria-pressed", String(on));
+        c.ctl.hidden = !on;
+        c.ms.show(cfg.models[l.name]); c.rs.show(cfg.reps[l.name]);
+      });
+    });
+    var all = $("globalSize");
+    Array.prototype.forEach.call(all.children, function (b) {
+      var t = b.dataset.size, offering = data.suites.filter(function (s) { return s.tiers[t]; });
+      b.setAttribute("aria-pressed", String(offering.length > 0 && offering.every(function (s) { return presetOf(data, s, state.cfg[s.id]) === t; })));
+    });
+    Array.prototype.forEach.call($("globalCont").children, function (b) {
+      var v = b.dataset.pct;
+      if (v === undefined) {
+        b.hidden = CONTINGENCIES.some(function (c) { return Math.abs(state.g - c / 100) < 1e-9; });
+        b.textContent = "custom · " + Math.round(state.g * 1000) / 10 + "%";
+      }
+      b.setAttribute("aria-pressed", String(v === undefined ? !b.hidden : Math.abs(state.g - v / 100) < 1e-9));
+    });
+  }
+
+  // Labels that carry a price depend on the contingencies, so they refresh on every update.
+  function priceLabels() {
+    data.suites.forEach(function (s) {
+      Object.keys(nodes[s.id].segBtn).forEach(function (t) {
+        var b = nodes[s.id].segBtn[t];
+        b.textContent = t + " ";
+        setPrice(b.appendChild(el("span")), suiteNet(s, presetCfg(data, s, t)));
+      });
+    });
+    Array.prototype.forEach.call($("globalSize").children, function (b) {
+      var t = b.dataset.size, sum = [0, 0];
+      data.suites.forEach(function (s) {
+        sum = add(sum, suiteNet(s, s.tiers[t] ? presetCfg(data, s, t) : state.cfg[s.id]));
+      });
+      b.textContent = t + " ";
+      setPrice(b.appendChild(el("span")), times(sum, 1 + state.g));
+    });
+  }
+
+  function used(s) {
+    return data.levels.filter(function (l) { return state.cfg[s.id].models[l.name]; }).map(function (l) {
+      var c = state.cfg[s.id].models[l.name];
+      return grade(l.name) + (family(l.name) === "With reasoning" ? " reasoning" : "") + (c > 1 ? " x" + c : "");
+    }).join(", ");
+  }
+
+  function renderTable(t) {
+    var ov = $("overview"); ov.textContent = "";
+    var table = el("table"), thead = el("thead"), hr = el("tr");
+    ["Suite", "Size", "Models"].forEach(function (h) { cell(hr, h, "", true); });
+    data.passes.concat(["Total"]).forEach(function (p) { cell(hr, p, "n", true); });
+    thead.appendChild(hr); table.appendChild(thead);
+    var range = function (tr, r, cls) { setPrice(cell(tr, "", "n" + (cls || "")), r, true); };
+    var tbody = el("tbody");
+    data.suites.forEach(function (s, i) {
+      var tr = el("tr"), net = suiteCost(data, s, state.cfg[s.id]).net, sum = [0, 0];
+      cell(tr, s.name); cell(tr, presetOf(data, s, state.cfg[s.id]) || "custom", "size"); cell(tr, used(s), "small");
+      data.passes.forEach(function (p) { range(tr, net[p]); sum = add(sum, net[p]); });
+      range(tr, sum, " tot"); tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    var foot = el("tfoot"), line = function (label, byPass, total, cls) {
+      var tr = el("tr", undefined, cls), c = cell(tr, label); c.colSpan = 3;
+      data.passes.forEach(function (p) { range(tr, byPass[p]); });
+      range(tr, total, " tot"); foot.appendChild(tr);
+    };
+    var gc = {}, gcTotal = times(t.withoutContingency, state.g);
+    data.passes.forEach(function (p) { gc[p] = times(t.netByPass[p], state.g); });
+    line("Subtotal", t.netByPass, t.withoutContingency, "sub");
+    line("Global contingency (" + Math.round(state.g * 1000) / 10 + "%)", gc, gcTotal, "sub");
+    line("Total", t.byPass, t.withContingency, "grand");
+    table.appendChild(foot); ov.appendChild(table);
+
+    ov.appendChild(el("p", "Each figure is the middle of the estimate, plus or minus half the gap between the high and the low estimate. " + pct(t.byBasis.measured, t.withoutContingency) + " of the subtotal rests on measured runs, the rest on estimates." + (t.hours[1] ? " Manual review: " + t.hours[0].toFixed(1) + " to " + t.hours[1].toFixed(1) + " hours." : ""), "small"));
+  }
+
+  function update() {
+    var t = totals(data, state);
+    sync();
+    history.replaceState(null, "", location.pathname + location.search + toFragment(data, state));
+    t.rows.forEach(function (r, i) {
+      var s = data.suites[i], n = nodes[s.id];
+      setPrice(n.costHi, r.net);
+      n.costLo.textContent = "before global contingency";
+      n.pending.hidden = r.pending.length === 0;
+      n.out.textContent = "Models: " + used(s) + (r.hours[1] ? " · manual review " + r.hours[0].toFixed(1) + " to " + r.hours[1].toFixed(1) + " h" : "");
+    });
+    priceLabels(); renderTable(t);
+  }
+
+  SIZES.forEach(function (t) {
+    var b = el("button"); b.type = "button"; b.dataset.size = t;
+    b.addEventListener("click", function () {
+      data.suites.forEach(function (s) { if (s.tiers[t]) state.cfg[s.id] = presetCfg(data, s, t); });
+      update();
+    });
+    $("globalSize").appendChild(b);
+  });
+  CONTINGENCIES.forEach(function (c) {
+    var b = el("button", c + "%"); b.type = "button"; b.dataset.pct = c;
+    b.addEventListener("click", function () { state.g = c / 100; update(); });
+    $("globalCont").appendChild(b);
+  });
+  var odd = el("button", "custom"); odd.type = "button"; odd.disabled = true; odd.className = "custom";
+  $("globalCont").appendChild(odd);
+  data.suites.forEach(buildSuite);
+  var lv = $("levels"), hr = el("tr");
+  ["Level", "USD per million tokens, in / out", "Policy"].forEach(function (h) { cell(hr, h, "", true); });
+  lv.appendChild(hr);
+  data.levels.forEach(function (l) {
+    var tr = el("tr"); cell(tr, grade(l.name) + ", " + family(l.name).toLowerCase()); cell(tr, l["in"] + " / " + l.out); cell(tr, l.policy); lv.appendChild(tr);
+  });
+  $("reset").addEventListener("click", function () { state = defaults(data); update(); });
+  $("copy").addEventListener("click", function () {
+    var done = function () { $("copied").textContent = "Link copied."; };
+    if (navigator.clipboard) navigator.clipboard.writeText(location.href).then(done, function () { $("copied").textContent = "Copy the address bar instead."; });
+    else $("copied").textContent = "Copy the address bar instead.";
+  });
+  var markdown = function () { return toMarkdown(data, state, new Date().toISOString().slice(0, 10), location.href); };
+  $("mdCopy").addEventListener("click", function () {
+    var done = function () { $("mdStatus").textContent = "Markdown copied."; };
+    if (navigator.clipboard) navigator.clipboard.writeText(markdown()).then(done, function () { $("mdStatus").textContent = "Use Download Markdown instead."; });
+    else $("mdStatus").textContent = "Use Download Markdown instead.";
+  });
+  $("mdDownload").addEventListener("click", function () {
+    var a = el("a"), url = URL.createObjectURL(new Blob([markdown()], { type: "text/markdown" }));
+    a.href = url; a.download = "evaluation-budget-" + new Date().toISOString().slice(0, 10) + ".md";
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    $("mdStatus").textContent = "Markdown downloaded.";
+  });
+  window.addEventListener("hashchange", function () { state = withoutSuiteContingency(parseFragment(data, location.hash)); update(); });
+  update();
+})();
+</script>
+</body>
+</html>
