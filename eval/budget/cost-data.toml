@@ -1,6 +1,6 @@
 # Evaluation cost data (E3.9). The single source every output (full plan, short version, page) reads.
-# Edit this file, then run `python -m eval.budget`. No model names below the level scale: a level is a
-# capability class; a level with `manifest` takes its price from config/prices.toml, one with
+# Edit this file, then run `python -m eval.budget`. No model names below the level scale, `derived_from` included
+# (run ids are neutral): a level is a capability class; a level with `manifest` takes its price from config/prices.toml, one with
 # `assumption` carries a price proposed by hand (USD per million tokens), to be settled by the maintainer.
 #
 # Conventions
@@ -10,7 +10,8 @@
 #   per agent run (all model steps of the run added up).
 # - `basis` is `measured` (the tokens come from a recorded run, named in `derived_from`) or `proxy`
 #   (an estimate; `derived_from` says what it stands on).
-# - The minimum tier uses the default level only, and never fewer than 2 repetitions.
+# - The minimum tier uses only the default level (reasoning-low) and never fewer than the repetition floor
+#   of the plan; the loader refuses it otherwise.
 # - Contingency: per suite (`contingency`, a share of the suite's cost) and global (`global_contingency`,
 #   a share of everything including the per-suite reserves).
 
@@ -54,8 +55,8 @@ policy = "pending policy approval"
 # ---- Suite: Input Parser -------------------------------------------------------------------------------
 # Measured base: parser-benchmark run v8-dev (255 dev requests, 1 repetition, default model, mean 5381 input
 # and 827 output tokens per run, $0.2112 real). Cross-check: v6-heldout (114 held-out requests x 3
-# repetitions, mean 5118 / 553 tokens, $0.376). Low = measured mean, high = mean + about 20 % (prompt growth,
-# longer outputs on multi-arm requests).
+# repetitions, mean 5118 / 553 tokens, $0.376). Measured stages carry the measured mean; the headroom above it
+# (about +20 %, prompt growth, longer outputs on multi-arm requests) is a separate proxy stage.
 
 [[suites]]
 id = "input-parser"
@@ -76,11 +77,24 @@ repetitions = 2
 calls_per_input = 1
 models = [{ level = "reasoning-low", count = 1 }]
 tokens_in_low = 5381
-tokens_in_high = 6500
+tokens_in_high = 5381
 tokens_out_low = 827
-tokens_out_high = 1000
+tokens_out_high = 827
 basis = "measured"
-derived_from = "v8-dev (255 dev requests, 1 repetition)"
+derived_from = "v8-dev (255 dev requests, 1 repetition), mean tokens"
+
+[[suites.tiers.stages]]
+pass = "V1"
+inputs = 255
+repetitions = 2
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 0
+tokens_in_high = 1119
+tokens_out_low = 0
+tokens_out_high = 173
+basis = "proxy"
+derived_from = "assumed headroom over the measured mean (about +20 %: prompt growth, longer outputs on multi-arm requests); no run"
 
 [[suites.tiers.stages]]
 pass = "V2"
@@ -89,11 +103,24 @@ repetitions = 2
 calls_per_input = 1
 models = [{ level = "reasoning-low", count = 1 }]
 tokens_in_low = 5118
-tokens_in_high = 6500
+tokens_in_high = 5118
 tokens_out_low = 553
-tokens_out_high = 1000
+tokens_out_high = 553
 basis = "measured"
-derived_from = "v6-heldout (114 held-out requests x 3 repetitions); output high from v8-dev"
+derived_from = "v6-heldout (114 held-out requests x 3 repetitions), mean tokens"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 114
+repetitions = 2
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 0
+tokens_in_high = 1382
+tokens_out_low = 0
+tokens_out_high = 447
+basis = "proxy"
+derived_from = "assumed headroom over the measured mean (about +20 %: prompt growth, longer outputs on multi-arm requests); no run"
 
 [[suites.tiers]]
 name = "planned"
@@ -105,11 +132,24 @@ repetitions = 3
 calls_per_input = 1
 models = [{ level = "reasoning-low", count = 1 }]
 tokens_in_low = 5381
-tokens_in_high = 6500
+tokens_in_high = 5381
 tokens_out_low = 827
-tokens_out_high = 1000
+tokens_out_high = 827
 basis = "measured"
-derived_from = "v8-dev (255 dev requests, 1 repetition)"
+derived_from = "v8-dev (255 dev requests, 1 repetition), mean tokens"
+
+[[suites.tiers.stages]]
+pass = "V1"
+inputs = 255
+repetitions = 3
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 0
+tokens_in_high = 1119
+tokens_out_low = 0
+tokens_out_high = 173
+basis = "proxy"
+derived_from = "assumed headroom over the measured mean (about +20 %: prompt growth, longer outputs on multi-arm requests); no run"
 
 [[suites.tiers.stages]]
 pass = "V2"
@@ -118,11 +158,24 @@ repetitions = 3
 calls_per_input = 1
 models = [{ level = "reasoning-low", count = 1 }]
 tokens_in_low = 5118
-tokens_in_high = 6500
+tokens_in_high = 5118
 tokens_out_low = 553
-tokens_out_high = 1000
+tokens_out_high = 553
 basis = "measured"
-derived_from = "v6-heldout (114 held-out requests x 3 repetitions); output high from v8-dev"
+derived_from = "v6-heldout (114 held-out requests x 3 repetitions), mean tokens"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 114
+repetitions = 3
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 0
+tokens_in_high = 1382
+tokens_out_low = 0
+tokens_out_high = 447
+basis = "proxy"
+derived_from = "assumed headroom over the measured mean (about +20 %: prompt growth, longer outputs on multi-arm requests); no run"
 
 [[suites.tiers]]
 name = "extended"
@@ -134,11 +187,24 @@ repetitions = 3
 calls_per_input = 1
 models = [{ level = "reasoning-low", count = 1 }]
 tokens_in_low = 5381
-tokens_in_high = 6500
+tokens_in_high = 5381
 tokens_out_low = 827
-tokens_out_high = 1000
+tokens_out_high = 827
 basis = "measured"
-derived_from = "v8-dev (255 dev requests, 1 repetition)"
+derived_from = "v8-dev (255 dev requests, 1 repetition), mean tokens"
+
+[[suites.tiers.stages]]
+pass = "V1"
+inputs = 255
+repetitions = 3
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 0
+tokens_in_high = 1119
+tokens_out_low = 0
+tokens_out_high = 173
+basis = "proxy"
+derived_from = "assumed headroom over the measured mean (about +20 %: prompt growth, longer outputs on multi-arm requests); no run"
 
 [[suites.tiers.stages]]
 pass = "V2"
@@ -147,11 +213,24 @@ repetitions = 3
 calls_per_input = 1
 models = [{ level = "reasoning-low", count = 1 }]
 tokens_in_low = 5118
-tokens_in_high = 6500
+tokens_in_high = 5118
 tokens_out_low = 553
-tokens_out_high = 1000
+tokens_out_high = 553
 basis = "measured"
-derived_from = "v6-heldout (114 held-out requests x 3 repetitions); output high from v8-dev"
+derived_from = "v6-heldout (114 held-out requests x 3 repetitions), mean tokens"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 114
+repetitions = 3
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 0
+tokens_in_high = 1382
+tokens_out_low = 0
+tokens_out_high = 447
+basis = "proxy"
+derived_from = "assumed headroom over the measured mean (about +20 %: prompt growth, longer outputs on multi-arm requests); no run"
 
 [[suites.tiers.stages]]
 pass = "V2"
@@ -164,7 +243,7 @@ tokens_in_high = 6500
 tokens_out_low = 553
 tokens_out_high = 1000
 basis = "proxy"
-derived_from = "v6-heldout tokens of the default model, assumed equal; ministral-v4-dev ($0.148, 212 requests) shows a weaker model needs more output retries"
+derived_from = "v6-heldout tokens of the default model, assumed equal; a weaker-model parser run (v4-dev, 212 requests, $0.148; report in eval/parser_benchmark/reports/) shows a weaker model needs more output retries"
 
 [[suites.tiers.stages]]
 pass = "V2"
@@ -184,7 +263,7 @@ derived_from = "v6-heldout tokens of the default model; output high allows a lon
 # default model, 5,484,928 input and 283,445 output tokens in total = 46,880 / 2,423 per run, $0.993).
 # Earlier full sweep v1-forced-1rep gives 45,120 / 2,629 per run ($0.976). Free mode has never been
 # measured on a full sweep (e45-smoke: 4 questions, zero abstentions), so its tokens are a proxy of forced.
-# The V1 checkpoint is a third of the bank (39 questions, an assumption to refine). The shape is unfixed:
+# The V1 checkpoint is a third of the bank (39 questions, an assumption to refine), so V1 stages are proxy. The shape is unfixed:
 # free-mode repetitions are an open choice and the bank is rebuilt after ADR-0028 (eval/measurement-plans.md).
 
 [[suites]]
@@ -209,8 +288,8 @@ tokens_in_low = 45000
 tokens_in_high = 55000
 tokens_out_low = 2400
 tokens_out_high = 3200
-basis = "measured"
-derived_from = "v2-e38-forced-1rep (forced mode, 117 questions x 1 repetition); V1 size is an assumption"
+basis = "proxy"
+derived_from = "v2-e38-forced-1rep tokens (forced mode, 117 questions x 1 repetition) on an assumed V1 size of 39 questions (a third of the bank); no V1 run"
 
 [[suites.tiers.stages]]
 pass = "V1"
@@ -264,8 +343,8 @@ tokens_in_low = 45000
 tokens_in_high = 55000
 tokens_out_low = 2400
 tokens_out_high = 3200
-basis = "measured"
-derived_from = "v2-e38-forced-1rep (forced mode, 117 questions x 1 repetition); V1 size is an assumption"
+basis = "proxy"
+derived_from = "v2-e38-forced-1rep tokens (forced mode, 117 questions x 1 repetition) on an assumed V1 size of 39 questions (a third of the bank); no V1 run"
 
 [[suites.tiers.stages]]
 pass = "V1"
@@ -319,8 +398,8 @@ tokens_in_low = 45000
 tokens_in_high = 55000
 tokens_out_low = 2400
 tokens_out_high = 3200
-basis = "measured"
-derived_from = "v2-e38-forced-1rep (forced mode, 117 questions x 1 repetition); V1 size is an assumption"
+basis = "proxy"
+derived_from = "v2-e38-forced-1rep tokens (forced mode, 117 questions x 1 repetition) on an assumed V1 size of 39 questions (a third of the bank); no V1 run"
 
 [[suites.tiers.stages]]
 pass = "V1"

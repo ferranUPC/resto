@@ -35,7 +35,7 @@ tokens_in_high = 2000000
 tokens_out_low = 100000
 tokens_out_high = 200000
 basis = "{basis}"
-derived_from = "run-x"
+derived_from = "{derived}"
 """
 
 
@@ -46,6 +46,9 @@ def suite(
     min_reps: int = 2,
     basis: str = "measured",
     level: str = "reasoning-low",
+    min_level: str = "reasoning-low",
+    derived: str = "run-x",
+    tiers: tuple[str, ...] = ("minimum", "planned"),
     removed: str = "",
 ) -> str:
     out = f"""
@@ -59,10 +62,16 @@ contingency = {contingency}
 """
     if removed:
         out += f'removed = "{removed}"\n'
-    for tier in ("minimum", "planned"):
+    for tier in tiers:
         out += f'\n[[suites.tiers]]\nname = "{tier}"\n'
         reps = min_reps if tier == "minimum" else 3
-        out += STAGE.format(pass_="V2", reps=reps, level=level, basis=basis)
+        out += STAGE.format(
+            pass_="V2",
+            reps=reps,
+            level=min_level if tier == "minimum" else level,
+            basis=basis,
+            derived=derived,
+        )
     return out
 
 

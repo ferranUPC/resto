@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 from eval.budget.model import (
+    BASES,
     DEFAULT_TIER,
     PASSES,
     PENDING,
+    TIERS,
     Plan,
     PlanTotals,
     Range,
@@ -14,9 +16,15 @@ from eval.budget.model import (
     compute,
     pending_levels,
     stage_cost,
+    tier_cost,
+    tier_cost_by_basis,
 )
 
-TIER_ORDER = ("minimum", "planned", "extended")
+
+def _share(part: Range, total: Range) -> str:
+    low = part.low / total.low if total.low else 0.0
+    high = part.high / total.high if total.high else 0.0
+    return f"{low:.0%} of the low, {high:.0%} of the high"
 
 
 def _usd(r: Range) -> str:
@@ -73,14 +81,19 @@ def _suite(suite: Suite, plan: Plan) -> list[str]:
         "- Shape: " + ("fixed" if suite.fixed else "unfixed until its benchmark is designed"),
         "",
     ]
-    for tier in sorted(suite.tiers, key=lambda t: TIER_ORDER.index(t.name)):
-        total = Range(0.0, 0.0)
-        for stage in tier.stages:
-            total = total + stage_cost(stage, plan.levels)
+    for tier in sorted(suite.tiers, key=lambda t: TIERS.index(t.name)):
+        total = sum(tier_cost(tier, plan.levels).values(), Range(0.0, 0.0))
+        parts = tier_cost_by_basis(tier, plan.levels)
         flag = pending_levels(suite, tier, plan.levels)
         note = f" ({PENDING}: {', '.join(flag)})" if flag else ""
         out += [
             f"#### {tier.name}{note}: {_usd(total)} before contingency",
+            "",
+            "Measured "
+            + _usd(parts["measured"])
+            + ", proxy "
+            + _usd(parts["proxy"])
+            + " (before contingency).",
             "",
             "| Pass | Inputs x reps | Models | Tokens per run | Basis | Cost |",
             "|---|---|---|---|---|---|",
@@ -94,31 +107,53 @@ def _totals(plan: Plan, totals: PlanTotals) -> list[str]:
     out = [
         "## Totals",
         "",
-        f"Tier per suite: `{DEFAULT_TIER}` (the default selection). Reference cap for V1 and V2 "
-        f"together: {_cap(plan)}.",
+        f"Tier per suite: `{DEFAULT_TIER}` (the default selection). The {_cap(plan)} reference",
+        "is a combined figure for V1 and V2 together; the plan defines no per-pass cap, so the",
+        "excess is stated for the combined total only.",
         "",
         "| | Low to high |",
         "|---|---|",
         f"| Total without contingency | {_usd(totals.without_contingency)} |",
-        f"| Per-suite reserve | {_usd(totals.suite_contingency)} "
-        f"(global {plan.global_contingency:.0%} on top: {_usd(totals.global_contingency)}) |",
+        f"| Per-suite reserve | {_usd(totals.suite_contingency)} |",
+        f"| Global reserve ({plan.global_contingency:.0%} of cost plus per-suite reserve) | "
+        f"{_usd(totals.global_contingency)} |",
         f"| Total with contingency | {_usd(totals.with_contingency)} |",
     ]
-    out += [f"| {p} with contingency | {_usd(totals.by_pass[p])} |" for p in PASSES]
+    for p in PASSES:
+        out.append(f"| {p} without contingency | {_usd(totals.without_contingency_by_pass[p])} |")
+        out.append(f"| {p} with contingency | {_usd(totals.by_pass[p])} |")
+    out.append("")
+    out.append("Share of the total without contingency that rests on a run or on an estimate:")
+    out.append("")
+    out += ["| Basis | Low to high | Share |", "|---|---|---|"]
+    for b in BASES:
+        share = _share(totals.by_basis[b], totals.without_contingency)
+        out.append(f"| {b} | {_usd(totals.by_basis[b])} | {share} |")
     out.append("")
     if totals.excess_over_cap.high > 0:
         out.append(
-            f"The plan exceeds the {_cap(plan)} reference by {_usd(totals.excess_over_cap)}. "
-            "That excess is what the funding request can ask for."
+            f"The plan exceeds the {_cap(plan)} reference by {_usd(totals.excess_over_cap)} "
+            "(combined V1 and V2, with contingency). That excess is what the funding request "
+            "can ask for."
         )
     else:
         out.append(f"The plan stays within the {_cap(plan)} reference.")
     out.append("")
-    out += ["| Suite | Tier | Pending policy approval |", "|---|---|---|"]
     out += [
-        f"| {r.suite_id} | {r.tier} | {'yes' if r.pending_policy_approval else 'no'} |"
-        for r in totals.suites
+        "| Suite | Tier | Without contingency | Per-suite reserve | Measured share | "
+        "Pending policy approval |",
+        "|---|---|---|---|---|---|",
     ]
+    by_id = {s.id: s for s in plan.suites}
+    for r in totals.suites:
+        tier = next(t for t in by_id[r.suite_id].tiers if t.name == r.tier)
+        net = sum(r.by_pass.values(), Range(0.0, 0.0))
+        reserve = sum(r.contingency.values(), Range(0.0, 0.0))
+        measured = tier_cost_by_basis(tier, plan.levels)["measured"]
+        out.append(
+            f"| {r.suite_id} | {r.tier} | {_usd(net)} | {_usd(reserve)} | "
+            f"{_share(measured, net)} | {'yes' if r.pending_policy_approval else 'no'} |"
+        )
     return out + [""]
 
 

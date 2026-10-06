@@ -20,8 +20,11 @@ PASSES = ("V1", "V2")
 BASES = ("measured", "proxy")
 VARIES = ("repetitions", "seeds")
 PENDING = "pending policy approval"
-MIN_TIER = "minimum"
-DEFAULT_TIER = "planned"
+TIERS = ("minimum", "planned", "extended")
+MIN_TIER, DEFAULT_TIER = TIERS[0], TIERS[1]
+DEFAULT_LEVEL = (
+    "reasoning-low"  # the level the default model sits on; the minimum tier uses only it
+)
 REPETITION_FLOOR = 2
 
 
@@ -46,7 +49,15 @@ class PriceNotInManifestError(BudgetDataError):
 
 
 class MinimumTierBelowFloorError(BudgetDataError):
-    """A minimum tier runs fewer than the 2 repetitions the plan sets as its floor."""
+    """A minimum tier runs fewer repetitions than the plan's floor."""
+
+
+class MinimumTierLevelError(BudgetDataError):
+    """A minimum tier uses a capability level other than the default one."""
+
+
+class TierUnknownError(BudgetDataError):
+    """A tier name is not one of the known tiers (minimum, planned, extended)."""
 
 
 @dataclass(frozen=True)
@@ -131,6 +142,8 @@ class PlanTotals:
     global_contingency: Range
     with_contingency: Range
     by_pass: dict[str, Range]  # with contingency
+    without_contingency_by_pass: dict[str, Range]
+    by_basis: dict[str, Range]  # without contingency, split measured / proxy
     excess_over_cap: Range
 
 
@@ -211,11 +224,15 @@ def _suite(raw: dict[str, Any], levels: dict[str, Level]) -> Suite:
     for raw_tier in _need(raw, "tiers", f"suite {sid!r}"):
         tname = _need(raw_tier, "name", f"suite {sid!r}")
         where = f"suite {sid!r} tier {tname!r}"
+        if tname not in TIERS:
+            raise TierUnknownError(f"{where}: tier must be one of {TIERS}")
         stages = tuple(_stage(s, levels, where) for s in _need(raw_tier, "stages", where))
         if tname == MIN_TIER and any(s.repetitions < REPETITION_FLOOR for s in stages):
             raise MinimumTierBelowFloorError(
                 f"{where}: runs fewer than {REPETITION_FLOOR} repetitions"
             )
+        if tname == MIN_TIER and any(lv != DEFAULT_LEVEL for st in stages for lv, _ in st.models):
+            raise MinimumTierLevelError(f"{where}: must use only the {DEFAULT_LEVEL!r} level")
         tiers.append(Tier(tname, stages))
     return Suite(
         sid,
@@ -246,19 +263,33 @@ def load_plan(path: Path) -> Plan:
 
 def stage_cost(stage: Stage, levels: dict[str, Level]) -> Range:
     """The one cost formula, used by every output."""
-    per_run = ZERO
-    for level, count in stage.models:
-        price = levels[level]
-        low = (
-            stage.tokens_in.low * price.input_per_mtok
-            + stage.tokens_out.low * price.output_per_mtok
-        )
-        high = (
-            stage.tokens_in.high * price.input_per_mtok
-            + stage.tokens_out.high * price.output_per_mtok
-        )
-        per_run = per_run + Range(low, high).scaled(count / 1_000_000)
+    per_run = sum(
+        (
+            (
+                stage.tokens_in.scaled(levels[level].input_per_mtok)
+                + stage.tokens_out.scaled(levels[level].output_per_mtok)
+            ).scaled(count / 1_000_000)
+            for level, count in stage.models
+        ),
+        ZERO,
+    )
     return per_run.scaled(stage.inputs * stage.repetitions * stage.calls_per_input)
+
+
+def tier_cost(tier: Tier, levels: dict[str, Level]) -> dict[str, Range]:
+    """Cost of a tier per validation pass, before contingency: the one tier-cost function."""
+    cost = {p: ZERO for p in PASSES}
+    for stage in tier.stages:
+        cost[stage.pass_] = cost[stage.pass_] + stage_cost(stage, levels)
+    return cost
+
+
+def tier_cost_by_basis(tier: Tier, levels: dict[str, Level]) -> dict[str, Range]:
+    """Cost of a tier split by basis (measured, proxy), before contingency."""
+    cost = {b: ZERO for b in BASES}
+    for stage in tier.stages:
+        cost[stage.basis] = cost[stage.basis] + stage_cost(stage, levels)
+    return cost
 
 
 def pending_levels(suite: Suite, tier: Tier, levels: dict[str, Level]) -> list[str]:
@@ -276,6 +307,7 @@ def compute(plan: Plan, selection: dict[str, str] | None = None) -> PlanTotals:
     rows: list[SuiteTotals] = []
     by_pass_net = {p: ZERO for p in PASSES}
     by_pass_reserve = {p: ZERO for p in PASSES}
+    by_basis = {b: ZERO for b in BASES}
     for suite in plan.suites:
         if suite.removed:
             continue
@@ -283,24 +315,24 @@ def compute(plan: Plan, selection: dict[str, str] | None = None) -> PlanTotals:
         tier = next((t for t in suite.tiers if t.name == wanted), None)
         if tier is None:
             raise BudgetDataError(f"suite {suite.id!r} has no tier {wanted!r}")
-        cost = {p: ZERO for p in PASSES}
-        for stage in tier.stages:
-            cost[stage.pass_] = cost[stage.pass_] + stage_cost(stage, plan.levels)
+        cost = tier_cost(tier, plan.levels)
         reserve = {p: cost[p].scaled(suite.contingency) for p in PASSES}
         for p in PASSES:
             by_pass_net[p] = by_pass_net[p] + cost[p]
             by_pass_reserve[p] = by_pass_reserve[p] + reserve[p]
+        for basis, part in tier_cost_by_basis(tier, plan.levels).items():
+            by_basis[basis] = by_basis[basis] + part
         rows.append(
             SuiteTotals(
                 suite.id, tier.name, cost, reserve, bool(pending_levels(suite, tier, plan.levels))
             )
         )
-    net = _sum(by_pass_net.values())
-    reserve_total = _sum(by_pass_reserve.values())
+    net = sum(by_pass_net.values(), ZERO)
+    reserve_total = sum(by_pass_reserve.values(), ZERO)
     by_pass = {
         p: (by_pass_net[p] + by_pass_reserve[p]).scaled(1 + plan.global_contingency) for p in PASSES
     }
-    total = _sum(by_pass.values())
+    total = sum(by_pass.values(), ZERO)
     return PlanTotals(
         tuple(rows),
         net,
@@ -308,12 +340,7 @@ def compute(plan: Plan, selection: dict[str, str] | None = None) -> PlanTotals:
         (net + reserve_total).scaled(plan.global_contingency),
         total,
         by_pass,
+        by_pass_net,
+        by_basis,
         Range(max(0.0, total.low - plan.cap_usd), max(0.0, total.high - plan.cap_usd)),
     )
-
-
-def _sum(ranges: Any) -> Range:
-    total = ZERO
-    for r in ranges:
-        total = total + r
-    return total

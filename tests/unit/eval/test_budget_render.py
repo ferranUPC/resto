@@ -31,6 +31,22 @@ def test_an_excess_over_the_cap_is_stated(tmp_path):
     assert "exceeds" in text.lower()
 
 
+def test_totals_show_per_pass_with_and_without_contingency_and_the_reserve(tmp_path):
+    plan = load_plan(write(tmp_path))
+    totals = compute(plan)
+    text = render_full_plan(plan)
+    assert "V2 without contingency" in text and "V2 with contingency" in text
+    assert "V1 without contingency" in text and "V1 with contingency" in text
+    assert f"{totals.suites[0].contingency['V2'].low:.2f}" in text  # per-suite reserve in dollars
+    assert "no per-pass cap" in text
+
+
+def test_the_plan_shows_the_measured_and_proxy_share(tmp_path):
+    text = render_full_plan(load_plan(write(tmp_path, suite(basis="proxy"))))
+    assert "| proxy |" in text and "100% of the low" in text
+    assert "| measured |" in text
+
+
 def test_a_removed_suite_is_listed_as_excluded(tmp_path):
     plan = load_plan(write(tmp_path, suite(), suite(suite_id="gone", removed="removed by r13")))
     assert "removed by r13" in render_full_plan(plan)
