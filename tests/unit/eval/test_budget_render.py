@@ -81,3 +81,9 @@ def test_the_shipped_plan_lists_unfixed_suites_and_reviewer_effort_apart():
     assert "Reviewer effort" in text and "hours" in text
     assert "| extended |" in text
     assert "removed by r13" in text
+
+
+def test_a_possible_excess_is_stated_as_possible(tmp_path):
+    mid = HEADER.replace("cap_usd = 30.0", "cap_usd = 10.0")
+    text = render_full_plan(load_plan(write(tmp_path, header=mid)))
+    assert "may exceed" in text and "exceeds the" not in text

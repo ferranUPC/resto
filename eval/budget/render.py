@@ -2,37 +2,38 @@
 
 from __future__ import annotations
 
+from eval.budget.common import (
+    GENERATED,
+    excess_cell,
+    excess_sentence,
+)
+from eval.budget.common import (
+    cap as _cap,
+)
+from eval.budget.common import (
+    share as _share,
+)
+from eval.budget.common import (
+    usd as _usd,
+)
 from eval.budget.model import (
     BASES,
     DEFAULT_TIER,
     PASSES,
     PENDING,
     TIERS,
+    ZERO,
     Plan,
     PlanTotals,
-    Range,
     Stage,
     Suite,
     compute,
     pending_levels,
     stage_cost,
-    tier_cost,
     tier_cost_by_basis,
+    tier_net,
+    totals_per_tier,
 )
-
-
-def _share(part: Range, total: Range) -> str:
-    low = part.low / total.low if total.low else 0.0
-    high = part.high / total.high if total.high else 0.0
-    return f"{low:.0%} of the low, {high:.0%} of the high"
-
-
-def _usd(r: Range) -> str:
-    return f"${r.low:.2f} to ${r.high:.2f}"
-
-
-def _cap(plan: Plan) -> str:
-    return f"${plan.cap_usd:g}"
 
 
 def _stage_row(stage: Stage, plan: Plan) -> str:
@@ -82,7 +83,7 @@ def _suite(suite: Suite, plan: Plan) -> list[str]:
         "",
     ]
     for tier in sorted(suite.tiers, key=lambda t: TIERS.index(t.name)):
-        total = sum(tier_cost(tier, plan.levels).values(), Range(0.0, 0.0))
+        total = tier_net(tier, plan.levels)
         parts = tier_cost_by_basis(tier, plan.levels)
         flag = pending_levels(suite, tier, plan.levels)
         note = f" ({PENDING}: {', '.join(flag)})" if flag else ""
@@ -140,14 +141,7 @@ def _totals(plan: Plan, totals: PlanTotals) -> list[str]:
         share = _share(totals.by_basis[b], totals.without_contingency)
         out.append(f"| {b} | {_usd(totals.by_basis[b])} | {share} |")
     out.append("")
-    if totals.excess_over_cap.high > 0:
-        out.append(
-            f"The plan exceeds the {_cap(plan)} reference by {_usd(totals.excess_over_cap)} "
-            "(combined V1 and V2, with contingency). That excess is what the funding request "
-            "can ask for."
-        )
-    else:
-        out.append(f"The plan stays within the {_cap(plan)} reference.")
+    out.append(excess_sentence(plan, totals, "The plan"))
     out.append("")
     out += [
         "| Suite | Tier | Without contingency | Per-suite reserve | Measured share | "
@@ -156,9 +150,9 @@ def _totals(plan: Plan, totals: PlanTotals) -> list[str]:
     ]
     by_id = {s.id: s for s in plan.suites}
     for r in totals.suites:
-        tier = next(t for t in by_id[r.suite_id].tiers if t.name == r.tier)
-        net = sum(r.by_pass.values(), Range(0.0, 0.0))
-        reserve = sum(r.contingency.values(), Range(0.0, 0.0))
+        tier = by_id[r.suite_id].tier(r.tier)
+        net = sum(r.by_pass.values(), ZERO)
+        reserve = sum(r.contingency.values(), ZERO)
         measured = tier_cost_by_basis(tier, plan.levels)["measured"]
         out.append(
             f"| {r.suite_id} | {r.tier} | {_usd(net)} | {_usd(reserve)} | "
@@ -168,8 +162,6 @@ def _totals(plan: Plan, totals: PlanTotals) -> list[str]:
 
 
 def _per_tier(plan: Plan) -> list[str]:
-    live = [s for s in plan.suites if not s.removed]
-    offered = [t for t in TIERS if all(any(x.name == t for x in s.tiers) for s in live)]
     out = [
         "## Totals per tier",
         "",
@@ -179,12 +171,10 @@ def _per_tier(plan: Plan) -> list[str]:
         "| Tier | Without contingency | V1 | V2 | With contingency | Excess over cap |",
         "|---|---|---|---|---|---|",
     ]
-    for tier in offered:
-        t = compute(plan, {s.id: tier for s in live})
-        excess = _usd(t.excess_over_cap) if t.excess_over_cap.high > 0 else "none"
+    for tier, t in totals_per_tier(plan):
         out.append(
             f"| {tier} | {_usd(t.without_contingency)} | {_usd(t.by_pass['V1'])} | "
-            f"{_usd(t.by_pass['V2'])} | {_usd(t.with_contingency)} | {excess} |"
+            f"{_usd(t.by_pass['V2'])} | {_usd(t.with_contingency)} | {excess_cell(t)} |"
         )
     return out + [""]
 
@@ -206,7 +196,7 @@ def render_full_plan(plan: Plan) -> str:
     lines = [
         "# Evaluation cost plan (full, internal)",
         "",
-        "Generated from `eval/budget/cost-data.toml` by `python -m eval.budget`; do not edit.",
+        GENERATED,
         "Every figure is a low-to-high range in USD. `measured` rests on a recorded run;",
         "`proxy` is an estimate and names what it derives from. A run is one agent run;",
         "tokens are per run.",

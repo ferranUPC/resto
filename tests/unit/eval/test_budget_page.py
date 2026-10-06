@@ -112,3 +112,8 @@ def test_the_committed_page_is_up_to_date():
     assert (ROOT / "budget.html").read_text(encoding="utf-8") == render_page(
         load_plan(ROOT / "cost-data.toml")
     )
+
+
+def test_the_page_script_says_may_exceed_when_only_the_high_total_is_over():
+    html = (ROOT / "page_template.html").read_text(encoding="utf-8")
+    assert "May exceed the $" in html

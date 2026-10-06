@@ -375,7 +375,7 @@ Share of the total without contingency that rests on a run or on an estimate:
 | measured | $4.25 to $4.94 | 28% of the low, 21% of the high |
 | proxy | $10.92 to $18.94 | 72% of the low, 79% of the high |
 
-The plan exceeds the $30 reference by $0.00 to $2.47 (combined V1 and V2, with contingency). That excess is what the funding request can ask for.
+The plan may exceed the $30 reference: the low estimate is within it, the high estimate is over by up to $2.47 (combined V1 and V2, with contingency). That possible excess is what the funding request can ask for.
 
 | Suite | Tier | Without contingency | Per-suite reserve | Measured share | Pending policy approval |
 |---|---|---|---|---|---|
@@ -397,7 +397,7 @@ combined, with contingency). Per-pass figures are with contingency.
 | Tier | Without contingency | V1 | V2 | With contingency | Excess over cap |
 |---|---|---|---|---|---|
 | minimum | $10.51 to $16.41 | $2.71 to $3.63 | $11.54 to $18.67 | $14.25 to $22.30 | none |
-| planned | $15.16 to $23.88 | $3.17 to $4.18 | $17.41 to $28.29 | $20.58 to $32.47 | $0.00 to $2.47 |
+| planned | $15.16 to $23.88 | $3.17 to $4.18 | $17.41 to $28.29 | $20.58 to $32.47 | up to $2.47 (may exceed) |
 | extended | $47.71 to $94.92 | $3.17 to $4.18 | $61.28 to $124.40 | $64.45 to $128.58 | $34.45 to $98.58 |
 
 ## Suites whose shape is unfixed

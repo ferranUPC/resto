@@ -1,32 +1,35 @@
 """The short English version for the supervisors, rendered from the same computed model.
 
-No figure is written here: every number comes from `compute`, `tier_cost` and
-`tier_cost_by_basis`. Capability levels appear by name only, never a model name.
+No figure is written here: every number comes from `compute`, `tier_net`, `tier_cost_by_basis`
+and `totals_per_tier`. Capability levels appear by name only, never a model name.
 """
 
 from __future__ import annotations
 
+from eval.budget.common import (
+    GENERATED,
+    cap,
+    excess_cell,
+    excess_sentence,
+    share,
+    usd,
+)
 from eval.budget.model import (
+    BASES,
     DEFAULT_TIER,
     MIN_TIER,
     PASSES,
-    TIERS,
+    PENDING,
     Plan,
-    Range,
+    PlanTotals,
     Suite,
     Tier,
     compute,
-    tier_cost,
+    pending_levels,
     tier_cost_by_basis,
+    tier_net,
+    totals_per_tier,
 )
-
-
-def _usd(r: Range) -> str:
-    return f"${r.low:.2f} to ${r.high:.2f}"
-
-
-def _tier(suite: Suite, name: str) -> Tier | None:
-    return next((t for t in suite.tiers if t.name == name), None)
 
 
 def _runs(tier: Tier) -> int:
@@ -38,72 +41,107 @@ def _passes(tier: Tier) -> str:
 
 
 def _basis(tier: Tier, plan: Plan) -> str:
+    """Each basis with its share of the tier's cost (by the high figure), e.g. `measured 62%`."""
     parts = tier_cost_by_basis(tier, plan.levels)
-    used = [b for b, r in parts.items() if r.high > 0]
+    total = tier_net(tier, plan.levels).high
+    used = [f"{b} {parts[b].high / total:.0%}" for b in BASES if parts[b].high > 0]
     return " + ".join(used) if used else "none"
 
 
-def _net(tier: Tier, plan: Plan) -> Range:
-    return sum(tier_cost(tier, plan.levels).values(), Range(0.0, 0.0))
-
-
-def _row(suite: Suite, plan: Plan) -> str:
-    full = _tier(suite, DEFAULT_TIER)
-    low = _tier(suite, MIN_TIER)
-    assert full is not None and low is not None
-    shape = "fixed" if suite.fixed else "unfixed"
-    return (
-        f"| {suite.name} | {suite.measures} | {suite.threshold} | {_passes(full)} | "
-        f"{_runs(full)} / {_runs(low)} | {_basis(full, plan)} | "
-        f"{_usd(_net(low, plan))} / {_usd(_net(full, plan))} | {shape} |"
+def _levels(suite: Suite, tier: Tier, plan: Plan) -> str:
+    """Levels tested with the most models any stage runs at each; pending ones are marked."""
+    most: dict[str, int] = {}
+    for stage in tier.stages:
+        for level, count in stage.models:
+            most[level] = max(most.get(level, 0), count)
+    pending = pending_levels(suite, tier, plan.levels)
+    return ", ".join(
+        f"{lv} x{n}" + (f" ({PENDING})" if lv in pending else "") for lv, n in sorted(most.items())
     )
 
 
+def _hours(tier: Tier) -> str:
+    hours = tier.reviewer_hours
+    return f"{hours.low:g} to {hours.high:g} h" if hours.high else "none"
+
+
+def _shape_row(suite: Suite) -> str:
+    shape = "fixed" if suite.fixed else "unfixed"
+    return f"| {suite.name} | {suite.measures} | {suite.threshold} | {shape} |"
+
+
+def _design_row(suite: Suite, plan: Plan) -> str:
+    planned = suite.tier(DEFAULT_TIER)
+    minimum = suite.tier(MIN_TIER)
+    return (
+        f"| {suite.name} | {_passes(planned)} | {_levels(suite, planned, plan)} | "
+        f"{suite.varies} | {_runs(minimum)} / {_runs(planned)} | {_basis(planned, plan)} | "
+        f"{_hours(minimum)} / {_hours(planned)} | "
+        f"{usd(tier_net(minimum, plan.levels))} / {usd(tier_net(planned, plan.levels))} |"
+    )
+
+
+def _totals_row(tier: str, t: PlanTotals) -> str:
+    flag = f" ({PENDING})" if any(r.pending_policy_approval for r in t.suites) else ""
+    reserve = t.suite_contingency + t.global_contingency
+    return (
+        f"| {tier}{flag} | {usd(t.without_contingency)} | {usd(reserve)} | "
+        f"{usd(t.with_contingency)} | {usd(t.by_pass['V1'])} | {usd(t.by_pass['V2'])} | "
+        f"{excess_cell(t)} |"
+    )
+
+
+def _evidence(totals: PlanTotals) -> str:
+    parts = [
+        f"{b} {usd(totals.by_basis[b])} ({share(totals.by_basis[b], totals.without_contingency)})"
+        for b in BASES
+    ]
+    return "Planned tier before contingency, by evidence: " + "; ".join(parts) + "."
+
+
 def render_short_version(plan: Plan) -> str:
-    """A one-page evaluation budget: one row per suite, totals per tier against the cap."""
+    """A one-page evaluation budget: suites, their design and cost, totals per tier."""
     live = [s for s in plan.suites if not s.removed]
     totals = compute(plan)
-    cap = f"${plan.cap_usd:g}"
     lines = [
         "# Evaluation budget (short version)",
         "",
-        "Generated from `eval/budget/cost-data.toml` by `python -m eval.budget`; do not edit.",
+        GENERATED,
         "All figures are low-to-high ranges in USD. Runs are agent runs. `measured` rests on a",
-        "recorded run, `proxy` on an estimate. Model capability is given as a level, not a model.",
+        "recorded run, `proxy` on an estimate. Model capability is given as a level, not a model;",
+        f"a level marked `{PENDING}` may not be used until the cost policy approves it.",
         "",
         "## Suites",
         "",
-        "Runs and cost are shown as minimum / planned (cost before contingency).",
+        "| Suite | Measures | Threshold read | Shape |",
+        "|---|---|---|---|",
+        *(_shape_row(s) for s in live),
         "",
-        "| Suite | Measures | Threshold read | Pass | Runs | Basis | Cost | Shape |",
+        "## Design and cost per suite",
+        "",
+        "Levels are those of the planned tier, with the models run at each (`x2` = two models).",
+        "Basis shows the share of cost resting on a run or an estimate. Reviewer hours are manual",
+        "time, never converted to USD. Runs, hours and cost (before contingency) are shown as",
+        "minimum / planned. The suite varies repetitions or seeds as stated.",
+        "",
+        "| Suite | Pass | Levels tested | Varies | Runs | Basis | Reviewer hours | Cost |",
         "|---|---|---|---|---|---|---|---|",
-        *(_row(s, plan) for s in live),
+        *(_design_row(s, plan) for s in live),
         "",
         "## Totals",
         "",
-        f"Against the {cap} reference (V1 and V2 combined). With contingency.",
+        f"Against the {cap(plan)} reference (V1 and V2 combined). Reserve is the per-suite plus",
+        "the global contingency; V1 and V2 are with contingency.",
         "",
-        "| Tier | V1 | V2 | Combined | Excess over reference |",
-        "|---|---|---|---|---|",
+        "| Tier | Without contingency | Reserve | With contingency | V1 | V2 | Excess |",
+        "|---|---|---|---|---|---|---|",
+        *(_totals_row(tier, t) for tier, t in totals_per_tier(plan)),
+        "",
+        _evidence(totals),
+        "",
+        excess_sentence(plan, totals, "The planned tier"),
+        "",
     ]
-    for tier in TIERS:
-        if not all(_tier(s, tier) for s in live):
-            continue
-        t = totals if tier == DEFAULT_TIER else compute(plan, {s.id: tier for s in live})
-        excess = _usd(t.excess_over_cap) if t.excess_over_cap.high > 0 else "none"
-        lines.append(
-            f"| {tier} | {_usd(t.by_pass['V1'])} | {_usd(t.by_pass['V2'])} | "
-            f"{_usd(t.with_contingency)} | {excess} |"
-        )
-    lines.append("")
-    if totals.excess_over_cap.high > 0:
-        lines.append(
-            f"The planned tier exceeds the {cap} reference by {_usd(totals.excess_over_cap)}. "
-            "That excess is what the funding request can ask for."
-        )
-    else:
-        lines.append(f"The planned tier stays within the {cap} reference.")
-    lines.append("")
     unfixed = [s.name for s in live if not s.fixed]
     if unfixed:
         lines += [

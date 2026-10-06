@@ -1,8 +1,10 @@
 """Renders the interactive budget page: one HTML file with the computed figures embedded.
 
-Python computes every per-suite, per-tier figure with the same functions as the Markdown plan
-(`tier_cost`, `tier_cost_by_basis`); the page only adds those figures up and applies the two
-contingency shares. The selection (tier per suite, contingencies) lives in the address fragment.
+Python computes every per-suite, per-tier figure before contingency with the same functions as
+the Markdown plan (`tier_cost`, `tier_cost_by_basis`). The page script adds those up for the
+selected tiers, applies the per-suite and global contingency shares (editable) and works out the
+excess over the cap; a parity test checks its totals against `compute`. The selection (tier per
+suite, contingencies) lives in the address fragment.
 """
 
 from __future__ import annotations

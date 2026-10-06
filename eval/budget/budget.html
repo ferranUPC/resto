@@ -1150,9 +1150,11 @@ function totals(data, state) {
     row(table, ["Measured share of cost", pct(t.byBasis.measured, t.withoutContingency) + " of the high (rest is proxy: " + usd(t.byBasis.proxy) + ")"]);
     if (t.hours[1]) row(table, ["Reviewer effort", t.hours[0] + " to " + t.hours[1] + " hours"]);
     box.appendChild(table);
-    var verdict = t.excess[1] > 0
-      ? el("p", "Over the $" + data.cap + " cap by " + usd(t.excess) + " (V1 and V2 combined).", "bad")
-      : el("p", "Within the $" + data.cap + " cap.", "ok");
+    var verdict = t.excess[1] <= 0
+      ? el("p", "Within the $" + data.cap + " cap.", "ok")
+      : t.excess[0] > 0
+        ? el("p", "Over the $" + data.cap + " cap by " + usd(t.excess) + " (V1 and V2 combined).", "bad")
+        : el("p", "May exceed the $" + data.cap + " cap: the low total is within it, the high total is over by up to $" + t.excess[1].toFixed(2) + " (V1 and V2 combined).", "bad");
     box.appendChild(verdict);
   }
   buildSuites();

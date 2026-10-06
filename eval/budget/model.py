@@ -60,6 +60,10 @@ class TierUnknownError(BudgetDataError):
     """A tier name is not one of the known tiers (minimum, planned, extended)."""
 
 
+class TierMissingError(BudgetDataError):
+    """A live suite lacks the minimum or the planned tier."""
+
+
 @dataclass(frozen=True)
 class Range:
     low: float
@@ -116,6 +120,16 @@ class Suite:
     tiers: tuple[Tier, ...]
     fixed: bool  # shape settled when its benchmark is designed? False = still open
     removed: str
+
+    def offers(self, name: str) -> bool:
+        return any(t.name == name for t in self.tiers)
+
+    def tier(self, name: str) -> Tier:
+        """The tier called `name`; raises `TierMissingError` when the suite lacks it."""
+        for t in self.tiers:
+            if t.name == name:
+                return t
+        raise TierMissingError(f"suite {self.id!r} has no tier {name!r}")
 
 
 @dataclass(frozen=True)
@@ -259,11 +273,18 @@ def load_plan(path: Path) -> Plan:
         raw = tomllib.load(fh)
     meta = _need(raw, "plan", "file")
     levels = {name: _level(name, r) for name, r in _need(raw, "levels", "file").items()}
+    suites = tuple(_suite(s, levels) for s in _need(raw, "suites", "file"))
+    for suite in suites:
+        for required in (MIN_TIER, DEFAULT_TIER):
+            if not suite.removed and not suite.offers(required):
+                raise TierMissingError(
+                    f"suite {suite.id!r}: a live suite needs a {required!r} tier"
+                )
     return Plan(
         float(_need(meta, "cap_usd", "plan")),
         float(_need(meta, "global_contingency", "plan")),
         levels,
-        tuple(_suite(s, levels) for s in _need(raw, "suites", "file")),
+        suites,
     )
 
 
@@ -288,6 +309,11 @@ def tier_cost(tier: Tier, levels: dict[str, Level]) -> dict[str, Range]:
     for stage in tier.stages:
         cost[stage.pass_] = cost[stage.pass_] + stage_cost(stage, levels)
     return cost
+
+
+def tier_net(tier: Tier, levels: dict[str, Level]) -> Range:
+    """Cost of a tier over both passes, before contingency."""
+    return sum(tier_cost(tier, levels).values(), ZERO)
 
 
 def tier_cost_by_basis(tier: Tier, levels: dict[str, Level]) -> dict[str, Range]:
@@ -318,9 +344,7 @@ def compute(plan: Plan, selection: dict[str, str] | None = None) -> PlanTotals:
         if suite.removed:
             continue
         wanted = selection.get(suite.id, DEFAULT_TIER)
-        tier = next((t for t in suite.tiers if t.name == wanted), None)
-        if tier is None:
-            raise BudgetDataError(f"suite {suite.id!r} has no tier {wanted!r}")
+        tier = suite.tier(wanted)
         cost = tier_cost(tier, plan.levels)
         reserve = {p: cost[p].scaled(suite.contingency) for p in PASSES}
         for p in PASSES:
@@ -350,3 +374,15 @@ def compute(plan: Plan, selection: dict[str, str] | None = None) -> PlanTotals:
         by_basis,
         Range(max(0.0, total.low - plan.cap_usd), max(0.0, total.high - plan.cap_usd)),
     )
+
+
+def offered_tiers(plan: Plan) -> list[str]:
+    """The tiers every live suite offers, in `TIERS` order."""
+    live = [s for s in plan.suites if not s.removed]
+    return [t for t in TIERS if all(s.offers(t) for s in live)]
+
+
+def totals_per_tier(plan: Plan) -> list[tuple[str, PlanTotals]]:
+    """Totals with every live suite at the same tier, for each tier all of them offer."""
+    live = [s for s in plan.suites if not s.removed]
+    return [(t, compute(plan, {s.id: t for s in live})) for t in offered_tiers(plan)]
