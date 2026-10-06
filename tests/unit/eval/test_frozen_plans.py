@@ -1,18 +1,16 @@
 """The frozen oracle and the plan-validation property (refactor r13, ticket 03).
 
-`frozen_plans.py` holds plans written by hand that no script regenerates. These tests run today's
-rules script (`eval/plan_bank/propose.py`) against them, before any code moves, and check the
-properties every plan of the bank must have. No database, no LLM, no network."""
+`frozen_plans.py` holds plans written by hand that no script regenerates. These tests run the
+planner (`resto.domain.services.planner`) against them and check the properties every plan of the
+bank must have. No database, no LLM, no network."""
 
 from __future__ import annotations
 
-from collections.abc import Iterable
 from dataclasses import replace
 from itertools import permutations
 
 import pytest
 from eval.plan_bank.bank import build_plans, planned_concepts
-from eval.plan_bank.propose import propose_plan
 from eval.request_bank.concepts import concept_by_id
 
 from resto.adapters.persistence.memory import (
@@ -21,12 +19,12 @@ from resto.adapters.persistence.memory import (
     InMemoryScenarioRepository,
 )
 from resto.application.executor.plan_validation import plan_problems
+from resto.domain.services.planner import PlanningContext, plan_study
 from resto.domain.value_objects.arm import Arm
 from resto.domain.value_objects.question import Question
 from resto.domain.value_objects.study_plan import (
     BuildScenarioStep,
     DeriveNetworkStep,
-    RunSimulationStep,
     StudyPlan,
 )
 from tests.unit.domain._samples import demand as sample_demand
@@ -35,20 +33,15 @@ from tests.unit.eval.frozen_plans import FROZEN, HARD, PHASE1, SELECTED
 from tests.unit.eval.test_plan_bank import _gold_of
 
 BANK = {c.id: c.gold for c in planned_concepts() if isinstance(c.gold, Question)}
-NEVER_RUN = "is built but never run"
 
 
-def _lacking_runs(concept_ids: Iterable[str]) -> list[object]:
-    """The concepts the rules script cannot plan validly today: it writes no `run_simulation`
-    step, so every question with an arm fails validation (a network-only plan has none to run).
-    The planner of ticket 04 must plan one run per built arm; then these marks go."""
-    reason = "the rules script plans no run_simulation step; the planner of ticket 04 must"
-    return [
-        c
-        if BANK[c].network_only
-        else pytest.param(c, marks=pytest.mark.xfail(strict=True, reason=reason))
-        for c in concept_ids
-    ]
+def _plan(
+    question: Question,
+    phase: int = 0,
+    realised: tuple[str, ...] = (),
+    network_id: str | None = None,
+) -> StudyPlan:
+    return plan_study(question, PlanningContext(phase, network_id, realised))
 
 
 def _question(concept_id: str) -> Question:
@@ -82,13 +75,6 @@ def _problems(
     )
 
 
-def _without_runs(plan: StudyPlan) -> StudyPlan:
-    """The frozen plan as the rules script writes it today: the same steps without the trailing
-    `run_simulation` steps (the script plans none)."""
-    kept = tuple(s for s in plan.steps if not isinstance(s, RunSimulationStep))
-    return replace(plan, steps=kept)
-
-
 class TestFrozenSelection:
     def test_between_12_and_15_bank_plans_are_frozen(self) -> None:
         assert 12 <= len(FROZEN) <= 15
@@ -114,86 +100,45 @@ class TestFrozenSelection:
         assert set(HARD) <= set(FROZEN)
 
 
-class TestFrozenPlansAgainstTheRulesScript:
-    """The script writes no run step; the frozen plans have them, so the comparison drops them."""
-
+class TestFrozenPlansAgainstThePlanner:
     @pytest.mark.parametrize("concept_id", SELECTED)
-    def test_the_script_reproduces_the_frozen_plan_but_for_its_run_steps(
-        self, concept_id: str
-    ) -> None:
-        proposed = propose_plan(_question(concept_id))
+    def test_the_planner_reproduces_the_frozen_plan(self, concept_id: str) -> None:
+        planned = _plan(_question(concept_id))
 
-        assert _gold_of(proposed) == _gold_of(_without_runs(FROZEN[concept_id]))
-
-    @pytest.mark.parametrize("concept_id", _lacking_runs(SELECTED))
-    def test_the_script_reproduces_the_frozen_plan_exactly(self, concept_id: str) -> None:
-        proposed = propose_plan(_question(concept_id))
-
-        assert _gold_of(proposed) == _gold_of(FROZEN[concept_id])
+        assert _gold_of(planned) == _gold_of(FROZEN[concept_id])
 
     @pytest.mark.parametrize("concept_id", SELECTED)
     def test_each_frozen_plan_passes_the_executors_plan_validation(self, concept_id: str) -> None:
         assert _problems(FROZEN[concept_id], _question(concept_id)) == []
 
-    def test_phase_1_filling_the_network_from_the_context_matches_but_for_run_steps(self) -> None:
-        question = replace(PHASE1.question, network_ref=PHASE1.network_id)
+    def test_phase_1_reproduces_the_frozen_plan_from_the_context(self) -> None:
+        planned = _plan(PHASE1.question, 1, PHASE1.realised, PHASE1.network_id)
 
-        proposed = propose_plan(question, 1, PHASE1.realised)
-
-        # The script plans the study network as `FromStep(0)`; see the next test.
-        assert [type(s) for s in proposed.steps] == [
-            type(s) for s in _without_runs(PHASE1.plan).steps
-        ]
-        assert proposed.arms == PHASE1.plan.arms == ("treatment",)
+        assert _gold_of(planned) == _gold_of(PHASE1.plan)
+        assert planned.arms == ("treatment",)
 
     def test_the_frozen_phase_1_plan_passes_validation_on_the_study_network(self) -> None:
-        question = replace(PHASE1.question, network_ref=PHASE1.network_id)
+        assert _phase1_problems(PHASE1.plan) == []
 
-        assert (
-            _problems(
-                PHASE1.plan,
-                question,
-                phase=1,
-                realised=PHASE1.realised,
-                network_id=PHASE1.network_id,
-            )
-            == []
-        )
+    def test_the_planned_phase_1_plan_passes_validation_on_the_study_network(self) -> None:
+        planned = _plan(PHASE1.question, 1, PHASE1.realised, PHASE1.network_id)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="in phase 1 the Executor passes the study's network id, and validation compares the "
-        "plan's network with it; the script writes FromStep(0) there",
+        assert _phase1_problems(planned) == []
+
+
+def _phase1_problems(plan: StudyPlan) -> list[str]:
+    return _problems(
+        plan, PHASE1.question, phase=1, realised=PHASE1.realised, network_id=PHASE1.network_id
     )
-    def test_the_scripts_phase_1_plan_passes_validation_on_the_study_network(self) -> None:
-        question = replace(PHASE1.question, network_ref=PHASE1.network_id)
-        proposed = propose_plan(question, 1, PHASE1.realised)
-
-        problems = _problems(
-            proposed,
-            question,
-            phase=1,
-            realised=PHASE1.realised,
-            network_id=PHASE1.network_id,
-        )
-
-        assert [p for p in problems if NEVER_RUN not in p] == []
 
 
 class TestPlanValidationOverTheBank:
-    """For every question of the bank, the plan the rules script proposes has no problems under
-    the Executor's plan validation."""
+    """For every question of the bank, the plan the planner returns has no problems under the
+    Executor's plan validation."""
 
     PLANS = build_plans()
 
     @pytest.mark.parametrize("concept_id", sorted(BANK))
-    def test_the_only_problem_of_a_plan_is_the_missing_run_steps(self, concept_id: str) -> None:
-        problems = _problems(self.PLANS[concept_id], BANK[concept_id])
-
-        assert all(NEVER_RUN in p for p in problems)
-        assert len(problems) == len(self.PLANS[concept_id].arms)
-
-    @pytest.mark.parametrize("concept_id", _lacking_runs(sorted(BANK)))
     def test_the_plan_has_no_problems(self, concept_id: str) -> None:
         assert _problems(self.PLANS[concept_id], BANK[concept_id]) == []
 
@@ -267,10 +212,10 @@ class TestMetamorphic:
         self, concept_id: str
     ) -> None:
         question = _question(concept_id)
-        original = propose_plan(question)
+        original = _plan(question)
         n = len(question.effective_arms)
         reordered = [
-            propose_plan(_arms_permuted(question, order))
+            _plan(_arms_permuted(question, order))
             for order in permutations(range(n))
             if order != tuple(range(n))
         ]

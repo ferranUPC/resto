@@ -4,9 +4,9 @@ counterfactual concept.
 Stopgap until E3.7 reworks this set (ADR-0038): phase 0 now plans every arm a question needs, so
 the planner no longer leaves treatments for the Expert. The cases keep the old shape by building
 their context locally: the realised arms are the reference side of the contrasts, and the case asks
-for the treatments (ADR-0025 §2, replaced). A phase-1 case gives the Coordinator the question plus
+for the treatments (ADR-0025 §2, replaced). A phase-1 case gives the planner the question plus
 a `PlanningContext` with the phase-0 experiments already realised, and its gold is the plan with
-only the arms still missing: the treatments. It tests that the Coordinator does not repeat a
+only the arms still missing: the treatments. It tests that the planner does not repeat a
 realised arm (`plan_validation._coverage_problems`).
 
 The cases are stored in `phase1.json`, apart from the 54 phase-0 plans (`plans.json`), and do not
@@ -23,10 +23,11 @@ from pathlib import Path
 from typing import Any
 
 from eval.plan_bank.bank import load_plans, planned_concepts
-from eval.plan_bank.propose import propose_plan
 from eval.request_bank.concepts import Concept, concept_by_id
 from resto.application.ports.agents.coordinator import PlanningContext
 from resto.application.schemas import adapter_for
+from resto.domain.services.planner import PlanningContext as PlannerContext
+from resto.domain.services.planner import plan_study
 from resto.domain.value_objects.arm import BASE_ARM
 from resto.domain.value_objects.experiment import Experiment
 from resto.domain.value_objects.question import Question
@@ -74,7 +75,7 @@ def _reference_side(question: Question) -> tuple[str, ...]:
 def build_case(concept_id: str, question: Question, phase0: StudyPlan | None = None) -> Phase1Case:
     """The context phase 0 leaves behind and the plan for what is still missing. `phase0` is the
     stored (possibly corrected) phase-0 plan; the proposal when not given."""
-    phase0 = propose_plan(question) if phase0 is None else phase0
+    phase0 = plan_study(question, PlannerContext(phase=0)) if phase0 is None else phase0
     reference = _reference_side(question)
     experiments = tuple(
         Experiment(
@@ -91,7 +92,12 @@ def build_case(concept_id: str, question: Question, phase0: StudyPlan | None = N
     context = PlanningContext(
         phase=PHASE, network_id=f"network-{concept_id}", experiments=experiments
     )
-    plan = propose_plan(question, PHASE, {e.arm for e in experiments})
+    plan = plan_study(
+        question,
+        PlannerContext(
+            phase=PHASE, network_id=context.network_id, realised=tuple(e.arm for e in experiments)
+        ),
+    )
     return Phase1Case(context, plan)
 
 

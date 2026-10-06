@@ -20,6 +20,7 @@ from resto.domain.entities.scenario import Scenario
 from resto.domain.entities.simulation_result import RunMode, RunStatus, SimulationResult
 from resto.domain.entities.study import Phase, Study, StudyStatus
 from resto.domain.services.note_ranking import ScoredNote
+from resto.domain.services.planner import PlanningContext
 from resto.domain.value_objects.answer_value import (
     BottleneckCause,
     BottleneckCauses,
@@ -386,6 +387,7 @@ SAMPLES: dict[type, Callable[[], object]] = {
         StepErrorKind.USER_INPUT, "the Builder rejected an intervention", ("E99: unknown edge",)
     ),
     Usage: lambda: Usage(input_tokens=120, output_tokens=45, simulations=1),
+    PlanningContext: lambda: PlanningContext(phase=1, network_id="n1", realised=("base",)),
     Experiment: lambda: Experiment(
         scenario_id="s1", arm="base", role=ExperimentRole.BASELINE, purpose="ref"
     ),
