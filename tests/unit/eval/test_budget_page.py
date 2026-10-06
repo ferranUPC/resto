@@ -24,9 +24,10 @@ const core = html.match(/<script id="core">([\\s\\S]*?)<\\/script>/)[1];
 const data = JSON.parse(
   html.match(/<script id="data" type="application\\/json">([\\s\\S]*?)<\\/script>/)[1]
 );
-const api = new Function(core + "; return { parseFragment, totals };")();
+const api = new Function(core + "; return { parseFragment, totals, toMarkdown };")();
 const state = api.parseFragment(data, fragment);
-process.stdout.write(JSON.stringify({ state, totals: api.totals(data, state) }));
+const markdown = api.toMarkdown(data, state, "2026-10-06", "LINK");
+process.stdout.write(JSON.stringify({ state, totals: api.totals(data, state), markdown }));
 """
 
 
@@ -170,3 +171,16 @@ def test_the_shipped_page_matches_python_on_a_free_configuration(tmp_path):
     want = compute(plan, configs)
     assert state["totals"]["withContingency"] == pytest.approx(_pair(want.with_contingency))
     assert state["totals"]["byPass"]["V1"] == pytest.approx(_pair(want.by_pass["V1"]))
+
+
+def test_the_markdown_export_is_a_short_table_with_the_total_and_the_link(tmp_path):
+    plan = load_plan(write(tmp_path, suite(suite_id="a"), suite(suite_id="b")))
+    md = _node_totals(tmp_path, render_page(plan), "#g=0.2")["markdown"]
+    low, high = _pair(compute(replace(plan, global_contingency=0.2)).with_contingency)
+    lines = md.splitlines()
+    assert lines[0] == "# Evaluation budget"
+    table = [line for line in lines if line.startswith("|")]
+    assert len(table) == 2 + 2 + 3  # header, rule, two suites, subtotal, contingency, total
+    assert f"**${(low + high) / 2:.2f} ± ${(high - low) / 2:.2f}**" in table[-1]
+    assert "Global contingency 20%" in table[-2]
+    assert lines[-1] == "Link to this exact choice: LINK"

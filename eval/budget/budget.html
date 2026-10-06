@@ -110,6 +110,8 @@
   <div class="seg" id="globalSize" role="group" aria-label="Size of all suites"></div>
   <button id="reset" type="button">Reset to planned</button>
   <button id="copy" type="button">Copy link</button>
+  <button id="mdDownload" type="button">Download Markdown</button>
+  <button id="mdCopy" type="button">Copy Markdown</button>
   <span class="small" id="copied"></span>
 </div>
 <div class="tools">
@@ -2978,6 +2980,45 @@ function totals(data, state) {
     netByPass: net, hours: hours, rows: rows
   };
 }
+function mdPrice(r) {
+  var m = function (v) { return "$" + v.toFixed(2); };
+  return r[1] ? m((r[0] + r[1]) / 2) + " ± " + m((r[1] - r[0]) / 2) : "-";
+}
+function mdModels(data, cfg) {
+  return data.levels.filter(function (l) { return cfg.models[l.name]; }).map(function (l) {
+    var parts = l.name.split("-"), fam = l.name.indexOf("non-") === 0 ? "NR" : "R";
+    return fam + " " + parts[parts.length - 1] + " (" + cfg.models[l.name] + "x" + cfg.reps[l.name] + ")";
+  }).join(", ");
+}
+// A short Markdown table of the current choice, for notes. Pure: the caller passes the date and link.
+function toMarkdown(data, state, date, link) {
+  var t = totals(data, state), cols = data.passes.concat(["Total"]);
+  var row = function (cells) { return "| " + cells.join(" | ") + " |"; };
+  var lines = ["# Evaluation budget", "", date + ". Prices are USD, as middle ± half the gap between the high and low estimate.", ""];
+  lines.push(row(["Suite", "Size", "Test cases"].concat(["Models (models x repeats)"], cols)));
+  lines.push(row(["---", "---", "---", "---"].concat(cols.map(function () { return "---:"; }))));
+  data.suites.forEach(function (s) {
+    var cfg = state.cfg[s.id], net = suiteCost(data, s, cfg).net, sum = [0, 0];
+    var cases = data.passes.filter(function (p) { return cfg.inputs[p] !== undefined; })
+      .map(function (p) { return p + " " + cfg.inputs[p]; }).join(", ");
+    var cells = [s.name, presetOf(data, s, cfg) || "custom", cases, mdModels(data, cfg)];
+    data.passes.forEach(function (p) { cells.push(mdPrice(net[p])); sum = add(sum, net[p]); });
+    cells.push(mdPrice(sum));
+    lines.push(row(cells));
+  });
+  var gc = times(t.withoutContingency, state.g), pad = ["", "", ""];
+  var foot = function (label, byPass, total, bold) {
+    var w = function (x) { return bold ? "**" + x + "**" : x; };
+    lines.push(row([w(label)].concat(pad, data.passes.map(function (p) { return w(mdPrice(byPass[p])); }), [w(mdPrice(total))])));
+  };
+  var gcBy = {};
+  data.passes.forEach(function (p) { gcBy[p] = times(t.netByPass[p], state.g); });
+  foot("Subtotal", t.netByPass, t.withoutContingency, false);
+  foot("Global contingency " + Math.round(state.g * 1000) / 10 + "%", gcBy, gc, false);
+  foot("Total", t.byPass, t.withContingency, true);
+  lines.push("", "Link to this exact choice: " + link, "");
+  return lines.join("\n");
+}
 </script>
 <script id="ui">
 "use strict";
@@ -3277,6 +3318,18 @@ function totals(data, state) {
     var done = function () { $("copied").textContent = "Link copied."; };
     if (navigator.clipboard) navigator.clipboard.writeText(location.href).then(done, function () { $("copied").textContent = "Copy the address bar instead."; });
     else $("copied").textContent = "Copy the address bar instead.";
+  });
+  var markdown = function () { return toMarkdown(data, state, new Date().toISOString().slice(0, 10), location.href); };
+  $("mdCopy").addEventListener("click", function () {
+    var done = function () { $("copied").textContent = "Markdown copied."; };
+    if (navigator.clipboard) navigator.clipboard.writeText(markdown()).then(done, function () { $("copied").textContent = "Use Download Markdown instead."; });
+    else $("copied").textContent = "Use Download Markdown instead.";
+  });
+  $("mdDownload").addEventListener("click", function () {
+    var a = el("a"), url = URL.createObjectURL(new Blob([markdown()], { type: "text/markdown" }));
+    a.href = url; a.download = "evaluation-budget-" + new Date().toISOString().slice(0, 10) + ".md";
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    $("copied").textContent = "Markdown downloaded.";
   });
   window.addEventListener("hashchange", function () { state = withoutSuiteContingency(parseFragment(data, location.hash)); update(); });
   update();
