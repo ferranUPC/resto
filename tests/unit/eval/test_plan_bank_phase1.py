@@ -63,10 +63,9 @@ def test_gold_holds_only_treatment_arms_and_repeats_no_realised_arm(concept_id: 
 def test_context_is_what_phase_0_realised(concept_id: str) -> None:
     question = _question(concept_id)
     realised = [e.arm for e in CASES[concept_id].context.experiments]
-    assert realised == [
-        s.arm for s in load_plans()[concept_id].steps if isinstance(s, BuildScenarioStep)
-    ]
-    assert tuple(realised) == needed_arms(question, 0)
+    phase0 = [s.arm for s in load_plans()[concept_id].steps if isinstance(s, BuildScenarioStep)]
+    assert realised == [arm for arm in phase0 if arm in realised]  # a prefix-ordered subset
+    assert set(realised) < set(phase0) == set(needed_arms(question, 0))  # the treatments are left
     assert set(realised) | set(CASES[concept_id].plan.arms) == set(needed_arms(question, 1))
 
 

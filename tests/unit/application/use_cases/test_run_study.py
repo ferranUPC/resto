@@ -55,12 +55,14 @@ from tests.unit.application._world import (
     CLOSURE,
     CLOSURE_SID,
     DESCRIBE,
+    DESCRIBE_CHANGE,
     KPIS,
     NEW_EDGE,
     PROPOSED,
     TREATMENT_PLAN,
     UNKNOWN_LANE,
     WHAT_IF,
+    WHAT_IF_PLAN,
     World,
     abstains,
     answers,
@@ -133,12 +135,24 @@ def test_gp2_builds_and_runs_the_baseline_with_the_default_seeds(tmp_path: Path)
     assert study.phases[0].steps[2].usage == Usage(input_tokens=100)
 
 
-def test_gp3_counterfactual_free_plans_the_treatment_only_when_the_expert_asks(
-    tmp_path: Path,
-) -> None:
+def test_gp3_a_question_that_names_a_change_plans_both_sides_in_phase_0(tmp_path: Path) -> None:
+    world = World(tmp_path, question=WHAT_IF, plans=(WHAT_IF_PLAN,), expert=(answers(),))
+
+    study = world.run()
+
+    assert study.status is StudyStatus.COMPLETED
+    assert len(study.phases) == 1
+    assert [e.arm for e in study.phases[0].experiments] == [BASE_ARM, "treatment"]
+    (call,) = world.expert.calls
+    assert call[0].question == WHAT_IF.text and call[0].mode is Mode.FREE
+    assert len(call[0].result_ids) == 6
+    assert not any(r.forced_by_limit for r in study.rounds)
+
+
+def test_the_expert_may_still_ask_for_an_arm_the_plan_did_not_need(tmp_path: Path) -> None:
     world = World(
         tmp_path,
-        question=WHAT_IF,
+        question=DESCRIBE_CHANGE,
         plans=(BASELINE_PLAN, TREATMENT_PLAN),
         expert=(abstains(PROPOSED), answers()),
     )
@@ -153,10 +167,9 @@ def test_gp3_counterfactual_free_plans_the_treatment_only_when_the_expert_asks(
     assert context.phase == 1 and context.network_id == NET
     assert [e.arm for e in context.experiments] == [BASE_ARM]
     first, second = (call[0] for call in world.expert.calls)
-    assert first.question == second.question == WHAT_IF.text
+    assert first.question == second.question == DESCRIBE_CHANGE.text
     assert (first.mode, second.mode) == (Mode.FREE, Mode.FREE)
     assert len(first.result_ids) == 3 and len(second.result_ids) == 6
-    assert not any(r.forced_by_limit for r in study.rounds)
 
 
 def test_forced_mode_answers_in_one_phase_and_offers_the_predicted_scenario(
@@ -164,7 +177,7 @@ def test_forced_mode_answers_in_one_phase_and_offers_the_predicted_scenario(
 ) -> None:
     world = World(
         tmp_path,
-        question=replace(WHAT_IF, mode=Mode.FORCED),
+        question=replace(DESCRIBE_CHANGE, mode=Mode.FORCED),
         plans=(BASELINE_PLAN,),
         expert=(answers(),),
     )
@@ -182,7 +195,7 @@ def test_forced_mode_answers_in_one_phase_and_offers_the_predicted_scenario(
 
 
 def test_the_mode_given_by_the_user_overrides_the_parsers(tmp_path: Path) -> None:
-    world = World(tmp_path, question=WHAT_IF, plans=(BASELINE_PLAN,), expert=(answers(),))
+    world = World(tmp_path, question=WHAT_IF, plans=(WHAT_IF_PLAN,), expert=(answers(),))
 
     study = world.run(mode=Mode.FORCED)
 
@@ -193,7 +206,7 @@ def test_the_mode_given_by_the_user_overrides_the_parsers(tmp_path: Path) -> Non
 def test_the_last_round_is_forced_by_the_limit(tmp_path: Path) -> None:
     world = World(
         tmp_path,
-        question=WHAT_IF,
+        question=DESCRIBE_CHANGE,
         plans=(BASELINE_PLAN, TREATMENT_PLAN),
         expert=(abstains(PROPOSED), answers()),
     )
@@ -208,7 +221,7 @@ def test_the_last_round_is_forced_by_the_limit(tmp_path: Path) -> None:
 def test_combined_topology_and_intervention_arms_share_one_derivation(tmp_path: Path) -> None:
     question = Question(
         text="does the new J7-J9 edge compensate closing lane 1 of E12?",
-        intent=Intent.RUN,
+        intent=Intent.COMPARE,
         arms=(
             Arm("edge", topology_changes=(NEW_EDGE,)),
             Arm("edge+closure", topology_changes=(NEW_EDGE,), interventions=(CLOSURE,)),
@@ -255,7 +268,7 @@ def _derive_plan() -> Any:
 def _edge_question() -> Question:
     return Question(
         text="does the new J7-J9 edge relieve E12?",
-        intent=Intent.RUN,
+        intent=Intent.COMPARE,
         arms=(Arm("edge", topology_changes=(NEW_EDGE,)),),
     )
 
@@ -364,7 +377,7 @@ def test_a_coordinator_clarification_in_phase_0_awaits_the_user(tmp_path: Path) 
 def test_a_coordinator_clarification_in_a_later_phase_fails_the_study(tmp_path: Path) -> None:
     world = World(
         tmp_path,
-        question=WHAT_IF,
+        question=DESCRIBE_CHANGE,
         plans=(BASELINE_PLAN, run_of(ClarificationRequest("which lane?"))),
         expert=(abstains(PROPOSED),),
     )
@@ -405,7 +418,7 @@ def assert_failed_at(study: Study, tool: str, kind: StepErrorKind, skipped: int)
 
 
 def run_treatment(tmp_path: Path, interventions: tuple[Intervention, ...], **world: Any) -> Study:
-    question = Question(text="close it", intent=Intent.RUN, interventions=interventions)
+    question = Question(text="close it", intent=Intent.COMPARE, interventions=interventions)
     two_arms = plan(
         build_step(),
         run_step(0),
@@ -696,7 +709,7 @@ def test_a_note_about_a_predicted_scenario_goes_under_the_base_scenarios_network
 ) -> None:
     world = World(
         tmp_path,
-        question=replace(WHAT_IF, mode=Mode.FORCED),
+        question=replace(DESCRIBE_CHANGE, mode=Mode.FORCED),
         plans=(BASELINE_PLAN,),
         expert=(answers(),),
         note_writer=(run_of(ExpertNoteDrafts(notes=(_note(CLOSURE_SID, Basis.EXTRAPOLATED),))),),
@@ -750,13 +763,13 @@ def test_a_prediction_keeps_the_base_network_when_a_derived_network_exists(
 ) -> None:
     question = Question(
         text="does the new J7-J9 edge relieve E12, and what if lane 1 closes?",
-        intent=Intent.COUNTERFACTUAL,
+        intent=Intent.COMPARE,
         mode=Mode.FORCED,
         arms=(
             Arm("edge", topology_changes=(NEW_EDGE,)),
             Arm("closure", interventions=(CLOSURE,)),
         ),
-        contrasts=(Contrast("edge"), Contrast("closure", "edge")),
+        contrasts=(Contrast("edge"),),  # the closure is declared but no contrast needs it
     )
     draft = ExpertNoteDraft(
         text="closing lane 1 would add delay", basis=Basis.EXTRAPOLATED, scenario_ref=CLOSURE_SID
@@ -845,7 +858,7 @@ def test_a_multi_phase_study_traces_phases_plans_steps_rounds_and_the_report(
 ) -> None:
     world = World(
         tmp_path,
-        question=WHAT_IF,
+        question=DESCRIBE_CHANGE,
         plans=(BASELINE_PLAN, TREATMENT_PLAN),
         expert=(abstains(PROPOSED), answers()),
     )
