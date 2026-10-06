@@ -1,0 +1,1074 @@
+# Evaluation cost data (E3.9). The single source every output (full plan, short version, page) reads.
+# Edit this file, then run `python -m eval.budget`. No model names below the level scale, `derived_from` included
+# (run ids are neutral): a level is a capability class; a level with `manifest` takes its price from config/prices.toml, one with
+# `assumption` carries a price proposed by hand (USD per million tokens), to be settled by the maintainer.
+#
+# Conventions
+# - A stage is one block of runs in one validation pass (V1 reduced on dev splits, V2 definitive).
+#   Cost = inputs x repetitions x calls_per_input x models x (tokens in/out x level price), once with the
+#   low tokens and once with the high tokens. `calls_per_input` counts agent runs per input; tokens are
+#   per agent run (all model steps of the run added up).
+# - `basis` is `measured` (the tokens come from a recorded run, named in `derived_from`) or `proxy`
+#   (an estimate; `derived_from` says what it stands on).
+# - The minimum tier uses only the default level (reasoning-low) and never fewer than the repetition floor
+#   of the plan; the loader refuses it otherwise.
+# - Free exploration (the page): each live suite has an `[suites.explore]` block with the bounds of the
+#   inputs per pass (`min` to `max`; the planned tier is the default and must sit inside) and optional
+#   `repetitions_max`, `models_max` and `review_minutes_low/high`. The reader picks inputs per pass, and
+#   the models and repetitions per level. Tokens per run come from the runs the suite names at that
+#   level; a level without a run takes the reasoning-low blocks with the output tokens times the level's
+#   `output_factor`. V1 runs only the default level, at no more repetitions than the planned tier's V1.
+#   The presets (minimum, planned, extended) are just configurations of these controls.
+# - Contingency: per suite (`contingency`, a share of the suite's cost) and global (`global_contingency`,
+#   a share of everything including the per-suite reserves).
+
+[plan]
+cap_usd = 30.0
+global_contingency = 0.10
+repetitions_max = 10  # most repetitions per level a reader may pick (the floor is 2)
+models_max = 3  # most models per capability level a reader may pick
+
+# ---- Capability levels (no model names; low-to-high within each family) --------------------------------
+
+[levels.non-reasoning-low]
+output_factor = 1.0
+manifest = "google/gemma-3-12b-it"
+policy = "pending policy approval"
+approved_for = ["input-parser"]  # policy: Parser comparison runs only
+
+[levels.non-reasoning-medium]
+output_factor = 1.0
+manifest = "meta-llama/llama-3.3-70b-instruct"
+policy = "pending policy approval"
+
+[levels.non-reasoning-high]
+output_factor = 1.3
+input_per_mtok = 2.00
+output_per_mtok = 8.00
+assumption = "OpenRouter list price of a frontier non-reasoning model, from memory; verify at openrouter.ai/models"
+policy = "pending policy approval"
+
+[levels.reasoning-low]
+manifest = "deepseek/deepseek-v4.1-flash"  # the default model
+policy = "approved"
+
+[levels.reasoning-medium]
+output_factor = 2.4
+input_per_mtok = 1.10
+output_per_mtok = 4.40
+assumption = "OpenRouter list price of a mid-tier reasoning model, from memory; verify at openrouter.ai/models"
+policy = "pending policy approval"
+
+[levels.reasoning-high]
+output_factor = 4.0
+input_per_mtok = 3.00
+output_per_mtok = 15.00
+assumption = "OpenRouter list price of a frontier reasoning model, from memory; verify at openrouter.ai/models"
+policy = "pending policy approval"
+
+# ---- Suite: Input Parser -------------------------------------------------------------------------------
+# Measured base: parser-benchmark run v8-dev (255 dev requests, 1 repetition, default model, mean 5381 input
+# and 827 output tokens per run, $0.2112 real). Cross-check: v6-heldout (114 held-out requests x 3
+# repetitions, mean 5118 / 553 tokens, $0.376). Measured stages carry the measured mean; the headroom above it
+# (about +20 %, prompt growth, longer outputs on multi-arm requests) is a separate proxy stage.
+
+[[suites]]
+id = "input-parser"
+name = "Input Parser"
+measures = "Structured-output agreement of the Parser on the request bank: validity, intent, interventions, topology, metrics, ambiguity, arm structure, consistency across runs"
+threshold = "DoD 4.1 (E5.1); N4: intent agreement >= 95 % over 3 runs on held-out"
+varies = "repetitions"
+contingency = 0.25
+fixed = true
+
+[suites.explore]
+[suites.explore.inputs]
+V1 = { min = 100, max = 500 }
+V2 = { min = 60, max = 300 }
+
+[[suites.tiers]]
+name = "minimum"
+
+[[suites.tiers.stages]]
+pass = "V1"
+inputs = 255
+repetitions = 2
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 5381
+tokens_in_high = 5381
+tokens_out_low = 827
+tokens_out_high = 827
+basis = "measured"
+derived_from = "v8-dev (255 dev requests, 1 repetition), mean tokens"
+
+[[suites.tiers.stages]]
+pass = "V1"
+inputs = 255
+repetitions = 2
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 0
+tokens_in_high = 1119
+tokens_out_low = 0
+tokens_out_high = 173
+basis = "proxy"
+derived_from = "assumed headroom over the measured mean (about +20 %: prompt growth, longer outputs on multi-arm requests); no run"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 114
+repetitions = 2
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 5118
+tokens_in_high = 5118
+tokens_out_low = 553
+tokens_out_high = 553
+basis = "measured"
+derived_from = "v6-heldout (114 held-out requests x 3 repetitions), mean tokens"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 114
+repetitions = 2
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 0
+tokens_in_high = 1382
+tokens_out_low = 0
+tokens_out_high = 447
+basis = "proxy"
+derived_from = "assumed headroom over the measured mean (about +20 %: prompt growth, longer outputs on multi-arm requests); no run"
+
+[[suites.tiers]]
+name = "planned"
+
+[[suites.tiers.stages]]
+pass = "V1"
+inputs = 255
+repetitions = 3
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 5381
+tokens_in_high = 5381
+tokens_out_low = 827
+tokens_out_high = 827
+basis = "measured"
+derived_from = "v8-dev (255 dev requests, 1 repetition), mean tokens"
+
+[[suites.tiers.stages]]
+pass = "V1"
+inputs = 255
+repetitions = 3
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 0
+tokens_in_high = 1119
+tokens_out_low = 0
+tokens_out_high = 173
+basis = "proxy"
+derived_from = "assumed headroom over the measured mean (about +20 %: prompt growth, longer outputs on multi-arm requests); no run"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 114
+repetitions = 3
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 5118
+tokens_in_high = 5118
+tokens_out_low = 553
+tokens_out_high = 553
+basis = "measured"
+derived_from = "v6-heldout (114 held-out requests x 3 repetitions), mean tokens"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 114
+repetitions = 3
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 0
+tokens_in_high = 1382
+tokens_out_low = 0
+tokens_out_high = 447
+basis = "proxy"
+derived_from = "assumed headroom over the measured mean (about +20 %: prompt growth, longer outputs on multi-arm requests); no run"
+
+[[suites.tiers]]
+name = "extended"
+
+[[suites.tiers.stages]]
+pass = "V1"
+inputs = 255
+repetitions = 3
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 5381
+tokens_in_high = 5381
+tokens_out_low = 827
+tokens_out_high = 827
+basis = "measured"
+derived_from = "v8-dev (255 dev requests, 1 repetition), mean tokens"
+
+[[suites.tiers.stages]]
+pass = "V1"
+inputs = 255
+repetitions = 3
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 0
+tokens_in_high = 1119
+tokens_out_low = 0
+tokens_out_high = 173
+basis = "proxy"
+derived_from = "assumed headroom over the measured mean (about +20 %: prompt growth, longer outputs on multi-arm requests); no run"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 114
+repetitions = 3
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 5118
+tokens_in_high = 5118
+tokens_out_low = 553
+tokens_out_high = 553
+basis = "measured"
+derived_from = "v6-heldout (114 held-out requests x 3 repetitions), mean tokens"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 114
+repetitions = 3
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 0
+tokens_in_high = 1382
+tokens_out_low = 0
+tokens_out_high = 447
+basis = "proxy"
+derived_from = "assumed headroom over the measured mean (about +20 %: prompt growth, longer outputs on multi-arm requests); no run"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 114
+repetitions = 3
+calls_per_input = 1
+models = [{ level = "non-reasoning-low", count = 2 }]
+tokens_in_low = 5118
+tokens_in_high = 6500
+tokens_out_low = 553
+tokens_out_high = 1000
+basis = "proxy"
+derived_from = "v6-heldout tokens of the default model, assumed equal; a weaker-model parser run (v4-dev, 212 requests, $0.148; report in eval/parser_benchmark/reports/) shows a weaker model needs more output retries"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 114
+repetitions = 3
+calls_per_input = 1
+models = [{ level = "reasoning-medium", count = 1 }]
+tokens_in_low = 5118
+tokens_in_high = 6500
+tokens_out_low = 553
+tokens_out_high = 2500
+basis = "proxy"
+derived_from = "v6-heldout tokens of the default model; output high allows a longer reasoning trace (assumption, no run)"
+
+# ---- Suite: Scenario Builder ------------------------------------------------------
+# Assumed bank of 30 cases (V2) and a third of it as the V1 checkpoint; the bank is not built yet.
+
+[[suites]]
+id = "scenario-builder"
+name = "Scenario Builder"
+measures = "Builder bank: does the Builder turn a request into a valid stored scenario and compare it to the gold scenario, per case"
+threshold = "DoD E2.7 (Builder bank, 3 repetitions)"
+varies = "repetitions"
+contingency = 0.2
+fixed = false
+
+[suites.explore]
+[suites.explore.inputs]
+V1 = { min = 5, max = 30 }
+V2 = { min = 15, max = 90 }
+
+[[suites.tiers]]
+name = "minimum"
+
+[[suites.tiers.stages]]
+pass = "V1"
+inputs = 10
+repetitions = 2
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 20000
+tokens_in_high = 40000
+tokens_out_low = 2000
+tokens_out_high = 5000
+basis = "proxy"
+derived_from = "work plan figure for this suite ($0.5-1.2 at 3 repetitions); tokens are an assumed tool-agent run, no run exists"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 30
+repetitions = 2
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 20000
+tokens_in_high = 40000
+tokens_out_low = 2000
+tokens_out_high = 5000
+basis = "proxy"
+derived_from = "work plan figure for this suite ($0.5-1.2 at 3 repetitions); tokens are an assumed tool-agent run, no run exists"
+
+[[suites.tiers]]
+name = "planned"
+
+[[suites.tiers.stages]]
+pass = "V1"
+inputs = 10
+repetitions = 2
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 20000
+tokens_in_high = 40000
+tokens_out_low = 2000
+tokens_out_high = 5000
+basis = "proxy"
+derived_from = "work plan figure for this suite ($0.5-1.2 at 3 repetitions); tokens are an assumed tool-agent run, no run exists"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 30
+repetitions = 3
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 20000
+tokens_in_high = 40000
+tokens_out_low = 2000
+tokens_out_high = 5000
+basis = "proxy"
+derived_from = "work plan figure for this suite ($0.5-1.2 at 3 repetitions); tokens are an assumed tool-agent run, no run exists"
+
+[[suites.tiers]]
+name = "extended"
+
+[[suites.tiers.stages]]
+pass = "V1"
+inputs = 10
+repetitions = 2
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 20000
+tokens_in_high = 40000
+tokens_out_low = 2000
+tokens_out_high = 5000
+basis = "proxy"
+derived_from = "work plan figure for this suite ($0.5-1.2 at 3 repetitions); tokens are an assumed tool-agent run, no run exists"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 30
+repetitions = 3
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 20000
+tokens_in_high = 40000
+tokens_out_low = 2000
+tokens_out_high = 5000
+basis = "proxy"
+derived_from = "work plan figure for this suite ($0.5-1.2 at 3 repetitions); tokens are an assumed tool-agent run, no run exists"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 30
+repetitions = 2
+calls_per_input = 1
+models = [{ level = "reasoning-medium", count = 1 }]
+tokens_in_low = 20000
+tokens_in_high = 50000
+tokens_out_low = 2000
+tokens_out_high = 12000
+basis = "proxy"
+derived_from = "same assumed run; output high allows a longer reasoning trace (assumption)"
+
+# ---- Suite: Network Author --------------------------------------------------------
+# Assumed 20 locations plus 10 derivations; generation seeds vary, not prompts.
+
+[[suites]]
+id = "network-author"
+name = "Network Author"
+measures = "GEN-LOCATIONS generation and derivation of edited networks: validity and match to the requested change, each generation seeded"
+threshold = "DoD E6.2 (GEN-LOCATIONS and derivation, 3 repetitions)"
+varies = "seeds"
+contingency = 0.3
+fixed = false
+
+[suites.explore]
+[suites.explore.inputs]
+V2 = { min = 15, max = 90 }
+
+[[suites.tiers]]
+name = "minimum"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 30
+repetitions = 2
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 40000
+tokens_in_high = 90000
+tokens_out_low = 4000
+tokens_out_high = 12000
+basis = "proxy"
+derived_from = "work plan figure for this suite ($0.6-3 at 3 repetitions); tokens are an assumed long tool-agent run, no run exists"
+
+[[suites.tiers]]
+name = "planned"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 30
+repetitions = 3
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 40000
+tokens_in_high = 90000
+tokens_out_low = 4000
+tokens_out_high = 12000
+basis = "proxy"
+derived_from = "work plan figure for this suite ($0.6-3 at 3 repetitions); tokens are an assumed long tool-agent run, no run exists"
+
+[[suites.tiers]]
+name = "extended"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 30
+repetitions = 5
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 40000
+tokens_in_high = 90000
+tokens_out_low = 4000
+tokens_out_high = 12000
+basis = "proxy"
+derived_from = "work plan figure for this suite ($0.6-3 at 3 repetitions); tokens are an assumed long tool-agent run, no run exists"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 30
+repetitions = 2
+calls_per_input = 1
+models = [{ level = "reasoning-medium", count = 1 }]
+tokens_in_low = 40000
+tokens_in_high = 100000
+tokens_out_low = 4000
+tokens_out_high = 20000
+basis = "proxy"
+derived_from = "same assumed run; output high allows a longer reasoning trace (assumption)"
+
+# ---- Suite: Demand Generator ------------------------------------------------------
+# Assumed 20 calibration targets. The simulator seed varies; SUMO runs are free, only the agent calls are paid.
+
+[[suites]]
+id = "demand-generator"
+name = "Demand Generator"
+measures = "Demand calibration: does generated demand reproduce the target flows within tolerance, each calibration run simulated with its own seed"
+threshold = "DoD E7.4 (demand calibration)"
+varies = "seeds"
+contingency = 0.25
+fixed = false
+
+[suites.explore]
+[suites.explore.inputs]
+V2 = { min = 10, max = 60 }
+
+[[suites.tiers]]
+name = "minimum"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 20
+repetitions = 2
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 15000
+tokens_in_high = 40000
+tokens_out_low = 1500
+tokens_out_high = 5000
+basis = "proxy"
+derived_from = "work plan figure for this suite ($0.2-1); tokens are an assumed calibration run, no run exists"
+
+[[suites.tiers]]
+name = "planned"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 20
+repetitions = 3
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 15000
+tokens_in_high = 40000
+tokens_out_low = 1500
+tokens_out_high = 5000
+basis = "proxy"
+derived_from = "work plan figure for this suite ($0.2-1); tokens are an assumed calibration run, no run exists"
+
+[[suites.tiers]]
+name = "extended"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 20
+repetitions = 5
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 15000
+tokens_in_high = 40000
+tokens_out_low = 1500
+tokens_out_high = 5000
+basis = "proxy"
+derived_from = "work plan figure for this suite ($0.2-1); tokens are an assumed calibration run, no run exists"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 20
+repetitions = 2
+calls_per_input = 1
+models = [{ level = "reasoning-medium", count = 1 }]
+tokens_in_low = 15000
+tokens_in_high = 50000
+tokens_out_low = 1500
+tokens_out_high = 10000
+basis = "proxy"
+derived_from = "same assumed run; output high allows a longer reasoning trace (assumption)"
+
+# ---- Suite: EXP-01, Network Expert forced + free abstention --------------------------------------------
+# Measured base: expert-benchmark run v2-e38-forced-1rep (117 questions, 1 repetition, forced mode,
+# default model, 5,484,928 input and 283,445 output tokens in total = 46,880 / 2,423 per run, $0.993).
+# Earlier full sweep v1-forced-1rep gives 45,120 / 2,629 per run ($0.976). Free mode has never been
+# measured on a full sweep (e45-smoke: 4 questions, zero abstentions), so its tokens are a proxy of forced.
+# The V1 checkpoint is a third of the bank (39 questions, an assumption to refine), so V1 stages are proxy. The shape is unfixed:
+# free-mode repetitions are an open choice and the bank is rebuilt after ADR-0028 (eval/measurement-plans.md).
+
+[[suites]]
+id = "exp-01"
+name = "Network Expert, forced and free abstention (EXP-01)"
+measures = "Forced-mode accuracy across repetitions (N1) and whether the Expert abstains exactly where its forced answer would be wrong (N2), on the same 117 questions"
+threshold = "DoD 4.7 per-family accuracy (E4.2-E4.4); abstention_recall >= 70 % and abstention_false_requests <= 30 % (E4.5)"
+varies = "repetitions"
+contingency = 0.20
+fixed = false
+
+[suites.explore]
+[suites.explore.inputs]
+V1 = { min = 20, max = 120 }
+V2 = { min = 60, max = 360 }
+
+[[suites.tiers]]
+name = "minimum"
+
+[[suites.tiers.stages]]
+pass = "V1"
+inputs = 39
+repetitions = 2
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 45000
+tokens_in_high = 55000
+tokens_out_low = 2400
+tokens_out_high = 3200
+basis = "proxy"
+derived_from = "v2-e38-forced-1rep tokens (forced mode, 117 questions x 1 repetition) on an assumed V1 size of 39 questions (a third of the bank); no V1 run"
+
+[[suites.tiers.stages]]
+pass = "V1"
+inputs = 39
+repetitions = 2
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 45000
+tokens_in_high = 65000
+tokens_out_low = 2400
+tokens_out_high = 3800
+basis = "proxy"
+derived_from = "v2-e38-forced-1rep tokens assumed for free mode; no full free-mode run exists"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 117
+repetitions = 2
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 45000
+tokens_in_high = 55000
+tokens_out_low = 2400
+tokens_out_high = 3200
+basis = "measured"
+derived_from = "v2-e38-forced-1rep (forced mode, 117 questions x 1 repetition)"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 117
+repetitions = 2
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 45000
+tokens_in_high = 65000
+tokens_out_low = 2400
+tokens_out_high = 3800
+basis = "proxy"
+derived_from = "v2-e38-forced-1rep tokens assumed for free mode; no full free-mode run exists"
+
+[[suites.tiers]]
+name = "planned"
+
+[[suites.tiers.stages]]
+pass = "V1"
+inputs = 39
+repetitions = 2
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 45000
+tokens_in_high = 55000
+tokens_out_low = 2400
+tokens_out_high = 3200
+basis = "proxy"
+derived_from = "v2-e38-forced-1rep tokens (forced mode, 117 questions x 1 repetition) on an assumed V1 size of 39 questions (a third of the bank); no V1 run"
+
+[[suites.tiers.stages]]
+pass = "V1"
+inputs = 39
+repetitions = 2
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 45000
+tokens_in_high = 65000
+tokens_out_low = 2400
+tokens_out_high = 3800
+basis = "proxy"
+derived_from = "v2-e38-forced-1rep tokens assumed for free mode; no full free-mode run exists"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 117
+repetitions = 3
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 45000
+tokens_in_high = 55000
+tokens_out_low = 2400
+tokens_out_high = 3200
+basis = "measured"
+derived_from = "v2-e38-forced-1rep (forced mode, 117 questions x 1 repetition)"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 117
+repetitions = 3
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 45000
+tokens_in_high = 65000
+tokens_out_low = 2400
+tokens_out_high = 3800
+basis = "proxy"
+derived_from = "v2-e38-forced-1rep tokens assumed for free mode; no full free-mode run exists"
+
+[[suites.tiers]]
+name = "extended"
+
+[[suites.tiers.stages]]
+pass = "V1"
+inputs = 39
+repetitions = 2
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 45000
+tokens_in_high = 55000
+tokens_out_low = 2400
+tokens_out_high = 3200
+basis = "proxy"
+derived_from = "v2-e38-forced-1rep tokens (forced mode, 117 questions x 1 repetition) on an assumed V1 size of 39 questions (a third of the bank); no V1 run"
+
+[[suites.tiers.stages]]
+pass = "V1"
+inputs = 39
+repetitions = 2
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 45000
+tokens_in_high = 65000
+tokens_out_low = 2400
+tokens_out_high = 3800
+basis = "proxy"
+derived_from = "v2-e38-forced-1rep tokens assumed for free mode; no full free-mode run exists"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 117
+repetitions = 3
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 45000
+tokens_in_high = 55000
+tokens_out_low = 2400
+tokens_out_high = 3200
+basis = "measured"
+derived_from = "v2-e38-forced-1rep (forced mode, 117 questions x 1 repetition)"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 117
+repetitions = 3
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 45000
+tokens_in_high = 65000
+tokens_out_low = 2400
+tokens_out_high = 3800
+basis = "proxy"
+derived_from = "v2-e38-forced-1rep tokens assumed for free mode; no full free-mode run exists"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 117
+repetitions = 2
+calls_per_input = 1
+models = [{ level = "reasoning-medium", count = 1 }]
+tokens_in_low = 45000
+tokens_in_high = 65000
+tokens_out_low = 2400
+tokens_out_high = 8000
+basis = "proxy"
+derived_from = "v2-e38-forced-1rep tokens of the default model; output high allows a longer reasoning trace (assumption, no run)"
+
+# ---- Suite: Network Expert on REAL-NET --------------------------------------------
+# Assumed bank of 40 questions (E8.4, 40+). The district is frozen after V1, so this runs in V2 only.
+
+[[suites]]
+id = "expert-real-net"
+name = "Network Expert on REAL-NET"
+measures = "Forced-mode accuracy of the Expert on the frozen real district: descriptive, Jaccard and direction metrics"
+threshold = "DoD 4.7 REAL-NET (descriptive >= 85 %, Jaccard >= 0.5, direction >= 65 %; E8.5)"
+varies = "repetitions"
+contingency = 0.2
+fixed = false
+
+[suites.explore]
+[suites.explore.inputs]
+V2 = { min = 20, max = 120 }
+
+[[suites.tiers]]
+name = "minimum"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 40
+repetitions = 2
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 45000
+tokens_in_high = 65000
+tokens_out_low = 2400
+tokens_out_high = 3800
+basis = "proxy"
+derived_from = "v2-e38-forced-1rep tokens (forced mode, 117 questions x 1 repetition) assumed for this suite on a different network; no run on it"
+
+[[suites.tiers]]
+name = "planned"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 40
+repetitions = 3
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 45000
+tokens_in_high = 65000
+tokens_out_low = 2400
+tokens_out_high = 3800
+basis = "proxy"
+derived_from = "v2-e38-forced-1rep tokens (forced mode, 117 questions x 1 repetition) assumed for this suite on a different network; no run on it"
+
+[[suites.tiers]]
+name = "extended"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 40
+repetitions = 3
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 45000
+tokens_in_high = 65000
+tokens_out_low = 2400
+tokens_out_high = 3800
+basis = "proxy"
+derived_from = "v2-e38-forced-1rep tokens (forced mode, 117 questions x 1 repetition) assumed for this suite on a different network; no run on it"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 40
+repetitions = 2
+calls_per_input = 1
+models = [{ level = "reasoning-medium", count = 1 }]
+tokens_in_low = 45000
+tokens_in_high = 65000
+tokens_out_low = 2400
+tokens_out_high = 8000
+basis = "proxy"
+derived_from = "v2-e38-forced-1rep tokens of the default level; output high allows a longer reasoning trace (assumption)"
+
+# ---- Suite: Network Expert learning effect ----------------------------------------
+# Assumed 4 conditions x 30 questions = 120 inputs. The order of the prior experiences is what is seeded.
+
+[[suites]]
+id = "expert-learning-effect"
+name = "Network Expert learning effect"
+measures = "Does accuracy rise as the Expert holds more prior experiences (0, 5, 15, 25): the learning-effect curve"
+threshold = "DoD E4.9 (learning-effect curve)"
+varies = "seeds"
+contingency = 0.3
+fixed = false
+
+[suites.explore]
+[suites.explore.inputs]
+V2 = { min = 60, max = 360 }
+
+[[suites.tiers]]
+name = "minimum"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 120
+repetitions = 2
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 50000
+tokens_in_high = 70000
+tokens_out_low = 2400
+tokens_out_high = 3800
+basis = "proxy"
+derived_from = "v2-e38-forced-1rep tokens plus an assumed memory of earlier experiences in the prompt; no run"
+
+[[suites.tiers]]
+name = "planned"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 120
+repetitions = 3
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 50000
+tokens_in_high = 70000
+tokens_out_low = 2400
+tokens_out_high = 3800
+basis = "proxy"
+derived_from = "v2-e38-forced-1rep tokens plus an assumed memory of earlier experiences in the prompt; no run"
+
+[[suites.tiers]]
+name = "extended"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 120
+repetitions = 5
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 50000
+tokens_in_high = 70000
+tokens_out_low = 2400
+tokens_out_high = 3800
+basis = "proxy"
+derived_from = "v2-e38-forced-1rep tokens plus an assumed memory of earlier experiences in the prompt; no run"
+
+# ---- Suite: Output Composer -------------------------------------------------------
+# Assumed 60 composed answers. Model cost is small; the manual review is the real load and is stated as
+# reviewer hours, not money. A cheap non-reasoning level is enough, so several of them are tested at extended.
+
+[[suites]]
+id = "output-composer"
+name = "Output Composer"
+measures = "Hallucination review of composed text against the Expert's answer (no invented or contradicted claim), plus what the golden-path rubric already covers"
+threshold = "DoD E5.7 rubric (Composer faithfulness) and E9.5"
+varies = "repetitions"
+contingency = 0.15
+fixed = false
+
+[suites.explore]
+review_minutes_low = 3
+review_minutes_high = 5  # per answer, one answer per model per V2 input
+[suites.explore.inputs]
+V2 = { min = 30, max = 180 }
+
+[[suites.tiers]]
+name = "minimum"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 60
+repetitions = 2
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 3000
+tokens_in_high = 8000
+tokens_out_low = 500
+tokens_out_high = 1500
+basis = "proxy"
+derived_from = "assumed small composer run (answer text from the Expert's answer); no run exists"
+
+[[suites.tiers]]
+name = "planned"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 60
+repetitions = 3
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 3000
+tokens_in_high = 8000
+tokens_out_low = 500
+tokens_out_high = 1500
+basis = "proxy"
+derived_from = "assumed small composer run (answer text from the Expert's answer); no run exists"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 60
+repetitions = 3
+calls_per_input = 1
+models = [{ level = "non-reasoning-low", count = 2 }]
+tokens_in_low = 3000
+tokens_in_high = 8000
+tokens_out_low = 500
+tokens_out_high = 1500
+basis = "proxy"
+derived_from = "same assumed run on two cheaper non-reasoning models (assumption)"
+
+[[suites.tiers]]
+name = "extended"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 60
+repetitions = 3
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 3000
+tokens_in_high = 8000
+tokens_out_low = 500
+tokens_out_high = 1500
+basis = "proxy"
+derived_from = "assumed small composer run (answer text from the Expert's answer); no run exists"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 60
+repetitions = 3
+calls_per_input = 1
+models = [{ level = "non-reasoning-low", count = 2 }, { level = "non-reasoning-medium", count = 2 }]
+tokens_in_low = 3000
+tokens_in_high = 8000
+tokens_out_low = 500
+tokens_out_high = 1500
+basis = "proxy"
+derived_from = "same assumed run on four cheaper non-reasoning models (assumption)"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 60
+repetitions = 2
+calls_per_input = 1
+models = [{ level = "reasoning-medium", count = 1 }]
+tokens_in_low = 3000
+tokens_in_high = 8000
+tokens_out_low = 500
+tokens_out_high = 1500
+basis = "proxy"
+derived_from = "same assumed run, longer reasoning trace (assumption)"
+
+# ---- Suite: Golden-path integration -----------------------------------------------
+# 11 paths. Plan-level shape fixed by the work plan; per-run tokens are a proxy.
+
+[[suites]]
+id = "golden-path"
+name = "Golden-path integration"
+measures = "The 11 golden paths end to end through the CLI: pass/fail and the rubric over the composed answer"
+threshold = "DoD E9.4 and E9.5 (golden paths), E5.7 rubric"
+varies = "repetitions"
+contingency = 0.25
+fixed = false
+
+[suites.explore]
+[suites.explore.inputs]
+V2 = { min = 6, max = 33 }
+
+[[suites.tiers]]
+name = "minimum"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 11
+repetitions = 2
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 150000
+tokens_in_high = 400000
+tokens_out_low = 10000
+tokens_out_high = 30000
+basis = "proxy"
+derived_from = "work plan figure for this suite ($1-3 at 11 paths x 3 repetitions); tokens are an assumed full-pipeline run, no run exists"
+
+[[suites.tiers]]
+name = "planned"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 11
+repetitions = 3
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 150000
+tokens_in_high = 400000
+tokens_out_low = 10000
+tokens_out_high = 30000
+basis = "proxy"
+derived_from = "work plan figure for this suite ($1-3 at 11 paths x 3 repetitions); tokens are an assumed full-pipeline run, no run exists"
+
+[[suites.tiers]]
+name = "extended"
+
+[[suites.tiers.stages]]
+pass = "V2"
+inputs = 11
+repetitions = 5
+calls_per_input = 1
+models = [{ level = "reasoning-low", count = 1 }]
+tokens_in_low = 150000
+tokens_in_high = 400000
+tokens_out_low = 10000
+tokens_out_high = 30000
+basis = "proxy"
+derived_from = "work plan figure for this suite ($1-3 at 11 paths x 3 repetitions); tokens are an assumed full-pipeline run, no run exists"
+
+# ---- Suite: Plan bank routing (removed by refactor r13) --------------------------------------------------
+# The Coordinator is replaced by a deterministic planner, so this suite disappears. Kept with a mark and left
+# out of every total until the ADR is accepted; delete the entry then.
+
+[[suites]]
+id = "plan-bank-routing"
+name = "Plan bank routing"
+measures = "Coordinator routing over the plan bank"
+threshold = "none (suite removed)"
+varies = "repetitions"
+contingency = 0.0
+fixed = false
+removed = "removed by r13 (the Coordinator is replaced by a deterministic planner); delete once the r13 ADR is accepted"
