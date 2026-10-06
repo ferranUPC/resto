@@ -9,6 +9,9 @@ The gold fields are those the plan is scored on: step kinds and dependencies, th
 baseline-or-not role of each `build_scenario`, the modifications of each `derive_network` and
 whether `obtain_demand` has a `demand_ref`. Free text, seeds and interventions are left out.
 
+`run_simulation` steps are not compared: r13 added one per arm to every plan, so counting them
+would mark 51 of 54 plans and the mark would not tell the plans apart.
+
 Rebuild the snapshot (only if the reference commit changes):
 
     git show 29fcc09:eval/plan_bank/plans.json > old-plans.json
@@ -25,6 +28,7 @@ from typing import Any
 
 SNAPSHOT_PATH = Path(__file__).parent / "reviewed_snapshot.json"
 REVIEWED_COMMIT = "29fcc09"
+IGNORED_KINDS = frozenset({"run_simulation"})
 SOURCE = {
     "commit": REVIEWED_COMMIT,
     "file": "eval/plan_bank/plans.json",
@@ -78,10 +82,16 @@ def _field(projection: dict[str, Any], kind: str, key: str) -> list[Any]:
     return [s[key] for s in projection["steps"] if s["kind"] == kind]
 
 
+def _compared(projection: dict[str, Any]) -> dict[str, Any]:
+    steps = [s for s in projection["steps"] if s["kind"] not in IGNORED_KINDS]
+    return {**projection, "steps": steps}
+
+
 def describe_changes(old: dict[str, Any] | None, new: dict[str, Any]) -> list[str]:
     """A short list of what moved between two projections; empty when the gold is identical."""
     if old is None:
         return ["not in the reviewed snapshot"]
+    old, new = _compared(old), _compared(new)
     if old == new:
         return []
     notes: list[str] = []

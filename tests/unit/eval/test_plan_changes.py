@@ -84,8 +84,15 @@ def test_a_plan_with_other_gold_is_marked_and_says_what_changed():
 def test_a_new_step_is_reported():
     current = gold_projection(CURRENT["R003"])
     plan = copy.deepcopy(CURRENT["R003"])
+    plan["steps"] = [s for s in plan["steps"] if s["kind"] != "obtain_demand"]
+    assert "new step: obtain_demand" in describe_changes(gold_projection(plan), current)
+
+
+def test_run_simulation_steps_do_not_mark_a_plan():
+    current = gold_projection(CURRENT["R003"])
+    plan = copy.deepcopy(CURRENT["R003"])
     plan["steps"] = [s for s in plan["steps"] if s["kind"] != "run_simulation"]
-    assert describe_changes(gold_projection(plan), current) == ["new step: run_simulation x3"]
+    assert describe_changes(gold_projection(plan), current) == []
 
 
 def test_free_text_changes_do_not_mark_a_plan():
