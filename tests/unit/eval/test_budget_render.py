@@ -1,0 +1,48 @@
+"""The full internal plan in Markdown (E3.9/01), rendered from the data."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from eval.budget import compute, load_plan, render_full_plan
+
+from tests.unit.eval.budget_fixtures import HEADER, suite, write
+
+
+def test_the_plan_shows_tiers_basis_and_totals_per_pass_against_the_cap(tmp_path):
+    text = render_full_plan(load_plan(write(tmp_path)))
+    assert "Suite s1" in text
+    assert "minimum" in text and "planned" in text and "extended" not in text
+    assert "measured" in text and "run-x" in text
+    assert "V1" in text and "V2" in text
+    assert "$30" in text
+    assert "with contingency" in text.lower() and "without contingency" in text.lower()
+
+
+def test_the_total_in_the_plan_is_the_models_total(tmp_path):
+    plan = load_plan(write(tmp_path))
+    totals = compute(plan)
+    assert f"{totals.with_contingency.low:.2f}" in render_full_plan(plan)
+
+
+def test_an_excess_over_the_cap_is_stated(tmp_path):
+    big = HEADER.replace("cap_usd = 30.0", "cap_usd = 1.0")
+    text = render_full_plan(load_plan(write(tmp_path, header=big)))
+    assert "exceeds" in text.lower()
+
+
+def test_a_removed_suite_is_listed_as_excluded(tmp_path):
+    plan = load_plan(write(tmp_path, suite(), suite(suite_id="gone", removed="removed by r13")))
+    assert "removed by r13" in render_full_plan(plan)
+
+
+def test_pending_policy_approval_is_shown(tmp_path):
+    text = render_full_plan(load_plan(write(tmp_path, suite(level="reasoning-high"))))
+    assert "pending policy approval" in text
+
+
+def test_the_committed_plan_file_is_up_to_date():
+    root = Path(__file__).resolve().parents[3] / "eval" / "budget"
+    assert (root / "full-plan.md").read_text(encoding="utf-8") == render_full_plan(
+        load_plan(root / "cost-data.toml")
+    )
