@@ -16,7 +16,7 @@ Do not duplicate `progress-review`'s job: don't re-derive DoD compliance from sc
 - `git status` to surface uncommitted or stashed work — this matters as much as merged commits for "where did I leave off."
 - `git log -1 --format=%cd --date=relative` for a sense of recency.
 - List `docs/progress-reviews/` and note the date of the most recent entry, if any.
-- Read the **phase** of every task in `.scratch/` (the local tracker, git-excluded; conventions in `docs/agents/issue-tracker.md`): `grep -rH --include='*.md' --exclude-dir=done '^\*\*Status' .scratch` (finished work lives in `.scratch/done/`), plus each spec's `**Blocked by:**` line and whether its `## Spec` section is still the seeded placeholder. If `.scratch/` does not exist (e.g. a fresh clone), say so in one line and fall back to naming a task without a command.
+- Read the **phase** of every task in `.scratch/` (the local tracker, git-excluded; conventions in `docs/agents/issue-tracker.md`): `grep -rH --include='*.md' --exclude-dir=done '^\*\*Status' .scratch` (finished work lives in `.scratch/done/`; a spec `cancelled` stays in `.scratch/` but is not pending work), plus each spec's `**Blocked by:**` line and whether its `## Spec` section is still the seeded placeholder. If `.scratch/` does not exist (e.g. a fresh clone), say so in one line and fall back to naming a task without a command.
 
 ## 2. Read project state
 
@@ -30,10 +30,10 @@ Choose **one task**, then read its **next command** off its phase.
 
 **Which task**, first match wins:
 
-1. A task already in flight: a spec past `needs-triage` and not `done`, or a 🔄 task in the tracker. Finishing beats starting.
-2. Otherwise, an **unblocked** `needs-triage` spec — every task on its `Blocked by:` line is `done` in `.scratch/` (a spec under `.scratch/done/` counts) or ✅/⏳ in the tracker. Among those, prefer the head of the critical chain that feeds the nearest milestone target (work plan §4.3), then the earlier wave, then the earlier latest due.
+1. A task already in flight: a spec past `needs-triage` and not `done` or `cancelled`, or a 🔄 task in the tracker. Finishing beats starting.
+2. Otherwise, an **unblocked** `needs-triage` spec — every *effective* blocker on its `Blocked by:` line is `done` in `.scratch/` (a spec under `.scratch/done/` counts) or ✅/⏳ in the tracker. A `cancelled` blocker is not finished: it is absorbed, so read through it to its own blockers (or to the `**Cancelled:** replaced by <id>` replacement), as `docs/agents/issue-tracker.md` says. Among those, prefer the head of the critical chain that feeds the nearest milestone target (work plan §4.3), then the earlier wave, then the earlier latest due.
 
-Skip specs whose only remaining work is a measurement (a `**Measured in:**` line and ⏳ in the tracker): they wait for their validation pass.
+Never pick a `cancelled` spec or ticket as the next action, and leave it out of the pending count. Skip specs whose only remaining work is a measurement (a `**Measured in:**` line and ⏳ in the tracker): they wait for their validation pass.
 
 **Which command**, from the chosen task's phase in `.scratch/<task>/`:
 
@@ -54,7 +54,7 @@ Small tasks may skip `/to-spec` and `/to-tickets` when the triage brief says so;
 Keep it short — bullets, not prose. Structure:
 
 - **Since last time**: 1-3 lines on what commits landed (reference short hashes) and any uncommitted work sitting in the working tree. If nothing changed, say so plainly rather than padding.
-- **Where things stand**: current completion %, which wave is active, and the nearest upcoming milestone target/deadline from `tfm-work-plan.md` with days remaining computed against today's actual date — don't guess or reuse a stale date from memory. Add one line counting `.scratch/` specs by phase (e.g. "44 specs: 43 needs-triage, 1 ready").
+- **Where things stand**: current completion %, which wave is active, and the nearest upcoming milestone target/deadline from `tfm-work-plan.md` with days remaining computed against today's actual date — don't guess or reuse a stale date from memory. Add one line counting `.scratch/` specs by phase (e.g. "44 specs: 43 needs-triage, 1 ready"); `cancelled` specs are listed apart ("2 cancelled"), never as pending.
 - **Next**: the task from step 3 — its ID, one line on what it involves, and why it's next (in flight, head of the critical path to M3, blocking X), with the reasoning pulled from the work plan, never invented. End the briefing with the command on its own line, ready to copy:
 
   ```
