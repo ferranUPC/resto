@@ -13,7 +13,7 @@ import pytest
 from eval.budget import Config, compute, load_plan
 from eval.budget.page import render_page
 
-from tests.unit.eval.budget_fixtures import EXPLORE, HEADER, suite, write
+from tests.unit.eval.budget_fixtures import EXPLORE, suite, write
 
 ROOT = Path(__file__).resolve().parents[3] / "eval" / "budget"
 RUNNER = """
@@ -79,7 +79,6 @@ def test_page_matches_the_python_model_on_the_default_and_a_restored_link(tmp_pa
     assert t["withoutContingency"] == pytest.approx(_pair(want.without_contingency))
     for p in ("V1", "V2"):
         assert t["byPass"][p] == pytest.approx(_pair(want.by_pass[p]))
-    assert t["excess"] == pytest.approx(_pair(want.excess_over_cap))
     assert t["byBasis"]["measured"] == pytest.approx(_pair(want.by_basis["measured"]))
 
 
@@ -102,22 +101,16 @@ def test_a_bad_fragment_falls_back_to_the_defaults(tmp_path):
     assert got["totals"]["withContingency"] == pytest.approx(_pair(compute(plan).with_contingency))
 
 
-def test_the_excess_over_the_cap_is_reported(tmp_path):
-    big = HEADER.replace("cap_usd = 30.0", "cap_usd = 1.0")
-    plan = load_plan(write(tmp_path, header=big))
-    got = _node_totals(tmp_path, render_page(plan), "")["totals"]
-    assert got["excess"][1] > 0
+def test_the_page_does_not_show_or_embed_the_cap():
+    html = render_page(load_plan(ROOT / "cost-data.toml"))
+    assert "cap" not in re.findall(r"\"(\w+)\":", html)
+    assert not re.search(r"\bcap\b", html.replace("capability", ""), re.IGNORECASE)
 
 
 def test_the_committed_page_is_up_to_date():
     assert (ROOT / "budget.html").read_text(encoding="utf-8") == render_page(
         load_plan(ROOT / "cost-data.toml")
     )
-
-
-def test_the_page_script_says_may_exceed_when_only_the_high_total_is_over():
-    html = (ROOT / "page_template.html").read_text(encoding="utf-8")
-    assert "May exceed the $" in html
 
 
 def test_a_free_configuration_in_the_link_costs_what_the_python_model_says(tmp_path):

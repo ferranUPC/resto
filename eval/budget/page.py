@@ -2,9 +2,10 @@
 
 Python embeds the price of each capability level and, per suite, the token blocks, the bounds and
 the three tier presets. The page script applies the cost formula to the reader's choice (inputs per
-pass, models and repetitions per level), then the per-suite and global contingency (editable), and
-works out the excess over the cap; a parity test checks its totals against `compute` for tiers and
-for free configurations. The selection lives in the address fragment.
+pass, models and repetitions per level), then sums the suites and applies the global contingency
+(editable; the page drops the per-suite shares, so the total is the subtotal times one factor). A
+parity test checks its totals against `compute` for tiers and for free configurations. The page
+neither embeds nor shows the spending cap. The selection lives in the address fragment.
 """
 
 from __future__ import annotations
@@ -120,7 +121,6 @@ def page_data(plan: Plan) -> dict[str, object]:
             }
         )
     return {
-        "cap": plan.cap_usd,
         "globalContingency": plan.global_contingency,
         "defaultTier": DEFAULT_TIER,
         "passes": list(PASSES),
