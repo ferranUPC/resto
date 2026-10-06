@@ -62,6 +62,19 @@ class Export:
     external: tuple[dict[str, Any], ...]
 
 
+# Exports written before ADR-0038 carry labels the four-intent vocabulary no longer has. They stay
+# as written on disk; the scorer reads them through this table, keyed by the old label string.
+_OLD_INTENT_LABELS = {"counterfactual": "compare"}
+
+
+def _current_intents(question: Any) -> Any:
+    """A copy of a stored question dict with an old intent label mapped to a current one."""
+    if not isinstance(question, Mapping):
+        return question
+    intent = question.get("intent")
+    return {**question, "intent": _OLD_INTENT_LABELS.get(intent, intent)}
+
+
 def parse_export(data: Mapping[str, Any]) -> Export:
     if "payload" in data and "format" not in data:
         data = json.loads(data["payload"])
@@ -76,13 +89,17 @@ def parse_export(data: Mapping[str, Any]) -> Export:
             done=bool(item.get("done")),
             question=None
             if item.get("question") is None
-            else adapter.validate_python(item["question"]),
+            else adapter.validate_python(_current_intents(item["question"])),
             notes=item.get("notes", ""),
             issues=tuple(item.get("issues", ())),
         )
         for item in data.get("held_out", ())
     )
-    return Export(annotator, held, tuple(data.get("external", ())))
+    external = tuple(
+        {**item, "question": _current_intents(item.get("question"))}
+        for item in data.get("external", ())
+    )
+    return Export(annotator, held, external)
 
 
 def load_export(path: Path) -> Export:
