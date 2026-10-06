@@ -151,7 +151,7 @@ class RerouteDemandStep:
 
 @dataclass(frozen=True, slots=True)
 class BuildScenarioStep:
-    """`arm`, `role` and `purpose` are the Coordinator's: the Executor copies them into the
+    """`arm`, `role` and `purpose` are the planner's: the Executor copies them into the
     `Experiment` this scenario and its runs become (ADR-0025 §5, ADR-0027 §3)."""
 
     network_id: str | FromStep
@@ -161,7 +161,6 @@ class BuildScenarioStep:
     purpose: str
     interventions: tuple[Intervention, ...] = ()
     context_tags: frozenset[str] = frozenset()
-    allow_script: bool = True
     depends_on: tuple[int, ...] = ()
     kind: Literal["build_scenario"] = "build_scenario"
 

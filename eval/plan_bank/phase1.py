@@ -18,13 +18,12 @@ eval.plan_bank.phase1` after a reviewed change.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from eval.plan_bank.bank import load_plans, planned_concepts
 from eval.request_bank.concepts import Concept, concept_by_id
-from resto.application.ports.agents.coordinator import PlanningContext
 from resto.application.schemas import adapter_for
 from resto.domain.services.planner import PlanningContext as PlannerContext
 from resto.domain.services.planner import plan_study
@@ -42,6 +41,19 @@ PHASE1_IDS = (
     "R001", "R010", "R011", "R012", "R014", "R016", "R018", "R022",
     "R023", "R026", "R028", "R033", "R035", "R036", "R061", "R062",
 )  # fmt: skip
+
+
+@dataclass(frozen=True, slots=True)
+class PlanningContext:
+    """The stored shape of a case's context (`phase1.json`): the phase-0 experiments and the
+    historical-demand flag of the retired agent port. The planner's own context is
+    `resto.domain.services.planner.PlanningContext`; E3.7 (r13 ticket 07) rebuilds this set from
+    real Expert requests and drops this type."""
+
+    phase: int
+    network_id: str | None = None
+    experiments: tuple[Experiment, ...] = ()
+    has_historical_demand: bool = field(default=False)
 
 
 @dataclass(frozen=True, slots=True)

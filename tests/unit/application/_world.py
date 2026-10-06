@@ -25,7 +25,6 @@ from resto.application.executor import (
     StudyPromotions,
     StudySettings,
 )
-from resto.application.ports.agents.coordinator import PlanningContext
 from resto.application.ports.llm import AgentRun, StopReason
 from resto.application.ports.sumo import RunOutput
 from resto.application.ports.tracing import TraceEvent
@@ -38,6 +37,7 @@ from resto.domain.entities.scenario import Scenario
 from resto.domain.entities.simulation_result import RunMode, RunStatus, SimulationResult
 from resto.domain.entities.study import Study
 from resto.domain.services.ids import result_id_for, scenario_id_for
+from resto.domain.services.planner import PlanningContext
 from resto.domain.value_objects.answer_value import Measure, Quantity
 from resto.domain.value_objects.drafts import (
     ExpertNoteDrafts,
@@ -141,8 +141,11 @@ class FakeParser(Scripted):
         return self._next(text)  # type: ignore[no-any-return]
 
 
-class FakeCoordinator(Scripted):
-    def plan(self, question: Question, context: PlanningContext) -> AgentRun[Any]:
+class FakePlanner(Scripted):
+    """The injected planner: answers each call with the next scripted `StudyPlan`, or raises the
+    next scripted `PlanningError`. `calls` holds the `(question, context)` of every call."""
+
+    def __call__(self, question: Question, context: PlanningContext) -> StudyPlan:
         return self._next(question, context)  # type: ignore[no-any-return]
 
 
@@ -304,11 +307,10 @@ class World:
         composer: tuple[Any, ...] = (),
         runner: FakeRunner | None = None,
         budget: StudyBudget | None = None,
-        has_historical_demand: bool = False,
     ) -> None:
         parsed = question if not isinstance(question, Question) else run_of(question, tokens=50)
         self.parser = FakeParser(parsed)
-        self.coordinator = FakeCoordinator(*plans)
+        self.planner = FakePlanner(*plans)
         self.author = FakeAuthor(
             *author,
             default=lambda task: (
@@ -342,7 +344,6 @@ class World:
         self.deps = StudyDeps(
             agents=StudyAgents(
                 parser=self.parser,
-                coordinator=self.coordinator,
                 network_author=self.author,
                 demand_generator=self.generator,
                 scenario_builder=self.builder,
@@ -366,13 +367,13 @@ class World:
             run_dirs=FilesystemRunDirectories(),
             network_query_loader=StoredNetworkQueryLoader(self.networks, self._load_query),
             tracer=self.tracer,
+            planner=self.planner,
         )
         self.settings = StudySettings(
             out_dir=tmp_path,
             network_max_rounds=NETWORK_ROUNDS,
             calibration_max_rounds=CALIBRATION_ROUNDS,
             budget=budget or StudyBudget(),
-            has_historical_demand=has_historical_demand,
         )
 
     def _load_query(self, path: Path) -> StubNetworkQuery:
@@ -456,15 +457,14 @@ class World:
 # -- plans ----------------------------------------------------------------------------------------
 
 
-def plan(*steps: Any, network: Any = NET) -> Any:
+def plan(*steps: Any, network: Any = NET) -> StudyPlan:
     """A plan of `steps` behind the `obtain_network` step every plan has: see
-    `after_obtain_network` for how the indexes in `steps` are read."""
-    return run_of(
-        StudyPlan(
-            network_id=plan_network(network),
-            rationale="as needed",
-            steps=after_obtain_network(*steps),
-        )
+    `after_obtain_network` for how the indexes in `steps` are read. The tests seed it through
+    the injected planner (`World.planner`)."""
+    return StudyPlan(
+        network_id=plan_network(network),
+        rationale="as needed",
+        steps=after_obtain_network(*steps),
     )
 
 

@@ -75,7 +75,6 @@ class ScenarioTask:
     demand_id: str
     interventions: tuple[Intervention, ...] = ()
     context_tags: frozenset[str] = frozenset()
-    allow_script: bool = True
 
 
 @dataclass(frozen=True, slots=True)

@@ -22,6 +22,10 @@ WHAT_TO_DO: dict[StepErrorKind, str] = {
     StepErrorKind.AGENT: (
         "Retry the request, or change the approach (for example, say differently what to simulate)."
     ),
+    StepErrorKind.PLANNING: (
+        "The question cannot be planned as stated (see the cause above): rephrase it, for example "
+        "naming the network or the change to simulate."
+    ),
     StepErrorKind.INFRASTRUCTURE: (
         "Nothing to change on your side: the environment failed (see the logs named above). "
         "Retry once it is available again."

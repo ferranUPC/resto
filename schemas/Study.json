@@ -134,13 +134,8 @@
       "type": "object"
     },
     "BuildScenarioStep": {
-      "description": "`arm`, `role` and `purpose` are the Coordinator's: the Executor copies them into the\n`Experiment` this scenario and its runs become (ADR-0025 \u00a75, ADR-0027 \u00a73).",
+      "description": "`arm`, `role` and `purpose` are the planner's: the Executor copies them into the\n`Experiment` this scenario and its runs become (ADR-0025 \u00a75, ADR-0027 \u00a73).",
       "properties": {
-        "allow_script": {
-          "default": true,
-          "title": "Allow Script",
-          "type": "boolean"
-        },
         "arm": {
           "title": "Arm",
           "type": "string"
@@ -1732,12 +1727,13 @@
       "type": "object"
     },
     "StepErrorKind": {
-      "description": "What the user can do about a failure (ADR-0025 \u00a73): rephrase, narrow or raise the budget,\nretry or change the approach, or nothing (logs given).",
+      "description": "What the user can do about a failure (ADR-0025 \u00a73): rephrase, narrow or raise the budget,\nretry or change the approach, or nothing (logs given). `PLANNING` is the planner's: it cannot\nplan the question, or the plan it made does not validate (ADR-0039).",
       "enum": [
         "user_input",
         "budget",
         "agent",
-        "infrastructure"
+        "infrastructure",
+        "planning"
       ],
       "title": "StepErrorKind",
       "type": "string"

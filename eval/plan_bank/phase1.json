@@ -68,7 +68,6 @@
             }
           ],
           "context_tags": [],
-          "allow_script": true,
           "depends_on": [
             1
           ],
@@ -157,7 +156,6 @@
             }
           ],
           "context_tags": [],
-          "allow_script": true,
           "depends_on": [
             1
           ],
@@ -243,7 +241,6 @@
             }
           ],
           "context_tags": [],
-          "allow_script": true,
           "depends_on": [
             1
           ],
@@ -332,7 +329,6 @@
             }
           ],
           "context_tags": [],
-          "allow_script": true,
           "depends_on": [
             1
           ],
@@ -437,7 +433,6 @@
           "purpose": "Treatment arm 'treatment': the change the question asks about. Changes: add edge from B1 to C2 (2 lanes, 13.889 m/s).",
           "interventions": [],
           "context_tags": [],
-          "allow_script": true,
           "depends_on": [
             2,
             3
@@ -526,7 +521,6 @@
             }
           ],
           "context_tags": [],
-          "allow_script": true,
           "depends_on": [
             1
           ],
@@ -613,7 +607,6 @@
             }
           ],
           "context_tags": [],
-          "allow_script": true,
           "depends_on": [
             1
           ],
@@ -742,7 +735,6 @@
             }
           ],
           "context_tags": [],
-          "allow_script": true,
           "depends_on": [
             2,
             3
@@ -865,7 +857,6 @@
             }
           ],
           "context_tags": [],
-          "allow_script": true,
           "depends_on": [
             2,
             3
@@ -953,7 +944,6 @@
             }
           ],
           "context_tags": [],
-          "allow_script": true,
           "depends_on": [
             1
           ],
@@ -987,7 +977,6 @@
             }
           ],
           "context_tags": [],
-          "allow_script": true,
           "depends_on": [
             1
           ],
@@ -1036,7 +1025,6 @@
             }
           ],
           "context_tags": [],
-          "allow_script": true,
           "depends_on": [
             1
           ],
@@ -1142,7 +1130,6 @@
             }
           ],
           "context_tags": [],
-          "allow_script": true,
           "depends_on": [
             1
           ],
@@ -1173,7 +1160,6 @@
             }
           ],
           "context_tags": [],
-          "allow_script": true,
           "depends_on": [
             1
           ],
@@ -1285,7 +1271,6 @@
             }
           ],
           "context_tags": [],
-          "allow_script": true,
           "depends_on": [
             1
           ],
@@ -1391,7 +1376,6 @@
             }
           ],
           "context_tags": [],
-          "allow_script": true,
           "depends_on": [
             1
           ],
@@ -1497,7 +1481,6 @@
           "purpose": "Treatment arm 'treatment': the change the question asks about. Changes: set edge C2C3 to 3 lanes; remove edge C3C4.",
           "interventions": [],
           "context_tags": [],
-          "allow_script": true,
           "depends_on": [
             2,
             3
@@ -1585,7 +1568,6 @@
             }
           ],
           "context_tags": [],
-          "allow_script": true,
           "depends_on": [
             1
           ],
@@ -1672,7 +1654,6 @@
             }
           ],
           "context_tags": [],
-          "allow_script": true,
           "depends_on": [
             1
           ],

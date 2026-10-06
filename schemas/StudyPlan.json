@@ -48,13 +48,8 @@
       "type": "object"
     },
     "BuildScenarioStep": {
-      "description": "`arm`, `role` and `purpose` are the Coordinator's: the Executor copies them into the\n`Experiment` this scenario and its runs become (ADR-0025 \u00a75, ADR-0027 \u00a73).",
+      "description": "`arm`, `role` and `purpose` are the planner's: the Executor copies them into the\n`Experiment` this scenario and its runs become (ADR-0025 \u00a75, ADR-0027 \u00a73).",
       "properties": {
-        "allow_script": {
-          "default": true,
-          "title": "Allow Script",
-          "type": "boolean"
-        },
         "arm": {
           "title": "Arm",
           "type": "string"

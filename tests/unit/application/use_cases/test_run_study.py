@@ -29,6 +29,7 @@ from resto.domain.entities.expert_note import ExpertNote, NoteStatus, Provenance
 from resto.domain.entities.simulation_result import RunMode
 from resto.domain.entities.study import Study, StudyStatus
 from resto.domain.services.ids import result_id_for
+from resto.domain.services.planner import PlanningContext, PlanningError
 from resto.domain.value_objects.answer_value import Edges, Measure, Quantity
 from resto.domain.value_objects.arm import BASE_ARM, Arm, Contrast
 from resto.domain.value_objects.drafts import (
@@ -43,7 +44,6 @@ from resto.domain.value_objects.intervention import Intervention
 from resto.domain.value_objects.question import Intent, Mode, Question
 from resto.domain.value_objects.step_record import StepErrorKind, StepStatus, Usage
 from resto.domain.value_objects.study_plan import (
-    ClarificationRequest,
     DeriveNetworkStep,
     FromStep,
     RerouteDemandStep,
@@ -163,9 +163,10 @@ def test_the_expert_may_still_ask_for_an_arm_the_plan_did_not_need(tmp_path: Pat
     assert len(study.phases) == 2
     assert study.phases[1].question == PROPOSED
     assert [e.arm for p in study.phases for e in p.experiments] == [BASE_ARM, "treatment"]
-    _, context = world.coordinator.calls[1]
-    assert context.phase == 1 and context.network_id == NET
-    assert [e.arm for e in context.experiments] == [BASE_ARM]
+    (_, first_context), (second_question, second_context) = world.planner.calls
+    assert first_context == PlanningContext(phase=0)
+    assert second_question == PROPOSED
+    assert second_context == PlanningContext(phase=1, network_id=NET, realised=(BASE_ARM,))
     first, second = (call[0] for call in world.expert.calls)
     assert first.question == second.question == DESCRIBE_CHANGE.text
     assert (first.mode, second.mode) == (Mode.FREE, Mode.FREE)
@@ -359,26 +360,30 @@ def test_an_ambiguous_question_awaits_the_user_without_planning(tmp_path: Path) 
     study = world.run()
 
     assert study.status is StudyStatus.AWAITING_USER
-    assert world.coordinator.calls == []
+    assert world.planner.calls == []
     assert len(world.studies.states) == 1
 
 
-def test_a_coordinator_clarification_in_phase_0_awaits_the_user(tmp_path: Path) -> None:
-    clarification = ClarificationRequest("two networks are labelled Gran Via", ("gv-1", "gv-2"))
-    world = World(tmp_path, plans=(run_of(clarification),))
+def test_a_question_the_planner_cannot_plan_fails_the_plan_step(tmp_path: Path) -> None:
+    cause = "the question names no network (network_ref) and phase 0 has no study network"
+    world = World(tmp_path, plans=(PlanningError(cause),))
 
     study = world.run()
 
-    assert study.status is StudyStatus.AWAITING_USER
-    assert study.phases[0].clarification == clarification
-    assert study.phases[0].steps == ()
+    assert study.status is StudyStatus.FAILED
+    assert tools(study) == [("plan", StepStatus.FAILED)]
+    assert failed_kind(study) is StepErrorKind.PLANNING
+    error = study.phases[0].failed_step.error  # type: ignore[union-attr]
+    assert error is not None and cause in error.message
+    assert study.phases[0].plan is None
+    assert world.builder.calls == [] and world.expert.calls == []
 
 
-def test_a_coordinator_clarification_in_a_later_phase_fails_the_study(tmp_path: Path) -> None:
+def test_a_planning_failure_in_a_later_phase_fails_the_study(tmp_path: Path) -> None:
     world = World(
         tmp_path,
         question=DESCRIBE_CHANGE,
-        plans=(BASELINE_PLAN, run_of(ClarificationRequest("which lane?"))),
+        plans=(BASELINE_PLAN, PlanningError("nothing to plan")),
         expert=(abstains(PROPOSED),),
     )
 
@@ -386,8 +391,27 @@ def test_a_coordinator_clarification_in_a_later_phase_fails_the_study(tmp_path: 
 
     assert study.status is StudyStatus.FAILED
     assert tools(study, 1) == [("plan", StepStatus.FAILED)]
-    assert failed_kind(study) is StepErrorKind.AGENT
-    assert study.phases[1].plan is None
+    assert failed_kind(study) is StepErrorKind.PLANNING
+
+
+def test_a_proposal_that_adds_no_arm_fails_the_plan_step_with_its_cause(tmp_path: Path) -> None:
+    """The Expert asks for an arm the study already realised. A completed study cannot end on an
+    answer that still needs a simulation, so the planner's refusal (nothing to plan) is the
+    study's failure, named, and no simulation is repeated."""
+    cause = "nothing to plan in phase 1: every arm the question needs is already realised (base)"
+    world = World(
+        tmp_path,
+        plans=(BASELINE_PLAN, PlanningError(cause)),
+        expert=(abstains(Question(text="the base again", intent=Intent.RUN)),),
+    )
+
+    study = world.run()
+
+    assert study.status is StudyStatus.FAILED
+    assert tools(study, 1) == [("plan", StepStatus.FAILED)]
+    assert failed_kind(study) is StepErrorKind.PLANNING
+    assert world.planner.calls[1][1].realised == (BASE_ARM,)
+    assert len(world.runner.calls) == 4  # phase 0 only: the load check and three seeds
 
 
 @pytest.mark.parametrize(
@@ -469,8 +493,8 @@ def test_the_parsers_tokens_count_against_the_study_budget(tmp_path: Path) -> No
 
     study = world.run()
 
-    assert_failed_at(study, "plan", StepErrorKind.BUDGET, skipped=0)
-    assert world.coordinator.calls == []
+    assert_failed_at(study, "obtain_network", StepErrorKind.BUDGET, skipped=2)
+    assert world.planner.calls == [(DESCRIBE, PlanningContext(phase=0))]
 
 
 def test_a_failed_sumo_run_is_infrastructure_with_its_logs(tmp_path: Path) -> None:
@@ -559,15 +583,15 @@ def test_a_failed_report_fails_the_study(tmp_path: Path) -> None:
     assert study.phases[0].round is not None
 
 
-def test_an_invalid_plan_is_the_agents(tmp_path: Path) -> None:
+def test_an_invalid_plan_is_a_planning_failure(tmp_path: Path) -> None:
     """The wiring only: which problems a plan has is `plan_problems`' (test_plan_validation)."""
     bad_plan = plan(build_step(), run_step(0), network="nope")
     world = World(tmp_path, plans=(bad_plan,))
 
     study = world.run()
 
-    assert_failed_at(study, "plan", StepErrorKind.AGENT, skipped=3)
-    assert study.phases[0].plan == bad_plan.output
+    assert_failed_at(study, "plan", StepErrorKind.PLANNING, skipped=3)
+    assert study.phases[0].plan == bad_plan
     assert world.builder.calls == []
     error = study.phases[0].failed_step.error  # type: ignore[union-attr]
     assert error is not None
@@ -750,7 +774,7 @@ def test_a_note_about_a_derived_scenario_is_settled_by_a_later_result(tmp_path: 
     # A second study meets the same scenario again with no stored results, so it simulates it.
     world.results._results.clear()
     world.parser.items.append(run_of(_edge_question(), tokens=50))
-    world.coordinator.items.append(_derive_plan())
+    world.planner.items.append(_derive_plan())
     world.expert.items.append(answers())
     world.run()
 
@@ -818,7 +842,7 @@ def test_the_model_calls_of_a_study_sum_to_its_steps_and_the_parsers_tokens(
     steps = [s for p in study.phases for s in p.steps]
     assert study.status is StudyStatus.COMPLETED
     assert sum(c.usage.input_tokens for c in calls) == 50 + sum(s.usage.input_tokens for s in steps)
-    agent_steps = [s for s in steps if s.tool != "run_simulation"]
+    agent_steps = [s for s in steps if s.tool not in ("plan", "run_simulation")]
     assert len(calls) == 1 + len(agent_steps) + 1  # the Parser, the steps, the note writer
 
 
@@ -884,14 +908,6 @@ def test_a_multi_phase_study_traces_phases_plans_steps_rounds_and_the_report(
     plan_event = next(e for e in world.tracer.events if isinstance(e, PlanMade))
     assert plan_event.plan == study.phases[0].plan
     assert isinstance(world.tracer.events[0], StudyCreated)
-
-
-def test_a_clarification_in_phase_0_traces_no_plan(tmp_path: Path) -> None:
-    world = World(tmp_path, plans=(run_of(ClarificationRequest("which network?")),))
-
-    world.run()
-
-    assert _flow(world) == [("phase", 0)]
 
 
 def test_a_failed_plan_traces_no_plan(tmp_path: Path) -> None:

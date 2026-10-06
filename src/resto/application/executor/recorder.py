@@ -13,7 +13,6 @@ from typing import Any
 from resto.application.executor.failures import StepFailed, StepNeedsUser
 from resto.application.ports.repositories import StudyRepository
 from resto.application.ports.tracing import (
-    ClarificationAsked,
     ExpertRoundHeld,
     ModelCall,
     NetworksAdded,
@@ -181,9 +180,6 @@ class StudyRecorder:
 
     def report_composed(self) -> None:
         self._emit(ReportComposed())
-
-    def clarification_asked(self, reason: str) -> None:
-        self._emit(ClarificationAsked(reason))
 
     def note_status_changed(self, note_id: str, result_id: str, status: NoteStatus) -> None:
         self._emit(NoteStatusChanged(note_id, result_id, status))
