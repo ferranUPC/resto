@@ -7,7 +7,7 @@ import subprocess
 from collections.abc import Callable
 from pathlib import Path
 
-from task_tree.tree import FINISHED, _load_tasks
+from task_tree.tree import CLOSED, _load_tasks
 
 Launcher = Callable[[str, Path], None]
 
@@ -51,15 +51,15 @@ def build_prompt(
     root = scratch.parent
     spec = (task.directory / "spec.md").relative_to(root).as_posix()
     if action == "grill":
-        if task.stage == "done":
-            raise LaunchRejected("a done task has nothing left to grill")
+        if task.stage in ("done", "cancelled"):
+            raise LaunchRejected(f"a {task.stage} task has nothing left to grill")
         return f"/grill-with-docs {spec}"
     if action == "ticket" or (action == "next" and task.stage == "ticketed"):
         if action == "ticket":
             ticket = next((t for t in task.tickets if t["id"] == ticket_id), None)
         else:
             ticket = next(
-                (t for t in task.tickets if t["stage"] not in FINISHED and not t["blocked"]), None
+                (t for t in task.tickets if t["stage"] not in CLOSED and not t["blocked"]), None
             )
         if ticket is None:
             raise LaunchRejected("no such ticket, or none is takeable")

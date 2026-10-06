@@ -12,7 +12,7 @@ def critical_path(nodes: dict[str, dict[str, Any]], edges: list[tuple[str, str]]
     validates) weigh 0, so they end a chain without lengthening it. Edges that touch a finished
     node are ignored, and so is any edge that would close a cycle.
     """
-    open_ids = {i for i, n in nodes.items() if n["stage"] not in ("done", "wontfix")}
+    open_ids = {i for i, n in nodes.items() if n["stage"] not in ("done", "wontfix", "cancelled")}
     preds: dict[str, list[str]] = {i: [] for i in open_ids}
     for a, b in edges:
         if a in open_ids and b in open_ids and a != b and a not in preds[b]:

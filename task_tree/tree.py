@@ -10,13 +10,26 @@ from typing import Any
 from task_tree.critical import critical_path
 from task_tree.dag import drop_time_markers, link_tasks, parse_dag
 
-STAGES = ("needs-triage", "ready", "specified", "ticketed", "done", "wontfix", "needs-info")
+STAGES = (
+    "needs-triage",
+    "ready",
+    "specified",
+    "ticketed",
+    "done",
+    "wontfix",
+    "cancelled",
+    "needs-info",
+)
+# A finished task frees its dependents. A cancelled one does not: it is absorbed (see `_contract`).
 FINISHED = ("done", "wontfix")
+CANCELLED = "cancelled"
+CLOSED = (*FINISHED, CANCELLED)
 _TITLE = re.compile(
     r"^#\s+(?:(?:Refactor|Unplanned)\s+)?(?:([A-Za-z]+\d+(?:\.\d+)?|retr-\d+):\s*)?(.+?)\s*$"
 )
 _STATUS = re.compile(r"^\*\*Status:\*\*\s*(\S+)", re.MULTILINE)
 _BLOCKED = re.compile(r"^\*\*Blocked by:\*\*(.*(?:\n(?![\n*#]).*)*)", re.MULTILINE)
+_CANCELLED = re.compile(r"^\*\*Cancelled:\*\*\s*replaced by\s+(\S+)", re.MULTILINE | re.IGNORECASE)
 _PRIORITY = re.compile(r"^\*\*Priority:\*\*\s*urgent\s*$", re.MULTILINE | re.IGNORECASE)
 _TASK_ID = re.compile(r"\b(E\d+\.\d+|r\d+|retr-\d+)\b")
 _TICKET_ID = re.compile(r"\b(\d{2})\b")
@@ -34,6 +47,7 @@ class Task:
     warnings: list[str] = field(default_factory=list)
     directory: Path | None = None
     urgent: bool = False
+    replaced_by: str | None = None
 
 
 def _read(path: Path, warnings: list[str]) -> str:
@@ -51,7 +65,7 @@ def _status(text: str) -> str | None:
 
 def _is_urgent(text: str, stage: str) -> bool:
     """An urgent line only counts while the work is open."""
-    return stage not in FINISHED and _PRIORITY.search(text) is not None
+    return stage not in CLOSED and _PRIORITY.search(text) is not None
 
 
 def _blocked_by(text: str, pattern: re.Pattern[str]) -> list[str]:
@@ -59,6 +73,62 @@ def _blocked_by(text: str, pattern: re.Pattern[str]) -> list[str]:
     if not match:
         return []
     return list(dict.fromkeys(pattern.findall(_LINK.sub("", match.group(1)))))
+
+
+def _replacement(text: str, pattern: re.Pattern[str]) -> str | None:
+    """The id in a `**Cancelled:** replaced by <id>` line, when it looks like an id."""
+    match = _CANCELLED.search(text)
+    found = pattern.search(match.group(1)) if match else None
+    return found.group(1) if found else None
+
+
+def _contract(
+    blockers: dict[str, list[str]],
+    cancelled: set[str],
+    replaced: dict[str, str],
+    start: dict[str, list[str]] | None = None,
+) -> dict[str, list[str]]:
+    """Blockers with every cancelled one swapped out, for each node in `start` (default: all).
+
+    `blockers` is the whole graph the walk follows; `start` is the subset of edges to rewrite.
+
+    A cancelled blocker B is replaced by the node `replaced by` names, so the dependents wait for
+    the replacement, or else by B's own blockers (recursively), so nothing starts earlier than the
+    original plan allowed. A replacement that is the dependent itself, or that waits on it
+    (directly or not), would close a cycle, so it is ignored for that dependent and B is absorbed.
+    """
+
+    def waits_on(node: str, target: str) -> bool:
+        seen: set[str] = set()
+        stack = [node]
+        while stack:
+            current = stack.pop()
+            if current == target:
+                return True
+            if current not in seen:
+                seen.add(current)
+                stack.extend(blockers.get(current, []))
+        return False
+
+    def resolve(blocker: str, node: str, seen: frozenset[str]) -> list[str]:
+        if blocker not in cancelled:
+            return [blocker]
+        if blocker in seen:
+            return []
+        seen = seen | {blocker}
+        successor = replaced.get(blocker)
+        if successor is not None and successor in blockers and not waits_on(successor, node):
+            return resolve(successor, node, seen)
+        return [r for b in blockers.get(blocker, []) for r in resolve(b, node, seen)]
+
+    return {
+        node: [
+            r
+            for r in dict.fromkeys(x for b in deps for x in resolve(b, node, frozenset()))
+            if r != node
+        ]
+        for node, deps in (blockers if start is None else start).items()
+    }
 
 
 def _spec_is_filled(text: str) -> bool:
@@ -71,6 +141,7 @@ def _spec_is_filled(text: str) -> bool:
 
 def _tickets(directory: Path, warnings: list[str]) -> list[dict[str, Any]]:
     tickets: list[dict[str, Any]] = []
+    replaced: dict[str, str] = {}
     for path in sorted((directory / "issues").glob("[0-9][0-9]-*.md")):
         text = _read(path, warnings)
         title = re.search(r"^#\s+(?:\d+\s*[:.-]\s*)?(.+?)\s*$", text, re.MULTILINE)
@@ -84,9 +155,17 @@ def _tickets(directory: Path, warnings: list[str]) -> list[dict[str, Any]]:
                 "urgent": _is_urgent(text, stage),
             }
         )
+        replacement = _replacement(text, _TICKET_ID)
+        if replacement is not None:
+            replaced[tickets[-1]["id"]] = replacement
+    cancelled = {t["id"] for t in tickets if t["stage"] == CANCELLED}
+    effective = _contract({t["id"]: t["blocked_by"] for t in tickets}, cancelled, replaced)
     finished = {t["id"] for t in tickets if t["stage"] in FINISHED}
     for ticket in tickets:
-        ticket["blocked"] = any(d not in finished for d in ticket["blocked_by"])
+        ticket["blocked_by"] = effective[ticket["id"]]
+        ticket["blocked"] = ticket["stage"] != CANCELLED and any(
+            d not in finished for d in ticket["blocked_by"]
+        )
     return tickets
 
 
@@ -106,7 +185,7 @@ def _read_task(directory: Path, finished: bool) -> Task | None:
     if status is None:
         problems.append("spec has no Status line")
     tickets = _tickets(directory, problems)
-    if finished or status in ("done", "wontfix", "needs-info"):
+    if finished or status in ("done", "wontfix", CANCELLED, "needs-info"):
         stage = "done" if finished else str(status)
     elif tickets:
         stage = "ticketed"
@@ -114,11 +193,17 @@ def _read_task(directory: Path, finished: bool) -> Task | None:
         stage = "specified"
     else:
         stage = status if status in ("needs-triage", "ready") else "needs-triage"
-    urgent = stage not in FINISHED and (
-        _is_urgent(text, stage) or any(t["urgent"] for t in tickets)
-    )
+    urgent = stage not in CLOSED and (_is_urgent(text, stage) or any(t["urgent"] for t in tickets))
     return Task(
-        task_id, name, stage, _blocked_by(text, _TASK_ID), tickets, problems, directory, urgent
+        task_id,
+        name,
+        stage,
+        _blocked_by(text, _TASK_ID),
+        tickets,
+        problems,
+        directory,
+        urgent,
+        _replacement(text, _TASK_ID) if stage == CANCELLED else None,
     )
 
 
@@ -561,9 +646,30 @@ def build_tree(scratch: Path, tracker: Path, plan: Path | None = None) -> dict[s
     for a, b in plan_edges:
         tasks[b].blocked_by.append(a)
     dag_edges = [e for e in dag_edges if e not in plan_edges]
+    # A cancelled task is absorbed: whatever waited on it waits on its replacement or on what it
+    # waited on. The diagram's edges (milestones, suites) are contracted the same way.
+    cancelled = {t.id for t in tasks.values() if t.stage == CANCELLED}
+    if cancelled:
+        graph: dict[str, list[str]] = {t.id: list(t.blocked_by) for t in tasks.values()}
+        diagram: dict[str, list[str]] = {}
+        for a, b in dag_edges:
+            graph.setdefault(b, []).append(a)
+            graph.setdefault(a, [])
+            diagram.setdefault(b, []).append(a)
+        replaced = {t.id: t.replaced_by for t in tasks.values() if t.replaced_by}
+        own = _contract(graph, cancelled, replaced, {t.id: t.blocked_by for t in tasks.values()})
+        for task in tasks.values():
+            task.blocked_by = own[task.id]
+        dag_edges = [
+            (r, b)
+            for b, deps in _contract(graph, cancelled, replaced, diagram).items()
+            for r in deps
+        ]
     nodes: dict[str, dict[str, Any]] = {}
     for task in tasks.values():
-        blocked = any(d in tasks and d not in done for d in task.blocked_by)
+        blocked = task.stage != CANCELLED and any(
+            d in tasks and d not in done for d in task.blocked_by
+        )
         nodes[task.id] = {
             "id": task.id,
             "kind": "task",
@@ -576,7 +682,7 @@ def build_tree(scratch: Path, tracker: Path, plan: Path | None = None) -> dict[s
             "blocked": blocked,
             # Startable now: no open blocker, and the tracker has no ⏳ or 🚧 on it.
             "frontier": not blocked
-            and task.stage not in (*FINISHED, "needs-info")
+            and task.stage not in (*CLOSED, "needs-info")
             and task.id not in marks,
             "urgent": task.urgent,
             "tracker_mark": marks.get(task.id),
@@ -684,6 +790,15 @@ def task_detail(scratch: Path, tracker: Path, plan: Path, task_id: str) -> dict[
     task = tasks.get(task_id)
     if task is None:
         return None
+    cancelled = {t.id for t in tasks.values() if t.stage == CANCELLED}
+    if cancelled:
+        replaced = {t.id: t.replaced_by for t in tasks.values() if t.replaced_by}
+        task.blocked_by = _contract(
+            {t.id: t.blocked_by for t in tasks.values()},
+            cancelled,
+            replaced,
+            {task.id: task.blocked_by},
+        )[task.id]
     done = {t.id for t in tasks.values() if t.stage in FINISHED}
     spec_text = ""
     if task.directory is not None:
@@ -698,7 +813,8 @@ def task_detail(scratch: Path, tracker: Path, plan: Path, task_id: str) -> dict[
         "name": task.name,
         "stage": task.stage,
         "has_spec": task.directory is not None,
-        "blocked": any(d in tasks and d not in done for d in task.blocked_by),
+        "blocked": task.stage != CANCELLED
+        and any(d in tasks and d not in done for d in task.blocked_by),
         # A task without a spec only has guessed edges, which the panel must not show as fact.
         "blocked_by": task.blocked_by if task.directory is not None else [],
         "points": points.group(1) if points else None,
