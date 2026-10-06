@@ -1,4 +1,4 @@
-"""Input Parser benchmark CLI (E5.1; docs/evaluating-resto.md §5). Spends API credit: run by hand.
+"""Input Parser benchmark CLI (E5.1; eval/decisions-log.md,). Spends API credit: run by hand.
 
     python -m eval.parser_benchmark.run --name smoke --model deepseek/deepseek-v4.1-flash \
         --requests R001 R021 R065 --max-cost-usd 0.05
@@ -29,7 +29,7 @@ HERE = Path(__file__).resolve().parent
 
 APPROVED_MODELS = (
     "deepseek/deepseek-v4.1-flash",  # the default agent model
-    "mistralai/ministral-3b-2512",  # comparison runs (evaluating-resto.md §5, 2026-09-23)
+    "mistralai/ministral-3b-2512",  # comparison runs (eval/decisions-log.md, 2026-09-23)
     "google/gemma-3-12b-it",
 )
 # Conservative per-call token estimate (prompt + Question schema in, one Question out), with a

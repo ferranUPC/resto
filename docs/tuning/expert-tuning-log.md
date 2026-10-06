@@ -4,7 +4,7 @@
 - Purpose: record every change to the Network Expert agent — prompt, tool set, budget, answer schema — with
   the hypothesis behind it and its measured effect, so the thesis can explain how the Expert was optimised
   and why.
-- Related: how answers are scored and aggregated is in [`evaluating-resto.md`](../evaluating-resto.md) §4;
+- Related: how answers are scored and aggregated is in [`eval/README.md`](../../eval/README.md) §4;
   thresholds are in [`tfm-architecture-and-dod.md`](../tfm-architecture-and-dod.md) §4.7.
 
 ---
@@ -28,7 +28,7 @@
 
 ## 2. Measurement fixes before the baseline
 
-Driven by two smoke runs on 5 questions (2026-09-17; `evaluating-resto.md` §4.7). None of these is an
+Driven by two smoke runs on 5 questions (2026-09-17; `eval/README.md` §4.7). None of these is an
 agent optimisation; they make the baseline measurable and correct.
 
 | Fix | Why | Reference |
@@ -102,7 +102,7 @@ diagnostic questions only. v3 and v4 changed only the diagnostic part of the pro
      in the bank, not only an Expert error.
 - **Conclusion.** The aggregation tools of v1 target the dominant failure. Two defects of the question bank
   also surfaced (seed aggregation not stated; questions about edges without traffic) — see
-  `evaluating-resto.md` §4.1. They are measurement fixes and are decided before v1 is compared with v0.
+  `eval/README.md` §4.1. They are measurement fixes and are decided before v1 is compared with v0.
 
 ### Measurement fix between v0 and v1
 
@@ -216,7 +216,7 @@ with this re-scored v0.
   around further on the light model. Trying a stronger model on just these cases is future work,
   gated on the explicit cost approval CLAUDE.md's LLM policy requires — not decided here.
 - **Sweep.** Deferred (2026-09-17): the DoD's 3-repetition sweep over the full 117-question bank
-  (≈ $2.9 at current rates — `evaluating-resto.md` §4.2) is postponed; a sponsor may cover the
+  (≈ $2.9 at current rates — `eval/README.md` §4.2) is postponed; a sponsor may cover the
   experiment budget. Run it, and fill in this entry's metrics table row, once that is resolved.
 - **Conclusion.** Kept, pending the full sweep. `EXPERT_VERSION` is already bumped to `"v2"` so any
   future run is labelled correctly.
@@ -264,7 +264,7 @@ $0.99 (cap $1.30), no crashes. Report: `eval/expert_benchmark/reports/v2-e38-for
   No tuning change is needed for E4.2, E4.3 (Jaccard; the "why" rubric is not scored by the harness) or
   E4.4, so `EXPERT_VERSION` stays `"v2"`.
 - **Basis.** 113 answers: 112 `observed` (accuracy 0.98), 1 `inferred` (S14-cf-band, correct), none
-  `extrapolated`, as expected with every result available (§4.5 of `evaluating-resto.md`). Every CF
+  `extrapolated`, as expected with every result available (§4.5 of `eval/README.md`). Every CF
   answer but that one is `observed`.
 - **The 4 budget stops are all diagnostic** (S00, S05, S10, S11): 6 steps each, and in every one of them
   one step ends with `finish_reason = length` and no tool call. This is mechanism 1/2 of v2's small-scale

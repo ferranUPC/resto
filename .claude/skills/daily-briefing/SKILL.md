@@ -15,7 +15,7 @@ Do not duplicate `progress-review`'s job: don't re-derive DoD compliance from sc
 - `git log --oneline --since="<that date>"` (fall back to `-15` if the date parse is awkward) to see what landed since the last tracker update.
 - `git status` to surface uncommitted or stashed work — this matters as much as merged commits for "where did I leave off."
 - `git log -1 --format=%cd --date=relative` for a sense of recency.
-- List `docs/feasability-analisis/` and note the date of the most recent entry, if any.
+- List `docs/progress-reviews/` and note the date of the most recent entry, if any.
 - Read the **phase** of every task in `.scratch/` (the local tracker, git-excluded; conventions in `docs/agents/issue-tracker.md`): `grep -rH --include='*.md' --exclude-dir=done '^\*\*Status' .scratch` (finished work lives in `.scratch/done/`), plus each spec's `**Blocked by:**` line and whether its `## Spec` section is still the seeded placeholder. If `.scratch/` does not exist (e.g. a fresh clone), say so in one line and fall back to naming a task without a command.
 
 ## 2. Read project state

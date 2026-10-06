@@ -1,5 +1,5 @@
 """`run_study`: user text -> a closed `Study`. Parses the text into a `Question` and hands it to
-the Executor (`application/executor/`), which does the rest (docs/study-flows.md §2-§3)."""
+the Executor (`application/executor/`), which does the rest."""
 
 from __future__ import annotations
 

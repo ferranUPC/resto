@@ -1,4 +1,4 @@
-"""`plan_problems` (study-flows.md §5): a plan checked against stored state and the phase's
+"""`plan_problems`: a plan checked against stored state and the phase's
 question, without running a study. Each case asserts the exact problems found, in order."""
 
 from __future__ import annotations

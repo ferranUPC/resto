@@ -1,5 +1,5 @@
 """Runs the Input Parser over request-bank requests × repetitions and stores every raw run
-(E5.1; docs/evaluating-resto.md §5).
+(E5.1; eval/decisions-log.md,).
 
 One JSON line per (request, repetition) in `out_file`: the model, the parser version, the parsed
 `Question` (or why there is none), the per-step trace, tokens and estimated/real cost. Scoring

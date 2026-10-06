@@ -3,7 +3,7 @@
 No logic of its own beyond one deterministic step: the loop (and the retry on a `submit_output` that
 fails validation) lives in the `ToolAgent` implementation, and the `Question` invariants in the
 domain. The port puts the user's original text back into `Question.text`, so the model can never
-rewrite what was asked (evaluating-resto.md §5, 2026-09-23).
+rewrite what was asked (eval/decisions-log.md, 2026-09-23).
 
 A budget of `PARSER_MAX_STEPS = 2` model calls is the DoD's "one retry, then explicit failure"
 (§4.1): a first answer that does not validate, or that is plain text, gets exactly one more turn.

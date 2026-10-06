@@ -22,7 +22,7 @@ Cost is a hard constraint on this project, not a preference:
   pipeline (`eval/request_bank/`) uses `RESTO_BANK_GENERATOR_MODEL` (`qwen/qwen3.5-9b`) and
   `RESTO_BANK_VERIFIER_MODEL` (`meta-llama/llama-3.3-70b-instruct`); Parser comparison runs may name
   `mistralai/ministral-3b-2512` or `google/gemma-3-12b-it` explicitly per run. All are cheaper than the
-  default; see `docs/evaluating-resto.md` §5.
+  default; see `eval/decisions-log.md`.
 - **No escalation model is approved right now** (`RESTO_LLM_ESCALATION_MODEL` is blank on purpose). If a
   task genuinely cannot be done on the light model, stop and ask the user which stronger model to use and
   confirm the expected cost before spending. Never fall back to a paid alternative on your own judgment.
@@ -41,7 +41,7 @@ Cost is a hard constraint on this project, not a preference:
     measurement, each suite once; a failure there is reported as a result, not re-tuned). Held-out
     splits are only ever used inside a validation pass.
   - The unit is the **measurement suite**. Splitting one into cheaper runs to get under a limit is not
-    allowed. Suites and their costs are listed in `docs/evaluating-resto.md` §7. Both passes together are
+    allowed. Suites and their costs are listed in `eval/measurement-plans.md`. Both passes together are
     capped at **$30** unless funding arrives; under the cap a suite shrinks in scale (inputs × repetitions
     × models), it is not dropped.
 - **Tests never call the real API.** Every agent module is tested against the shared fake `ToolAgent`
