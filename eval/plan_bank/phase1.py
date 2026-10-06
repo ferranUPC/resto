@@ -5,8 +5,8 @@ the planner no longer leaves treatments for the Expert. The cases keep the old s
 their context locally: the realised arms are the reference side of the contrasts, and the case asks
 for the treatments (ADR-0025 §2, replaced). A phase-1 case gives the Coordinator the question plus
 a `PlanningContext` with the phase-0 experiments already realised, and its gold is the plan with
-only the arms still missing: the treatments. It tests that the Coordinator does not repeat a realised arm
-(`plan_validation._coverage_problems`).
+only the arms still missing: the treatments. It tests that the Coordinator does not repeat a
+realised arm (`plan_validation._coverage_problems`).
 
 The cases are stored in `phase1.json`, apart from the 54 phase-0 plans (`plans.json`), and do not
 count towards them. The ids of the context (network, scenarios) are placeholders: a bank has no
