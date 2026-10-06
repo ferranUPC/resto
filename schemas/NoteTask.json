@@ -458,7 +458,6 @@
       "enum": [
         "describe",
         "diagnose",
-        "counterfactual",
         "compare",
         "run"
       ],

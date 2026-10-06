@@ -92,7 +92,7 @@ def test_a_network_only_question_needs_no_arm() -> None:
 
 def test_a_change_question_plans_both_sides_in_phase_0() -> None:
     """ADR-0038: the treatment is never held back for the Expert to request."""
-    for intent in (Intent.COUNTERFACTUAL, Intent.COMPARE):
+    for intent in (Intent.COMPARE,):
         what_if = _question(intent, interventions=(CLOSURE,))
         assert needed_arms(what_if, 0) == (BASE_ARM, SHORTHAND_ARM)
         assert needed_arms(what_if, 1) == (BASE_ARM, SHORTHAND_ARM)

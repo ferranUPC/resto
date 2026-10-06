@@ -38,7 +38,7 @@ def needed_arms(question: Question, phase: int) -> tuple[str, ...]:
     stops at `obtain_network`."""
     if question.network_only:
         return ()
-    if phase >= 1 or question.intent in (Intent.RUN, Intent.COMPARE, Intent.COUNTERFACTUAL):
+    if phase >= 1 or question.intent in (Intent.RUN, Intent.COMPARE):
         return required_arms(question)
     return (BASE_ARM,)
 

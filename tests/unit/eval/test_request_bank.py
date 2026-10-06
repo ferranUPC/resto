@@ -56,7 +56,7 @@ def _concept(**overrides: object) -> Concept:
         "id": "T001",
         "category": Category.SINGLE,
         "text": text,
-        "gold": Question(text=text, intent=Intent.COUNTERFACTUAL),
+        "gold": Question(text=text, intent=Intent.RUN),
         "variants": (VariantSpec("ca"),),
     }
     fields.update(overrides)
@@ -113,9 +113,7 @@ def test_the_split_is_frozen_so_new_concepts_never_move_old_ones() -> None:
     assert {c for c in first if SPLITS[c] == "held_out"} == first_held_out
 
 
-def test_no_gold_carries_counterfactual_and_a_run_has_no_base_arm() -> None:
-    golds = [c.gold for c in CONCEPTS]
-    assert all(g.intent is not Intent.COUNTERFACTUAL for g in golds)
+def test_a_run_gold_has_no_base_arm() -> None:
     for concept in CONCEPTS:
         gold = concept.gold
         if isinstance(gold, Question) and gold.intent is Intent.RUN:
@@ -130,8 +128,7 @@ def test_every_intent_is_in_both_splits() -> None:
             for c in CONCEPTS
             if SPLITS[c.id] == split and isinstance(c.gold, Question)
         }
-        # `counterfactual` is no gold intent any more (ADR-0038); the enum value goes in r9 phase 3.
-        assert intents == set(Intent) - {Intent.COUNTERFACTUAL}, (split, intents)
+        assert intents == set(Intent), (split, intents)
 
 
 def test_gold_shapes_follow_the_category() -> None:
@@ -200,12 +197,12 @@ def test_a_variant_keeps_the_gold_with_its_own_text() -> None:
     gold = concept.gold_for(VariantSpec("ca"), "Tanca el carril 1 de B0C0.")
     assert isinstance(gold, Question)
     assert gold.text == "Tanca el carril 1 de B0C0."
-    assert gold.intent is Intent.COUNTERFACTUAL
+    assert gold.intent is Intent.RUN
 
 
 def test_a_vaguised_variant_expects_an_ambiguity_and_keeps_the_intent() -> None:
     gold = _concept().gold_for(VariantSpec("es", vague=Vague.TIME), "Cierra B0C0 por la mañana")
-    assert gold == AmbiguousGold(reason="vague time", intent=Intent.COUNTERFACTUAL)
+    assert gold == AmbiguousGold(reason="vague time", intent=Intent.RUN)
 
 
 def test_typos_are_reproducible_and_never_touch_tokens_with_digits() -> None:
@@ -448,14 +445,14 @@ def test_only_a_concept_with_a_demand_can_be_flagged_as_spread() -> None:
 
 def test_a_spread_concept_does_not_carry_its_demand_phrase_whole() -> None:
     text = "Close lane 1 of B0C0 for peak traffic."
-    gold = Question(text=text, intent=Intent.COUNTERFACTUAL, demand_ref="peak traffic")
+    gold = Question(text=text, intent=Intent.RUN, demand_ref="peak traffic")
     with pytest.raises(ValueError):
         _concept(text=text, gold=gold, spread_demand=True)
 
 
 def _spread_concept() -> Concept:
     text = "At peak hours, close lane 1 of B0C0 on DEV-NET. The traffic is the random kind."
-    gold = Question(text=text, intent=Intent.COUNTERFACTUAL, demand_ref="random peak traffic")
+    gold = Question(text=text, intent=Intent.RUN, demand_ref="random peak traffic")
     return _concept(text=text, gold=gold, spread_demand=True)
 
 

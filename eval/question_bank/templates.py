@@ -280,7 +280,7 @@ def counterfactual_direction_item(
     )
     kwargs = _base_kwargs(
         scenario,
-        intent=Intent.COUNTERFACTUAL,
+        intent=Intent.COMPARE,
         network_id=network_id,
         demand_id=demand_id,
         context_tags=context_tags,
@@ -332,7 +332,7 @@ def counterfactual_top_k_item(
     )
     kwargs = _base_kwargs(
         scenario,
-        intent=Intent.COUNTERFACTUAL,
+        intent=Intent.COMPARE,
         network_id=network_id,
         demand_id=demand_id,
         context_tags=context_tags,
@@ -375,7 +375,7 @@ def counterfactual_magnitude_item(
     text = f"By roughly how much does network-wide mean delay change if {row.description}?"
     kwargs = _base_kwargs(
         scenario,
-        intent=Intent.COUNTERFACTUAL,
+        intent=Intent.COMPARE,
         network_id=network_id,
         demand_id=demand_id,
         context_tags=context_tags,

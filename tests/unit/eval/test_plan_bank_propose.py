@@ -65,7 +65,7 @@ class TestEveryGoldQuestion:
 
 class TestPlainExperiments:
     def test_a_change_question_builds_both_sides_in_phase_0(self) -> None:
-        for intent in (Intent.COUNTERFACTUAL, Intent.COMPARE):
+        for intent in (Intent.COMPARE,):
             plan = propose_plan(_question(intent, interventions=(_CLOSE,)))
 
             builds = _builds(plan)
@@ -279,7 +279,7 @@ class TestTopologyModifications:
 
     def test_a_change_question_with_nested_arms_plans_both_and_derives_one_network(self) -> None:
         question = _question(
-            Intent.COUNTERFACTUAL,
+            Intent.COMPARE,
             arms=(
                 Arm("widened", topology_changes=(_WIDEN,)),
                 Arm("widened_closure", (_WIDEN,), (_CLOSE,)),

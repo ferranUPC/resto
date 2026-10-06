@@ -93,7 +93,7 @@ def _abstention(network_ref: str | None = NETWORK) -> ExpertAnswer:
         confidence=0.2,
         needs_simulation=True,
         proposed_experiment=Question(
-            text="close B2C2 lane 0 at peak", intent=Intent.COUNTERFACTUAL, network_ref=network_ref
+            text="close B2C2 lane 0 at peak", intent=Intent.COMPARE, network_ref=network_ref
         ),
     )
 
