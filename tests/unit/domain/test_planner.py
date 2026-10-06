@@ -377,6 +377,23 @@ class TestRunSteps:
         assert [s.depends_on for _, s in runs] == [(b,) for b in builds]
         assert all(s.seeds is None for _, s in runs)
 
+    def test_the_build_order_follows_needed_arms_without_the_realised_arms(self) -> None:
+        question = _question(
+            Intent.RUN,
+            arms=(
+                Arm("closure", interventions=(_CLOSE,)),
+                Arm("limit", interventions=(_LIMIT,)),
+                Arm("removed", (_REMOVE,)),
+            ),
+            contrasts=(Contrast("closure"), Contrast("limit"), Contrast("removed")),
+        )
+        order = needed_arms(question, 1)
+
+        plan = _plan(question, 1, ("limit",), "abc123")
+
+        assert plan.arms == tuple(a for a in order if a != "limit")
+        assert len(plan.arms) == len(order) - 1
+
     def test_a_network_only_question_plans_no_run(self) -> None:
         plan = _plan(_question(Intent.DESCRIBE, network_only=True))
 

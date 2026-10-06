@@ -22,18 +22,16 @@ from resto.domain.value_objects.intervention import Intervention, InterventionTy
 from resto.domain.value_objects.intervention_target import EdgeTarget, LaneTarget, TlsTarget
 from resto.domain.value_objects.question import Intent, Question
 from resto.domain.value_objects.study_plan import (
-    BuildScenarioStep,
     DeriveNetworkStep,
     FromStep,
     ObtainDemandStep,
     ObtainNetworkStep,
-    PlanStep,
     RerouteDemandStep,
-    RunSimulationStep,
     StudyPlan,
 )
 from resto.domain.value_objects.time_window import TimeWindow
 from resto.domain.value_objects.topology_modification import AddEdge, RemoveEdge, SetLanes
+from tests.unit.domain._fixtures import build_step, run_step, study_plan
 
 BASELINE = ExperimentRole.BASELINE
 TREATMENT = ExperimentRole.TREATMENT
@@ -61,32 +59,6 @@ def _reroute(derive_at: int) -> RerouteDemandStep:
     return RerouteDemandStep(
         demand_id=FromStep(1), network_id=FromStep(derive_at), depends_on=(1, derive_at)
     )
-
-
-def _build(
-    arm: str,
-    role: ExperimentRole,
-    network_at: int,
-    demand_at: int,
-    interventions: tuple[Intervention, ...] = (),
-) -> BuildScenarioStep:
-    return BuildScenarioStep(
-        network_id=FromStep(network_at),
-        demand_id=FromStep(demand_at),
-        arm=arm,
-        role=role,
-        purpose=f"Arm {arm}",
-        interventions=interventions,
-        depends_on=(network_at, demand_at),
-    )
-
-
-def _run(build_at: int) -> RunSimulationStep:
-    return RunSimulationStep(scenario_id=FromStep(build_at), depends_on=(build_at,))
-
-
-def _plan(*steps: PlanStep) -> StudyPlan:
-    return StudyPlan(network_id=FromStep(0), rationale="Frozen by hand.", steps=steps)
 
 
 _LANE_1_CLOSED = Intervention(
@@ -125,131 +97,236 @@ _NEW3 = AddEdge("B1", "C2", lanes=2, speed=13.889, edge_id="NEW3")
 
 FROZEN: dict[str, StudyPlan] = {
     # Network-only question: the plan is the obtain_network step and nothing else.
-    "R074": _plan(_obtain_network()),
+    "R074": study_plan(_obtain_network()),
     # describe: the base arm only, as a baseline.
-    "R002": _plan(
+    "R002": study_plan(
         _obtain_network(),
         _obtain_demand("peak"),
-        _build("base", BASELINE, 0, 1),
-        _run(2),
+        build_step(
+            "base", network=FromStep(0), demand=FromStep(1), depends_on=(0, 1), role=BASELINE
+        ),
+        run_step(2),
     ),
     # diagnose: the same shape as describe.
-    "R008": _plan(
+    "R008": study_plan(
         _obtain_network(),
         _obtain_demand("peak"),
-        _build("base", BASELINE, 0, 1),
-        _run(2),
+        build_step(
+            "base", network=FromStep(0), demand=FromStep(1), depends_on=(0, 1), role=BASELINE
+        ),
+        run_step(2),
     ),
     # compare with one change: the base and one treatment.
-    "R001": _plan(
+    "R001": study_plan(
         _obtain_network(),
         _obtain_demand("typical Monday morning traffic"),
-        _build("base", BASELINE, 0, 1),
-        _build("treatment", TREATMENT, 0, 1, (_LANE_1_CLOSED,)),
-        _run(2),
-        _run(3),
+        build_step(
+            "base", network=FromStep(0), demand=FromStep(1), depends_on=(0, 1), role=BASELINE
+        ),
+        build_step(
+            "treatment",
+            (_LANE_1_CLOSED,),
+            network=FromStep(0),
+            demand=FromStep(1),
+            depends_on=(0, 1),
+            role=TREATMENT,
+        ),
+        run_step(2),
+        run_step(3),
     ),
     # multi-arm, no contrast listed: each alternative against the base.
-    "R003": _plan(
+    "R003": study_plan(
         _obtain_network(),
         _obtain_demand("peak"),
-        _build("base", BASELINE, 0, 1),
-        _build("closure", TREATMENT, 0, 1, (_C0D0_CLOSED,)),
-        _build("speed_limit", TREATMENT, 0, 1, (_B2C2_30_TIMED,)),
-        _run(2),
-        _run(3),
-        _run(4),
+        build_step(
+            "base", network=FromStep(0), demand=FromStep(1), depends_on=(0, 1), role=BASELINE
+        ),
+        build_step(
+            "closure",
+            (_C0D0_CLOSED,),
+            network=FromStep(0),
+            demand=FromStep(1),
+            depends_on=(0, 1),
+            role=TREATMENT,
+        ),
+        build_step(
+            "speed_limit",
+            (_B2C2_30_TIMED,),
+            network=FromStep(0),
+            demand=FromStep(1),
+            depends_on=(0, 1),
+            role=TREATMENT,
+        ),
+        run_step(2),
+        run_step(3),
+        run_step(4),
     ),
     # run with a topology change: derive, reroute, one treatment, no base.
-    "R013": _plan(
+    "R013": study_plan(
         _obtain_network(),
         _obtain_demand(None),
         _derive(RemoveEdge("B1C1")),
         _reroute(2),
-        _build("treatment", TREATMENT, 2, 3),
-        _run(4),
+        build_step(
+            "treatment", network=FromStep(2), demand=FromStep(3), depends_on=(2, 3), role=TREATMENT
+        ),
+        run_step(4),
     ),
     # compare with a new road: the base on the study network, the treatment on the derived one.
-    "R014": _plan(
+    "R014": study_plan(
         _obtain_network(),
         _obtain_demand("low traffic"),
         _derive(AddEdge("B1", "C2", lanes=2, speed=13.889)),
         _reroute(2),
-        _build("base", BASELINE, 0, 1),
-        _build("treatment", TREATMENT, 2, 3),
-        _run(4),
-        _run(5),
+        build_step(
+            "base", network=FromStep(0), demand=FromStep(1), depends_on=(0, 1), role=BASELINE
+        ),
+        build_step(
+            "treatment", network=FromStep(2), demand=FromStep(3), depends_on=(2, 3), role=TREATMENT
+        ),
+        run_step(4),
+        run_step(5),
     ),
     # conditional concept, run: the condition has no window and no base is planned.
-    "R015": _plan(
+    "R015": study_plan(
         _obtain_network(),
         _obtain_demand("peak"),
-        _build("treatment", TREATMENT, 0, 1, (_B2C2_30_CROWDED,)),
-        _run(2),
+        build_step(
+            "treatment",
+            (_B2C2_30_CROWDED,),
+            network=FromStep(0),
+            demand=FromStep(1),
+            depends_on=(0, 1),
+            role=TREATMENT,
+        ),
+        run_step(2),
     ),
     # two alternatives compared with each other only: no base, both comparisons.
-    "R021": _plan(
+    "R021": study_plan(
         _obtain_network(),
         _obtain_demand(None),
-        _build("lane_1", COMPARISON, 0, 1, (_LANE_1_CLOSED,)),
-        _build("lane_0", COMPARISON, 0, 1, (_LANE_0_CLOSED,)),
-        _run(2),
-        _run(3),
+        build_step(
+            "lane_1",
+            (_LANE_1_CLOSED,),
+            network=FromStep(0),
+            demand=FromStep(1),
+            depends_on=(0, 1),
+            role=COMPARISON,
+        ),
+        build_step(
+            "lane_0",
+            (_LANE_0_CLOSED,),
+            network=FromStep(0),
+            demand=FromStep(1),
+            depends_on=(0, 1),
+            role=COMPARISON,
+        ),
+        run_step(2),
+        run_step(3),
     ),
     # a new edge, then the same edge plus a closure: one shared derived network.
-    "R022": _plan(
+    "R022": study_plan(
         _obtain_network(),
         _obtain_demand("random traffic"),
         _derive(AddEdge("C1", "D2", lanes=1, speed=13.889)),
         _reroute(2),
-        _build("base", BASELINE, 0, 1),
-        _build("new_edge", TREATMENT, 2, 3),
-        _build("new_edge_closure", TREATMENT, 2, 3, (_C2D2_CLOSED,)),
-        _run(4),
-        _run(5),
-        _run(6),
+        build_step(
+            "base", network=FromStep(0), demand=FromStep(1), depends_on=(0, 1), role=BASELINE
+        ),
+        build_step(
+            "new_edge", network=FromStep(2), demand=FromStep(3), depends_on=(2, 3), role=TREATMENT
+        ),
+        build_step(
+            "new_edge_closure",
+            (_C2D2_CLOSED,),
+            network=FromStep(2),
+            demand=FromStep(3),
+            depends_on=(2, 3),
+            role=TREATMENT,
+        ),
+        run_step(4),
+        run_step(5),
+        run_step(6),
     ),
     # two different topologies: one derive and one reroute each, the base on the study network.
-    "R024": _plan(
+    "R024": study_plan(
         _obtain_network(),
         _obtain_demand("typical Monday morning traffic"),
         _derive(RemoveEdge("B0C0")),
         _reroute(2),
         _derive(SetLanes("B0C0", 1)),
         _reroute(4),
-        _build("base", BASELINE, 0, 1),
-        _build("removed", TREATMENT, 2, 3),
-        _build("one_lane", TREATMENT, 4, 5),
-        _run(6),
-        _run(7),
-        _run(8),
+        build_step(
+            "base", network=FromStep(0), demand=FromStep(1), depends_on=(0, 1), role=BASELINE
+        ),
+        build_step(
+            "removed", network=FromStep(2), demand=FromStep(3), depends_on=(2, 3), role=TREATMENT
+        ),
+        build_step(
+            "one_lane", network=FromStep(4), demand=FromStep(5), depends_on=(4, 5), role=TREATMENT
+        ),
+        run_step(6),
+        run_step(7),
+        run_step(8),
     ),
     # every arm changes the same topology and the contrasts are against "widened": no base.
-    "R027": _plan(
+    "R027": study_plan(
         _obtain_network(),
         _obtain_demand("random traffic"),
         _derive(SetLanes("C3D3", 3)),
         _reroute(2),
-        _build("widened", TREATMENT, 2, 3),
-        _build("widened_closure", TREATMENT, 2, 3, (_C3D3_LANE_2_CLOSED,)),
-        _build("widened_limit", TREATMENT, 2, 3, (_C3D3_30,)),
-        _run(4),
-        _run(5),
-        _run(6),
+        build_step(
+            "widened", network=FromStep(2), demand=FromStep(3), depends_on=(2, 3), role=TREATMENT
+        ),
+        build_step(
+            "widened_closure",
+            (_C3D3_LANE_2_CLOSED,),
+            network=FromStep(2),
+            demand=FromStep(3),
+            depends_on=(2, 3),
+            role=TREATMENT,
+        ),
+        build_step(
+            "widened_limit",
+            (_C3D3_30,),
+            network=FromStep(2),
+            demand=FromStep(3),
+            depends_on=(2, 3),
+            role=TREATMENT,
+        ),
+        run_step(4),
+        run_step(5),
+        run_step(6),
     ),
     # conditional concept, multi-arm: the condition stays on the interventions of two arms.
-    "R031": _plan(
+    "R031": study_plan(
         _obtain_network(),
         _obtain_demand("peak"),
-        _build("base", BASELINE, 0, 1),
-        _build("speed_limit", TREATMENT, 0, 1, (_B2C2_30_CROWDED,)),
-        _build("signal", TREATMENT, 0, 1, (_C2_PROGRAM_1_CROWDED,)),
-        _run(2),
-        _run(3),
-        _run(4),
+        build_step(
+            "base", network=FromStep(0), demand=FromStep(1), depends_on=(0, 1), role=BASELINE
+        ),
+        build_step(
+            "speed_limit",
+            (_B2C2_30_CROWDED,),
+            network=FromStep(0),
+            demand=FromStep(1),
+            depends_on=(0, 1),
+            role=TREATMENT,
+        ),
+        build_step(
+            "signal",
+            (_C2_PROGRAM_1_CROWDED,),
+            network=FromStep(0),
+            demand=FromStep(1),
+            depends_on=(0, 1),
+            role=TREATMENT,
+        ),
+        run_step(2),
+        run_step(3),
+        run_step(4),
     ),
     # the seven-arm concept: eight scenarios (base and seven arms) on four networks.
-    "R065": _plan(
+    "R065": study_plan(
         _obtain_network(),
         _obtain_demand("peak"),
         _derive(SetLanes("C0D0", 3)),
@@ -258,22 +335,68 @@ FROZEN: dict[str, StudyPlan] = {
         _reroute(4),
         _derive(_NEW3),
         _reroute(6),
-        _build("base", BASELINE, 0, 1),
-        _build("a", COMPARISON, 0, 1, (_LANE_1_CLOSED,)),
-        _build("b", COMPARISON, 0, 1, (_B2C2_30_HOUR,)),
-        _build("widened_a", COMPARISON, 2, 3, (_LANE_1_CLOSED,)),
-        _build("widened_c", COMPARISON, 2, 3, (_C2_PROGRAM_1_HOUR,)),
-        _build("removed_b", TREATMENT, 4, 5, (_B2C2_30_HOUR,)),
-        _build("new_edge", TREATMENT, 6, 7),
-        _build("new_edge_d", TREATMENT, 6, 7, (_NEW3_30_HOUR,)),
-        _run(8),
-        _run(9),
-        _run(10),
-        _run(11),
-        _run(12),
-        _run(13),
-        _run(14),
-        _run(15),
+        build_step(
+            "base", network=FromStep(0), demand=FromStep(1), depends_on=(0, 1), role=BASELINE
+        ),
+        build_step(
+            "a",
+            (_LANE_1_CLOSED,),
+            network=FromStep(0),
+            demand=FromStep(1),
+            depends_on=(0, 1),
+            role=COMPARISON,
+        ),
+        build_step(
+            "b",
+            (_B2C2_30_HOUR,),
+            network=FromStep(0),
+            demand=FromStep(1),
+            depends_on=(0, 1),
+            role=COMPARISON,
+        ),
+        build_step(
+            "widened_a",
+            (_LANE_1_CLOSED,),
+            network=FromStep(2),
+            demand=FromStep(3),
+            depends_on=(2, 3),
+            role=COMPARISON,
+        ),
+        build_step(
+            "widened_c",
+            (_C2_PROGRAM_1_HOUR,),
+            network=FromStep(2),
+            demand=FromStep(3),
+            depends_on=(2, 3),
+            role=COMPARISON,
+        ),
+        build_step(
+            "removed_b",
+            (_B2C2_30_HOUR,),
+            network=FromStep(4),
+            demand=FromStep(5),
+            depends_on=(4, 5),
+            role=TREATMENT,
+        ),
+        build_step(
+            "new_edge", network=FromStep(6), demand=FromStep(7), depends_on=(6, 7), role=TREATMENT
+        ),
+        build_step(
+            "new_edge_d",
+            (_NEW3_30_HOUR,),
+            network=FromStep(6),
+            demand=FromStep(7),
+            depends_on=(6, 7),
+            role=TREATMENT,
+        ),
+        run_step(8),
+        run_step(9),
+        run_step(10),
+        run_step(11),
+        run_step(12),
+        run_step(13),
+        run_step(14),
+        run_step(15),
     ),
 }
 
@@ -310,16 +433,15 @@ PHASE1 = FrozenPhase1(
         steps=(
             ObtainNetworkStep(network_ref="abc123"),
             _obtain_demand("peak"),
-            BuildScenarioStep(
-                network_id="abc123",
-                demand_id=FromStep(1),
-                arm="treatment",
-                role=TREATMENT,
-                purpose="Arm treatment",
-                interventions=(_B2C2_30_HOUR,),
+            build_step(
+                "treatment",
+                (_B2C2_30_HOUR,),
+                network="abc123",
+                demand=FromStep(1),
                 depends_on=(1,),
+                role=TREATMENT,
             ),
-            _run(2),
+            run_step(2),
         ),
     ),
 )

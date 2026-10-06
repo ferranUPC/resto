@@ -145,6 +145,13 @@ E3.7, E5.2, E5.3 spine shortens, and M3 and M7 gain slack. The work plan edits f
   lookup of the plan bank). One is renamed in the ticket that moves the rules.
 - Moving real-network goals and thresholds out of `obtain_network` is noted, not done here.
 - Replanning on failure stays Stretch.
+- **Known consequence, awaiting the maintainer's confirmation.** When a phase's proposed experiment realises
+  no new arm (every arm it needs is already in `realised`), the planner raises `PlanningError`. The study
+  then ends `failed`, with a `plan` step of kind `planning`, and the phase-0 notes and report that were
+  already paid for are discarded. Behaviour is not changed by this ADR. The alternatives are to re-ask the
+  Expert in forced mode, so that it answers from what it has, or to relax the `Study` invariant that a
+  completed study ends on an Expert answer, so that a phase with nothing new to run may close the study
+  with the answer it already holds.
 
 ## Alternatives considered
 

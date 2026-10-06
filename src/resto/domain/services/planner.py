@@ -10,7 +10,8 @@ Layout of every plan:
     1  obtain_demand                      (on step 0; always present)
     then, per distinct topology some planned arm uses:
        derive_network, reroute_demand
-    then one build_scenario per planned arm, in the order `needed_arms` gives,
+    then one build_scenario per planned arm, in the order `needed_arms` gives (the arms an earlier
+       phase already realised, `PlanningContext.realised`, are left out, the rest keep their order),
     then one run_simulation per built arm, in the same order.
 A network-only question stops at step 0.
 
@@ -180,7 +181,8 @@ def _derive_topologies(
     steps: list[PlanStep], arms: list[_NeededArm], network: str | FromStep
 ) -> dict[Topology, _Placement]:
     """Append one `derive_network` + `reroute_demand` per distinct non-empty topology, in the order
-    the arms first use it, and say where each topology's scenarios are built."""
+    the arms first use it, and say where each topology's scenarios are built. `steps` is the list
+    `plan_study` is building for this one call, so the planner as a whole stays pure."""
     placement: dict[Topology, _Placement] = {(): _Placement(network, _DEMAND)}
     for arm in arms:
         if arm.topology in placement:
