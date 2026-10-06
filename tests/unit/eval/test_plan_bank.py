@@ -3,23 +3,34 @@ No database, no LLM, no network."""
 
 from __future__ import annotations
 
+import json
+from dataclasses import replace
+from pathlib import Path
+from typing import Any
+
 import pytest
 from eval.plan_bank.bank import (
     PLANS_PATH,
+    basis_drift,
     build_plans,
     concept_id_of,
     dump_plans,
     gold_plan_of,
     load_corrected,
+    load_corrected_basis,
     load_plans,
+    planned_concepts,
+    question_basis,
+    save_corrected,
     split_of,
     window_for,
 )
-from eval.request_bank.concepts import CONCEPTS, SPLITS, Category, concept_by_id
+from eval.request_bank.concepts import CONCEPTS, SPLITS, Category, Concept, concept_by_id
 
 from resto.domain.services.experiment_design import needed_arms, study_window
 from resto.domain.value_objects.experiment import ExperimentRole
-from resto.domain.value_objects.question import Question
+from resto.domain.value_objects.intervention import Intervention
+from resto.domain.value_objects.question import Intent, Question
 from resto.domain.value_objects.study_plan import (
     BuildScenarioStep,
     DeriveNetworkStep,
@@ -28,6 +39,7 @@ from resto.domain.value_objects.study_plan import (
     PlanStep,
     StudyPlan,
 )
+from resto.domain.value_objects.time_window import TimeWindow
 
 PLANS = load_plans()
 QUESTION_IDS = {c.id for c in CONCEPTS if isinstance(c.gold, Question)}
@@ -124,6 +136,88 @@ class TestStoredPlans:
 
     def test_stored_file_round_trips_through_the_adapter(self) -> None:
         assert PLANS_PATH.read_text(encoding="utf-8") == dump_plans(PLANS)
+
+    def test_corrected_concepts_still_rest_on_the_arms_and_window_the_maintainer_accepted(
+        self,
+    ) -> None:
+        """`needed_arms` and `study_window` come from the gold `Question`, not from the plan, so a
+        corrected plan goes stale if the `Question` changes. `corrected.json` records both when the
+        review is applied (`basis`); empty today, as no plan is corrected."""
+        assert basis_drift(load_corrected(), load_corrected_basis()) == []
+
+
+def _windowed_concept() -> Concept:
+    return next(
+        c
+        for c in planned_concepts()
+        if isinstance(c.gold, Question)
+        and c.gold.intent is Intent.COMPARE
+        and study_window(c.gold) is not None
+    )
+
+
+def _corrected_with_basis(
+    concept: Concept,
+) -> tuple[dict[str, dict[str, str]], dict[str, dict[str, Any]]]:
+    assert isinstance(concept.gold, Question)
+    return {"plans": {concept.id: "why"}}, {concept.id: question_basis(concept.gold)}
+
+
+class TestCorrectedBasis:
+    """A synthetic corrected concept: the real `corrected.json` is not touched."""
+
+    def test_an_unchanged_question_is_in_line_with_its_recorded_basis(self) -> None:
+        concept = _windowed_concept()
+        corrected, basis = _corrected_with_basis(concept)
+        assert basis_drift(corrected, basis) == []
+
+    def test_a_question_change_that_alters_the_needed_arms_is_reported(self) -> None:
+        concept = _windowed_concept()
+        corrected, basis = _corrected_with_basis(concept)
+        assert isinstance(concept.gold, Question)
+        changed = replace(concept, gold=replace(concept.gold, intent=Intent.DESCRIBE))
+        assert needed_arms(changed.gold, 0) != needed_arms(concept.gold, 0)  # type: ignore[arg-type]
+
+        problems = basis_drift(corrected, basis, (changed,))
+        assert [p.split(":")[0] for p in problems] == [concept.id]
+
+    def test_a_question_change_that_moves_the_study_window_is_reported(self) -> None:
+        concept = _windowed_concept()
+        corrected, basis = _corrected_with_basis(concept)
+        assert isinstance(concept.gold, Question)
+
+        def later(i: Intervention) -> Intervention:
+            return i if i.window is None else replace(i, window=TimeWindow(i.window.start, 90000.0))
+
+        moved = tuple(later(i) for i in concept.gold.interventions)
+        arms = tuple(
+            replace(a, interventions=tuple(later(i) for i in a.interventions))
+            for a in concept.gold.arms
+        )
+        gold = replace(concept.gold, interventions=moved, arms=arms)
+        assert study_window(gold) != study_window(concept.gold)
+
+        assert basis_drift(corrected, basis, (replace(concept, gold=gold),))
+
+    def test_a_corrected_concept_without_a_recorded_basis_is_reported(self) -> None:
+        concept = _windowed_concept()
+        corrected, _ = _corrected_with_basis(concept)
+        assert basis_drift(corrected, {}) != []
+
+    def test_the_basis_is_saved_beside_the_notes_and_the_old_format_still_loads(
+        self, tmp_path: Path
+    ) -> None:
+        concept = _windowed_concept()
+        corrected, basis = _corrected_with_basis(concept)
+        path = tmp_path / "corrected.json"
+
+        save_corrected(corrected, path)  # the original format: no `basis` key
+        assert "basis" not in json.loads(path.read_text(encoding="utf-8"))
+        assert load_corrected_basis(path) == {}
+
+        save_corrected(corrected, path, basis=basis)
+        assert load_corrected(path) == corrected
+        assert load_corrected_basis(path) == json.loads(json.dumps(basis))
 
 
 class TestLookup:

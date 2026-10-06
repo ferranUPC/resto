@@ -1,0 +1,2505 @@
+{
+ "source": {
+  "commit": "29fcc09",
+  "file": "eval/plan_bank/plans.json",
+  "what": "gold fields of the plans the maintainer reviewed before r9 (projection of changes.py)"
+ },
+ "plans": {
+  "R001": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": true
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    }
+   ]
+  },
+  "R002": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": true
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    }
+   ]
+  },
+  "R003": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": true
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "closure",
+     "baseline": false,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "speed_limit",
+     "baseline": false,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    }
+   ]
+  },
+  "R004": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": true
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    }
+   ]
+  },
+  "R006": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": false
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    }
+   ]
+  },
+  "R007": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": true
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    }
+   ]
+  },
+  "R008": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": true
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    }
+   ]
+  },
+  "R009": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": false
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    }
+   ]
+  },
+  "R010": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": true
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    }
+   ]
+  },
+  "R011": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": true
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    }
+   ]
+  },
+  "R012": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": true
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    }
+   ]
+  },
+  "R013": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": false
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    }
+   ]
+  },
+  "R014": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": true
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    }
+   ]
+  },
+  "R015": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": true
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    }
+   ]
+  },
+  "R016": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": true
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    }
+   ]
+  },
+  "R017": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": true
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    }
+   ]
+  },
+  "R018": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": true
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    }
+   ]
+  },
+  "R019": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": true
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    }
+   ]
+  },
+  "R020": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": true
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "speed_limit",
+     "baseline": false,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "signal",
+     "baseline": false,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "less_demand",
+     "baseline": false,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    }
+   ]
+  },
+  "R021": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": false
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "lane_1",
+     "baseline": false,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "lane_0",
+     "baseline": false,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    }
+   ]
+  },
+  "R022": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": true
+    },
+    {
+     "kind": "derive_network",
+     "depends_on": [
+      0
+     ],
+     "modifications": [
+      {
+       "from_junction": "C1",
+       "to_junction": "D2",
+       "lanes": 1,
+       "speed": 13.889,
+       "edge_id": null,
+       "kind": "add_edge"
+      }
+     ],
+     "base_network_id": {
+      "step": 0
+     }
+    },
+    {
+     "kind": "reroute_demand",
+     "depends_on": [
+      1,
+      2
+     ]
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      2,
+      3
+     ],
+     "arm": "new_edge",
+     "baseline": false,
+     "network_id": {
+      "step": 2
+     },
+     "demand_id": {
+      "step": 3
+     }
+    }
+   ]
+  },
+  "R023": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": true
+    },
+    {
+     "kind": "derive_network",
+     "depends_on": [
+      0
+     ],
+     "modifications": [
+      {
+       "from_junction": "B3",
+       "to_junction": "C2",
+       "lanes": 2,
+       "speed": 13.889,
+       "edge_id": "NEW1",
+       "kind": "add_edge"
+      }
+     ],
+     "base_network_id": {
+      "step": 0
+     }
+    },
+    {
+     "kind": "reroute_demand",
+     "depends_on": [
+      1,
+      2
+     ]
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      2,
+      3
+     ],
+     "arm": "new_edge",
+     "baseline": false,
+     "network_id": {
+      "step": 2
+     },
+     "demand_id": {
+      "step": 3
+     }
+    }
+   ]
+  },
+  "R024": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": true
+    },
+    {
+     "kind": "derive_network",
+     "depends_on": [
+      0
+     ],
+     "modifications": [
+      {
+       "edge_id": "B0C0",
+       "kind": "remove_edge"
+      }
+     ],
+     "base_network_id": {
+      "step": 0
+     }
+    },
+    {
+     "kind": "reroute_demand",
+     "depends_on": [
+      1,
+      2
+     ]
+    },
+    {
+     "kind": "derive_network",
+     "depends_on": [
+      0
+     ],
+     "modifications": [
+      {
+       "edge_id": "B0C0",
+       "lanes": 1,
+       "kind": "set_lanes"
+      }
+     ],
+     "base_network_id": {
+      "step": 0
+     }
+    },
+    {
+     "kind": "reroute_demand",
+     "depends_on": [
+      1,
+      4
+     ]
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      2,
+      3
+     ],
+     "arm": "removed",
+     "baseline": false,
+     "network_id": {
+      "step": 2
+     },
+     "demand_id": {
+      "step": 3
+     }
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      4,
+      5
+     ],
+     "arm": "one_lane",
+     "baseline": false,
+     "network_id": {
+      "step": 4
+     },
+     "demand_id": {
+      "step": 5
+     }
+    }
+   ]
+  },
+  "R025": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": true
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "closure",
+     "baseline": false,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "speed_limit",
+     "baseline": false,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "both",
+     "baseline": false,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    }
+   ]
+  },
+  "R026": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": true
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    }
+   ]
+  },
+  "R027": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": true
+    },
+    {
+     "kind": "derive_network",
+     "depends_on": [
+      0
+     ],
+     "modifications": [
+      {
+       "edge_id": "C3D3",
+       "lanes": 3,
+       "kind": "set_lanes"
+      }
+     ],
+     "base_network_id": {
+      "step": 0
+     }
+    },
+    {
+     "kind": "reroute_demand",
+     "depends_on": [
+      1,
+      2
+     ]
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      2,
+      3
+     ],
+     "arm": "widened",
+     "baseline": false,
+     "network_id": {
+      "step": 2
+     },
+     "demand_id": {
+      "step": 3
+     }
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      2,
+      3
+     ],
+     "arm": "widened_closure",
+     "baseline": false,
+     "network_id": {
+      "step": 2
+     },
+     "demand_id": {
+      "step": 3
+     }
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      2,
+      3
+     ],
+     "arm": "widened_limit",
+     "baseline": false,
+     "network_id": {
+      "step": 2
+     },
+     "demand_id": {
+      "step": 3
+     }
+    }
+   ]
+  },
+  "R028": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": true
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    }
+   ]
+  },
+  "R029": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": true
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "early",
+     "baseline": false,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "late",
+     "baseline": false,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    }
+   ]
+  },
+  "R030": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": true
+    },
+    {
+     "kind": "derive_network",
+     "depends_on": [
+      0
+     ],
+     "modifications": [
+      {
+       "edge_id": "C2D2",
+       "lanes": 2,
+       "kind": "set_lanes"
+      }
+     ],
+     "base_network_id": {
+      "step": 0
+     }
+    },
+    {
+     "kind": "reroute_demand",
+     "depends_on": [
+      1,
+      2
+     ]
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "signal",
+     "baseline": false,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      2,
+      3
+     ],
+     "arm": "widened",
+     "baseline": false,
+     "network_id": {
+      "step": 2
+     },
+     "demand_id": {
+      "step": 3
+     }
+    }
+   ]
+  },
+  "R031": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": true
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "speed_limit",
+     "baseline": false,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "signal",
+     "baseline": false,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    }
+   ]
+  },
+  "R032": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": true
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    }
+   ]
+  },
+  "R033": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": true
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    }
+   ]
+  },
+  "R034": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": true
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    }
+   ]
+  },
+  "R035": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": true
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    }
+   ]
+  },
+  "R036": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": true
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    }
+   ]
+  },
+  "R061": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": true
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    }
+   ]
+  },
+  "R062": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": true
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    }
+   ]
+  },
+  "R063": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": true
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    }
+   ]
+  },
+  "R065": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": true
+    },
+    {
+     "kind": "derive_network",
+     "depends_on": [
+      0
+     ],
+     "modifications": [
+      {
+       "edge_id": "C0D0",
+       "lanes": 3,
+       "kind": "set_lanes"
+      }
+     ],
+     "base_network_id": {
+      "step": 0
+     }
+    },
+    {
+     "kind": "reroute_demand",
+     "depends_on": [
+      1,
+      2
+     ]
+    },
+    {
+     "kind": "derive_network",
+     "depends_on": [
+      0
+     ],
+     "modifications": [
+      {
+       "edge_id": "B1C1",
+       "kind": "remove_edge"
+      }
+     ],
+     "base_network_id": {
+      "step": 0
+     }
+    },
+    {
+     "kind": "reroute_demand",
+     "depends_on": [
+      1,
+      4
+     ]
+    },
+    {
+     "kind": "derive_network",
+     "depends_on": [
+      0
+     ],
+     "modifications": [
+      {
+       "from_junction": "B1",
+       "to_junction": "C2",
+       "lanes": 2,
+       "speed": 13.889,
+       "edge_id": "NEW3",
+       "kind": "add_edge"
+      }
+     ],
+     "base_network_id": {
+      "step": 0
+     }
+    },
+    {
+     "kind": "reroute_demand",
+     "depends_on": [
+      1,
+      6
+     ]
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "a",
+     "baseline": false,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "b",
+     "baseline": false,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      2,
+      3
+     ],
+     "arm": "widened_a",
+     "baseline": false,
+     "network_id": {
+      "step": 2
+     },
+     "demand_id": {
+      "step": 3
+     }
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      2,
+      3
+     ],
+     "arm": "widened_c",
+     "baseline": false,
+     "network_id": {
+      "step": 2
+     },
+     "demand_id": {
+      "step": 3
+     }
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      4,
+      5
+     ],
+     "arm": "removed_b",
+     "baseline": false,
+     "network_id": {
+      "step": 4
+     },
+     "demand_id": {
+      "step": 5
+     }
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      6,
+      7
+     ],
+     "arm": "new_edge",
+     "baseline": false,
+     "network_id": {
+      "step": 6
+     },
+     "demand_id": {
+      "step": 7
+     }
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      6,
+      7
+     ],
+     "arm": "new_edge_d",
+     "baseline": false,
+     "network_id": {
+      "step": 6
+     },
+     "demand_id": {
+      "step": 7
+     }
+    }
+   ]
+  },
+  "R066": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": false
+    },
+    {
+     "kind": "derive_network",
+     "depends_on": [
+      0
+     ],
+     "modifications": [
+      {
+       "from_junction": "A3",
+       "to_junction": "B4",
+       "lanes": 1,
+       "speed": 13.889,
+       "edge_id": null,
+       "kind": "add_edge"
+      }
+     ],
+     "base_network_id": {
+      "step": 0
+     }
+    },
+    {
+     "kind": "reroute_demand",
+     "depends_on": [
+      1,
+      2
+     ]
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      2,
+      3
+     ],
+     "arm": "treatment",
+     "baseline": false,
+     "network_id": {
+      "step": 2
+     },
+     "demand_id": {
+      "step": 3
+     }
+    }
+   ]
+  },
+  "R067": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": true
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "treatment",
+     "baseline": false,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    }
+   ]
+  },
+  "R068": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": false
+    },
+    {
+     "kind": "derive_network",
+     "depends_on": [
+      0
+     ],
+     "modifications": [
+      {
+       "edge_id": "D3E3",
+       "kind": "remove_edge"
+      }
+     ],
+     "base_network_id": {
+      "step": 0
+     }
+    },
+    {
+     "kind": "reroute_demand",
+     "depends_on": [
+      1,
+      2
+     ]
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      2,
+      3
+     ],
+     "arm": "treatment",
+     "baseline": false,
+     "network_id": {
+      "step": 2
+     },
+     "demand_id": {
+      "step": 3
+     }
+    }
+   ]
+  },
+  "R069": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": true
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "treatment",
+     "baseline": false,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    }
+   ]
+  },
+  "R070": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": false
+    },
+    {
+     "kind": "derive_network",
+     "depends_on": [
+      0
+     ],
+     "modifications": [
+      {
+       "edge_id": "C3D3",
+       "lanes": 2,
+       "kind": "set_lanes"
+      }
+     ],
+     "base_network_id": {
+      "step": 0
+     }
+    },
+    {
+     "kind": "reroute_demand",
+     "depends_on": [
+      1,
+      2
+     ]
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      2,
+      3
+     ],
+     "arm": "treatment",
+     "baseline": false,
+     "network_id": {
+      "step": 2
+     },
+     "demand_id": {
+      "step": 3
+     }
+    }
+   ]
+  },
+  "R071": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": false
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "treatment",
+     "baseline": false,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    }
+   ]
+  },
+  "R072": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": true
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    }
+   ]
+  },
+  "R073": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": true
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    }
+   ]
+  },
+  "R074": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    }
+   ]
+  },
+  "R075": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    }
+   ]
+  },
+  "R076": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    }
+   ]
+  },
+  "R077": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": true
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    }
+   ]
+  },
+  "R078": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": true
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    }
+   ]
+  },
+  "R079": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": true
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    }
+   ]
+  },
+  "R080": {
+   "network_id": {
+    "step": 0
+   },
+   "steps": [
+    {
+     "kind": "obtain_network",
+     "depends_on": []
+    },
+    {
+     "kind": "obtain_demand",
+     "depends_on": [
+      0
+     ],
+     "has_demand_ref": true
+    },
+    {
+     "kind": "build_scenario",
+     "depends_on": [
+      0,
+      1
+     ],
+     "arm": "base",
+     "baseline": true,
+     "network_id": {
+      "step": 0
+     },
+     "demand_id": {
+      "step": 1
+     }
+    }
+   ]
+  }
+ }
+}

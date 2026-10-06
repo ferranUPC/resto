@@ -12,6 +12,11 @@ import json
 from pathlib import Path
 from typing import Any
 
+from eval.plan_bank.annotation.changes import (
+    REVIEWED_COMMIT,
+    changes_by_concept,
+    load_snapshot,
+)
 from eval.plan_bank.annotation.review import FORMAT
 from eval.plan_bank.bank import load_plans, planned_concepts
 from eval.request_bank.concepts import SPLITS
@@ -34,6 +39,7 @@ TEMPLATE = HERE / "template.html"
 OUTPUT = HERE / "review.html"
 _PLACEHOLDER = "/*__ITEMS__*/[]"
 _FORMAT_PLACEHOLDER = "/*__FORMAT__*/"
+_COMMIT_PLACEHOLDER = "/*__SNAPSHOT_COMMIT__*/"
 
 
 def flags_of(question: Question, plan: StudyPlan) -> list[str]:
@@ -105,12 +111,17 @@ def _item(concept_id: str, question: Question, plan: StudyPlan, **extra: Any) ->
 
 
 def plan_items() -> list[dict[str, Any]]:
+    """One item per planned concept, delicate ones first. `changes` lists what moved in the gold
+    fields since the maintainer's earlier review (empty when nothing did)."""
     plans = load_plans()
     items = [
         _item(c.id, q, plans[c.id], flags=flags_of(q, plans[c.id]))
         for c in planned_concepts()
         if isinstance(q := c.gold, Question)
     ]
+    changes = changes_by_concept({i["concept_id"]: i["plan"] for i in items}, load_snapshot())
+    for item in items:
+        item["changes"] = changes[item["concept_id"]]
     items.sort(key=lambda i: (-len(i["flags"]), i["concept_id"]))
     return items
 
@@ -123,8 +134,10 @@ def _embed(items: list[dict[str, Any]]) -> str:
 def render(template: str, items: list[dict[str, Any]]) -> str:
     if _PLACEHOLDER not in template:
         raise ValueError(f"template has no {_PLACEHOLDER} placeholder")
-    return template.replace(_PLACEHOLDER, _embed(items)).replace(
-        _FORMAT_PLACEHOLDER + '""', json.dumps(FORMAT)
+    return (
+        template.replace(_PLACEHOLDER, _embed(items))
+        .replace(_FORMAT_PLACEHOLDER + '""', json.dumps(FORMAT))
+        .replace(_COMMIT_PLACEHOLDER + '""', json.dumps(REVIEWED_COMMIT))
     )
 
 

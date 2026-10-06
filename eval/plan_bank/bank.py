@@ -17,7 +17,7 @@ from typing import Any
 
 from eval.request_bank.concepts import CONCEPTS, SPLITS, Concept, concept_by_id
 from resto.application.schemas import adapter_for
-from resto.domain.services.experiment_design import study_window
+from resto.domain.services.experiment_design import needed_arms, study_window
 from resto.domain.services.planner import PlanningContext, plan_study
 from resto.domain.value_objects.question import Question
 from resto.domain.value_objects.study_plan import StudyPlan
@@ -70,9 +70,53 @@ def load_corrected(path: Path = CORRECTED_PATH) -> dict[str, dict[str, str]]:
     return {"plans": dict(rows["plans"])}
 
 
-def save_corrected(corrected: dict[str, dict[str, str]], path: Path = CORRECTED_PATH) -> None:
-    rows = {key: dict(sorted(corrected[key].items())) for key in ("plans",)}
+def load_corrected_basis(path: Path = CORRECTED_PATH) -> dict[str, dict[str, Any]]:
+    """What the maintainer saw of each corrected concept's `Question` when he accepted its plan:
+    `{"arms": [...], "window": [start, end] | None}`. A file without the `basis` key (the
+    original format) has none."""
+    rows = json.loads(path.read_text(encoding="utf-8"))
+    return dict(rows.get("basis", {}))
+
+
+def save_corrected(
+    corrected: dict[str, dict[str, str]],
+    path: Path = CORRECTED_PATH,
+    basis: dict[str, dict[str, Any]] | None = None,
+) -> None:
+    rows: dict[str, Any] = {key: dict(sorted(corrected[key].items())) for key in ("plans",)}
+    if basis:
+        rows["basis"] = dict(sorted(basis.items()))
     path.write_text(json.dumps(rows, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def question_basis(question: Question) -> dict[str, Any]:
+    """What a corrected plan silently depends on: the arms phase 0 needs and the study window.
+    The plan stores neither the window nor a link to the `Question`."""
+    window = study_window(question)
+    return {
+        "arms": list(needed_arms(question, 0)),
+        "window": None if window is None else [window.start, window.end],
+    }
+
+
+def basis_drift(
+    corrected: dict[str, dict[str, str]],
+    basis: dict[str, dict[str, Any]],
+    concepts: tuple[Concept, ...] = CONCEPTS,
+) -> list[str]:
+    """The corrected concepts whose gold `Question` no longer gives the arms and window the
+    maintainer accepted, or that have no recorded basis. Each entry says what moved."""
+    gold = {c.id: c.gold for c in planned_concepts(concepts)}
+    problems: list[str] = []
+    for concept_id in sorted(corrected["plans"]):
+        question = gold.get(concept_id)
+        if not isinstance(question, Question):
+            problems.append(f"{concept_id}: no gold Question")
+        elif concept_id not in basis:
+            problems.append(f"{concept_id}: no accepted arms and window recorded")
+        elif (now := question_basis(question)) != basis[concept_id]:
+            problems.append(f"{concept_id}: accepted {basis[concept_id]}, the Question gives {now}")
+    return problems
 
 
 def concept_id_of(request_id: str) -> str:

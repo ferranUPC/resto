@@ -11,6 +11,7 @@ from eval.plan_bank.annotation.build import TEMPLATE, plan_items, render
 from eval.plan_bank.annotation.review import (
     FORMAT,
     apply_review,
+    corrected_basis,
     corrected_notes,
 )
 from eval.plan_bank.bank import load_plans, planned_concepts
@@ -173,3 +174,12 @@ def test_a_corrected_phase_zero_plan_derives_each_topology_once():
 def test_the_note_of_each_corrected_row_is_kept():
     review = _review(overrides={"R001": {"status": "corrected", "note": "why"}})
     assert corrected_notes(review, "plans") == {"R001": "why"}
+
+
+def test_the_basis_of_each_corrected_row_is_its_questions_arms_and_window():
+    from eval.plan_bank.bank import question_basis
+    from eval.request_bank.concepts import concept_by_id
+
+    review = _review(overrides={"R001": {"status": "corrected"}})
+    assert corrected_basis(review) == {"R001": question_basis(concept_by_id("R001").gold)}  # type: ignore[arg-type]
+    assert corrected_basis(_review()) == {}
