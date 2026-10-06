@@ -3,7 +3,6 @@ from dataclasses import replace
 from resto.domain.services.experiment_design import (
     mode_for,
     needed_arms,
-    reference_arms,
     required_arms,
     study_window,
 )
@@ -32,13 +31,11 @@ def _question(intent: Intent = Intent.COMPARE, **kw):  # noqa: ANN003, ANN202
 def test_a_question_with_nothing_to_simulate_needs_the_base() -> None:
     q = _question(Intent.DESCRIBE)
     assert required_arms(q) == (BASE_ARM,)
-    assert reference_arms(q) == (BASE_ARM,)
 
 
 def test_the_shorthand_needs_base_and_treatment() -> None:
-    q = _question(Intent.COUNTERFACTUAL, interventions=(CLOSURE,))
+    q = _question(interventions=(CLOSURE,))
     assert required_arms(q) == (BASE_ARM, SHORTHAND_ARM)
-    assert reference_arms(q) == (BASE_ARM,)
 
 
 def test_only_the_combinations_the_contrasts_name_are_simulated() -> None:
@@ -55,7 +52,6 @@ def test_only_the_combinations_the_contrasts_name_are_simulated() -> None:
         contrasts=(Contrast("new-edge+closure", "new-edge"), Contrast("retime")),
     )
     assert required_arms(q) == (BASE_ARM, "new-edge", "new-edge+closure", "retime")
-    assert reference_arms(q) == (BASE_ARM, "new-edge")
 
 
 def test_the_base_is_needed_only_when_a_contrast_names_it() -> None:
@@ -64,21 +60,22 @@ def test_the_base_is_needed_only_when_a_contrast_names_it() -> None:
         contrasts=(Contrast("closure", "retime"),),
     )
     assert required_arms(q) == ("closure", "retime")
-    assert reference_arms(q) == ("retime",)
 
 
 def test_a_backwards_contrast_still_plans_the_contained_arm_as_the_reference() -> None:
     """ADR-0027 §1: "does the closure hurt on the network with the new edge?" written with the arms
-    swapped still has phase 0 of a counterfactual build the new edge alone, not the combination."""
+    swapped still plans the new edge as the reference and the combination as the treatment."""
     q = _question(
-        Intent.COUNTERFACTUAL,
         arms=(
             Arm("new-edge", topology_changes=(NEW_EDGE,)),
             Arm("new-edge+closure", topology_changes=(NEW_EDGE,), interventions=(CLOSURE,)),
         ),
         contrasts=(Contrast("new-edge", "new-edge+closure"),),
     )
-    assert reference_arms(q) == ("new-edge",)
+    assert [(c.treatment, c.reference) for c in q.effective_contrasts] == [
+        ("new-edge+closure", "new-edge")
+    ]
+    assert required_arms(q) == ("new-edge", "new-edge+closure")
 
 
 def test_mode_for_forces_the_last_round_and_forced_questions() -> None:
@@ -93,12 +90,57 @@ def test_a_network_only_question_needs_no_arm() -> None:
     assert needed_arms(question, 0) == ()
 
 
-def test_needed_arms_follow_the_intent_in_phase_0_and_run_later() -> None:
-    what_if = _question(Intent.COUNTERFACTUAL, interventions=(CLOSURE,))
-    assert needed_arms(_question(Intent.DESCRIBE), 0) == (BASE_ARM,)
-    assert needed_arms(what_if, 0) == (BASE_ARM,)
-    assert needed_arms(replace(what_if, intent=Intent.RUN), 0) == (BASE_ARM, SHORTHAND_ARM)
-    assert needed_arms(what_if, 1) == (BASE_ARM, SHORTHAND_ARM)
+def test_a_change_question_plans_both_sides_in_phase_0() -> None:
+    """ADR-0038: the treatment is never held back for the Expert to request."""
+    for intent in (Intent.COMPARE,):
+        what_if = _question(intent, interventions=(CLOSURE,))
+        assert needed_arms(what_if, 0) == (BASE_ARM, SHORTHAND_ARM)
+        assert needed_arms(what_if, 1) == (BASE_ARM, SHORTHAND_ARM)
+
+
+def test_describe_and_diagnose_plan_the_base_in_phase_0() -> None:
+    for intent in (Intent.DESCRIBE, Intent.DIAGNOSE):
+        assert needed_arms(_question(intent), 0) == (BASE_ARM,)
+        with_change = _question(intent, interventions=(CLOSURE,))
+        assert needed_arms(with_change, 0) == (BASE_ARM,)
+        assert needed_arms(with_change, 1) == (BASE_ARM, SHORTHAND_ARM)
+
+
+def test_a_run_has_no_default_contrast_so_it_plans_no_base() -> None:
+    run = _question(Intent.RUN, interventions=(CLOSURE,))
+    assert run.effective_contrasts == ()
+    assert needed_arms(run, 0) == (SHORTHAND_ARM,)
+    assert needed_arms(run, 1) == (SHORTHAND_ARM,)
+
+
+def test_a_run_plans_the_declared_arms_only() -> None:
+    run = _question(
+        Intent.RUN,
+        arms=(Arm("closure", interventions=(CLOSURE,)), Arm("retime", interventions=(RETIME,))),
+    )
+    assert needed_arms(run, 0) == ("closure", "retime")
+
+
+def test_a_run_that_lists_the_base_as_an_arm_plans_it() -> None:
+    run = _question(
+        Intent.RUN,
+        arms=(Arm("closure", interventions=(CLOSURE,)),),
+        contrasts=(Contrast("closure"),),
+    )
+    assert needed_arms(run, 0) == (BASE_ARM, "closure")
+
+
+def test_a_run_with_explicit_contrasts_plans_the_sides_they_declare() -> None:
+    arms = (Arm("closure", interventions=(CLOSURE,)), Arm("retime", interventions=(RETIME,)))
+    between_arms = _question(Intent.RUN, arms=arms, contrasts=(Contrast("closure", "retime"),))
+    against_base = _question(Intent.RUN, arms=arms, contrasts=(Contrast("closure"),))
+    for phase in (0, 1):
+        assert needed_arms(between_arms, phase) == ("closure", "retime")
+        assert needed_arms(against_base, phase) == (BASE_ARM, "closure")
+
+
+def test_a_run_with_nothing_to_simulate_still_needs_the_base() -> None:
+    assert needed_arms(_question(Intent.RUN), 0) == (BASE_ARM,)
 
 
 MORNING = TimeWindow(7 * 3600, 9 * 3600)

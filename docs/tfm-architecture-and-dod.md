@@ -95,7 +95,10 @@ All six agents have the same shape from the outside: *given a task, a list of to
 
 ```python
 class ToolAgent(Protocol):
-    def run(self, task: AgentTask, tools: Sequence[Tool], output: type[T], budget: Budget) -> AgentRun[T]: ...
+    def run(
+        self, task: AgentTask, tools: Sequence[Tool], output: type[T], budget: Budget
+    ) -> AgentRun[T]: ...
+
 
 # AgentRun[T] = output: T · tool_calls: tuple[ToolCall, ...] · usage: Usage · stop_reason
 ```

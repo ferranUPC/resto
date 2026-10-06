@@ -95,9 +95,7 @@ def execute_plan(
             experiments = (*experiments[:j], target, *experiments[j + 1 :])
         recorder.record(record, experiments=experiments)
     network_id = (
-        produced[plan.network_id.step]
-        if isinstance(plan.network_id, FromStep)
-        else plan.network_id
+        produced[plan.network_id.step] if isinstance(plan.network_id, FromStep) else plan.network_id
     )
     recorder.add_networks(network_id)
     return network_id

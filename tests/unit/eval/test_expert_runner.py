@@ -87,7 +87,10 @@ def test_every_question_and_repetition_is_stored_with_its_ledger(
     records = load_records(tmp_path / "runs.jsonl")
     assert outcome.ran == 4
     assert sorted((r["question_id"], r["repetition"]) for r in records) == [
-        ("S00-desc-occ", 1), ("S00-desc-occ", 2), ("S01-desc-occ", 1), ("S01-desc-occ", 2)
+        ("S00-desc-occ", 1),
+        ("S00-desc-occ", 2),
+        ("S01-desc-occ", 1),
+        ("S01-desc-occ", 2),
     ]
     first = records[0]
     assert first["expert_version"] == EXPERT_VERSION
@@ -188,8 +191,10 @@ def test_forced_and_free_runs_of_the_same_question_coexist_under_one_cap(
     assert (both.ran, both.skipped_done) == (4, 0)
     records = load_records(tmp_path / "runs.jsonl")
     assert sorted((r["question_id"], r["mode"]) for r in records) == [
-        ("S00-desc-occ", "forced"), ("S00-desc-occ", "free"),
-        ("S01-desc-occ", "forced"), ("S01-desc-occ", "free"),
+        ("S00-desc-occ", "forced"),
+        ("S00-desc-occ", "free"),
+        ("S01-desc-occ", "forced"),
+        ("S01-desc-occ", "free"),
     ]
     # re-running the same modes still resumes instead of paying again
     resumed = _run(agent, tmp_path, query, modes=[Mode.FORCED, Mode.FREE])

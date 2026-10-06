@@ -1,5 +1,5 @@
 """Loads `eval/question_bank/question-bank.json` into what the benchmark needs per question: its
-family, the `ExpertTask` to run, and the gold answer (docs/evaluating-resto.md §4.1–§4.2)."""
+family, the `ExpertTask` to run, and the gold answer (eval/README.md §4.1–§4.2)."""
 
 from __future__ import annotations
 

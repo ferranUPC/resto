@@ -12,7 +12,6 @@ from resto.domain.value_objects.topology_modification import TopologyModificatio
 class Intent(StrEnum):
     DESCRIBE = "describe"
     DIAGNOSE = "diagnose"
-    COUNTERFACTUAL = "counterfactual"
     COMPARE = "compare"
     RUN = "run"
 
@@ -40,7 +39,8 @@ class Mode(StrEnum):
 @dataclass(frozen=True, slots=True)
 class Question:
     """What the user asked, as understood by the Input Parser. A plain doubt is
-    `describe`/`diagnose`; a hypothesis is `counterfactual`/`compare`.
+    `describe`/`diagnose`; a change is asked as `compare` (a contrast between arms) or `run`
+    (the figures of one setup).
 
     What to simulate is said in one of two forms (ADR-0027): the flat `interventions` /
     `topology_changes` are the shorthand for one treatment against the base; `arms` + `contrasts`
@@ -103,13 +103,15 @@ class Question:
 
     @property
     def effective_contrasts(self) -> tuple[Contrast, ...]:
-        """The listed contrasts, or each arm against the base.
+        """The listed contrasts, or each arm against the base (none for a `run`, ADR-0038).
 
         Of two nested arms, the one contained in the other is the reference, however the contrast
         was written: the base is always a reference, and a combination is measured against its
         part (ADR-0027 §1). A contrast listed both ways counts once. Two arms that are not nested
         keep the order the question gives."""
         if not self.contrasts:
+            if self.intent is Intent.RUN:
+                return ()
             return tuple(Contrast(a.label) for a in self.effective_arms)
         arms = {a.label: a for a in self.arms}
         oriented: list[Contrast] = []

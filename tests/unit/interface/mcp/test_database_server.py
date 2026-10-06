@@ -155,9 +155,7 @@ def test_search_notes_returns_scored_results_over_the_wire(db: SqliteDatabase) -
     asyncio.run(server.call_tool("store_note", {"note_data": payload}))
 
     result = asyncio.run(
-        server.call_tool(
-            "search_notes", {"query": "B0C0 saturates", "network_id": note.network_id}
-        )
+        server.call_tool("search_notes", {"query": "B0C0 saturates", "network_id": note.network_id})
     )
 
     [match] = _structured(result)["result"]

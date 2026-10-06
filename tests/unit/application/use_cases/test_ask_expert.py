@@ -93,7 +93,7 @@ def _abstention(network_ref: str | None = NETWORK) -> ExpertAnswer:
         confidence=0.2,
         needs_simulation=True,
         proposed_experiment=Question(
-            text="close B2C2 lane 0 at peak", intent=Intent.COUNTERFACTUAL, network_ref=network_ref
+            text="close B2C2 lane 0 at peak", intent=Intent.COMPARE, network_ref=network_ref
         ),
     )
 
@@ -257,17 +257,13 @@ def test_a_value_about_an_edge_only_the_derived_network_has_is_accepted() -> Non
 def test_an_edge_absent_from_its_named_network_is_rejected_even_if_another_network_has_it() -> None:
     value = Edges(edge_ids=("NEW1",), network_id=NETWORK)
     with pytest.raises(DraftRejected, match="NEW1"):
-        ask_expert(
-            _scoped_task(), _run(_answer(values=(value,))), _ledger(), loader=_TwoNetworks()
-        )
+        ask_expert(_scoped_task(), _run(_answer(values=(value,))), _ledger(), loader=_TwoNetworks())
 
 
 def test_a_network_the_study_never_had_is_rejected_even_when_it_would_load() -> None:
     value = Edges(edge_ids=("B2C2",), network_id="never-derived")
     with pytest.raises(DraftRejected, match="never-derived"):
-        ask_expert(
-            _scoped_task(), _run(_answer(values=(value,))), _ledger(), loader=_TwoNetworks()
-        )
+        ask_expert(_scoped_task(), _run(_answer(values=(value,))), _ledger(), loader=_TwoNetworks())
 
 
 def test_proposed_experiment_on_the_derived_network_is_accepted() -> None:

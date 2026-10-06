@@ -1,4 +1,4 @@
-"""Expert benchmark CLI (docs/evaluating-resto.md §4). Spends API credit: run by hand only.
+"""Expert benchmark CLI (eval/README.md §4). Spends API credit: run by hand only.
 
     python -m eval.expert_benchmark.run --name smoke --questions S00-desc-tt S03-desc-occ \
         --repetitions 1 --max-cost-usd 0.20
@@ -80,7 +80,7 @@ def main(argv: list[str] | None = None) -> int:
         choices=["forced", "free", "both"],
         default="forced",
         help="which mode(s) to run against the model; 'both' runs forced and free under one job "
-        "list and one --max-cost-usd cap (docs/evaluating-resto.md §4.5).",
+        "list and one --max-cost-usd cap (eval/README.md §4.5).",
     )
     parser.add_argument("--report-only", action="store_true")
     args = parser.parse_args(argv)

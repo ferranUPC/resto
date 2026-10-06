@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any, TypeVar
@@ -7,6 +8,7 @@ from typing import Any, TypeVar
 from resto.adapters.llm.agents.input_parser import (
     PARSER_MAX_OUTPUT_TOKENS,
     PARSER_MAX_STEPS,
+    PARSER_VERSION,
     SYSTEM_PROMPT,
     InputParserPort,
 )
@@ -79,3 +81,13 @@ def test_the_prompt_states_the_adr_0035_rules_and_no_profile_name() -> None:
     assert "one short English phrase" in SYSTEM_PROMPT
     assert "whatever the intent" in SYSTEM_PROMPT
     assert '"peak" when' not in SYSTEM_PROMPT
+
+
+def test_the_prompt_teaches_four_intents_the_boundary_and_the_tie_break() -> None:
+    assert PARSER_VERSION == "v8"
+    intents = re.search(r"- intent:.*?\n- mode:", SYSTEM_PROMPT, re.DOTALL)
+    assert intents is not None
+    for name in ("describe", "diagnose", "compare", "run"):
+        assert f"  - {name}:" in intents.group(0)
+    assert "counterfactual" not in SYSTEM_PROMPT
+    assert "when in doubt, compare" in SYSTEM_PROMPT.lower()

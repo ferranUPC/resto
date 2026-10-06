@@ -116,24 +116,38 @@ def _rebuild_row(
     every call below is idempotent (content/request-hash dedup), so this runs no SUMO process
     when `matrix.db` already has the row."""
     draft = build_draft(
-        row, net_ref=net_ref, peak_routes_ref=peak_routes_ref, network=network, demand=demand,
-        demands=db.demands, out_dir=REBUILD_DIR / row.id / "build",
+        row,
+        net_ref=net_ref,
+        peak_routes_ref=peak_routes_ref,
+        network=network,
+        demand=demand,
+        demands=db.demands,
+        out_dir=REBUILD_DIR / row.id / "build",
     )
     run = AgentRun(output=draft, tool_calls=(), usage=Usage(), stop_reason=StopReason.OUTPUT)
     task = ScenarioTask(
         network_id=network.network_id, demand_id=demand.demand_id, context_tags=CONTEXT_TAGS
     )
     scenario = build_scenario(
-        task, run, networks=db.networks, demands=db.demands, scenarios=db.scenarios,
-        network_query_loader=StoredNetworkQueryLoader(db.networks), runner=runner,
+        task,
+        run,
+        networks=db.networks,
+        demands=db.demands,
+        scenarios=db.scenarios,
+        network_query_loader=StoredNetworkQueryLoader(db.networks),
+        runner=runner,
         out_dir=REBUILD_DIR / row.id / "load_check",
     )
     results: dict[int, SimulationResult] = {}
     for seed in SEEDS:
         result = run_simulation(
-            scenario, seed, runner=runner, results=db.results,
+            scenario,
+            seed,
+            runner=runner,
+            results=db.results,
             run_dirs=FilesystemRunDirectories(),
-            out_dir=REBUILD_DIR / row.id / "runs", attempt=row.id,
+            out_dir=REBUILD_DIR / row.id / "runs",
+            attempt=row.id,
         )
         if result.status is not RunStatus.OK:
             raise QuestionBankBuildError(f"{row.id} seed {seed} is not OK in matrix.db")
@@ -180,8 +194,13 @@ def generate_question_bank() -> list[QuestionBankItem]:
         results_by_row: dict[str, dict[int, SimulationResult]] = {}
         for row in ROWS:
             scenario, results = _rebuild_row(
-                row, network=network, demand=demand, net_ref=net_ref,
-                peak_routes_ref=peak_routes_ref, db=db, runner=runner,
+                row,
+                network=network,
+                demand=demand,
+                net_ref=net_ref,
+                peak_routes_ref=peak_routes_ref,
+                db=db,
+                runner=runner,
             )
             scenarios[row.id] = scenario
             results_by_row[row.id] = results
@@ -208,22 +227,37 @@ def generate_question_bank() -> list[QuestionBankItem]:
 
             items.append(
                 templates.descriptive_occupancy_item(
-                    row, scenario, network_id=network_id, demand_id=demand_id,
-                    context_tags=CONTEXT_TAGS, mean_edgedata=mean_edges, seed_edgedata=seed_edges,
+                    row,
+                    scenario,
+                    network_id=network_id,
+                    demand_id=demand_id,
+                    context_tags=CONTEXT_TAGS,
+                    mean_edgedata=mean_edges,
+                    seed_edgedata=seed_edges,
                     result_ids=result_ids,
                 )
             )
             items.append(
                 templates.descriptive_travel_time_item(
-                    row, scenario, network_id=network_id, demand_id=demand_id,
-                    context_tags=CONTEXT_TAGS, mean_edgedata=mean_edges, seed_edgedata=seed_edges,
+                    row,
+                    scenario,
+                    network_id=network_id,
+                    demand_id=demand_id,
+                    context_tags=CONTEXT_TAGS,
+                    mean_edgedata=mean_edges,
+                    seed_edgedata=seed_edges,
                     result_ids=result_ids,
                 )
             )
             items.append(
                 templates.diagnostic_bottleneck_item(
-                    row, scenario, network_id=network_id, demand_id=demand_id,
-                    context_tags=CONTEXT_TAGS, mean_edgedata=mean_edges, result_ids=result_ids,
+                    row,
+                    scenario,
+                    network_id=network_id,
+                    demand_id=demand_id,
+                    context_tags=CONTEXT_TAGS,
+                    mean_edgedata=mean_edges,
+                    result_ids=result_ids,
                     topology=topology,
                 )
             )
@@ -236,26 +270,44 @@ def generate_question_bank() -> list[QuestionBankItem]:
 
             items.append(
                 templates.counterfactual_direction_item(
-                    row, scenario, baseline_scenario.scenario_id,
-                    network_id=network_id, demand_id=demand_id, context_tags=CONTEXT_TAGS,
-                    mean_edgedata=mean_edges, baseline_mean_edgedata=baseline_mean_edges_at_window,
-                    result_ids=result_ids, baseline_result_ids=baseline_result_ids,
+                    row,
+                    scenario,
+                    baseline_scenario.scenario_id,
+                    network_id=network_id,
+                    demand_id=demand_id,
+                    context_tags=CONTEXT_TAGS,
+                    mean_edgedata=mean_edges,
+                    baseline_mean_edgedata=baseline_mean_edges_at_window,
+                    result_ids=result_ids,
+                    baseline_result_ids=baseline_result_ids,
                 )
             )
             items.append(
                 templates.counterfactual_top_k_item(
-                    row, scenario, baseline_scenario.scenario_id,
-                    network_id=network_id, demand_id=demand_id, context_tags=CONTEXT_TAGS,
-                    mean_edgedata=mean_edges, baseline_mean_edgedata=baseline_mean_edges_at_window,
-                    result_ids=result_ids, baseline_result_ids=baseline_result_ids,
+                    row,
+                    scenario,
+                    baseline_scenario.scenario_id,
+                    network_id=network_id,
+                    demand_id=demand_id,
+                    context_tags=CONTEXT_TAGS,
+                    mean_edgedata=mean_edges,
+                    baseline_mean_edgedata=baseline_mean_edges_at_window,
+                    result_ids=result_ids,
+                    baseline_result_ids=baseline_result_ids,
                 )
             )
             items.append(
                 templates.counterfactual_magnitude_item(
-                    row, scenario, baseline_scenario.scenario_id,
-                    network_id=network_id, demand_id=demand_id, context_tags=CONTEXT_TAGS,
-                    mean_delay=mean_delay, baseline_mean_delay=baseline_mean_delay,
-                    result_ids=result_ids, baseline_result_ids=baseline_result_ids,
+                    row,
+                    scenario,
+                    baseline_scenario.scenario_id,
+                    network_id=network_id,
+                    demand_id=demand_id,
+                    context_tags=CONTEXT_TAGS,
+                    mean_delay=mean_delay,
+                    baseline_mean_delay=baseline_mean_delay,
+                    result_ids=result_ids,
+                    baseline_result_ids=baseline_result_ids,
                 )
             )
     finally:
@@ -288,7 +340,9 @@ def _write_bank_json(items: list[QuestionBankItem]) -> None:
 
 def _diagnostic_cause_totals(items: list[QuestionBankItem]) -> dict[str, int]:
     totals = Counter(
-        cause for item in items if item.id.endswith("-diag")
+        cause
+        for item in items
+        if item.id.endswith("-diag")
         for cause in item.gold_answer["causes"].values()
     )
     return {str(cause): n for cause, n in totals.most_common()}
@@ -318,7 +372,7 @@ def _write_report(items: list[QuestionBankItem]) -> None:
     lines.append("")
     lines.append(
         "**Diagnostic gold:** each `-diag` entry's `gold_answer` holds `top_3` (graded by Jaccard "
-        'against the Expert\'s own answer, DoD §4.7) and `causes`, one **Bottleneck cause** per '
+        "against the Expert's own answer, DoD §4.7) and `causes`, one **Bottleneck cause** per "
         "`top_3` edge from the network's topology and the scenario's interventions (ADR-0029): "
         + ", ".join(f"{n} `{cause}`" for cause, n in _diagnostic_cause_totals(items).items())
         + "."

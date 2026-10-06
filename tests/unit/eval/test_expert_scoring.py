@@ -1,4 +1,4 @@
-"""Expert benchmark bank loading and scoring rules (E3.3; docs/evaluating-resto.md §4.4)."""
+"""Expert benchmark bank loading and scoring rules (E3.3; eval/README.md §4.4)."""
 
 from __future__ import annotations
 

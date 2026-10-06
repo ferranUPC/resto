@@ -20,7 +20,9 @@ Define one `Protocol`:
 
 ```python
 class ToolAgent(Protocol):
-    def run(self, task: AgentTask, tools: Sequence[Tool], output: type[T], budget: Budget) -> AgentRun[T]: ...
+    def run(
+        self, task: AgentTask, tools: Sequence[Tool], output: type[T], budget: Budget
+    ) -> AgentRun[T]: ...
 ```
 
 Every authoring module is *configuration* over this one port, not a distinct abstraction: a typed `task`

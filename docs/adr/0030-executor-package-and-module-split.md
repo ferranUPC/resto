@@ -5,7 +5,7 @@
 - Architecture reference: [ADR-0023](0023-coordinator-split-deterministic-executor.md),
   [ADR-0025](0025-executor-plan-shape-intent-rules-and-failures.md),
   [ADR-0026](0026-expert-notes-per-study-and-prediction-verification.md),
-  [ADR-0027](0027-experiment-arms-and-contrasts.md); [`docs/study-flows.md`](../study-flows.md) §2-§3
+  [ADR-0027](0027-experiment-arms-and-contrasts.md); `docs/study-flows.md` (pending regeneration) §2-§3
 
 ## Context
 
@@ -56,7 +56,7 @@ the ADR-0025 §3 failure table could not be read in one place.
 ## Consequences
 
 - ADR-0023 is not edited. Where it and `docs/study-flows.md` say "Executor (`run_study`)", read
-  `application/executor/`, entered through `run_study`. `docs/study-flows.md` now points to the package.
+  `application/executor/`, entered through `run_study`. `docs/study-flows.md`, once regenerated, points to the package.
 - Behaviour did not change: messages, error kinds, trace events, stored states, the order of checks
   and the budget arithmetic are the same. The end-to-end `run_study` suite changed only its imports
   and the invalid-plan cases, which moved to `test_plan_validation.py`. Failure classification has its

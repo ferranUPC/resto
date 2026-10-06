@@ -1,5 +1,7 @@
 # Input Parser benchmark — ministral-v4-dev
 
+> **Superseded on `intent` by ADR-0038 (2026-10-06): this run scores `intent` against the gold that still had `counterfactual`, a value that no longer exists. Not re-scored: its Parser taught `counterfactual`, so against the new gold the number would measure the removed label, not the Parser. Every other metric is unaffected. The raw run is untouched; current intent figures are in `v8-dev`.**
+
 212 requests, 212 runs (repetitions [1]), models ['mistralai/ministral-3b-2512'], parser ['v4']; $0.1485, mean 6661 input / 342 output tokens; stop reasons {'output': 167, 'budget': 45}.
 
 | Metric | Result | 95 % CI by concept | E5.1 threshold | Met |

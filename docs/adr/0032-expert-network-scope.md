@@ -16,7 +16,7 @@ never verified.
 
 ## Decision
 
-- **Scope.** A **Network scope** (see `CONTEXT.md`) is read from `Study.network_ids` when an Expert round
+- **Scope.** A **Network scope** (see `GLOSSARY.md`) is read from `Study.network_ids` when an Expert round
   starts. `ExpertTask` carries `network_ids`; every topology tool takes an explicit `network_id`, checked
   against the scope. A Planning step gets only the networks that exist when it plans.
 - **Answer values.** Every `AnswerValue` that names an edge also names its network, always, not only when

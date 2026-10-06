@@ -1160,5 +1160,15 @@
         }
       }
     }
+  },
+  "superseded": {
+    "metrics": [
+      "intent",
+      "intent_strict",
+      "intent_agreement"
+    ],
+    "by": "ADR-0038",
+    "date": "2026-10-06",
+    "reason": "Superseded on `intent` by ADR-0038 (2026-10-06): this run scores `intent` against the gold that still had `counterfactual`, a value that no longer exists. Not re-scored: its Parser taught `counterfactual`, so against the new gold the number would measure the removed label, not the Parser. Every other metric is unaffected. The raw run is untouched; current intent figures are in `v8-dev`."
   }
 }

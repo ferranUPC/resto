@@ -304,9 +304,7 @@ def test_a_step_without_a_reported_cost_makes_the_run_total_none() -> None:
 
 
 def test_a_budget_stop_still_reports_the_real_cost_seen_so_far() -> None:
-    complete = ScriptedCompletions(
-        *(completion(content="thinking", cost=0.001) for _ in range(2))
-    )
+    complete = ScriptedCompletions(*(completion(content="thinking", cost=0.001) for _ in range(2)))
     agent = OpenRouterToolAgent(CONFIG, complete=complete)
 
     budget = Budget(max_steps=2, max_tokens=64, max_seconds=30)

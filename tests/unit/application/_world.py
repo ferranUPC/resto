@@ -95,8 +95,12 @@ CALIBRATION_ROUNDS = 3
 
 DESCRIBE = Question(text="how congested is the peak?", intent=Intent.DESCRIBE)
 WHAT_IF = Question(
-    text="what if we close lane 1 of E12?", intent=Intent.COUNTERFACTUAL, interventions=(CLOSURE,)
+    text="what if we close lane 1 of E12?", intent=Intent.COMPARE, interventions=(CLOSURE,)
 )
+DESCRIBE_CHANGE = Question(
+    text="how would closing lane 1 of E12 look?", intent=Intent.DESCRIBE, interventions=(CLOSURE,)
+)
+"""Phase 0 plans only the base; the Expert has to ask for the closure."""
 PROPOSED = Question(text="close lane 1 of E12", intent=Intent.RUN, interventions=(CLOSURE,))
 
 BASE_SID = scenario_id_for(NET, DEMAND, (), frozenset())
@@ -465,6 +469,13 @@ def plan(*steps: Any, network: Any = NET) -> Any:
 
 
 BASELINE_PLAN = plan(build_step(), run_step(0))
+WHAT_IF_PLAN = plan(
+    build_step(),
+    run_step(0),
+    build_step("treatment", (CLOSURE,), role=ExperimentRole.TREATMENT),
+    run_step(2),
+)
+"""Phase 0 of `WHAT_IF`: both sides of the contrast (ADR-0038)."""
 TREATMENT_PLAN = plan(
     build_step("treatment", (CLOSURE,), role=ExperimentRole.TREATMENT), run_step(0)
 )

@@ -64,20 +64,31 @@ class TestEveryGoldQuestion:
 
 
 class TestPlainExperiments:
-    def test_counterfactual_builds_only_the_reference_side(self) -> None:
-        plan = propose_plan(_question(Intent.COUNTERFACTUAL, interventions=(_CLOSE,)))
+    def test_a_change_question_builds_both_sides_in_phase_0(self) -> None:
+        for intent in (Intent.COMPARE,):
+            plan = propose_plan(_question(intent, interventions=(_CLOSE,)))
 
-        assert plan.arms == ("base",)
-        assert _builds(plan)["base"].role is ExperimentRole.BASELINE
+            builds = _builds(plan)
+            assert plan.arms == ("base", "treatment")
+            assert builds["treatment"].role is ExperimentRole.TREATMENT
+            assert builds["treatment"].interventions == (_CLOSE,)
+            assert builds["base"].role is ExperimentRole.BASELINE
+            assert builds["base"].interventions == ()
 
-    def test_run_builds_every_required_arm_with_its_interventions(self) -> None:
+    def test_run_builds_the_declared_arms_and_no_base(self) -> None:
         plan = propose_plan(_question(Intent.RUN, interventions=(_CLOSE,)))
 
-        builds = _builds(plan)
-        assert plan.arms == ("base", "treatment")
-        assert builds["treatment"].role is ExperimentRole.TREATMENT
-        assert builds["treatment"].interventions == (_CLOSE,)
-        assert builds["base"].interventions == ()
+        assert plan.arms == ("treatment",)
+        assert _builds(plan)["treatment"].interventions == (_CLOSE,)
+
+    def test_run_builds_the_base_only_when_a_contrast_lists_it(self) -> None:
+        question = _question(
+            Intent.RUN,
+            arms=(Arm("closure", interventions=(_CLOSE,)),),
+            contrasts=(Contrast("closure"),),
+        )
+
+        assert propose_plan(question).arms == ("base", "closure")
 
     def test_describe_builds_the_base_arm_as_baseline(self) -> None:
         plan = propose_plan(_question(Intent.DESCRIBE, demand_ref="peak"))
@@ -86,7 +97,7 @@ class TestPlainExperiments:
         assert _builds(plan)["base"].role is ExperimentRole.BASELINE
 
     def test_layout_is_network_demand_then_scenarios_on_the_base_network(self) -> None:
-        plan = propose_plan(_question(Intent.RUN, interventions=(_CLOSE,)))
+        plan = propose_plan(_question(Intent.COMPARE, interventions=(_CLOSE,)))
 
         assert [type(s) for s in plan.steps] == [
             ObtainNetworkStep,
@@ -133,9 +144,9 @@ class TestRolesAndDependencies:
         assert plan.arms == ("base",)
         assert _builds(plan)["base"].role is ExperimentRole.BASELINE
 
-    def test_a_multi_arm_run_makes_every_tested_arm_a_treatment(self) -> None:
+    def test_a_multi_arm_compare_makes_every_tested_arm_a_treatment(self) -> None:
         question = _question(
-            Intent.RUN,
+            Intent.COMPARE,
             arms=(Arm("closure", interventions=(_CLOSE,)), Arm("limit", interventions=(_LIMIT,))),
         )
 
@@ -165,7 +176,7 @@ class TestRolesAndDependencies:
         }
 
     def test_each_step_depends_on_the_steps_it_reads(self) -> None:
-        plan = propose_plan(_question(Intent.RUN, topology_changes=(_REMOVE,)))
+        plan = propose_plan(_question(Intent.COMPARE, topology_changes=(_REMOVE,)))
         derive_at = next(i for i, s in enumerate(plan.steps) if isinstance(s, DeriveNetworkStep))
 
         assert _steps(plan, ObtainDemandStep)[0].depends_on == (0,)
@@ -209,7 +220,7 @@ class TestDemandReference:
 
 class TestTopologyModifications:
     def test_one_derive_network_with_its_modifications_feeds_the_arm(self) -> None:
-        plan = propose_plan(_question(Intent.RUN, topology_changes=(_REMOVE,)))
+        plan = propose_plan(_question(Intent.COMPARE, topology_changes=(_REMOVE,)))
 
         derive = _steps(plan, DeriveNetworkStep)
         assert len(derive) == 1
@@ -217,7 +228,7 @@ class TestTopologyModifications:
         assert derive[0].base_network_id == FromStep(0)
 
     def test_reroute_demand_follows_the_derived_network(self) -> None:
-        plan = propose_plan(_question(Intent.RUN, topology_changes=(_REMOVE,)))
+        plan = propose_plan(_question(Intent.COMPARE, topology_changes=(_REMOVE,)))
         derive_at = next(i for i, s in enumerate(plan.steps) if isinstance(s, DeriveNetworkStep))
 
         reroute = _steps(plan, RerouteDemandStep)[0]
@@ -228,7 +239,7 @@ class TestTopologyModifications:
         assert treatment.demand_id == FromStep(derive_at + 1)
 
     def test_the_base_arm_stays_on_the_original_network_and_demand(self) -> None:
-        plan = propose_plan(_question(Intent.RUN, topology_changes=(_REMOVE,)))
+        plan = propose_plan(_question(Intent.COMPARE, topology_changes=(_REMOVE,)))
 
         base = _builds(plan)["base"]
         assert (base.network_id, base.demand_id) == (FromStep(0), FromStep(1))
@@ -266,9 +277,9 @@ class TestTopologyModifications:
         builds = _builds(plan)
         assert builds["removed"].network_id != builds["widened"].network_id
 
-    def test_counterfactual_with_nested_arms_derives_only_the_reference_topology(self) -> None:
+    def test_a_change_question_with_nested_arms_plans_both_and_derives_one_network(self) -> None:
         question = _question(
-            Intent.COUNTERFACTUAL,
+            Intent.COMPARE,
             arms=(
                 Arm("widened", topology_changes=(_WIDEN,)),
                 Arm("widened_closure", (_WIDEN,), (_CLOSE,)),
@@ -278,11 +289,11 @@ class TestTopologyModifications:
 
         plan = propose_plan(question)
 
-        assert plan.arms == ("widened",)
+        assert plan.arms == ("widened", "widened_closure")
         assert len(_steps(plan, DeriveNetworkStep)) == 1
 
     def test_an_arm_unused_in_phase_0_derives_nothing(self) -> None:
-        plan = propose_plan(_question(Intent.COUNTERFACTUAL, topology_changes=(_REMOVE,)))
+        plan = propose_plan(_question(Intent.DESCRIBE, topology_changes=(_REMOVE,)))
 
         assert plan.arms == ("base",)
         assert not _steps(plan, DeriveNetworkStep)

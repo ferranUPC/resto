@@ -6,6 +6,7 @@ from __future__ import annotations
 import pytest
 from eval.plan_bank.bank import load_corrected, load_plans, planned_concepts
 from eval.plan_bank.phase1 import (
+    PHASE1_IDS,
     PHASE1_PATH,
     build_phase1,
     dump_phase1,
@@ -24,7 +25,7 @@ CASES = load_phase1()
 COUNTERFACTUAL_IDS = sorted(
     c.id
     for c in planned_concepts()
-    if isinstance(c.gold, Question) and c.gold.intent is Intent.COUNTERFACTUAL
+    if c.id in PHASE1_IDS and isinstance(c.gold, Question) and c.gold.intent is Intent.COMPARE
 )
 
 
@@ -63,10 +64,9 @@ def test_gold_holds_only_treatment_arms_and_repeats_no_realised_arm(concept_id: 
 def test_context_is_what_phase_0_realised(concept_id: str) -> None:
     question = _question(concept_id)
     realised = [e.arm for e in CASES[concept_id].context.experiments]
-    assert realised == [
-        s.arm for s in load_plans()[concept_id].steps if isinstance(s, BuildScenarioStep)
-    ]
-    assert tuple(realised) == needed_arms(question, 0)
+    phase0 = [s.arm for s in load_plans()[concept_id].steps if isinstance(s, BuildScenarioStep)]
+    assert realised == [arm for arm in phase0 if arm in realised]  # a prefix-ordered subset
+    assert set(realised) < set(phase0) == set(needed_arms(question, 0))  # the treatments are left
     assert set(realised) | set(CASES[concept_id].plan.arms) == set(needed_arms(question, 1))
 
 

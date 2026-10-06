@@ -30,9 +30,7 @@ class EffectResult:
     reason: str
 
 
-def _interval(
-    edgedata: tuple[EdgeInterval, ...], edge_id: str, window: TimeWindow
-) -> EdgeInterval:
+def _interval(edgedata: tuple[EdgeInterval, ...], edge_id: str, window: TimeWindow) -> EdgeInterval:
     """The one `EdgeInterval` for `edge_id` whose own `[begin, end)` exactly equals `window`.
 
     Raises:
@@ -127,9 +125,7 @@ def verify_speed_limit(
         raise ValueError(f"{edge_id} carried no traffic inside the window - nothing to measure")
     ceiling = limit_mps * (1 + tolerance)
     ok = inside.speed <= ceiling
-    return EffectResult(
-        ok=ok, reason=f"mean speed {inside.speed:.2f} m/s (ceiling {ceiling:.2f})"
-    )
+    return EffectResult(ok=ok, reason=f"mean speed {inside.speed:.2f} m/s (ceiling {ceiling:.2f})")
 
 
 def _overlap(switch: TlsSwitch, window: TimeWindow) -> float:

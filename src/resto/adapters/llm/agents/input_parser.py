@@ -3,7 +3,7 @@
 No logic of its own beyond one deterministic step: the loop (and the retry on a `submit_output` that
 fails validation) lives in the `ToolAgent` implementation, and the `Question` invariants in the
 domain. The port puts the user's original text back into `Question.text`, so the model can never
-rewrite what was asked (evaluating-resto.md §5, 2026-09-23).
+rewrite what was asked (eval/decisions-log.md, 2026-09-23).
 
 A budget of `PARSER_MAX_STEPS = 2` model calls is the DoD's "one retry, then explicit failure"
 (§4.1): a first answer that does not validate, or that is plain text, gets exactly one more turn.
@@ -23,7 +23,7 @@ from resto.domain.value_objects.question import Question
 
 # Bump whenever the prompt or the budget changes in a way that can change parses: every benchmark
 # run records it (eval/parser_benchmark).
-PARSER_VERSION = "v7"
+PARSER_VERSION = "v8"
 
 PARSER_MAX_STEPS = 2
 PARSER_MAX_OUTPUT_TOKENS = 4096
@@ -48,16 +48,16 @@ FIELDS
   - describe: a fact about the network as it is, nothing changed ("what is", "how many", "which
     edges").
   - diagnose: why something happens on the network as it is ("why", "what is causing").
-  - counterfactual: what one or more changes do, i.e. how things would be with them, against
-    today or another setup the user names ("what would happen if", "try X and see what happens",
-    "with and without X", "what would X add on top of Y", "does X help", and also "run/simulate X
-    and report Y"). Several changes, each measured on its own, are still counterfactual.
-  - compare: a choice between alternatives: the user wants to know which option is better or which
-    to pick ("which is better", "A or B?", "which reduces X most"), with or without the word
-    "compare".
-  - run: the user wants something done as an end in itself and asks nothing about its effect
-    ("add an edge from J7 to J9", "set up this scenario so I can use it"), even when part of it is
-    ambiguous.
+  - compare: the answer is a contrast between setups, today's network included: the effect of
+    a change against today or another setup ("what would happen to X if Y", "with and without Y",
+    "does Y help", "what would Y add on top of Z"), or a choice between alternatives ("which is
+    better", "A or B?", "which reduces X most"), with or without the word "compare". Several
+    changes, each measured on its own, are still compare.
+  - run: the figures of one setup, with nothing to compare them against ("run/simulate X and
+    report Y", "what is the mean speed on N6N7 if N7N8 is closed"), or an action wanted as an end in
+    itself ("add an edge from J7 to J9", "set up this scenario so I can use it"), even when part
+    of it is ambiguous.
+  - When in doubt, compare: a needless comparison costs almost nothing, a missing one does.
 - mode: "free", unless the user explicitly asks for an answer from existing results only, without
   running any new simulation: then "forced".
 - network_ref: the network the user names, verbatim (e.g. "RIVERSIDE"); null if none. A network
@@ -145,7 +145,7 @@ ignored. If there is no traffic request at all, add one ambiguity saying so.
 
 EXAMPLES (on a network that does not exist)
 1. "On RIVERSIDE, what would happen to the mean travel time if edge N4N5 were limited to 45 km/h
-from 16:00 to 16:45?" -> intent counterfactual, network_ref "RIVERSIDE", interventions [{{"type":
+from 16:00 to 16:45?" -> intent compare, network_ref "RIVERSIDE", interventions [{{"type":
 "speed_limit", "target": {{"kind": "edge", "edge_id": "N4N5"}}, "params": {{"speed": 12.5}},
 "window": {{"start": 57600, "end": 60300}}}}], metrics_of_interest ["mean_travel_time"].
 2. "On RIVERSIDE, is it better to close edge P2P3 from 07:15 to 07:45 or to build a one-lane edge
@@ -155,7 +155,7 @@ from junction P1 to junction Q3 at 40 km/h? Compare them with each other only, b
 {{"label": "new_edge", "topology_changes": [{{"kind": "add_edge", "from_junction": "P1",
 "to_junction": "Q3", "lanes": 1, "speed": 11.111, "edge_id": null}}]}}], contrasts
 [{{"treatment": "closure", "reference": "new_edge"}}], metrics_of_interest ["waiting_time"].
-3. "RIVERSIDE: close N4N5 and put junction N5 on program 2, delay?" -> intent counterfactual,
+3. "RIVERSIDE: close N4N5 and put junction N5 on program 2, delay?" -> intent compare,
 network_ref "RIVERSIDE", no interventions, metrics_of_interest ["mean_delay"], ambiguities ["When
 should edge N4N5 be closed and program 2 run?", "Should the closure and the program change be
 applied together, or compared with each other?"].

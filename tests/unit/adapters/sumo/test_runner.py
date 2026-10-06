@@ -44,9 +44,7 @@ END_S = 29400.0
 @pytest.fixture(scope="module")
 def scenario_cfg(tmp_path_factory: pytest.TempPathFactory) -> ArtifactRef:
     out_dir = tmp_path_factory.mktemp("scenario")
-    settings = SimulationSettings(
-        net_file=NET, route_files=(LOW_ROUTES,), begin=BEGIN_S, end=END_S
-    )
+    settings = SimulationSettings(net_file=NET, route_files=(LOW_ROUTES,), begin=BEGIN_S, end=END_S)
     return SumocfgFileWriter().write(settings, out_dir, "scenario.sumocfg")
 
 
@@ -62,8 +60,11 @@ def closure_scenario_cfg(tmp_path_factory: pytest.TempPathFactory) -> ArtifactRe
     )
     _, rerouter_ref = RerouterWriter().write(closure, out_dir)
     settings = SimulationSettings(
-        net_file=NET, route_files=(PEAK_ROUTES,), additional_files=(rerouter_ref.path,),
-        begin=BEGIN_S, end=END_S,
+        net_file=NET,
+        route_files=(PEAK_ROUTES,),
+        additional_files=(rerouter_ref.path,),
+        begin=BEGIN_S,
+        end=END_S,
     )
     return SumocfgFileWriter().write(settings, out_dir, "scenario.sumocfg")
 

@@ -169,8 +169,11 @@ def render_review(records: dict[str, VariantRecord]) -> str:
         "",
     ]
     for concept in CONCEPTS:
-        rows = [records[concept.variant_id(v)] for v in concept.variants
-                if concept.variant_id(v) in records]
+        rows = [
+            records[concept.variant_id(v)]
+            for v in concept.variants
+            if concept.variant_id(v) in records
+        ]
         lines += [
             f"## {concept.id} · {concept.category} · {SPLITS[concept.id]}",
             "",
@@ -219,13 +222,17 @@ def main(argv: list[str] | None = None) -> int:
 
     if not args.report_only:
         estimate = estimate_usd(todo, models)
-        print(f"{len(todo)} variants to generate, estimated ${estimate:.4f} "
-              f"(generator {models.generator}, verifier {models.verifier})")
+        print(
+            f"{len(todo)} variants to generate, estimated ${estimate:.4f} "
+            f"(generator {models.generator}, verifier {models.verifier})"
+        )
         if args.dry_run:
             return 0
         if estimate > 1.0:
-            print("estimate above $1: log it in docs/evaluating-resto.md §7 instead (CLAUDE.md)",
-                  file=sys.stderr)
+            print(
+                "estimate above $1: log it in eval/measurement-plans.md instead (CLAUDE.md)",
+                file=sys.stderr,
+            )
             return 2
         if todo and args.max_cost_usd <= 0:
             print("pass --max-cost-usd", file=sys.stderr)

@@ -355,7 +355,6 @@
       "enum": [
         "describe",
         "diagnose",
-        "counterfactual",
         "compare",
         "run"
       ],
@@ -619,7 +618,7 @@
       "type": "object"
     },
     "Question": {
-      "description": "What the user asked, as understood by the Input Parser. A plain doubt is\n`describe`/`diagnose`; a hypothesis is `counterfactual`/`compare`.\n\nWhat to simulate is said in one of two forms (ADR-0027): the flat `interventions` /\n`topology_changes` are the shorthand for one treatment against the base; `arms` + `contrasts`\nname several combinations and which pairs to compare. Code reads `effective_arms` and\n`effective_contrasts`, which cover both.",
+      "description": "What the user asked, as understood by the Input Parser. A plain doubt is\n`describe`/`diagnose`; a change is asked as `compare` (a contrast between arms) or `run`\n(the figures of one setup).\n\nWhat to simulate is said in one of two forms (ADR-0027): the flat `interventions` /\n`topology_changes` are the shorthand for one treatment against the base; `arms` + `contrasts`\nname several combinations and which pairs to compare. Code reads `effective_arms` and\n`effective_contrasts`, which cover both.",
       "properties": {
         "ambiguities": {
           "default": [],

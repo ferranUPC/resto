@@ -1,4 +1,4 @@
-"""Input Parser scoring on the request bank (E3.4 → E5.1; `docs/evaluating-resto.md` §5).
+"""Input Parser scoring on the request bank (E3.4 → E5.1; `eval/decisions-log.md`).
 
 - The effective form is compared (`effective_arms` / `effective_contrasts`): the flat shorthand and
   a single arm score the same; using the shorthand is reported, not graded.
@@ -52,7 +52,7 @@ THRESHOLDS = {
     "ambiguity_detection": 0.80,
     "arm_structure": 0.90,
 }
-"""E5.1 Done: §4.1 of the architecture doc, plus arm structure (evaluating-resto.md §5)."""
+"""E5.1 Done: §4.1 of the architecture doc, plus arm structure (eval/decisions-log.md,)."""
 
 INTENT_AGREEMENT_THRESHOLD = 0.95
 
@@ -262,7 +262,10 @@ def score_request(
         if pred is None:
             missed = False if gold.intent is not None else None
             return RequestScore(
-                valid=False, intent=missed, intent_strict=missed, ambiguity_detected=False,
+                valid=False,
+                intent=missed,
+                intent_strict=missed,
+                ambiguity_detected=False,
             )
         if gold.intent is None:
             return RequestScore(valid=True, ambiguity_detected=pred.is_ambiguous)
@@ -276,15 +279,19 @@ def score_request(
     multi_arm = len(gold.effective_arms) > 1
     if pred is None:
         return RequestScore(
-            valid=False, intent=False, intent_strict=False, interventions=False,
+            valid=False,
+            intent=False,
+            intent_strict=False,
+            interventions=False,
             topology_changes=False,
-            metrics_of_interest=False, arm_structure=False, multi_arm=multi_arm,
+            metrics_of_interest=False,
+            arm_structure=False,
+            multi_arm=multi_arm,
             required_arms=False,
         )
     labels = _arm_matching(gold, pred)
-    required = (
-        labels is not None
-        and {labels[label] for label in required_arms(pred)} == set(required_arms(gold))
+    required = labels is not None and {labels[label] for label in required_arms(pred)} == set(
+        required_arms(gold)
     )
     return RequestScore(
         valid=True,

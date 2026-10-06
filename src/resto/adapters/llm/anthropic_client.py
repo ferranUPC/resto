@@ -74,9 +74,10 @@ class OpenRouterToolAgent:
         self._config = config
         self._model = model or config.default_model
         price_of(self._model)  # raises UnknownModelError; result unused, this is just the gate
-        self._complete: CompletionFn = complete or OpenAI(
-            api_key=config.api_key, base_url=config.base_url
-        ).chat.completions.create
+        self._complete: CompletionFn = (
+            complete
+            or OpenAI(api_key=config.api_key, base_url=config.base_url).chat.completions.create
+        )
 
     def run(
         self, task: AgentTask, tools: Sequence[Tool], output: type[T], budget: Budget

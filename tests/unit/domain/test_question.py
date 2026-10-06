@@ -22,9 +22,7 @@ def test_a_describe_with_nothing_about_traffic_can_be_network_only() -> None:
     assert q.network_only
 
 
-@pytest.mark.parametrize(
-    "intent", [Intent.DIAGNOSE, Intent.COUNTERFACTUAL, Intent.COMPARE, Intent.RUN]
-)
+@pytest.mark.parametrize("intent", [Intent.DIAGNOSE, Intent.COMPARE, Intent.RUN])
 def test_network_only_is_rejected_on_any_intent_but_describe(intent: Intent) -> None:
     with pytest.raises(ValueError, match="network_only"):
         Question(text="q", intent=intent, network_only=True)

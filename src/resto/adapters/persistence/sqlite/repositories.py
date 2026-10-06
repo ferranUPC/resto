@@ -379,9 +379,7 @@ class SqliteNoteRepository:
         return [(scored.note, scored.score) for scored in ranked]
 
     def update_status(self, note_id: str, status: NoteStatus) -> None:
-        row = self._conn.execute(
-            "SELECT data FROM notes WHERE note_id = ?", (note_id,)
-        ).fetchone()
+        row = self._conn.execute("SELECT data FROM notes WHERE note_id = ?", (note_id,)).fetchone()
         if row is None:
             raise NotFoundError(f"note {note_id} not found")
         updated = self._adapter.validate_json(row[0]).with_status(status)

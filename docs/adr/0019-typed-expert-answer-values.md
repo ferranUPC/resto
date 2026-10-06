@@ -5,7 +5,7 @@
 - Architecture reference: [`tfm-architecture-and-dod.md`](../tfm-architecture-and-dod.md) §2.3
   (`ExpertAnswer`), §4.7; [ADR-0011](0011-network-expert-knowledge-model.md),
   [ADR-0018](0018-network-expert-tools-and-evidence-refs.md);
-  [`evaluating-resto.md`](../evaluating-resto.md) §4.3–§4.4; work-plan E3.3
+  [`eval/README.md`](../../eval/README.md) §4.3–§4.4; work-plan E3.3
 
 ## Context
 
@@ -31,7 +31,7 @@ below it — and an LLM extractor would add a paid call per answer plus its own 
 
 ## Consequences
 
-- Scoring is deterministic: no extractor, no judge (`evaluating-resto.md` §4.4).
+- Scoring is deterministic: no extractor, no judge (`eval/README.md` §4.4).
 - Hallucinated edge ids in the answer are rejected at promotion; they no longer pass unseen.
 - `submit_output`'s schema grows by about 1,500 characters, resent on every agent step — negligible next to
   the edgedata payloads that dominate input tokens.

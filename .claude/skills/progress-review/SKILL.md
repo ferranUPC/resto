@@ -1,6 +1,6 @@
 ---
 name: progress-review
-description: Reviews docs/tfm-work-plan.md against the real state of the repo, updates docs/progress-tracker.md, and writes a dated subjective feasibility analysis to docs/feasability-analisis/{yyyy-mm-dd}.md. Designed to run unattended on a schedule — commits its output on a branch and opens a PR against master.
+description: Reviews docs/tfm-work-plan.md against the real state of the repo, updates docs/progress-tracker.md, and writes a dated subjective feasibility analysis to docs/progress-reviews/{yyyy-mm-dd}.md. Designed to run unattended on a schedule — commits its output on a branch and opens a PR against master.
 model: sonnet
 effort: high
 ---
@@ -21,7 +21,7 @@ Runs a check of real progress on the RESTO TFM against the plan, and records an 
 - For every task in `docs/progress-tracker.md`, re-check its status (⬜ not started / 🔄 in progress / ✅ done) against the evidence gathered and against its DoD criteria in §4.x of the architecture doc. A task becomes ✅ only when it meets its Done/threshold, never just because related code exists.
 - The statuses, and the tracker's legend line, are exactly these (decided 2026-09-24, wayfinder #3):
   - ⬜ not started · 🔄 in progress · ✅ done.
-  - ⏳ **awaiting measurement**: the work is built and every development run it needs has been done; the only thing between it and ✅ is a measurement suite in `docs/evaluating-resto.md` §7.2, which runs in Validation 1 or 2. The Notes name the suite and say whether the development evidence (e.g. a 1-repetition sweep) already meets the threshold. A deferred paid run is never a reason for 🚧.
+  - ⏳ **awaiting measurement**: the work is built and every development run it needs has been done; the only thing between it and ✅ is a measurement suite in `eval/measurement-plans.md`, which runs in Validation 1 or 2. The Notes name the suite and say whether the development evidence (e.g. a 1-repetition sweep) already meets the threshold. A deferred paid run is never a reason for 🚧.
   - 🚧 **blocked**: cannot proceed for a stated reason outside our control (an external person, data or service); the Notes say what unblocks it.
 - A ⏳ task turns ✅ only on its suite's result in a validation pass; Validation 1's reduced checkpoints are interim and never turn a task ✅.
 - **Do not trust the tracker's existing state as already correct, even for rows that didn't change since the last commit you can see.** A prior update to this file may have been made interactively (not by this skill) and can be incomplete — e.g. a task's code and tests landed and got described in another task's Notes or in the feasibility write-up's prose, but its own row was never flipped to ✅. Cross-check every non-✅ row against `git log`/the repo tree for evidence it was actually finished, not just against the diff since the tracker's last "Last updated" date.
@@ -30,7 +30,7 @@ Runs a check of real progress on the RESTO TFM against the plan, and records an 
 
 ## 3. Write the feasibility analysis
 
-- Create `docs/feasability-analisis/{yyyy-mm-dd}.md` using today's date (e.g. `date +%F`).
+- Create `docs/progress-reviews/{yyyy-mm-dd}.md` using today's date (e.g. `date +%F`).
 - The content is a **subjective, opinionated** read of how the project is going — not a restatement of the tracker table. Cover:
   - Pace vs. the calendar in `tfm-work-plan.md` (v0.3: plan hours are story points, 38.5 pts/week, ≈ +170 pts of slack; each milestone has a target and a deadline, each task a wave and a latest due — say plainly whether milestone targets are being met, and whether any deadline is at risk).
   - Whether the milestones look achievable at the current velocity, especially **M2, M3, M5**, which §5 of the work plan says must not be cut.
@@ -55,7 +55,7 @@ Runs a check of real progress on the RESTO TFM against the plan, and records an 
 
 ## 4. Persist
 
-- Stage and commit `docs/progress-tracker.md`, the new `docs/feasability-analisis/{yyyy-mm-dd}.md` and `docs/diary.md`, with a short commit message naming the review date (e.g. `Progress review 2026-09-17`).
+- Stage and commit `docs/progress-tracker.md`, the new `docs/progress-reviews/{yyyy-mm-dd}.md` and `docs/diary.md`, with a short commit message naming the review date (e.g. `Progress review 2026-09-17`).
 - Before starting step 1, make sure you work on top of the latest `origin/master` (`git fetch origin master`), so the review sees everything pushed so far.
 - Commit on a branch (the session's designated `claude/*` branch in a cloud run, or `progress-review/{yyyy-mm-dd}` otherwise), never directly on `master`. Push that branch to `origin` and **open a pull request against `master`** titled `Progress review {yyyy-mm-dd}`. The PR body holds the run's summary: tasks whose status changed, test/ruff/mypy results, and the feasibility recommendation in one or two sentences. The maintainer merges it.
 - Open the PR with whatever GitHub tool the environment provides (`gh pr create`, or a built-in pull-request tool). If none works, say so clearly in the run's output and give the compare URL that `git push` printed, so the PR can be opened by hand.

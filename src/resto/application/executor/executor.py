@@ -1,4 +1,4 @@
-"""The study flow (docs/study-flows.md §2-§3): the phase loop and nothing else. Every phase is a
+"""The study flow (ADR-0023, ADR-0030): the phase loop and nothing else. Every phase is a
 function of its own module; the loop owns the study's network id and the last evidence ledger and
 hands them to the phases that read them."""
 

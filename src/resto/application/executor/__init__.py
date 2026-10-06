@@ -1,6 +1,6 @@
 """Executor (ADR-0023, ADR-0025, ADR-0026, ADR-0027): user text -> a closed `Study`, by
 deterministic code. It decides nothing about the domain: agents decide, promotion use cases
-certify, this module chains them (docs/study-flows.md §2-§3).
+certify, this module chains them.
 
     parse -> Study (phase 0) -> [plan -> validate -> execute steps -> ask the Expert]* -> notes
     -> report

@@ -62,6 +62,30 @@ class Export:
     external: tuple[dict[str, Any], ...]
 
 
+# Exports written before ADR-0038 carry labels the four-intent vocabulary no longer has. They stay
+# as written on disk; the scorer reads them through this table, keyed by the old label string.
+#
+# Bias: the table is many-to-one. An old annotator who put `counterfactual` on a concept whose gold
+# is now `run` is scored as a miss, because the label is read as `compare`. The scorer is left
+# as is on purpose; see eval/decisions-log.md.
+_OLD_INTENT_LABELS = {"counterfactual": "compare"}
+
+
+def _migrate_question(question: Mapping[str, Any]) -> dict[str, Any]:
+    """A copy of one stored question dict with an old intent label mapped to a current one."""
+    intent = question.get("intent")
+    return {**question, "intent": _OLD_INTENT_LABELS.get(str(intent), intent)}
+
+
+def _migrate_external(item: Mapping[str, Any]) -> dict[str, Any]:
+    """A copy of one external item whose question, if it has one, carries a current intent. An
+    item without a question, or with a null one, keeps exactly that shape."""
+    question = item.get("question")
+    if not isinstance(question, Mapping):
+        return dict(item)
+    return {**item, "question": _migrate_question(question)}
+
+
 def parse_export(data: Mapping[str, Any]) -> Export:
     if "payload" in data and "format" not in data:
         data = json.loads(data["payload"])
@@ -74,14 +98,16 @@ def parse_export(data: Mapping[str, Any]) -> Export:
             annotator=annotator,
             concept_id=item["concept_id"],
             done=bool(item.get("done")),
-            question=None if item.get("question") is None
-            else adapter.validate_python(item["question"]),
+            question=None
+            if item.get("question") is None
+            else adapter.validate_python(_migrate_question(item["question"])),
             notes=item.get("notes", ""),
             issues=tuple(item.get("issues", ())),
         )
         for item in data.get("held_out", ())
     )
-    return Export(annotator, held, tuple(data.get("external", ())))
+    external = tuple(_migrate_external(item) for item in data.get("external", ()))
+    return Export(annotator, held, external)
 
 
 def load_export(path: Path) -> Export:
@@ -108,9 +134,11 @@ def score_against_gold(
     by_id = {c.id: c for c in concepts}
     return [
         (
-            a, by_id[a.concept_id],
+            a,
+            by_id[a.concept_id],
             score_request(
-                by_id[a.concept_id].gold, a.question,
+                by_id[a.concept_id].gold,
+                a.question,
                 ALSO_ACCEPTED.get(a.concept_id, frozenset()),
             ),
         )
@@ -144,8 +172,10 @@ def pairwise(a: Export, b: Export) -> dict[str, Any]:
     arms = [
         arm_structure(ours[c], theirs[c])
         for c in shared
-        if not ours[c].is_ambiguous and not theirs[c].is_ambiguous
-        and ours[c].effective_arms and theirs[c].effective_arms
+        if not ours[c].is_ambiguous
+        and not theirs[c].is_ambiguous
+        and ours[c].effective_arms
+        and theirs[c].effective_arms
     ]
     return {
         "annotators": (a.annotator, b.annotator),
@@ -211,8 +241,7 @@ def render(exports: Sequence[Export], concepts: Sequence[Concept] = CONCEPTS) ->
                 f"{_mark(s.arm_structure if s.multi_arm else None)} |"
             )
         disagreements = [
-            (a, c, s) for a, c, s in scored
-            if failed_fields_of(s) or s.spurious_ambiguity
+            (a, c, s) for a, c, s in scored if failed_fields_of(s) or s.spurious_ambiguity
         ]
         if disagreements:
             lines += ["", "### Disagreements", ""]
@@ -227,9 +256,12 @@ def render(exports: Sequence[Export], concepts: Sequence[Concept] = CONCEPTS) ->
                 *(f"    {line}" for line in _gold_lines(concept)),
                 "",
                 "Annotator:",
-                *(f"    {line}" for line in (
-                    describe_question(ann.question) if ann.question else ["(no Question)"]
-                )),
+                *(
+                    f"    {line}"
+                    for line in (
+                        describe_question(ann.question) if ann.question else ["(no Question)"]
+                    )
+                ),
                 "",
             ]
             if ann.notes:
@@ -273,13 +305,15 @@ def external_requests(exports: Sequence[Export]) -> list[dict[str, Any]]:
             if not item.get("text") or not item.get("done") or item.get("question") is None:
                 continue
             adapter_for(Question).validate_python(item["question"])  # fail early on a bad one
-            out.append({
-                "id": f"X-{export.annotator}-{item['id']}",
-                "author": export.annotator,
-                "text": item["text"],
-                "question": item["question"],
-                "notes": item.get("notes", ""),
-            })
+            out.append(
+                {
+                    "id": f"X-{export.annotator}-{item['id']}",
+                    "author": export.annotator,
+                    "text": item["text"],
+                    "question": item["question"],
+                    "notes": item.get("notes", ""),
+                }
+            )
     return out
 
 
@@ -287,8 +321,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("exports", nargs="+", type=Path)
     parser.add_argument("--out", type=Path, help="write the Markdown report here")
-    parser.add_argument("--external-out", type=Path,
-                        help="write the annotators' own requests (with their gold) here")
+    parser.add_argument(
+        "--external-out",
+        type=Path,
+        help="write the annotators' own requests (with their gold) here",
+    )
     args = parser.parse_args()
     exports = [load_export(p) for p in args.exports]
     report = render(exports)
@@ -299,8 +336,9 @@ def main() -> None:
         print(report)
     if args.external_out:
         external = external_requests(exports)
-        args.external_out.write_text(json.dumps(external, indent=2, ensure_ascii=False) + "\n",
-                                     encoding="utf-8")
+        args.external_out.write_text(
+            json.dumps(external, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+        )
         print(f"{len(external)} external requests written to {args.external_out}")
 
 

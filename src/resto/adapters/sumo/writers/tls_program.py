@@ -69,9 +69,7 @@ class TlsProgramWriter:
 
         waut_id = f"waut_{target.tls_id}"
         root = ET.Element("additional")
-        waut = ET.SubElement(
-            root, "WAUT", id=waut_id, startProg=original_program_id, refTime="0"
-        )
+        waut = ET.SubElement(root, "WAUT", id=waut_id, startProg=original_program_id, refTime="0")
         ET.SubElement(waut, "wautSwitch", time=_num(window.start), to=program_id)
         ET.SubElement(waut, "wautSwitch", time=_num(window.end), to=original_program_id)
         ET.SubElement(

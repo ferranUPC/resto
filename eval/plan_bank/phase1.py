@@ -1,10 +1,13 @@
-"""The phase-1 section of the plan bank (E3.7 ticket 04): one case per counterfactual concept.
+"""The phase-1 section of the plan bank (E3.7 ticket 04): one case per former
+counterfactual concept.
 
-A counterfactual plans only the reference arms in phase 0 and leaves the treatments for the Expert
-to ask for (ADR-0025 §2). A phase-1 case gives the Coordinator the question plus a `PlanningContext`
-with the phase-0 experiments already realised, and its gold is the plan with only the arms still
-missing: the treatments. It tests that the Coordinator does not repeat a realised arm
-(`plan_validation._coverage_problems`).
+Stopgap until E3.7 reworks this set (ADR-0038): phase 0 now plans every arm a question needs, so
+the planner no longer leaves treatments for the Expert. The cases keep the old shape by building
+their context locally: the realised arms are the reference side of the contrasts, and the case asks
+for the treatments (ADR-0025 §2, replaced). A phase-1 case gives the Coordinator the question plus
+a `PlanningContext` with the phase-0 experiments already realised, and its gold is the plan with
+only the arms still missing: the treatments. It tests that the Coordinator does not repeat a
+realised arm (`plan_validation._coverage_problems`).
 
 The cases are stored in `phase1.json`, apart from the 54 phase-0 plans (`plans.json`), and do not
 count towards them. The ids of the context (network, scenarios) are placeholders: a bank has no
@@ -24,13 +27,20 @@ from eval.plan_bank.propose import propose_plan
 from eval.request_bank.concepts import Concept, concept_by_id
 from resto.application.ports.agents.coordinator import PlanningContext
 from resto.application.schemas import adapter_for
-from resto.domain.services.experiment_design import needed_arms
+from resto.domain.value_objects.arm import BASE_ARM
 from resto.domain.value_objects.experiment import Experiment
-from resto.domain.value_objects.question import Intent, Question
+from resto.domain.value_objects.question import Question
 from resto.domain.value_objects.study_plan import BuildScenarioStep, StudyPlan
 
 PHASE1_PATH = Path(__file__).parent / "phase1.json"
 PHASE = 1
+
+# The sixteen concepts that were gold `counterfactual` and are `compare` after r9 ticket 03. The
+# eight that became `run` plan no base arm, so they have no reference side to realise first.
+PHASE1_IDS = (
+    "R001", "R010", "R011", "R012", "R014", "R016", "R018", "R022",
+    "R023", "R026", "R028", "R033", "R035", "R036", "R061", "R062",
+)  # fmt: skip
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,12 +50,8 @@ class Phase1Case:
 
 
 def phase1_concepts() -> list[Concept]:
-    """The concepts that get a phase-1 case: the counterfactual ones."""
-    return [
-        c
-        for c in planned_concepts()
-        if isinstance(c.gold, Question) and c.gold.intent is Intent.COUNTERFACTUAL
-    ]
+    """The concepts that get a phase-1 case: the former counterfactual ones that are `compare`."""
+    return [c for c in planned_concepts() if c.id in PHASE1_IDS]
 
 
 def phase1_question(concept_id: str) -> Question:
@@ -55,10 +61,21 @@ def phase1_question(concept_id: str) -> Question:
     return gold
 
 
+def _reference_side(question: Question) -> tuple[str, ...]:
+    """The reference side of every contrast, in the question's order (the retired phase-0 rule)."""
+    contrasts = question.effective_contrasts
+    if not contrasts:
+        return (BASE_ARM,)
+    wanted = {c.reference for c in contrasts}
+    ordered = [BASE_ARM, *(a.label for a in question.effective_arms)]
+    return tuple(label for label in ordered if label in wanted)
+
+
 def build_case(concept_id: str, question: Question, phase0: StudyPlan | None = None) -> Phase1Case:
     """The context phase 0 leaves behind and the plan for what is still missing. `phase0` is the
     stored (possibly corrected) phase-0 plan; the proposal when not given."""
     phase0 = propose_plan(question) if phase0 is None else phase0
+    reference = _reference_side(question)
     experiments = tuple(
         Experiment(
             scenario_id=f"scenario-{concept_id}-{s.arm}",
@@ -67,9 +84,9 @@ def build_case(concept_id: str, question: Question, phase0: StudyPlan | None = N
             purpose=s.purpose,
         )
         for s in phase0.steps
-        if isinstance(s, BuildScenarioStep)
+        if isinstance(s, BuildScenarioStep) and s.arm in reference
     )
-    if tuple(e.arm for e in experiments) != needed_arms(question, 0):
+    if tuple(e.arm for e in experiments) != reference:
         raise ValueError(f"{concept_id}: phase 0 does not realise the arms it needs")
     context = PlanningContext(
         phase=PHASE, network_id=f"network-{concept_id}", experiments=experiments

@@ -19,7 +19,7 @@ The capability as written cannot carry what the Demand Generator will need:
 - `get_historical_demand(network_id, day_type, hour)` returns one number per edge. It has no detector, no
   real date, no interval length, and no room for a measurement over a whole road or for an origin-destination
   matrix.
-- `CONTEXT.md` already defines **Traffic counts** as per detector and interval, which the contract
+- `GLOSSARY.md` already defines **Traffic counts** as per detector and interval, which the contract
   contradicted.
 - A "typical Monday" is not data. It is computed from measured days, so a stored `day_type` mixes
   measurement with an aggregation someone else chose.
@@ -100,7 +100,7 @@ The capability as written cannot carry what the Demand Generator will need:
   `historical_demand` as a source is replaced by this decision; the calibration loop is unchanged.
 - E5.6 negotiates `raw_demand_data` and checks `list_demand_data`. E6.5 no longer includes the synthetic
   `historical_demand`; E6.8 and E6.9 take it.
-- `CONTEXT.md` gains **Raw demand data**, **Observation interval**, **Traffic flows**, **OD matrix** and
+- `GLOSSARY.md` gains **Raw demand data**, **Observation interval**, **Traffic flows**, **OD matrix** and
   **Zone map**; **Traffic counts** and **Demand** are reworded.
 
 ## Alternatives considered

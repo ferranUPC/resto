@@ -107,7 +107,8 @@ def _intervention(target: EdgeTarget | LaneTarget | TlsTarget | None) -> Interve
             InterventionType.DEMAND_SCALE, None, {"factor": 1.2}, window=TimeWindow(0.0, 300.0)
         )
     kind = (
-        InterventionType.SIGNAL_PROGRAM if isinstance(target, TlsTarget)
+        InterventionType.SIGNAL_PROGRAM
+        if isinstance(target, TlsTarget)
         else InterventionType.LANE_CLOSURE
     )
     return Intervention(kind, target, window=TimeWindow(0.0, 300.0))

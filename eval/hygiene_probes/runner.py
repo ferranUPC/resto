@@ -1,5 +1,5 @@
 """Runs each probe against the real Expert and records whether it violated the hygiene rule
-(docs/evaluating-resto.md §4.8): forced mode (must answer), `notes_allowed=True`,
+(eval/README.md §4.8): forced mode (must answer), `notes_allowed=True`,
 `result_ids=()` so the only route to an answer is the one seeded note or the Expert's own topology
 reasoning — never real simulated data, which does not exist for these probes.
 
@@ -118,15 +118,21 @@ def _run_once(
     cost_policy: CostPolicy,
 ) -> dict[str, Any]:
     task = ExpertTask(
-        question=probe.question, mode=Mode.FORCED, network_ids=(probe.network_id,),
-        result_ids=(), notes_allowed=True,
+        question=probe.question,
+        mode=Mode.FORCED,
+        network_ids=(probe.network_id,),
+        result_ids=(),
+        notes_allowed=True,
     )
     ledger = EvidenceLedger()
     started = time.monotonic()
     loader = FixedNetworkQueryLoader(query)
     context = expert_context(
-        task, loader=loader, results=InMemoryResultRepository(),
-        scenarios=InMemoryScenarioRepository(), notes=_seeded_notes(probe),
+        task,
+        loader=loader,
+        results=InMemoryResultRepository(),
+        scenarios=InMemoryScenarioRepository(),
+        notes=_seeded_notes(probe),
     )
     run = run_expert(task, agent, budget, context, ledger)
     elapsed = time.monotonic() - started
@@ -144,9 +150,9 @@ def _run_once(
         "expert_version": EXPERT_VERSION,
         "stop_reason": run.stop_reason.value,
         "rejection": rejection,
-        "answer": None if answer is None else adapter_for(ExpertAnswer).dump_python(
-            answer, mode="json"
-        ),
+        "answer": None
+        if answer is None
+        else adapter_for(ExpertAnswer).dump_python(answer, mode="json"),
         "cited_note_search": _cited_note_search(answer, ledger),
         "violation": _violates_hygiene(answer, ledger),
         "input_tokens": run.usage.input_tokens,

@@ -1,5 +1,7 @@
 # Input Parser benchmark — v6-dev
 
+> **Superseded on `intent` by ADR-0038 (2026-10-06): this run scores `intent` against the gold that still had `counterfactual`, a value that no longer exists. Not re-scored: its Parser taught `counterfactual`, so against the new gold the number would measure the removed label, not the Parser. Every other metric is unaffected. The raw run is untouched; current intent figures are in `v8-dev`.**
+
 232 requests, 232 runs (repetitions [1]), models ['deepseek/deepseek-v4.1-flash'], parser ['v6']; $0.2633, mean 5497 input / 517 output tokens; stop reasons {'output': 232}.
 
 | Metric | Result | 95 % CI by concept | E5.1 threshold | Met |

@@ -1,7 +1,8 @@
 # ADR-0025: Executor contract — plan shape, planning rules by intent, typed failures, forced last round
 
 - Status: Accepted — completes ADR-0023; amends its free-mode loop (last round) and the §5 GP-11 row;
-  §2 gains a network-only `describe` row ([ADR-0035](0035-described-demand-no-default.md))
+  §2 gains a network-only `describe` row ([ADR-0035](0035-described-demand-no-default.md));
+  the `counterfactual` row of §2 is replaced by [ADR-0038](0038-no-counterfactual-intent-contrast-decides-the-arms.md)
 - Date: 2026-09-23
 - Architecture reference: [`tfm-architecture-and-dod.md`](../tfm-architecture-and-dod.md) §2.2, §2.3
   (`Study`, `StudyPlan`, `StepRecord`, `Experiment`, `ExpertRound`), §4.2, §4.8, §5;
@@ -82,7 +83,7 @@ fixed limitation line when the last round carries it. The loop of ADR-0023 becom
 
 ```python
 round = ask_expert(original_question, all_results, mode=mode_for(round_no=1))
-while round.needs_simulation:                    # only possible while mode_for(...) is free
+while round.needs_simulation:  # only possible while mode_for(...) is free
     plan = coordinator(round.answer.proposed_experiment)
     execute(plan)
     round = ask_expert(original_question, all_results, mode=mode_for(round_no + 1))
@@ -105,7 +106,7 @@ infrastructure bound in the composition root (`interface/cli`). Promotion use ca
 
 - Domain (E5.9): `StudyPlan` with `network_id`, `reused` and possibly no steps; `ReusedExperiment`;
   `role`/`purpose` on the `build_scenario` step variant; `Experiment.reused`; `StepError` replacing the
-  string; `ExpertRound.forced_by_limit`. Schemas and `docs/class_diagram.md` regenerated.
+  string; `ExpertRound.forced_by_limit`. Schemas regenerated.
 - Executor (E5.10): step classification into `StepError`, `mode_for`, `DEFAULT_SEEDS`, the ports of
   decision 6. Each specialist task that builds an agent (E5.1, E5.2, E6.1, E6.2) also provides its port
   implementation.
@@ -114,8 +115,8 @@ infrastructure bound in the composition root (`interface/cli`). Promotion use ca
 - Gold plans (E3.4) contain `network_id`, `reused` and role/purpose, follow decision 2, and may have zero
   steps. Golden-path traces start with the Input Parser (ADR-0023).
 - §5's GP-11 row is read as a `run` request; its trace is unchanged. The frozen v1.0 body is not edited.
-- `docs/study-flows.md` documents every flow under this ADR and replaces `study_flow_diagram.md` and
-  `agent_communication_diagram.md` (moved to `docs/_old/`).
+- `docs/study-flows.md` documents every flow under this ADR and replaces the two older flow and
+  communication diagrams (moved to `docs/_old/`, later deleted). The file is pending regeneration.
 - Still open, unchanged: `ExpertTask` over a base and a derived network (ADR-0023), decided in E5.3.
 
 ## Alternatives considered

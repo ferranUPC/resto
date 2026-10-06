@@ -9,7 +9,7 @@
       "type": "string"
     }
   },
-  "description": "One Expert round. `network_ids` is the study's network scope (`CONTEXT.md`) as it stood\nwhen the round started (ADR-0032).",
+  "description": "One Expert round. `network_ids` is the study's network scope (`GLOSSARY.md`) as it stood\nwhen the round started (ADR-0032).",
   "properties": {
     "mode": {
       "$ref": "#/$defs/Mode"

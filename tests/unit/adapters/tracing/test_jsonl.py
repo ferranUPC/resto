@@ -53,11 +53,14 @@ def _events() -> list[TraceEvent]:
         NoteStatusChanged("note-1", "res-1", NoteStatus.CONFIRMED),
         NoteWriterFailed("ValueError: bad"),
         PhaseStarted(1),
-        PlanMade(1, StudyPlan(
+        PlanMade(
+            1,
+            StudyPlan(
                 network_id=FromStep(0),
                 rationale="baseline only",
                 steps=(ObtainNetworkStep("RIVERSIDE"),),
-            )),
+            ),
+        ),
         ExpertRoundHeld(1, 2),
         ReportComposed(),
     ]

@@ -137,9 +137,7 @@ _KEEP_SPREAD = (
 
 
 def rewrite_prompt(base: str, spec: VariantSpec, spread_demand: bool = False) -> str:
-    lines = [
-        f"Write it in {LANGUAGES[spec.lang]}." if spec.lang != "en" else "Keep it in English."
-    ]
+    lines = [f"Write it in {LANGUAGES[spec.lang]}." if spec.lang != "en" else "Keep it in English."]
     if spec.style is not None:
         lines.append(_STYLE[spec.style])
     if spec.vague is not None:
@@ -235,8 +233,13 @@ def apply_noise(text: str, spec: VariantSpec, seed: str) -> str:
 
 def _record(concept: Concept, spec: VariantSpec, **rest: Any) -> VariantRecord:
     return VariantRecord(
-        id=concept.variant_id(spec), concept_id=concept.id, lang=spec.lang,
-        style=spec.style, vague=spec.vague, noise=spec.noise, **rest,
+        id=concept.variant_id(spec),
+        concept_id=concept.id,
+        lang=spec.lang,
+        style=spec.style,
+        vague=spec.vague,
+        noise=spec.noise,
+        **rest,
     )
 
 
@@ -246,8 +249,13 @@ def generate_variant(
     variant_id = concept.variant_id(spec)
     if not spec.needs_llm:
         return _record(
-            concept, spec, text=apply_noise(concept.text, spec, variant_id), generated=None,
-            back_translation=None, verified=True, notes=("code noise only",),
+            concept,
+            spec,
+            text=apply_noise(concept.text, spec, variant_id),
+            generated=None,
+            back_translation=None,
+            verified=True,
+            notes=("code noise only",),
         )
 
     cost = 0.0

@@ -72,9 +72,7 @@ class RerouterWriter:
             closed_id, reroute_tag = target.edge_id, "closingReroute"
 
         root = ET.Element("additional")
-        rerouter = ET.SubElement(
-            root, "rerouter", id=f"rerouter_{closed_id}", edges=target.edge_id
-        )
+        rerouter = ET.SubElement(root, "rerouter", id=f"rerouter_{closed_id}", edges=target.edge_id)
         interval = ET.SubElement(
             rerouter, "interval", begin=_num(window.start), end=_num(window.end)
         )

@@ -20,8 +20,7 @@ WHAT_TO_DO: dict[StepErrorKind, str] = {
     ),
     StepErrorKind.BUDGET: "Narrow the question, or rerun it with an explicitly raised budget.",
     StepErrorKind.AGENT: (
-        "Retry the request, or change the approach (for example, say differently what to "
-        "simulate)."
+        "Retry the request, or change the approach (for example, say differently what to simulate)."
     ),
     StepErrorKind.INFRASTRUCTURE: (
         "Nothing to change on your side: the environment failed (see the logs named above). "

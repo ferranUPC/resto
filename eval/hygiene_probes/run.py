@@ -1,4 +1,4 @@
-"""Knowledge-hygiene probes CLI (E4.6; docs/evaluating-resto.md §4.8). Spends API credit: run
+"""Knowledge-hygiene probes CLI (E4.6; eval/README.md §4.8). Spends API credit: run
 by hand only.
 
     python -m eval.hygiene_probes.run --name smoke --probes S00-desc-occ S00-desc-tt \

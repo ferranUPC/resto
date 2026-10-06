@@ -4,7 +4,7 @@
 - Date: 2026-09-17
 - Architecture reference: [`tfm-architecture-and-dod.md`](../tfm-architecture-and-dod.md) §2.2, §4.7;
   [ADR-0011](0011-network-expert-knowledge-model.md), [ADR-0018](0018-network-expert-tools-and-evidence-refs.md);
-  [`expert-tuning-log.md`](../expert-tuning-log.md) v0 → v1
+  [`expert-tuning-log.md`](../tuning/expert-tuning-log.md) v0 → v1
 
 ## Context
 

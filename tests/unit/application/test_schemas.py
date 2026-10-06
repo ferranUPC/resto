@@ -78,7 +78,7 @@ def test_domain_invariants_fire_during_validation() -> None:
 def test_question_from_llm_json() -> None:
     raw = {
         "text": "what if we add an edge between J7 and J9?",
-        "intent": "counterfactual",
+        "intent": "compare",
         "topology_changes": [
             {
                 "kind": "add_edge",
@@ -92,7 +92,7 @@ def test_question_from_llm_json() -> None:
     }
     q = ADAPTERS["Question"].validate_python(raw)
     assert isinstance(q, Question)
-    assert q.intent is Intent.COUNTERFACTUAL
+    assert q.intent is Intent.COMPARE
     assert isinstance(q.topology_changes[0], AddEdge)
 
 

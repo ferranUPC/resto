@@ -51,7 +51,7 @@ the code it would rewrite.
    at a failure; a rerun reuses everything promoted (ADR-0025 decision 3). When no window can be derived
    for the demand, the Demand Generator asks for the period, and "it does not matter" is a valid answer.
 5. **The study window is derived by code from the `Question`:** the smallest interval that contains the
-   window of every intervention in every arm (`CONTEXT.md`, **Study window**). One demand serves all arms.
+   window of every intervention in every arm (`GLOSSARY.md`, **Study window**). One demand serves all arms.
 6. **Reuse of scenarios is found by the Executor, not planned.** Before calling the Scenario Builder, the
    Executor looks the scenario up by the hash of the typed request and, when its `ok` results exist, marks
    it `reused`. `StudyPlan.reused` is dropped. One thing to verify when this is built: `build_scenario`

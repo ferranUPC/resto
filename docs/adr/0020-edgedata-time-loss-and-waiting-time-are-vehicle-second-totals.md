@@ -3,7 +3,7 @@
 - Status: Accepted — amends [`DATABASE_MCP_CONTRACT.md`](../DATABASE_MCP_CONTRACT.md) v1.0 §5.4
 - Date: 2026-09-17
 - Architecture reference: [`tfm-architecture-and-dod.md`](../tfm-architecture-and-dod.md) §4.7, §4.9;
-  [ADR-0019](0019-typed-expert-answer-values.md); [`evaluating-resto.md`](../evaluating-resto.md) §4.1
+  [ADR-0019](0019-typed-expert-answer-values.md); [`eval/README.md`](../../eval/README.md) §4.1
 
 ## Context
 

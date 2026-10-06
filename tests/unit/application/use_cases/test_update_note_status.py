@@ -98,17 +98,20 @@ def test_a_note_with_no_checkable_claim_stays_unverified(value: AnswerValue) -> 
 
 
 def test_a_per_edge_quantity_claim_is_not_checked_by_this_first_version() -> None:
-    claim = Quantity(
-        measure=Measure.TRAVEL_TIME, value=20.0, edge_id="E12", network_id="abc123"
-    )
+    claim = Quantity(measure=Measure.TRAVEL_TIME, value=20.0, edge_id="E12", network_id="abc123")
     status = update_note_status(_note(values=(claim,)), _result(), notes=InMemoryNoteRepository())
     assert status is None
 
 
 def test_a_result_without_kpis_is_ignored() -> None:
     failed = SimulationResult(
-        result_id="r2", scenario_id=SCENARIO, seed=1, mode=RunMode.BATCH,
-        status=RunStatus.FAILED, content_hash="c2", error="sumo crashed",
+        result_id="r2",
+        scenario_id=SCENARIO,
+        seed=1,
+        mode=RunMode.BATCH,
+        status=RunStatus.FAILED,
+        content_hash="c2",
+        error="sumo crashed",
     )
     status = update_note_status(_note(), failed, notes=InMemoryNoteRepository())
     assert status is None

@@ -52,7 +52,8 @@ class GoldAgent:
             return AgentRun(None, (), usage, StopReason.BUDGET)
         gold = request.gold
         question = (
-            gold if isinstance(gold, Question)
+            gold
+            if isinstance(gold, Question)
             else Question(text=text, intent=Intent.DESCRIBE, ambiguities=("which?",))
         )
         return AgentRun(question, (), usage, StopReason.OUTPUT)
@@ -79,8 +80,13 @@ def test_runs_are_stored_and_resumed(tmp_path: Path) -> None:
     out = tmp_path / "runs.jsonl"
     agent = GoldAgent(requests)
     first = run_benchmark(
-        requests, repetitions=1, agent=agent, budget=BUDGET, out_file=out,
-        cost_policy=_policy(), log=lambda _: None,
+        requests,
+        repetitions=1,
+        agent=agent,
+        budget=BUDGET,
+        out_file=out,
+        cost_policy=_policy(),
+        log=lambda _: None,
     )
     assert first.ran == len(requests) and first.skipped_done == 0
     records = load_records(out)
@@ -88,8 +94,13 @@ def test_runs_are_stored_and_resumed(tmp_path: Path) -> None:
     assert records[0]["question"]["intent"] == "compare"
 
     second = run_benchmark(
-        requests, repetitions=1, agent=agent, budget=BUDGET, out_file=out,
-        cost_policy=_policy(), log=lambda _: None,
+        requests,
+        repetitions=1,
+        agent=agent,
+        budget=BUDGET,
+        out_file=out,
+        cost_policy=_policy(),
+        log=lambda _: None,
     )
     assert second.skipped_done == len(requests) and second.ran == 0
     assert len(load_records(out)) == len(requests)
@@ -103,8 +114,13 @@ def test_an_estimate_over_the_cap_is_refused_before_any_run(tmp_path: Path) -> N
     out = tmp_path / "runs.jsonl"
     with pytest.raises(CostCapExceededError):
         run_benchmark(
-            requests, repetitions=1, agent=GoldAgent(requests), budget=BUDGET, out_file=out,
-            cost_policy=_policy(price_per_job=0.1, max_cost_usd=0.5), log=lambda _: None,
+            requests,
+            repetitions=1,
+            agent=GoldAgent(requests),
+            budget=BUDGET,
+            out_file=out,
+            cost_policy=_policy(price_per_job=0.1, max_cost_usd=0.5),
+            log=lambda _: None,
         )
     assert load_records(out) == []
 
@@ -114,8 +130,13 @@ def test_a_crash_is_logged_and_retried_next_time(tmp_path: Path) -> None:
     out = tmp_path / "runs.jsonl"
     logs: list[str] = []
     outcome = run_benchmark(
-        requests, repetitions=1, agent=GoldAgent(requests, crash=frozenset({requests[0].id})),
-        budget=BUDGET, out_file=out, cost_policy=_policy(), log=logs.append,
+        requests,
+        repetitions=1,
+        agent=GoldAgent(requests, crash=frozenset({requests[0].id})),
+        budget=BUDGET,
+        out_file=out,
+        cost_policy=_policy(),
+        log=logs.append,
     )
     assert outcome.crashed == 1 and outcome.ran == 1
     assert any("CRASH" in line for line in logs)
@@ -126,8 +147,13 @@ def test_a_failed_parse_records_why(tmp_path: Path) -> None:
     requests = _requests("R001")[:1]
     out = tmp_path / "runs.jsonl"
     run_benchmark(
-        requests, repetitions=1, agent=GoldAgent(requests, fail=frozenset({requests[0].id})),
-        budget=BUDGET, out_file=out, cost_policy=_policy(), log=lambda _: None,
+        requests,
+        repetitions=1,
+        agent=GoldAgent(requests, fail=frozenset({requests[0].id})),
+        budget=BUDGET,
+        out_file=out,
+        cost_policy=_policy(),
+        log=lambda _: None,
     )
     (record,) = load_records(out)
     assert record["question"] is None and record["stop_reason"] == "budget"
@@ -140,8 +166,13 @@ def test_the_report_scores_every_run_and_lists_failures(tmp_path: Path) -> None:
     out = tmp_path / "runs.jsonl"
     for rep in (1, 2):
         run_benchmark(
-            requests, repetitions=rep, agent=GoldAgent(requests, fail=frozenset({broken})),
-            budget=BUDGET, out_file=out, cost_policy=_policy(), log=lambda _: None,
+            requests,
+            repetitions=rep,
+            agent=GoldAgent(requests, fail=frozenset({broken})),
+            budget=BUDGET,
+            out_file=out,
+            cost_policy=_policy(),
+            log=lambda _: None,
         )
     scored = score_records(load_records(out), bank_requests())
     summary = summarize_run(scored)

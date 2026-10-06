@@ -136,11 +136,7 @@ def bottleneck_causes(
     for rank, edge_id in enumerate(top_edges):
         end_node = topology.edge_nodes[edge_id][1]
         higher_ranked_starts = {topology.edge_nodes[e][0] for e in top_edges[:rank]}
-        if (
-            edge_id in target_edges
-            or end_node in target_start_nodes
-            or edge_id in target_tls_edges
-        ):
+        if edge_id in target_edges or end_node in target_start_nodes or edge_id in target_tls_edges:
             causes.append(BottleneckCause.INTERVENTION)
         elif edge_id in topology.lane_drop_edges:
             causes.append(BottleneckCause.MERGE)

@@ -180,8 +180,13 @@ def build_matrix() -> list[dict[str, object]]:
         for row in ROWS:
             row_dir = RUNS_DIR / row.id
             draft = build_draft(
-                row, net_ref=net_ref, peak_routes_ref=peak_routes_ref, network=network,
-                demand=demand, demands=db.demands, out_dir=row_dir / "build",
+                row,
+                net_ref=net_ref,
+                peak_routes_ref=peak_routes_ref,
+                network=network,
+                demand=demand,
+                demands=db.demands,
+                out_dir=row_dir / "build",
             )
             run = AgentRun(
                 output=draft, tool_calls=(), usage=Usage(), stop_reason=StopReason.OUTPUT
@@ -190,23 +195,29 @@ def build_matrix() -> list[dict[str, object]]:
                 network_id=network.network_id, demand_id=demand.demand_id, context_tags=CONTEXT_TAGS
             )
             scenario = build_scenario(
-                task, run,
-                networks=db.networks, demands=db.demands, scenarios=db.scenarios,
+                task,
+                run,
+                networks=db.networks,
+                demands=db.demands,
+                scenarios=db.scenarios,
                 network_query_loader=StoredNetworkQueryLoader(db.networks),
-                runner=runner, out_dir=row_dir / "load_check",
+                runner=runner,
+                out_dir=row_dir / "load_check",
             )
 
             results: dict[int, SimulationResult] = {}
             for seed in SEEDS:
                 results[seed] = run_simulation(
-                    scenario, seed, runner=runner, results=db.results,
-                    run_dirs=FilesystemRunDirectories(), out_dir=row_dir / "runs",
+                    scenario,
+                    seed,
+                    runner=runner,
+                    results=db.results,
+                    run_dirs=FilesystemRunDirectories(),
+                    out_dir=row_dir / "runs",
                     attempt=row.id,
                 )
                 if results[seed].status is not RunStatus.OK:
-                    raise MatrixBuildError(
-                        f"{row.id} seed {seed} failed: {results[seed].error}"
-                    )
+                    raise MatrixBuildError(f"{row.id} seed {seed} failed: {results[seed].error}")
 
             _verify_effect(row, results[1], demand.trips.path)
 

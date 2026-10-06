@@ -13,8 +13,10 @@ from __future__ import annotations
 import os
 import re
 import shutil
+import socket
 import subprocess
 import warnings
+from typing import Any
 
 import pytest
 
@@ -46,3 +48,31 @@ def _pinned_sumo_version() -> None:
             "so binaries and Python bindings cannot drift apart (see CLAUDE.md)",
             stacklevel=1,
         )
+
+
+# "" is kept: an empty host in `connect` means the local machine, which the loopback servers use.
+_LOOPBACK_HOSTS = {"localhost", "127.0.0.1", "::1", ""}
+
+
+@pytest.fixture(autouse=True)
+def _no_external_network(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fail any test that opens a non-loopback connection (no OpenRouter call from `pytest`).
+
+    Real paid calls are reserved for explicit evaluation runs (docs/llm-cost-policy.md). Loopback
+    stays open: TraCI and the MCP in-process servers talk over localhost sockets.
+    """
+    real_connect = socket.socket.connect
+    real_getaddrinfo = socket.getaddrinfo
+
+    def guarded_connect(self: socket.socket, address: Any) -> None:
+        if self.family in (socket.AF_INET, socket.AF_INET6) and address[0] not in _LOOPBACK_HOSTS:
+            raise RuntimeError(f"network blocked in tests: connect to {address!r}")
+        real_connect(self, address)
+
+    def guarded_getaddrinfo(host: Any, *args: Any, **kwargs: Any) -> Any:
+        if isinstance(host, str) and host not in _LOOPBACK_HOSTS:
+            raise RuntimeError(f"network blocked in tests: DNS lookup of {host!r}")
+        return real_getaddrinfo(host, *args, **kwargs)
+
+    monkeypatch.setattr(socket.socket, "connect", guarded_connect)
+    monkeypatch.setattr(socket, "getaddrinfo", guarded_getaddrinfo)

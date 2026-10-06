@@ -1,4 +1,4 @@
-"""Abstention recall / false-requests (E4.5; docs/evaluating-resto.md §4.5): pairs a forced-mode
+"""Abstention recall / false-requests (E4.5; eval/README.md §4.5): pairs a forced-mode
 run with the free-mode run of the same question and repetition, and checks the two derived rates.
 """
 
@@ -58,9 +58,9 @@ def _record(
         "model": "fake",
         "expert_version": "vtest",
         "rejection": rejection,
-        "answer": None if answer is None else adapter_for(ExpertAnswer).dump_python(
-            answer, mode="json"
-        ),
+        "answer": None
+        if answer is None
+        else adapter_for(ExpertAnswer).dump_python(answer, mode="json"),
         "steps": [],
         "input_tokens": 0,
         "output_tokens": 0,

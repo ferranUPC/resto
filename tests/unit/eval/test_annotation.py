@@ -28,14 +28,25 @@ def _dump(question: Question) -> dict[str, Any]:
 
 def _item(concept_id: str, question: dict[str, Any] | None, done: bool = True) -> dict[str, Any]:
     return {
-        "source": "held_out", "concept_id": concept_id, "text": concept_by_id(concept_id).text,
-        "done": done, "question": question, "issues": [], "notes": "", "form": {},
+        "source": "held_out",
+        "concept_id": concept_id,
+        "text": concept_by_id(concept_id).text,
+        "done": done,
+        "question": question,
+        "issues": [],
+        "notes": "",
+        "form": {},
     }
 
 
 def _export(annotator: str, items: list[dict[str, Any]], external: list[Any] | None = None):
-    return {"format": FORMAT, "annotator": annotator, "exported_at": "t", "held_out": items,
-            "external": external or []}
+    return {
+        "format": FORMAT,
+        "annotator": annotator,
+        "exported_at": "t",
+        "held_out": items,
+        "external": external or [],
+    }
 
 
 def _gold_question(concept_id: str) -> Question:
@@ -62,8 +73,10 @@ def test_the_page_order_is_shuffled_and_fixed():
 
 
 def test_a_request_text_cannot_close_the_script_element():
-    page = render_page("<script>const X = /*__ITEMS__*/[];</script>",
-                       [{"concept_id": "R1", "text": "a </script> b"}])
+    page = render_page(
+        "<script>const X = /*__ITEMS__*/[];</script>",
+        [{"concept_id": "R1", "text": "a </script> b"}],
+    )
     assert page.count("</script>") == 1
 
 
@@ -75,10 +88,15 @@ def test_the_template_has_the_items_placeholder():
 
 
 def test_an_annotation_equal_to_gold_agrees_on_every_field():
-    export = parse_export(_export("a", [
-        _item("R027", _dump(_gold_question("R027"))),
-        _item("R033", _dump(_gold_question("R033"))),
-    ]))
+    export = parse_export(
+        _export(
+            "a",
+            [
+                _item("R027", _dump(_gold_question("R027"))),
+                _item("R003", _dump(_gold_question("R003"))),
+            ],
+        )
+    )
     for _, _, score in score_against_gold(export):
         assert score.intent and score.interventions and score.topology_changes
         assert score.metrics_of_interest and not score.spurious_ambiguity
@@ -87,7 +105,7 @@ def test_an_annotation_equal_to_gold_agrees_on_every_field():
 
 def test_a_clear_reading_of_an_ambiguous_concept_misses_the_ambiguity():
     assert isinstance(concept_by_id("R042").gold, AmbiguousGold)
-    guess = Question(text="t", intent=Intent.COUNTERFACTUAL, network_ref="DEV-NET")
+    guess = Question(text="t", intent=Intent.COMPARE, network_ref="DEV-NET")
     export = parse_export(_export("a", [_item("R042", _dump(guess))]))
     [(_, _, score)] = score_against_gold(export)
     assert score.ambiguity_detected is False
@@ -95,12 +113,12 @@ def test_a_clear_reading_of_an_ambiguous_concept_misses_the_ambiguity():
 
 
 def test_annotations_not_marked_done_are_not_scored():
-    export = parse_export(_export("a", [_item("R033", _dump(_gold_question("R033")), done=False)]))
+    export = parse_export(_export("a", [_item("R003", _dump(_gold_question("R003")), done=False)]))
     assert score_against_gold(export) == []
 
 
 def test_a_database_submission_is_read_like_a_file_export():
-    payload = _export("a", [_item("R033", _dump(_gold_question("R033")))])
+    payload = _export("a", [_item("R003", _dump(_gold_question("R003")))])
     export = parse_export({"annotator": "a", "exported_at": "t", "payload": json.dumps(payload)})
     assert export.annotator == "a" and len(export.held_out) == 1
 
@@ -121,9 +139,9 @@ def test_kappa_is_one_on_perfect_agreement_and_zero_at_chance():
 
 
 def test_pairwise_compares_only_concepts_both_marked_done():
-    same = _dump(_gold_question("R033"))
-    a = parse_export(_export("a", [_item("R033", same), _item("R027", same)]))
-    b = parse_export(_export("b", [_item("R033", same), _item("R027", same, done=False)]))
+    same = _dump(_gold_question("R003"))
+    a = parse_export(_export("a", [_item("R003", same), _item("R027", same)]))
+    b = parse_export(_export("b", [_item("R003", same), _item("R027", same, done=False)]))
     result = pairwise(a, b)
     assert result["shared"] == 1
     assert result["intent"].value == 1.0
@@ -135,10 +153,83 @@ def test_pairwise_compares_only_concepts_both_marked_done():
 
 def test_external_requests_keep_only_finished_ones_with_their_authors_gold(tmp_path: Path):
     question = _dump(Question(text="x", intent=Intent.DESCRIBE, network_ref="DEV-NET"))
-    export = parse_export(_export("ana", [], external=[
-        {"id": "N01", "text": "x", "done": True, "question": question, "notes": ""},
-        {"id": "N02", "text": "y", "done": False, "question": question, "notes": ""},
-        {"id": "N03", "text": "", "done": True, "question": question, "notes": ""},
-    ]))
+    export = parse_export(
+        _export(
+            "ana",
+            [],
+            external=[
+                {"id": "N01", "text": "x", "done": True, "question": question, "notes": ""},
+                {"id": "N02", "text": "y", "done": False, "question": question, "notes": ""},
+                {"id": "N03", "text": "", "done": True, "question": question, "notes": ""},
+            ],
+        )
+    )
     [request] = external_requests([export])
     assert request["id"] == "X-ana-N01" and request["question"] == question
+
+
+# --- old labels ----------------------------------------------------------------------------------
+
+_CURRENT = {Intent.DESCRIBE, Intent.DIAGNOSE, Intent.COMPARE, Intent.RUN}
+
+
+def _old_label(question: Question, label: str) -> dict[str, Any]:
+    return {**_dump(question), "intent": label}
+
+
+def test_an_old_counterfactual_label_is_read_as_a_current_intent():
+    old = _old_label(_gold_question("R001"), "counterfactual")
+    export = parse_export(_export("ana", [_item("R001", old)]))
+    [annotation] = export.held_out
+    assert annotation.question is not None
+    assert annotation.question.intent is Intent.COMPARE
+
+
+def test_external_requests_of_an_old_export_carry_a_current_intent():
+    old = _old_label(
+        Question(text="x", intent=Intent.DESCRIBE, network_ref="DEV-NET"), "counterfactual"
+    )
+    export = parse_export(
+        _export(
+            "ana",
+            [],
+            external=[{"id": "N01", "text": "x", "done": True, "question": old, "notes": ""}],
+        )
+    )
+    [request] = external_requests([export])
+    assert request["question"]["intent"] == "compare"
+
+
+def test_external_items_keep_their_shape_when_migrated():
+    question = _dump(Question(text="x", intent=Intent.DESCRIBE, network_ref="DEV-NET"))
+    old = {**question, "intent": "counterfactual"}
+    export = parse_export(
+        _export(
+            "ana",
+            [],
+            external=[
+                {"id": "N01", "text": "x", "done": True, "question": old},
+                {"id": "N02", "text": "y", "done": False},
+                {"id": "N03", "text": "z", "done": False, "question": None},
+            ],
+        )
+    )
+    first, without_key, null_question = export.external
+    assert first["question"]["intent"] == "compare"
+    assert "question" not in without_key
+    assert null_question["question"] is None
+
+
+def test_the_stored_exports_read_as_current_intents_and_are_not_rewritten():
+    root = Path(__file__).parents[3] / "eval/request_bank/annotation/exports/submissions"
+    stored = sorted(root.glob("*.json"))
+    assert stored
+    for path in stored:
+        text = path.read_text(encoding="utf-8")
+        export = parse_export(json.loads(text))
+        assert all(a.question.intent in _CURRENT for a in export.held_out if a.question)
+        assert all(
+            adapter_for(Question).validate_python(r["question"]).intent in _CURRENT
+            for r in external_requests([export])
+        )
+        assert path.read_text(encoding="utf-8") == text

@@ -100,8 +100,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Serve the RESTO task tree on 127.0.0.1.")
     parser.add_argument("--port", type=int, default=8765)
     args = parser.parse_args()
-    server = make_server(ROOT / ".scratch", ROOT / "docs" / "progress-tracker.md", args.port,
-                         ROOT / "docs" / "tfm-work-plan.md")
+    server = make_server(
+        ROOT / ".scratch",
+        ROOT / "docs" / "progress-tracker.md",
+        args.port,
+        ROOT / "docs" / "tfm-work-plan.md",
+    )
     print(f"Task tree at http://127.0.0.1:{server.server_port}/  (Ctrl+C to stop)")
     with contextlib.suppress(KeyboardInterrupt):
         server.serve_forever()

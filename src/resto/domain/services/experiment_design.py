@@ -14,20 +14,15 @@ from resto.domain.value_objects.time_window import TimeWindow
 
 
 def required_arms(question: Question) -> tuple[str, ...]:
-    """Every arm some contrast names, on either side. With no arms, only the base."""
+    """Every arm some contrast names, on either side. A `run` has no contrast to name arms, so it
+    needs the arms it declares (ADR-0038). With no arms, only the base."""
     contrasts = question.effective_contrasts
     if not contrasts:
+        arms = question.effective_arms
+        if question.intent is Intent.RUN and arms:
+            return tuple(a.label for a in arms)
         return (BASE_ARM,)
     return _in_order(question, {label for c in contrasts for label in (c.treatment, c.reference)})
-
-
-def reference_arms(question: Question) -> tuple[str, ...]:
-    """The reference side of every contrast: what a `counterfactual` plans in phase 0 (ADR-0025 §2),
-    leaving the treatments for the Expert to ask for."""
-    contrasts = question.effective_contrasts
-    if not contrasts:
-        return (BASE_ARM,)
-    return _in_order(question, {c.reference for c in contrasts})
 
 
 def mode_for(question: Question, round_no: int, max_rounds: int) -> Mode:
@@ -38,14 +33,14 @@ def mode_for(question: Question, round_no: int, max_rounds: int) -> Mode:
 
 
 def needed_arms(question: Question, phase: int) -> tuple[str, ...]:
-    """The arms a phase must have realised (ADR-0025 §2 per arm, ADR-0027 §2); phases >= 1 are
-    planned as `run`. A `network_only` question needs none: the plan stops at `obtain_network`."""
+    """The arms a phase must have realised (ADR-0038). `run` and `compare` need every arm the
+    question needs from phase 0. `describe` and `diagnose` need only the base in phase 0, and every
+    required arm from phase 1 on. A `network_only` question needs none: the plan stops at
+    `obtain_network`."""
     if question.network_only:
         return ()
     if phase >= 1 or question.intent in (Intent.RUN, Intent.COMPARE):
         return required_arms(question)
-    if question.intent is Intent.COUNTERFACTUAL:
-        return reference_arms(question)
     return (BASE_ARM,)
 
 

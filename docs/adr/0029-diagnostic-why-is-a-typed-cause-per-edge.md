@@ -4,7 +4,7 @@
 - Date: 2026-09-25
 - Architecture reference: [`tfm-architecture-and-dod.md`](../tfm-architecture-and-dod.md) §4.7
   (diagnostic "why" rubric ≥ 70 %), §8 (open question: how the "why" is graded);
-  [ADR-0019](0019-typed-expert-answer-values.md); `evaluating-resto.md` §4.4, §6; work-plan E4.3
+  [ADR-0019](0019-typed-expert-answer-values.md); `eval/README.md` §4.4, §6; work-plan E4.3
 
 ## Context
 
@@ -21,7 +21,7 @@ scores 16/20.
 ## Decision
 
 1. **The "why" is graded as a categorical cause, not as free text.** No rubric by hand and no LLM judge
-   (`evaluating-resto.md` principle 5, "structured before judged"). The Expert's prose stays and is not
+   (`eval/README.md` principle 5, "structured before judged"). The Expert's prose stays and is not
    graded.
 2. **One cause per edge, for each of the three bottleneck edges.** The question reads "Which three edges
    form the main bottleneck … and why is each of them congested?". The Expert answers with a typed value
