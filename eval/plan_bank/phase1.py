@@ -1,4 +1,5 @@
-"""The phase-1 section of the plan bank (E3.7 ticket 04): one case per counterfactual concept.
+"""The phase-1 section of the plan bank (E3.7 ticket 04): one case per former
+counterfactual concept.
 
 Stopgap until E3.7 reworks this set (ADR-0038): phase 0 now plans every arm a question needs, so
 the planner no longer leaves treatments for the Expert. The cases keep the old shape by building
@@ -28,11 +29,18 @@ from resto.application.ports.agents.coordinator import PlanningContext
 from resto.application.schemas import adapter_for
 from resto.domain.value_objects.arm import BASE_ARM
 from resto.domain.value_objects.experiment import Experiment
-from resto.domain.value_objects.question import Intent, Question
+from resto.domain.value_objects.question import Question
 from resto.domain.value_objects.study_plan import BuildScenarioStep, StudyPlan
 
 PHASE1_PATH = Path(__file__).parent / "phase1.json"
 PHASE = 1
+
+# The sixteen concepts that were gold `counterfactual` and are `compare` after r9 ticket 03. The
+# eight that became `run` plan no base arm, so they have no reference side to realise first.
+PHASE1_IDS = (
+    "R001", "R010", "R011", "R012", "R014", "R016", "R018", "R022",
+    "R023", "R026", "R028", "R033", "R035", "R036", "R061", "R062",
+)  # fmt: skip
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,12 +50,8 @@ class Phase1Case:
 
 
 def phase1_concepts() -> list[Concept]:
-    """The concepts that get a phase-1 case: the counterfactual ones."""
-    return [
-        c
-        for c in planned_concepts()
-        if isinstance(c.gold, Question) and c.gold.intent is Intent.COUNTERFACTUAL
-    ]
+    """The concepts that get a phase-1 case: the former counterfactual ones that are `compare`."""
+    return [c for c in planned_concepts() if c.id in PHASE1_IDS]
 
 
 def phase1_question(concept_id: str) -> Question:

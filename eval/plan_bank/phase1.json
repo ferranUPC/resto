@@ -19,7 +19,7 @@
       "network_id": {
         "step": 0
       },
-      "rationale": "Phase 1 of a counterfactual question, arms: treatment.",
+      "rationale": "Phase 1 of a compare question, arms: treatment.",
       "steps": [
         {
           "network_ref": "DEV-NET",
@@ -82,106 +82,6 @@
       ]
     }
   },
-  "R004": {
-    "context": {
-      "phase": 1,
-      "network_id": "network-R004",
-      "experiments": [
-        {
-          "scenario_id": "scenario-R004-base",
-          "arm": "base",
-          "role": "baseline",
-          "purpose": "The network and demand as they are, the reference for the contrasts.",
-          "result_ids": [],
-          "reused": false
-        }
-      ],
-      "has_historical_demand": false
-    },
-    "plan": {
-      "network_id": {
-        "step": 0
-      },
-      "rationale": "Phase 1 of a counterfactual question, arms: treatment.",
-      "steps": [
-        {
-          "network_ref": "DEV-NET",
-          "goals": [],
-          "min_scc_ratio": 0.95,
-          "probe_teleport_threshold": 0,
-          "max_rounds": null,
-          "depends_on": [],
-          "kind": "obtain_network"
-        },
-        {
-          "network_id": {
-            "step": 0
-          },
-          "seed": 0,
-          "demand_ref": "heavy rush-hour traffic",
-          "tolerance": 0.15,
-          "max_calibration_rounds": null,
-          "depends_on": [
-            0
-          ],
-          "kind": "obtain_demand"
-        },
-        {
-          "network_id": {
-            "step": 0
-          },
-          "demand_id": {
-            "step": 1
-          },
-          "arm": "treatment",
-          "role": "treatment",
-          "purpose": "Arm 'treatment', the change the question asks about.",
-          "interventions": [
-            {
-              "type": "lane_closure",
-              "target": {
-                "edge_id": "B0C0",
-                "lane_index": 1,
-                "kind": "lane"
-              },
-              "params": {},
-              "window": {
-                "start": 28800.0,
-                "end": 30600.0
-              },
-              "condition": null,
-              "description": null,
-              "expected_effect": null
-            },
-            {
-              "type": "speed_limit",
-              "target": {
-                "edge_id": "B2C2",
-                "kind": "edge"
-              },
-              "params": {
-                "speed": 8.333
-              },
-              "window": {
-                "start": 28800.0,
-                "end": 30600.0
-              },
-              "condition": null,
-              "description": null,
-              "expected_effect": null
-            }
-          ],
-          "context_tags": [],
-          "allow_script": true,
-          "depends_on": [
-            0,
-            1
-          ],
-          "kind": "build_scenario"
-        }
-      ]
-    }
-  },
   "R010": {
     "context": {
       "phase": 1,
@@ -202,7 +102,7 @@
       "network_id": {
         "step": 0
       },
-      "rationale": "Phase 1 of a counterfactual question, arms: treatment.",
+      "rationale": "Phase 1 of a compare question, arms: treatment.",
       "steps": [
         {
           "network_ref": "DEV-NET",
@@ -286,7 +186,7 @@
       "network_id": {
         "step": 0
       },
-      "rationale": "Phase 1 of a counterfactual question, arms: treatment.",
+      "rationale": "Phase 1 of a compare question, arms: treatment.",
       "steps": [
         {
           "network_ref": "DEV-NET",
@@ -367,7 +267,7 @@
       "network_id": {
         "step": 0
       },
-      "rationale": "Phase 1 of a counterfactual question, arms: treatment.",
+      "rationale": "Phase 1 of a compare question, arms: treatment.",
       "steps": [
         {
           "network_ref": "DEV-NET",
@@ -431,104 +331,6 @@
       ]
     }
   },
-  "R013": {
-    "context": {
-      "phase": 1,
-      "network_id": "network-R013",
-      "experiments": [
-        {
-          "scenario_id": "scenario-R013-base",
-          "arm": "base",
-          "role": "baseline",
-          "purpose": "The network and demand as they are, the reference for the contrasts.",
-          "result_ids": [],
-          "reused": false
-        }
-      ],
-      "has_historical_demand": false
-    },
-    "plan": {
-      "network_id": {
-        "step": 0
-      },
-      "rationale": "Phase 1 of a counterfactual question, arms: treatment.",
-      "steps": [
-        {
-          "network_ref": "DEV-NET",
-          "goals": [],
-          "min_scc_ratio": 0.95,
-          "probe_teleport_threshold": 0,
-          "max_rounds": null,
-          "depends_on": [],
-          "kind": "obtain_network"
-        },
-        {
-          "network_id": {
-            "step": 0
-          },
-          "seed": 0,
-          "demand_ref": null,
-          "tolerance": 0.15,
-          "max_calibration_rounds": null,
-          "depends_on": [
-            0
-          ],
-          "kind": "obtain_demand"
-        },
-        {
-          "base_network_id": {
-            "step": 0
-          },
-          "modifications": [
-            {
-              "edge_id": "B1C1",
-              "kind": "remove_edge"
-            }
-          ],
-          "goals": [],
-          "min_scc_ratio": 0.95,
-          "probe_teleport_threshold": 0,
-          "max_rounds": null,
-          "depends_on": [
-            0
-          ],
-          "kind": "derive_network"
-        },
-        {
-          "demand_id": {
-            "step": 1
-          },
-          "network_id": {
-            "step": 2
-          },
-          "depends_on": [
-            1,
-            2
-          ],
-          "kind": "reroute_demand"
-        },
-        {
-          "network_id": {
-            "step": 2
-          },
-          "demand_id": {
-            "step": 3
-          },
-          "arm": "treatment",
-          "role": "treatment",
-          "purpose": "Arm 'treatment', the change the question asks about.",
-          "interventions": [],
-          "context_tags": [],
-          "allow_script": true,
-          "depends_on": [
-            2,
-            3
-          ],
-          "kind": "build_scenario"
-        }
-      ]
-    }
-  },
   "R014": {
     "context": {
       "phase": 1,
@@ -549,7 +351,7 @@
       "network_id": {
         "step": 0
       },
-      "rationale": "Phase 1 of a counterfactual question, arms: treatment.",
+      "rationale": "Phase 1 of a compare question, arms: treatment.",
       "steps": [
         {
           "network_ref": "DEV-NET",
@@ -631,92 +433,6 @@
       ]
     }
   },
-  "R015": {
-    "context": {
-      "phase": 1,
-      "network_id": "network-R015",
-      "experiments": [
-        {
-          "scenario_id": "scenario-R015-base",
-          "arm": "base",
-          "role": "baseline",
-          "purpose": "The network and demand as they are, the reference for the contrasts.",
-          "result_ids": [],
-          "reused": false
-        }
-      ],
-      "has_historical_demand": false
-    },
-    "plan": {
-      "network_id": {
-        "step": 0
-      },
-      "rationale": "Phase 1 of a counterfactual question, arms: treatment.",
-      "steps": [
-        {
-          "network_ref": "DEV-NET",
-          "goals": [],
-          "min_scc_ratio": 0.95,
-          "probe_teleport_threshold": 0,
-          "max_rounds": null,
-          "depends_on": [],
-          "kind": "obtain_network"
-        },
-        {
-          "network_id": {
-            "step": 0
-          },
-          "seed": 0,
-          "demand_ref": "peak",
-          "tolerance": 0.15,
-          "max_calibration_rounds": null,
-          "depends_on": [
-            0
-          ],
-          "kind": "obtain_demand"
-        },
-        {
-          "network_id": {
-            "step": 0
-          },
-          "demand_id": {
-            "step": 1
-          },
-          "arm": "treatment",
-          "role": "treatment",
-          "purpose": "Arm 'treatment', the change the question asks about.",
-          "interventions": [
-            {
-              "type": "speed_limit",
-              "target": {
-                "edge_id": "B2C2",
-                "kind": "edge"
-              },
-              "params": {
-                "speed": 8.333
-              },
-              "window": null,
-              "condition": {
-                "metric": "vehicle_count",
-                "target": "B2C2",
-                "op": ">",
-                "value": 40.0
-              },
-              "description": null,
-              "expected_effect": null
-            }
-          ],
-          "context_tags": [],
-          "allow_script": true,
-          "depends_on": [
-            0,
-            1
-          ],
-          "kind": "build_scenario"
-        }
-      ]
-    }
-  },
   "R016": {
     "context": {
       "phase": 1,
@@ -737,7 +453,7 @@
       "network_id": {
         "step": 0
       },
-      "rationale": "Phase 1 of a counterfactual question, arms: treatment.",
+      "rationale": "Phase 1 of a compare question, arms: treatment.",
       "steps": [
         {
           "network_ref": "DEV-NET",
@@ -800,105 +516,6 @@
       ]
     }
   },
-  "R017": {
-    "context": {
-      "phase": 1,
-      "network_id": "network-R017",
-      "experiments": [
-        {
-          "scenario_id": "scenario-R017-base",
-          "arm": "base",
-          "role": "baseline",
-          "purpose": "The network and demand as they are, the reference for the contrasts.",
-          "result_ids": [],
-          "reused": false
-        }
-      ],
-      "has_historical_demand": false
-    },
-    "plan": {
-      "network_id": {
-        "step": 0
-      },
-      "rationale": "Phase 1 of a counterfactual question, arms: treatment.",
-      "steps": [
-        {
-          "network_ref": "DEV-NET",
-          "goals": [],
-          "min_scc_ratio": 0.95,
-          "probe_teleport_threshold": 0,
-          "max_rounds": null,
-          "depends_on": [],
-          "kind": "obtain_network"
-        },
-        {
-          "network_id": {
-            "step": 0
-          },
-          "seed": 0,
-          "demand_ref": "rush-hour traffic",
-          "tolerance": 0.15,
-          "max_calibration_rounds": null,
-          "depends_on": [
-            0
-          ],
-          "kind": "obtain_demand"
-        },
-        {
-          "base_network_id": {
-            "step": 0
-          },
-          "modifications": [
-            {
-              "edge_id": "C0D0",
-              "lanes": 3,
-              "kind": "set_lanes"
-            }
-          ],
-          "goals": [],
-          "min_scc_ratio": 0.95,
-          "probe_teleport_threshold": 0,
-          "max_rounds": null,
-          "depends_on": [
-            0
-          ],
-          "kind": "derive_network"
-        },
-        {
-          "demand_id": {
-            "step": 1
-          },
-          "network_id": {
-            "step": 2
-          },
-          "depends_on": [
-            1,
-            2
-          ],
-          "kind": "reroute_demand"
-        },
-        {
-          "network_id": {
-            "step": 2
-          },
-          "demand_id": {
-            "step": 3
-          },
-          "arm": "treatment",
-          "role": "treatment",
-          "purpose": "Arm 'treatment', the change the question asks about.",
-          "interventions": [],
-          "context_tags": [],
-          "allow_script": true,
-          "depends_on": [
-            2,
-            3
-          ],
-          "kind": "build_scenario"
-        }
-      ]
-    }
-  },
   "R018": {
     "context": {
       "phase": 1,
@@ -919,7 +536,7 @@
       "network_id": {
         "step": 0
       },
-      "rationale": "Phase 1 of a counterfactual question, arms: treatment.",
+      "rationale": "Phase 1 of a compare question, arms: treatment.",
       "steps": [
         {
           "network_ref": "DEV-NET",
@@ -981,105 +598,6 @@
       ]
     }
   },
-  "R019": {
-    "context": {
-      "phase": 1,
-      "network_id": "network-R019",
-      "experiments": [
-        {
-          "scenario_id": "scenario-R019-base",
-          "arm": "base",
-          "role": "baseline",
-          "purpose": "The network and demand as they are, the reference for the contrasts.",
-          "result_ids": [],
-          "reused": false
-        }
-      ],
-      "has_historical_demand": false
-    },
-    "plan": {
-      "network_id": {
-        "step": 0
-      },
-      "rationale": "Phase 1 of a counterfactual question, arms: treatment.",
-      "steps": [
-        {
-          "network_ref": "DEV-NET",
-          "goals": [],
-          "min_scc_ratio": 0.95,
-          "probe_teleport_threshold": 0,
-          "max_rounds": null,
-          "depends_on": [],
-          "kind": "obtain_network"
-        },
-        {
-          "network_id": {
-            "step": 0
-          },
-          "seed": 0,
-          "demand_ref": "low",
-          "tolerance": 0.15,
-          "max_calibration_rounds": null,
-          "depends_on": [
-            0
-          ],
-          "kind": "obtain_demand"
-        },
-        {
-          "base_network_id": {
-            "step": 0
-          },
-          "modifications": [
-            {
-              "edge_id": "B3C3",
-              "speed": 8.333,
-              "kind": "set_speed"
-            }
-          ],
-          "goals": [],
-          "min_scc_ratio": 0.95,
-          "probe_teleport_threshold": 0,
-          "max_rounds": null,
-          "depends_on": [
-            0
-          ],
-          "kind": "derive_network"
-        },
-        {
-          "demand_id": {
-            "step": 1
-          },
-          "network_id": {
-            "step": 2
-          },
-          "depends_on": [
-            1,
-            2
-          ],
-          "kind": "reroute_demand"
-        },
-        {
-          "network_id": {
-            "step": 2
-          },
-          "demand_id": {
-            "step": 3
-          },
-          "arm": "treatment",
-          "role": "treatment",
-          "purpose": "Arm 'treatment', the change the question asks about.",
-          "interventions": [],
-          "context_tags": [],
-          "allow_script": true,
-          "depends_on": [
-            2,
-            3
-          ],
-          "kind": "build_scenario"
-        }
-      ]
-    }
-  },
   "R022": {
     "context": {
       "phase": 1,
@@ -1108,7 +626,7 @@
       "network_id": {
         "step": 0
       },
-      "rationale": "Phase 1 of a counterfactual question, arms: new_edge_closure.",
+      "rationale": "Phase 1 of a compare question, arms: new_edge_closure.",
       "steps": [
         {
           "network_ref": "DEV-NET",
@@ -1226,7 +744,7 @@
       "network_id": {
         "step": 0
       },
-      "rationale": "Phase 1 of a counterfactual question, arms: new_edge_closure.",
+      "rationale": "Phase 1 of a compare question, arms: new_edge_closure.",
       "steps": [
         {
           "network_ref": "DEV-NET",
@@ -1345,7 +863,7 @@
       "network_id": {
         "step": 0
       },
-      "rationale": "Phase 1 of a counterfactual question, arms: closure, speed_limit, both.",
+      "rationale": "Phase 1 of a compare question, arms: closure, speed_limit, both.",
       "steps": [
         {
           "network_ref": "DEV-NET",
@@ -1516,7 +1034,7 @@
       "network_id": {
         "step": 0
       },
-      "rationale": "Phase 1 of a counterfactual question, arms: plus_20, plus_40.",
+      "rationale": "Phase 1 of a compare question, arms: plus_20, plus_40.",
       "steps": [
         {
           "network_ref": "DEV-NET",
@@ -1611,119 +1129,6 @@
       ]
     }
   },
-  "R032": {
-    "context": {
-      "phase": 1,
-      "network_id": "network-R032",
-      "experiments": [
-        {
-          "scenario_id": "scenario-R032-base",
-          "arm": "base",
-          "role": "baseline",
-          "purpose": "The network and demand as they are, the reference for the contrasts.",
-          "result_ids": [],
-          "reused": false
-        }
-      ],
-      "has_historical_demand": false
-    },
-    "plan": {
-      "network_id": {
-        "step": 0
-      },
-      "rationale": "Phase 1 of a counterfactual question, arms: treatment.",
-      "steps": [
-        {
-          "network_ref": "DEV-NET",
-          "goals": [],
-          "min_scc_ratio": 0.95,
-          "probe_teleport_threshold": 0,
-          "max_rounds": null,
-          "depends_on": [],
-          "kind": "obtain_network"
-        },
-        {
-          "network_id": {
-            "step": 0
-          },
-          "seed": 0,
-          "demand_ref": "rush-hour traffic",
-          "tolerance": 0.15,
-          "max_calibration_rounds": null,
-          "depends_on": [
-            0
-          ],
-          "kind": "obtain_demand"
-        },
-        {
-          "base_network_id": {
-            "step": 0
-          },
-          "modifications": [
-            {
-              "edge_id": "B1C1",
-              "kind": "remove_edge"
-            }
-          ],
-          "goals": [],
-          "min_scc_ratio": 0.95,
-          "probe_teleport_threshold": 0,
-          "max_rounds": null,
-          "depends_on": [
-            0
-          ],
-          "kind": "derive_network"
-        },
-        {
-          "demand_id": {
-            "step": 1
-          },
-          "network_id": {
-            "step": 2
-          },
-          "depends_on": [
-            1,
-            2
-          ],
-          "kind": "reroute_demand"
-        },
-        {
-          "network_id": {
-            "step": 2
-          },
-          "demand_id": {
-            "step": 3
-          },
-          "arm": "treatment",
-          "role": "treatment",
-          "purpose": "Arm 'treatment', the change the question asks about.",
-          "interventions": [
-            {
-              "type": "demand_scale",
-              "target": null,
-              "params": {
-                "factor": 1.15
-              },
-              "window": {
-                "start": 28800.0,
-                "end": 32400.0
-              },
-              "condition": null,
-              "description": null,
-              "expected_effect": null
-            }
-          ],
-          "context_tags": [],
-          "allow_script": true,
-          "depends_on": [
-            2,
-            3
-          ],
-          "kind": "build_scenario"
-        }
-      ]
-    }
-  },
   "R033": {
     "context": {
       "phase": 1,
@@ -1744,7 +1149,7 @@
       "network_id": {
         "step": 0
       },
-      "rationale": "Phase 1 of a counterfactual question, arms: treatment.",
+      "rationale": "Phase 1 of a compare question, arms: treatment.",
       "steps": [
         {
           "network_ref": "DEV-NET",
@@ -1821,125 +1226,6 @@
       ]
     }
   },
-  "R034": {
-    "context": {
-      "phase": 1,
-      "network_id": "network-R034",
-      "experiments": [
-        {
-          "scenario_id": "scenario-R034-base",
-          "arm": "base",
-          "role": "baseline",
-          "purpose": "The network and demand as they are, the reference for the contrasts.",
-          "result_ids": [],
-          "reused": false
-        }
-      ],
-      "has_historical_demand": false
-    },
-    "plan": {
-      "network_id": {
-        "step": 0
-      },
-      "rationale": "Phase 1 of a counterfactual question, arms: treatment.",
-      "steps": [
-        {
-          "network_ref": "DEV-NET",
-          "goals": [],
-          "min_scc_ratio": 0.95,
-          "probe_teleport_threshold": 0,
-          "max_rounds": null,
-          "depends_on": [],
-          "kind": "obtain_network"
-        },
-        {
-          "network_id": {
-            "step": 0
-          },
-          "seed": 0,
-          "demand_ref": "low traffic",
-          "tolerance": 0.15,
-          "max_calibration_rounds": null,
-          "depends_on": [
-            0
-          ],
-          "kind": "obtain_demand"
-        },
-        {
-          "base_network_id": {
-            "step": 0
-          },
-          "modifications": [
-            {
-              "from_junction": "D1",
-              "to_junction": "E2",
-              "lanes": 1,
-              "speed": 11.111,
-              "edge_id": "NEW2",
-              "kind": "add_edge"
-            }
-          ],
-          "goals": [],
-          "min_scc_ratio": 0.95,
-          "probe_teleport_threshold": 0,
-          "max_rounds": null,
-          "depends_on": [
-            0
-          ],
-          "kind": "derive_network"
-        },
-        {
-          "demand_id": {
-            "step": 1
-          },
-          "network_id": {
-            "step": 2
-          },
-          "depends_on": [
-            1,
-            2
-          ],
-          "kind": "reroute_demand"
-        },
-        {
-          "network_id": {
-            "step": 2
-          },
-          "demand_id": {
-            "step": 3
-          },
-          "arm": "treatment",
-          "role": "treatment",
-          "purpose": "Arm 'treatment', the change the question asks about.",
-          "interventions": [
-            {
-              "type": "lane_closure",
-              "target": {
-                "edge_id": "NEW2",
-                "lane_index": 0,
-                "kind": "lane"
-              },
-              "params": {},
-              "window": {
-                "start": 28800.0,
-                "end": 30600.0
-              },
-              "condition": null,
-              "description": null,
-              "expected_effect": null
-            }
-          ],
-          "context_tags": [],
-          "allow_script": true,
-          "depends_on": [
-            2,
-            3
-          ],
-          "kind": "build_scenario"
-        }
-      ]
-    }
-  },
   "R035": {
     "context": {
       "phase": 1,
@@ -1960,7 +1246,7 @@
       "network_id": {
         "step": 0
       },
-      "rationale": "Phase 1 of a counterfactual question, arms: treatment.",
+      "rationale": "Phase 1 of a compare question, arms: treatment.",
       "steps": [
         {
           "network_ref": "DEV-NET",
@@ -2061,7 +1347,7 @@
       "network_id": {
         "step": 0
       },
-      "rationale": "Phase 1 of a counterfactual question, arms: treatment.",
+      "rationale": "Phase 1 of a compare question, arms: treatment.",
       "steps": [
         {
           "network_ref": "DEV-NET",
@@ -2164,7 +1450,7 @@
       "network_id": {
         "step": 0
       },
-      "rationale": "Phase 1 of a counterfactual question, arms: treatment.",
+      "rationale": "Phase 1 of a compare question, arms: treatment.",
       "steps": [
         {
           "network_ref": "DEV-NET",
@@ -2246,7 +1532,7 @@
       "network_id": {
         "step": 0
       },
-      "rationale": "Phase 1 of a counterfactual question, arms: treatment.",
+      "rationale": "Phase 1 of a compare question, arms: treatment.",
       "steps": [
         {
           "network_ref": "DEV-NET",
@@ -2291,90 +1577,6 @@
               "window": {
                 "start": 28800.0,
                 "end": 30600.0
-              },
-              "condition": null,
-              "description": null,
-              "expected_effect": null
-            }
-          ],
-          "context_tags": [],
-          "allow_script": true,
-          "depends_on": [
-            0,
-            1
-          ],
-          "kind": "build_scenario"
-        }
-      ]
-    }
-  },
-  "R063": {
-    "context": {
-      "phase": 1,
-      "network_id": "network-R063",
-      "experiments": [
-        {
-          "scenario_id": "scenario-R063-base",
-          "arm": "base",
-          "role": "baseline",
-          "purpose": "The network and demand as they are, the reference for the contrasts.",
-          "result_ids": [],
-          "reused": false
-        }
-      ],
-      "has_historical_demand": false
-    },
-    "plan": {
-      "network_id": {
-        "step": 0
-      },
-      "rationale": "Phase 1 of a counterfactual question, arms: treatment.",
-      "steps": [
-        {
-          "network_ref": "DEV-NET",
-          "goals": [],
-          "min_scc_ratio": 0.95,
-          "probe_teleport_threshold": 0,
-          "max_rounds": null,
-          "depends_on": [],
-          "kind": "obtain_network"
-        },
-        {
-          "network_id": {
-            "step": 0
-          },
-          "seed": 0,
-          "demand_ref": "peak",
-          "tolerance": 0.15,
-          "max_calibration_rounds": null,
-          "depends_on": [
-            0
-          ],
-          "kind": "obtain_demand"
-        },
-        {
-          "network_id": {
-            "step": 0
-          },
-          "demand_id": {
-            "step": 1
-          },
-          "arm": "treatment",
-          "role": "treatment",
-          "purpose": "Arm 'treatment', the change the question asks about.",
-          "interventions": [
-            {
-              "type": "speed_limit",
-              "target": {
-                "edge_id": "C1C2",
-                "kind": "edge"
-              },
-              "params": {
-                "speed": 8.333
-              },
-              "window": {
-                "start": 28800.0,
-                "end": 32400.0
               },
               "condition": null,
               "description": null,

@@ -3,7 +3,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a counterfactual question, arms: base, treatment.",
+    "rationale": "Phase 0 of a compare question, arms: base, treatment.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -258,7 +258,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a counterfactual question, arms: base, treatment.",
+    "rationale": "Phase 0 of a run question, arms: treatment.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -281,25 +281,6 @@
           0
         ],
         "kind": "obtain_demand"
-      },
-      {
-        "network_id": {
-          "step": 0
-        },
-        "demand_id": {
-          "step": 1
-        },
-        "arm": "base",
-        "role": "baseline",
-        "purpose": "The network and demand as they are, the reference for the contrasts.",
-        "interventions": [],
-        "context_tags": [],
-        "allow_script": true,
-        "depends_on": [
-          0,
-          1
-        ],
-        "kind": "build_scenario"
       },
       {
         "network_id": {
@@ -556,7 +537,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a counterfactual question, arms: base, treatment.",
+    "rationale": "Phase 0 of a compare question, arms: base, treatment.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -642,7 +623,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a counterfactual question, arms: base, treatment.",
+    "rationale": "Phase 0 of a compare question, arms: base, treatment.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -725,7 +706,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a counterfactual question, arms: base, treatment.",
+    "rationale": "Phase 0 of a compare question, arms: base, treatment.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -811,7 +792,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a counterfactual question, arms: base, treatment.",
+    "rationale": "Phase 0 of a run question, arms: treatment.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -869,25 +850,6 @@
       },
       {
         "network_id": {
-          "step": 0
-        },
-        "demand_id": {
-          "step": 1
-        },
-        "arm": "base",
-        "role": "baseline",
-        "purpose": "The network and demand as they are, the reference for the contrasts.",
-        "interventions": [],
-        "context_tags": [],
-        "allow_script": true,
-        "depends_on": [
-          0,
-          1
-        ],
-        "kind": "build_scenario"
-      },
-      {
-        "network_id": {
           "step": 2
         },
         "demand_id": {
@@ -911,7 +873,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a counterfactual question, arms: base, treatment.",
+    "rationale": "Phase 0 of a compare question, arms: base, treatment.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -1015,7 +977,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a counterfactual question, arms: base, treatment.",
+    "rationale": "Phase 0 of a run question, arms: treatment.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -1038,25 +1000,6 @@
           0
         ],
         "kind": "obtain_demand"
-      },
-      {
-        "network_id": {
-          "step": 0
-        },
-        "demand_id": {
-          "step": 1
-        },
-        "arm": "base",
-        "role": "baseline",
-        "purpose": "The network and demand as they are, the reference for the contrasts.",
-        "interventions": [],
-        "context_tags": [],
-        "allow_script": true,
-        "depends_on": [
-          0,
-          1
-        ],
-        "kind": "build_scenario"
       },
       {
         "network_id": {
@@ -1103,7 +1046,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a counterfactual question, arms: base, treatment.",
+    "rationale": "Phase 0 of a compare question, arms: base, treatment.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -1188,7 +1131,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a counterfactual question, arms: base, treatment.",
+    "rationale": "Phase 0 of a run question, arms: treatment.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -1247,25 +1190,6 @@
       },
       {
         "network_id": {
-          "step": 0
-        },
-        "demand_id": {
-          "step": 1
-        },
-        "arm": "base",
-        "role": "baseline",
-        "purpose": "The network and demand as they are, the reference for the contrasts.",
-        "interventions": [],
-        "context_tags": [],
-        "allow_script": true,
-        "depends_on": [
-          0,
-          1
-        ],
-        "kind": "build_scenario"
-      },
-      {
-        "network_id": {
           "step": 2
         },
         "demand_id": {
@@ -1289,7 +1213,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a counterfactual question, arms: base, treatment.",
+    "rationale": "Phase 0 of a compare question, arms: base, treatment.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -1373,7 +1297,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a counterfactual question, arms: base, treatment.",
+    "rationale": "Phase 0 of a run question, arms: treatment.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -1429,25 +1353,6 @@
           2
         ],
         "kind": "reroute_demand"
-      },
-      {
-        "network_id": {
-          "step": 0
-        },
-        "demand_id": {
-          "step": 1
-        },
-        "arm": "base",
-        "role": "baseline",
-        "purpose": "The network and demand as they are, the reference for the contrasts.",
-        "interventions": [],
-        "context_tags": [],
-        "allow_script": true,
-        "depends_on": [
-          0,
-          1
-        ],
-        "kind": "build_scenario"
       },
       {
         "network_id": {
@@ -1733,7 +1638,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a counterfactual question, arms: base, new_edge, new_edge_closure.",
+    "rationale": "Phase 0 of a compare question, arms: base, new_edge, new_edge_closure.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -1872,7 +1777,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a counterfactual question, arms: new_edge, new_edge_closure.",
+    "rationale": "Phase 0 of a compare question, arms: new_edge, new_edge_closure.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -2320,7 +2225,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a counterfactual question, arms: base, closure, speed_limit, both.",
+    "rationale": "Phase 0 of a compare question, arms: base, closure, speed_limit, both.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -2648,7 +2553,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a counterfactual question, arms: base, plus_20, plus_40.",
+    "rationale": "Phase 0 of a compare question, arms: base, plus_20, plus_40.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -3149,7 +3054,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a counterfactual question, arms: base, treatment.",
+    "rationale": "Phase 0 of a run question, arms: treatment.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -3207,25 +3112,6 @@
       },
       {
         "network_id": {
-          "step": 0
-        },
-        "demand_id": {
-          "step": 1
-        },
-        "arm": "base",
-        "role": "baseline",
-        "purpose": "The network and demand as they are, the reference for the contrasts.",
-        "interventions": [],
-        "context_tags": [],
-        "allow_script": true,
-        "depends_on": [
-          0,
-          1
-        ],
-        "kind": "build_scenario"
-      },
-      {
-        "network_id": {
           "step": 2
         },
         "demand_id": {
@@ -3264,7 +3150,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a counterfactual question, arms: base, treatment.",
+    "rationale": "Phase 0 of a compare question, arms: base, treatment.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -3363,7 +3249,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a counterfactual question, arms: base, treatment.",
+    "rationale": "Phase 0 of a run question, arms: treatment.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -3425,25 +3311,6 @@
       },
       {
         "network_id": {
-          "step": 0
-        },
-        "demand_id": {
-          "step": 1
-        },
-        "arm": "base",
-        "role": "baseline",
-        "purpose": "The network and demand as they are, the reference for the contrasts.",
-        "interventions": [],
-        "context_tags": [],
-        "allow_script": true,
-        "depends_on": [
-          0,
-          1
-        ],
-        "kind": "build_scenario"
-      },
-      {
-        "network_id": {
           "step": 2
         },
         "demand_id": {
@@ -3484,7 +3351,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a counterfactual question, arms: base, treatment.",
+    "rationale": "Phase 0 of a compare question, arms: base, treatment.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -3587,7 +3454,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a counterfactual question, arms: base, treatment.",
+    "rationale": "Phase 0 of a compare question, arms: base, treatment.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -3692,7 +3559,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a counterfactual question, arms: base, treatment.",
+    "rationale": "Phase 0 of a compare question, arms: base, treatment.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -3776,7 +3643,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a counterfactual question, arms: base, treatment.",
+    "rationale": "Phase 0 of a compare question, arms: base, treatment.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -3860,7 +3727,7 @@
     "network_id": {
       "step": 0
     },
-    "rationale": "Phase 0 of a counterfactual question, arms: base, treatment.",
+    "rationale": "Phase 0 of a run question, arms: treatment.",
     "steps": [
       {
         "network_ref": "DEV-NET",
@@ -3883,25 +3750,6 @@
           0
         ],
         "kind": "obtain_demand"
-      },
-      {
-        "network_id": {
-          "step": 0
-        },
-        "demand_id": {
-          "step": 1
-        },
-        "arm": "base",
-        "role": "baseline",
-        "purpose": "The network and demand as they are, the reference for the contrasts.",
-        "interventions": [],
-        "context_tags": [],
-        "allow_script": true,
-        "depends_on": [
-          0,
-          1
-        ],
-        "kind": "build_scenario"
       },
       {
         "network_id": {

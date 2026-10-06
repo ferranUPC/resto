@@ -6,6 +6,7 @@ from __future__ import annotations
 import pytest
 from eval.plan_bank.bank import load_corrected, load_plans, planned_concepts
 from eval.plan_bank.phase1 import (
+    PHASE1_IDS,
     PHASE1_PATH,
     build_phase1,
     dump_phase1,
@@ -24,7 +25,7 @@ CASES = load_phase1()
 COUNTERFACTUAL_IDS = sorted(
     c.id
     for c in planned_concepts()
-    if isinstance(c.gold, Question) and c.gold.intent is Intent.COUNTERFACTUAL
+    if c.id in PHASE1_IDS and isinstance(c.gold, Question) and c.gold.intent is Intent.COMPARE
 )
 
 

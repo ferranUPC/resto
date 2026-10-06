@@ -46,7 +46,7 @@ def flags_of(question: Question, plan: StudyPlan) -> list[str]:
     if any(isinstance(s, DeriveNetworkStep) for s in plan.steps):
         flags.append("derive_network")
     arms = question.effective_arms
-    if question.intent is Intent.COUNTERFACTUAL and any(
+    if question.intent is Intent.COMPARE and any(
         contains(a, b) for a in arms for b in arms if a is not b
     ):
         flags.append("nested_counterfactual")

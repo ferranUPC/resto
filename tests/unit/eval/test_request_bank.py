@@ -113,6 +113,16 @@ def test_the_split_is_frozen_so_new_concepts_never_move_old_ones() -> None:
     assert {c for c in first if SPLITS[c] == "held_out"} == first_held_out
 
 
+def test_no_gold_carries_counterfactual_and_a_run_has_no_base_arm() -> None:
+    golds = [c.gold for c in CONCEPTS]
+    assert all(g.intent is not Intent.COUNTERFACTUAL for g in golds)
+    for concept in CONCEPTS:
+        gold = concept.gold
+        if isinstance(gold, Question) and gold.intent is Intent.RUN:
+            assert all(a.label != "base" for a in gold.arms), concept.id
+            assert all("base" not in (c.treatment, c.reference) for c in gold.contrasts), concept.id
+
+
 def test_every_intent_is_in_both_splits() -> None:
     for split in ("dev", "held_out"):
         intents = {
@@ -120,7 +130,8 @@ def test_every_intent_is_in_both_splits() -> None:
             for c in CONCEPTS
             if SPLITS[c.id] == split and isinstance(c.gold, Question)
         }
-        assert intents == set(Intent), (split, intents)
+        # `counterfactual` is no gold intent any more (ADR-0038); the enum value goes in r9 phase 3.
+        assert intents == set(Intent) - {Intent.COUNTERFACTUAL}, (split, intents)
 
 
 def test_gold_shapes_follow_the_category() -> None:
