@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 from eval.budget import (
     BasisMissingError,
+    BudgetDataError,
+    Config,
     LevelUnknownError,
     LowAboveHighError,
     MinimumTierBelowFloorError,
@@ -16,8 +19,9 @@ from eval.budget import (
     compute,
     load_plan,
 )
+from eval.budget.model import review_hours, suite_profiles, tier_config, v1_repetitions_cap
 
-from tests.unit.eval.budget_fixtures import HEADER, suite, write
+from tests.unit.eval.budget_fixtures import EXPLORE, HEADER, suite, write
 
 DATA = Path(__file__).resolve().parents[3] / "eval" / "budget" / "cost-data.toml"
 
@@ -205,3 +209,120 @@ def test_a_removed_suite_needs_no_tiers(tmp_path):
     )
     plan = load_plan(write(tmp_path, suite(), raw))
     assert [r.suite_id for r in compute(plan).suites] == ["s1"]
+
+
+# ---- free configuration ------------------------------------------------------------------------
+
+
+def _config(**kw):
+    base = dict(inputs={"V2": 10}, models={"reasoning-low": 1}, repetitions={"reasoning-low": 3})
+    base.update(kw)
+    return Config(**base)
+
+
+def test_a_configuration_equal_to_a_tier_costs_the_same(tmp_path):
+    plan = load_plan(write(tmp_path, suite(explore=EXPLORE)))
+    s = plan.suites[0]
+    for tier in s.tiers:
+        got = compute(plan, {s.id: tier_config(tier)}).without_contingency
+        want = compute(plan, {s.id: tier.name}).without_contingency
+        assert (got.low, got.high) == pytest.approx((want.low, want.high))
+
+
+def test_the_shipped_tiers_equal_their_configurations():
+    plan = load_plan(DATA)
+    for s in (s for s in plan.suites if not s.removed):
+        for tier in s.tiers:
+            got = compute(plan, {s.id: tier_config(tier)}).without_contingency
+            want = compute(plan, {s.id: tier.name}).without_contingency
+            assert (got.low, got.high) == pytest.approx((want.low, want.high)), (s.id, tier.name)
+
+
+def test_more_inputs_repetitions_and_models_cost_more(tmp_path):
+    plan = load_plan(write(tmp_path, suite(explore=EXPLORE)))
+    cost = lambda c: compute(plan, {"s1": c}).without_contingency.high  # noqa: E731
+    base = cost(_config())
+    assert cost(_config(inputs={"V2": 20})) == pytest.approx(2 * base)
+    assert cost(_config(repetitions={"reasoning-low": 6})) == pytest.approx(2 * base)
+    assert cost(_config(models={"reasoning-low": 2})) == pytest.approx(2 * base)
+    assert (
+        cost(
+            _config(
+                models={"reasoning-low": 1, "reasoning-high": 1},
+                repetitions={"reasoning-low": 3, "reasoning-high": 3},
+            )
+        )
+        > base
+    )
+
+
+def test_a_level_without_a_recorded_run_uses_the_default_blocks_scaled(tmp_path):
+    plan = load_plan(write(tmp_path, suite(explore=EXPLORE)))
+    levels = plan.levels
+    scaled = replace(levels["reasoning-high"], output_factor=2.0)
+    plan = replace(plan, levels={**levels, "reasoning-high": scaled})
+    s = plan.suites[0]
+    blocks = [p for p in suite_profiles(s, plan.levels) if p.level == "reasoning-high"]
+    assert len(blocks) == 1 and blocks[0].basis == "proxy"
+    assert blocks[0].tokens_out.high == pytest.approx(2 * 200000)
+
+
+def test_a_configuration_outside_the_bounds_is_refused(tmp_path):
+    plan = load_plan(write(tmp_path, suite(explore=EXPLORE)))
+    for bad in (
+        _config(inputs={"V2": 3}),
+        _config(inputs={"V2": 41}),
+        _config(models={"reasoning-low": 4}),
+        _config(models={"reasoning-high": 1}),
+        _config(repetitions={"reasoning-low": 1}),
+        _config(repetitions={"reasoning-low": 7}),
+        _config(models={"reasoning-low": 1, "bogus": 1}),
+    ):
+        with pytest.raises(BudgetDataError):
+            compute(plan, {"s1": bad})
+
+
+def test_a_configuration_flags_levels_pending_policy_approval(tmp_path):
+    plan = load_plan(write(tmp_path, suite(explore=EXPLORE)))
+    config = _config(
+        models={"reasoning-low": 1, "reasoning-high": 1},
+        repetitions={"reasoning-low": 3, "reasoning-high": 3},
+    )
+    assert compute(plan, {"s1": config}).suites[0].pending_policy_approval
+    assert not compute(plan, {"s1": _config()}).suites[0].pending_policy_approval
+
+
+def test_v1_runs_only_the_default_level_and_never_more_than_the_planned_repetitions(tmp_path):
+    two_pass = suite(
+        explore=EXPLORE.replace(
+            "[suites.explore.inputs]", "[suites.explore.inputs]\nV1 = { min = 4, max = 40 }"
+        )
+    )
+    two_pass = two_pass.replace('pass = "V2"', 'pass = "V1"', 2)  # both tiers' stage in V1
+    plan = load_plan(write(tmp_path, two_pass))
+    s = plan.suites[0]
+    assert v1_repetitions_cap(s) == 3
+    cfg = Config(
+        {"V1": 10},
+        {"reasoning-low": 1, "reasoning-high": 1},
+        {"reasoning-low": 6, "reasoning-high": 6},
+    )
+    v1 = compute(plan, {"s1": cfg}).suites[0].by_pass["V1"].high
+    capped = replace(cfg, repetitions={"reasoning-low": 3, "reasoning-high": 6})
+    assert v1 == pytest.approx(compute(plan, {"s1": capped}).suites[0].by_pass["V1"].high)
+
+
+def test_reviewer_hours_follow_the_review_minutes_per_answer(tmp_path):
+    plan = load_plan(write(tmp_path, suite(explore=EXPLORE)))
+    ex = plan.suites[0].explore
+    assert ex is not None
+    # 10 inputs x 1 model x 2 to 4 minutes
+    hours = review_hours(ex, _config())
+    assert (hours.low, hours.high) == pytest.approx((20 / 60, 40 / 60))
+    assert review_hours(ex, _config(models={"reasoning-low": 3})).high == pytest.approx(2.0)
+
+
+def test_inputs_bounds_must_contain_the_planned_size(tmp_path):
+    bad = EXPLORE.replace("min = 4, max = 40", "min = 12, max = 40")
+    with pytest.raises(BudgetDataError):
+        load_plan(write(tmp_path, suite(explore=bad)))

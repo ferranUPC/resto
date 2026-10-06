@@ -27,12 +27,15 @@
   .bad { color:var(--bad); font-weight:600; }
   .ok { color:var(--ok); font-weight:600; }
   .small { font-size:.85rem; color:var(--muted); }
+  .grid { display:grid; grid-template-columns:minmax(8rem,1fr) 6rem 6rem; gap:6px 12px; align-items:center; margin:.5rem 0; }
+  .grid input { min-width:0; width:100%; }
+  .grid .head { font-size:.8rem; color:var(--muted); }
   button { font:inherit; padding:6px 10px; border:1px solid var(--line); border-radius:6px; background:var(--card); color:var(--fg); cursor:pointer; }
 </style>
 </head>
 <body>
 <h1>Evaluation budget</h1>
-<p>Pick a tier per suite and adjust the contingency. Totals are low to high, in USD, with V1 and V2 shown apart and combined against the cap. The selection is kept in the page address: copy the link to share exactly this choice.</p>
+<p>For each suite, start from a preset (minimum, planned, extended) or set your own: how many inputs to run in each pass, which capability levels to test, how many models per level and how many repetitions. The bounds come from the cost data. Totals are low to high, in USD, with V1 and V2 apart and combined against the cap. The selection is kept in the page address: copy the link to share exactly this choice.</p>
 
 <div class="card" id="summary" aria-live="polite"></div>
 <div class="row">
@@ -55,31 +58,44 @@
   "proxy"
  ],
  "cap": 30.0,
+ "defaultLevel": "reasoning-low",
  "defaultTier": "planned",
  "globalContingency": 0.1,
  "levels": [
   {
+   "in": 0.05,
    "name": "non-reasoning-low",
+   "out": 0.15,
    "policy": "pending policy approval"
   },
   {
+   "in": 0.1,
    "name": "non-reasoning-medium",
+   "out": 0.32,
    "policy": "pending policy approval"
   },
   {
+   "in": 2.0,
    "name": "non-reasoning-high",
+   "out": 8.0,
    "policy": "pending policy approval"
   },
   {
+   "in": 0.15,
    "name": "reasoning-low",
+   "out": 0.6,
    "policy": "approved"
   },
   {
+   "in": 1.1,
    "name": "reasoning-medium",
+   "out": 4.4,
    "policy": "pending policy approval"
   },
   {
+   "in": 3.0,
    "name": "reasoning-high",
+   "out": 15.0,
    "policy": "pending policy approval"
   }
  ],
@@ -87,9 +103,263 @@
   "V1",
   "V2"
  ],
+ "repetitionFloor": 2,
  "suites": [
   {
    "contingency": 0.25,
+   "explore": {
+    "inputs": {
+     "V1": {
+      "default": 255,
+      "max": 500,
+      "min": 100
+     },
+     "V2": {
+      "default": 114,
+      "max": 300,
+      "min": 60
+     }
+    },
+    "levels": {
+     "non-reasoning-high": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          5118.0,
+          5118.0
+         ],
+         "out": [
+          718.9,
+          718.9
+         ]
+        },
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          0.0,
+          1382.0
+         ],
+         "out": [
+          0.0,
+          581.1
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "non-reasoning-low": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          5118.0,
+          6500.0
+         ],
+         "out": [
+          553.0,
+          1000.0
+         ]
+        }
+       ]
+      },
+      "pending": false
+     },
+     "non-reasoning-medium": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          5118.0,
+          5118.0
+         ],
+         "out": [
+          553.0,
+          553.0
+         ]
+        },
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          0.0,
+          1382.0
+         ],
+         "out": [
+          0.0,
+          447.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "reasoning-high": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          5118.0,
+          5118.0
+         ],
+         "out": [
+          2212.0,
+          2212.0
+         ]
+        },
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          0.0,
+          1382.0
+         ],
+         "out": [
+          0.0,
+          1788.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "reasoning-low": {
+      "blocks": {
+       "V1": [
+        {
+         "basis": "measured",
+         "calls": 1,
+         "in": [
+          5381.0,
+          5381.0
+         ],
+         "out": [
+          827.0,
+          827.0
+         ]
+        },
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          0.0,
+          1119.0
+         ],
+         "out": [
+          0.0,
+          173.0
+         ]
+        }
+       ],
+       "V2": [
+        {
+         "basis": "measured",
+         "calls": 1,
+         "in": [
+          5118.0,
+          5118.0
+         ],
+         "out": [
+          553.0,
+          553.0
+         ]
+        },
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          0.0,
+          1382.0
+         ],
+         "out": [
+          0.0,
+          447.0
+         ]
+        }
+       ]
+      },
+      "pending": false
+     },
+     "reasoning-medium": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          5118.0,
+          6500.0
+         ],
+         "out": [
+          553.0,
+          2500.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     }
+    },
+    "minutes": [
+     0.0,
+     0.0
+    ],
+    "modelsMax": 3,
+    "presets": {
+     "extended": {
+      "inputs": {
+       "V1": 255,
+       "V2": 114
+      },
+      "models": {
+       "non-reasoning-low": 2,
+       "reasoning-low": 1,
+       "reasoning-medium": 1
+      },
+      "reps": {
+       "non-reasoning-low": 3,
+       "reasoning-low": 3,
+       "reasoning-medium": 3
+      }
+     },
+     "minimum": {
+      "inputs": {
+       "V1": 255,
+       "V2": 114
+      },
+      "models": {
+       "reasoning-low": 1
+      },
+      "reps": {
+       "reasoning-low": 2
+      }
+     },
+     "planned": {
+      "inputs": {
+       "V1": 255,
+       "V2": 114
+      },
+      "models": {
+       "reasoning-low": 1
+      },
+      "reps": {
+       "reasoning-low": 3
+      }
+     }
+    },
+    "repsMax": 10,
+    "v1RepsCap": 3
+   },
    "fixed": true,
    "id": "input-parser",
    "measures": "Structured-output agreement of the Parser on the request bank: validity, intent, interventions, topology, metrics, ambiguity, arm structure, consistency across runs",
@@ -188,10 +458,202 @@
      },
      "pending": false
     }
-   }
+   },
+   "varies": "repetitions"
   },
   {
    "contingency": 0.2,
+   "explore": {
+    "inputs": {
+     "V1": {
+      "default": 10,
+      "max": 30,
+      "min": 5
+     },
+     "V2": {
+      "default": 30,
+      "max": 90,
+      "min": 15
+     }
+    },
+    "levels": {
+     "non-reasoning-high": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          20000.0,
+          40000.0
+         ],
+         "out": [
+          2600.0,
+          6500.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "non-reasoning-low": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          20000.0,
+          40000.0
+         ],
+         "out": [
+          2000.0,
+          5000.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "non-reasoning-medium": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          20000.0,
+          40000.0
+         ],
+         "out": [
+          2000.0,
+          5000.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "reasoning-high": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          20000.0,
+          40000.0
+         ],
+         "out": [
+          8000.0,
+          20000.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "reasoning-low": {
+      "blocks": {
+       "V1": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          20000.0,
+          40000.0
+         ],
+         "out": [
+          2000.0,
+          5000.0
+         ]
+        }
+       ],
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          20000.0,
+          40000.0
+         ],
+         "out": [
+          2000.0,
+          5000.0
+         ]
+        }
+       ]
+      },
+      "pending": false
+     },
+     "reasoning-medium": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          20000.0,
+          50000.0
+         ],
+         "out": [
+          2000.0,
+          12000.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     }
+    },
+    "minutes": [
+     0.0,
+     0.0
+    ],
+    "modelsMax": 3,
+    "presets": {
+     "extended": {
+      "inputs": {
+       "V1": 10,
+       "V2": 30
+      },
+      "models": {
+       "reasoning-low": 1,
+       "reasoning-medium": 1
+      },
+      "reps": {
+       "reasoning-low": 3,
+       "reasoning-medium": 2
+      }
+     },
+     "minimum": {
+      "inputs": {
+       "V1": 10,
+       "V2": 30
+      },
+      "models": {
+       "reasoning-low": 1
+      },
+      "reps": {
+       "reasoning-low": 2
+      }
+     },
+     "planned": {
+      "inputs": {
+       "V1": 10,
+       "V2": 30
+      },
+      "models": {
+       "reasoning-low": 1
+      },
+      "reps": {
+       "reasoning-low": 3
+      }
+     }
+    },
+    "repsMax": 10,
+    "v1RepsCap": 2
+   },
    "fixed": false,
    "id": "scenario-builder",
    "measures": "Builder bank: does the Builder turn a request into a valid stored scenario and compare it to the gold scenario, per case",
@@ -289,10 +751,180 @@
      },
      "pending": false
     }
-   }
+   },
+   "varies": "repetitions"
   },
   {
    "contingency": 0.3,
+   "explore": {
+    "inputs": {
+     "V2": {
+      "default": 30,
+      "max": 90,
+      "min": 15
+     }
+    },
+    "levels": {
+     "non-reasoning-high": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          40000.0,
+          90000.0
+         ],
+         "out": [
+          5200.0,
+          15600.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "non-reasoning-low": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          40000.0,
+          90000.0
+         ],
+         "out": [
+          4000.0,
+          12000.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "non-reasoning-medium": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          40000.0,
+          90000.0
+         ],
+         "out": [
+          4000.0,
+          12000.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "reasoning-high": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          40000.0,
+          90000.0
+         ],
+         "out": [
+          16000.0,
+          48000.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "reasoning-low": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          40000.0,
+          90000.0
+         ],
+         "out": [
+          4000.0,
+          12000.0
+         ]
+        }
+       ]
+      },
+      "pending": false
+     },
+     "reasoning-medium": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          40000.0,
+          100000.0
+         ],
+         "out": [
+          4000.0,
+          20000.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     }
+    },
+    "minutes": [
+     0.0,
+     0.0
+    ],
+    "modelsMax": 3,
+    "presets": {
+     "extended": {
+      "inputs": {
+       "V2": 30
+      },
+      "models": {
+       "reasoning-low": 1,
+       "reasoning-medium": 1
+      },
+      "reps": {
+       "reasoning-low": 5,
+       "reasoning-medium": 2
+      }
+     },
+     "minimum": {
+      "inputs": {
+       "V2": 30
+      },
+      "models": {
+       "reasoning-low": 1
+      },
+      "reps": {
+       "reasoning-low": 2
+      }
+     },
+     "planned": {
+      "inputs": {
+       "V2": 30
+      },
+      "models": {
+       "reasoning-low": 1
+      },
+      "reps": {
+       "reasoning-low": 3
+      }
+     }
+    },
+    "repsMax": 10,
+    "v1RepsCap": 0
+   },
    "fixed": false,
    "id": "network-author",
    "measures": "GEN-LOCATIONS generation and derivation of edited networks: validity and match to the requested change, each generation seeded",
@@ -390,10 +1022,180 @@
      },
      "pending": false
     }
-   }
+   },
+   "varies": "seeds"
   },
   {
    "contingency": 0.25,
+   "explore": {
+    "inputs": {
+     "V2": {
+      "default": 20,
+      "max": 60,
+      "min": 10
+     }
+    },
+    "levels": {
+     "non-reasoning-high": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          15000.0,
+          40000.0
+         ],
+         "out": [
+          1950.0,
+          6500.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "non-reasoning-low": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          15000.0,
+          40000.0
+         ],
+         "out": [
+          1500.0,
+          5000.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "non-reasoning-medium": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          15000.0,
+          40000.0
+         ],
+         "out": [
+          1500.0,
+          5000.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "reasoning-high": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          15000.0,
+          40000.0
+         ],
+         "out": [
+          6000.0,
+          20000.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "reasoning-low": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          15000.0,
+          40000.0
+         ],
+         "out": [
+          1500.0,
+          5000.0
+         ]
+        }
+       ]
+      },
+      "pending": false
+     },
+     "reasoning-medium": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          15000.0,
+          50000.0
+         ],
+         "out": [
+          1500.0,
+          10000.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     }
+    },
+    "minutes": [
+     0.0,
+     0.0
+    ],
+    "modelsMax": 3,
+    "presets": {
+     "extended": {
+      "inputs": {
+       "V2": 20
+      },
+      "models": {
+       "reasoning-low": 1,
+       "reasoning-medium": 1
+      },
+      "reps": {
+       "reasoning-low": 5,
+       "reasoning-medium": 2
+      }
+     },
+     "minimum": {
+      "inputs": {
+       "V2": 20
+      },
+      "models": {
+       "reasoning-low": 1
+      },
+      "reps": {
+       "reasoning-low": 2
+      }
+     },
+     "planned": {
+      "inputs": {
+       "V2": 20
+      },
+      "models": {
+       "reasoning-low": 1
+      },
+      "reps": {
+       "reasoning-low": 3
+      }
+     }
+    },
+    "repsMax": 10,
+    "v1RepsCap": 0
+   },
    "fixed": false,
    "id": "demand-generator",
    "measures": "Demand calibration: does generated demand reproduce the target flows within tolerance, each calibration run simulated with its own seed",
@@ -491,10 +1293,274 @@
      },
      "pending": false
     }
-   }
+   },
+   "varies": "seeds"
   },
   {
    "contingency": 0.2,
+   "explore": {
+    "inputs": {
+     "V1": {
+      "default": 39,
+      "max": 120,
+      "min": 20
+     },
+     "V2": {
+      "default": 117,
+      "max": 360,
+      "min": 60
+     }
+    },
+    "levels": {
+     "non-reasoning-high": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          45000.0,
+          55000.0
+         ],
+         "out": [
+          3120.0,
+          4160.0
+         ]
+        },
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          45000.0,
+          65000.0
+         ],
+         "out": [
+          3120.0,
+          4940.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "non-reasoning-low": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          45000.0,
+          55000.0
+         ],
+         "out": [
+          2400.0,
+          3200.0
+         ]
+        },
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          45000.0,
+          65000.0
+         ],
+         "out": [
+          2400.0,
+          3800.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "non-reasoning-medium": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          45000.0,
+          55000.0
+         ],
+         "out": [
+          2400.0,
+          3200.0
+         ]
+        },
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          45000.0,
+          65000.0
+         ],
+         "out": [
+          2400.0,
+          3800.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "reasoning-high": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          45000.0,
+          55000.0
+         ],
+         "out": [
+          9600.0,
+          12800.0
+         ]
+        },
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          45000.0,
+          65000.0
+         ],
+         "out": [
+          9600.0,
+          15200.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "reasoning-low": {
+      "blocks": {
+       "V1": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          45000.0,
+          55000.0
+         ],
+         "out": [
+          2400.0,
+          3200.0
+         ]
+        },
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          45000.0,
+          65000.0
+         ],
+         "out": [
+          2400.0,
+          3800.0
+         ]
+        }
+       ],
+       "V2": [
+        {
+         "basis": "measured",
+         "calls": 1,
+         "in": [
+          45000.0,
+          55000.0
+         ],
+         "out": [
+          2400.0,
+          3200.0
+         ]
+        },
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          45000.0,
+          65000.0
+         ],
+         "out": [
+          2400.0,
+          3800.0
+         ]
+        }
+       ]
+      },
+      "pending": false
+     },
+     "reasoning-medium": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          45000.0,
+          65000.0
+         ],
+         "out": [
+          2400.0,
+          8000.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     }
+    },
+    "minutes": [
+     0.0,
+     0.0
+    ],
+    "modelsMax": 3,
+    "presets": {
+     "extended": {
+      "inputs": {
+       "V1": 39,
+       "V2": 117
+      },
+      "models": {
+       "reasoning-low": 1,
+       "reasoning-medium": 1
+      },
+      "reps": {
+       "reasoning-low": 3,
+       "reasoning-medium": 2
+      }
+     },
+     "minimum": {
+      "inputs": {
+       "V1": 39,
+       "V2": 117
+      },
+      "models": {
+       "reasoning-low": 1
+      },
+      "reps": {
+       "reasoning-low": 2
+      }
+     },
+     "planned": {
+      "inputs": {
+       "V1": 39,
+       "V2": 117
+      },
+      "models": {
+       "reasoning-low": 1
+      },
+      "reps": {
+       "reasoning-low": 3
+      }
+     }
+    },
+    "repsMax": 10,
+    "v1RepsCap": 2
+   },
    "fixed": false,
    "id": "exp-01",
    "measures": "Forced-mode accuracy across repetitions (N1) and whether the Expert abstains exactly where its forced answer would be wrong (N2), on the same 117 questions",
@@ -592,10 +1658,180 @@
      },
      "pending": false
     }
-   }
+   },
+   "varies": "repetitions"
   },
   {
    "contingency": 0.2,
+   "explore": {
+    "inputs": {
+     "V2": {
+      "default": 40,
+      "max": 120,
+      "min": 20
+     }
+    },
+    "levels": {
+     "non-reasoning-high": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          45000.0,
+          65000.0
+         ],
+         "out": [
+          3120.0,
+          4940.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "non-reasoning-low": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          45000.0,
+          65000.0
+         ],
+         "out": [
+          2400.0,
+          3800.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "non-reasoning-medium": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          45000.0,
+          65000.0
+         ],
+         "out": [
+          2400.0,
+          3800.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "reasoning-high": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          45000.0,
+          65000.0
+         ],
+         "out": [
+          9600.0,
+          15200.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "reasoning-low": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          45000.0,
+          65000.0
+         ],
+         "out": [
+          2400.0,
+          3800.0
+         ]
+        }
+       ]
+      },
+      "pending": false
+     },
+     "reasoning-medium": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          45000.0,
+          65000.0
+         ],
+         "out": [
+          2400.0,
+          8000.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     }
+    },
+    "minutes": [
+     0.0,
+     0.0
+    ],
+    "modelsMax": 3,
+    "presets": {
+     "extended": {
+      "inputs": {
+       "V2": 40
+      },
+      "models": {
+       "reasoning-low": 1,
+       "reasoning-medium": 1
+      },
+      "reps": {
+       "reasoning-low": 3,
+       "reasoning-medium": 2
+      }
+     },
+     "minimum": {
+      "inputs": {
+       "V2": 40
+      },
+      "models": {
+       "reasoning-low": 1
+      },
+      "reps": {
+       "reasoning-low": 2
+      }
+     },
+     "planned": {
+      "inputs": {
+       "V2": 40
+      },
+      "models": {
+       "reasoning-low": 1
+      },
+      "reps": {
+       "reasoning-low": 3
+      }
+     }
+    },
+    "repsMax": 10,
+    "v1RepsCap": 0
+   },
    "fixed": false,
    "id": "expert-real-net",
    "measures": "Forced-mode accuracy of the Expert on the frozen real district: descriptive, Jaccard and direction metrics",
@@ -693,10 +1929,178 @@
      },
      "pending": false
     }
-   }
+   },
+   "varies": "repetitions"
   },
   {
    "contingency": 0.3,
+   "explore": {
+    "inputs": {
+     "V2": {
+      "default": 120,
+      "max": 360,
+      "min": 60
+     }
+    },
+    "levels": {
+     "non-reasoning-high": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          50000.0,
+          70000.0
+         ],
+         "out": [
+          3120.0,
+          4940.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "non-reasoning-low": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          50000.0,
+          70000.0
+         ],
+         "out": [
+          2400.0,
+          3800.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "non-reasoning-medium": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          50000.0,
+          70000.0
+         ],
+         "out": [
+          2400.0,
+          3800.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "reasoning-high": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          50000.0,
+          70000.0
+         ],
+         "out": [
+          9600.0,
+          15200.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "reasoning-low": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          50000.0,
+          70000.0
+         ],
+         "out": [
+          2400.0,
+          3800.0
+         ]
+        }
+       ]
+      },
+      "pending": false
+     },
+     "reasoning-medium": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          50000.0,
+          70000.0
+         ],
+         "out": [
+          5760.0,
+          9120.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     }
+    },
+    "minutes": [
+     0.0,
+     0.0
+    ],
+    "modelsMax": 3,
+    "presets": {
+     "extended": {
+      "inputs": {
+       "V2": 120
+      },
+      "models": {
+       "reasoning-low": 1
+      },
+      "reps": {
+       "reasoning-low": 5
+      }
+     },
+     "minimum": {
+      "inputs": {
+       "V2": 120
+      },
+      "models": {
+       "reasoning-low": 1
+      },
+      "reps": {
+       "reasoning-low": 2
+      }
+     },
+     "planned": {
+      "inputs": {
+       "V2": 120
+      },
+      "models": {
+       "reasoning-low": 1
+      },
+      "reps": {
+       "reasoning-low": 3
+      }
+     }
+    },
+    "repsMax": 10,
+    "v1RepsCap": 0
+   },
    "fixed": false,
    "id": "expert-learning-effect",
    "measures": "Does accuracy rise as the Expert holds more prior experiences (0, 5, 15, 25): the learning-effect curve",
@@ -793,10 +2197,186 @@
      },
      "pending": false
     }
-   }
+   },
+   "varies": "seeds"
   },
   {
    "contingency": 0.15,
+   "explore": {
+    "inputs": {
+     "V2": {
+      "default": 60,
+      "max": 180,
+      "min": 30
+     }
+    },
+    "levels": {
+     "non-reasoning-high": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          3000.0,
+          8000.0
+         ],
+         "out": [
+          650.0,
+          1950.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "non-reasoning-low": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          3000.0,
+          8000.0
+         ],
+         "out": [
+          500.0,
+          1500.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "non-reasoning-medium": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          3000.0,
+          8000.0
+         ],
+         "out": [
+          500.0,
+          1500.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "reasoning-high": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          3000.0,
+          8000.0
+         ],
+         "out": [
+          2000.0,
+          6000.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "reasoning-low": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          3000.0,
+          8000.0
+         ],
+         "out": [
+          500.0,
+          1500.0
+         ]
+        }
+       ]
+      },
+      "pending": false
+     },
+     "reasoning-medium": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          3000.0,
+          8000.0
+         ],
+         "out": [
+          500.0,
+          1500.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     }
+    },
+    "minutes": [
+     3.0,
+     5.0
+    ],
+    "modelsMax": 3,
+    "presets": {
+     "extended": {
+      "inputs": {
+       "V2": 60
+      },
+      "models": {
+       "non-reasoning-low": 2,
+       "non-reasoning-medium": 2,
+       "reasoning-low": 1,
+       "reasoning-medium": 1
+      },
+      "reps": {
+       "non-reasoning-low": 3,
+       "non-reasoning-medium": 3,
+       "reasoning-low": 3,
+       "reasoning-medium": 2
+      }
+     },
+     "minimum": {
+      "inputs": {
+       "V2": 60
+      },
+      "models": {
+       "reasoning-low": 1
+      },
+      "reps": {
+       "reasoning-low": 2
+      }
+     },
+     "planned": {
+      "inputs": {
+       "V2": 60
+      },
+      "models": {
+       "non-reasoning-low": 2,
+       "reasoning-low": 1
+      },
+      "reps": {
+       "non-reasoning-low": 3,
+       "reasoning-low": 3
+      }
+     }
+    },
+    "repsMax": 10,
+    "v1RepsCap": 0
+   },
    "fixed": false,
    "id": "output-composer",
    "measures": "Hallucination review of composed text against the Expert's answer (no invented or contradicted claim), plus what the golden-path rubric already covers",
@@ -815,8 +2395,8 @@
       ]
      },
      "hours": [
-      9.0,
-      16.0
+      18.0,
+      30.0
      ],
      "levels": [
       "non-reasoning-low",
@@ -878,8 +2458,8 @@
       ]
      },
      "hours": [
-      5.0,
-      9.0
+      9.0,
+      15.0
      ],
      "levels": [
       "non-reasoning-low",
@@ -897,10 +2477,178 @@
      },
      "pending": true
     }
-   }
+   },
+   "varies": "repetitions"
   },
   {
    "contingency": 0.25,
+   "explore": {
+    "inputs": {
+     "V2": {
+      "default": 11,
+      "max": 33,
+      "min": 6
+     }
+    },
+    "levels": {
+     "non-reasoning-high": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          150000.0,
+          400000.0
+         ],
+         "out": [
+          13000.0,
+          39000.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "non-reasoning-low": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          150000.0,
+          400000.0
+         ],
+         "out": [
+          10000.0,
+          30000.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "non-reasoning-medium": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          150000.0,
+          400000.0
+         ],
+         "out": [
+          10000.0,
+          30000.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "reasoning-high": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          150000.0,
+          400000.0
+         ],
+         "out": [
+          40000.0,
+          120000.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "reasoning-low": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          150000.0,
+          400000.0
+         ],
+         "out": [
+          10000.0,
+          30000.0
+         ]
+        }
+       ]
+      },
+      "pending": false
+     },
+     "reasoning-medium": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          150000.0,
+          400000.0
+         ],
+         "out": [
+          24000.0,
+          72000.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     }
+    },
+    "minutes": [
+     0.0,
+     0.0
+    ],
+    "modelsMax": 3,
+    "presets": {
+     "extended": {
+      "inputs": {
+       "V2": 11
+      },
+      "models": {
+       "reasoning-low": 1
+      },
+      "reps": {
+       "reasoning-low": 5
+      }
+     },
+     "minimum": {
+      "inputs": {
+       "V2": 11
+      },
+      "models": {
+       "reasoning-low": 1
+      },
+      "reps": {
+       "reasoning-low": 2
+      }
+     },
+     "planned": {
+      "inputs": {
+       "V2": 11
+      },
+      "models": {
+       "reasoning-low": 1
+      },
+      "reps": {
+       "reasoning-low": 3
+      }
+     }
+    },
+    "repsMax": 10,
+    "v1RepsCap": 0
+   },
    "fixed": false,
    "id": "golden-path",
    "measures": "The 11 golden paths end to end through the CLI: pass/fail and the rubric over the composed answer",
@@ -997,20 +2745,2754 @@
      },
      "pending": false
     }
-   }
+   },
+   "varies": "repetitions"
+  }
+ ]
+}</script>
+<script id="data" type="application/json">{
+ "bases": [
+  "measured",
+  "proxy"
+ ],
+ "cap": 30.0,
+ "defaultLevel": "reasoning-low",
+ "defaultTier": "planned",
+ "globalContingency": 0.1,
+ "levels": [
+  {
+   "in": 0.05,
+   "name": "non-reasoning-low",
+   "out": 0.15,
+   "policy": "pending policy approval"
+  },
+  {
+   "in": 0.1,
+   "name": "non-reasoning-medium",
+   "out": 0.32,
+   "policy": "pending policy approval"
+  },
+  {
+   "in": 2.0,
+   "name": "non-reasoning-high",
+   "out": 8.0,
+   "policy": "pending policy approval"
+  },
+  {
+   "in": 0.15,
+   "name": "reasoning-low",
+   "out": 0.6,
+   "policy": "approved"
+  },
+  {
+   "in": 1.1,
+   "name": "reasoning-medium",
+   "out": 4.4,
+   "policy": "pending policy approval"
+  },
+  {
+   "in": 3.0,
+   "name": "reasoning-high",
+   "out": 15.0,
+   "policy": "pending policy approval"
+  }
+ ],
+ "passes": [
+  "V1",
+  "V2"
+ ],
+ "repetitionFloor": 2,
+ "suites": [
+  {
+   "contingency": 0.25,
+   "explore": {
+    "inputs": {
+     "V1": {
+      "default": 255,
+      "max": 500,
+      "min": 100
+     },
+     "V2": {
+      "default": 114,
+      "max": 300,
+      "min": 60
+     }
+    },
+    "levels": {
+     "non-reasoning-high": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          5118.0,
+          5118.0
+         ],
+         "out": [
+          718.9,
+          718.9
+         ]
+        },
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          0.0,
+          1382.0
+         ],
+         "out": [
+          0.0,
+          581.1
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "non-reasoning-low": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          5118.0,
+          6500.0
+         ],
+         "out": [
+          553.0,
+          1000.0
+         ]
+        }
+       ]
+      },
+      "pending": false
+     },
+     "non-reasoning-medium": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          5118.0,
+          5118.0
+         ],
+         "out": [
+          553.0,
+          553.0
+         ]
+        },
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          0.0,
+          1382.0
+         ],
+         "out": [
+          0.0,
+          447.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "reasoning-high": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          5118.0,
+          5118.0
+         ],
+         "out": [
+          2212.0,
+          2212.0
+         ]
+        },
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          0.0,
+          1382.0
+         ],
+         "out": [
+          0.0,
+          1788.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "reasoning-low": {
+      "blocks": {
+       "V1": [
+        {
+         "basis": "measured",
+         "calls": 1,
+         "in": [
+          5381.0,
+          5381.0
+         ],
+         "out": [
+          827.0,
+          827.0
+         ]
+        },
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          0.0,
+          1119.0
+         ],
+         "out": [
+          0.0,
+          173.0
+         ]
+        }
+       ],
+       "V2": [
+        {
+         "basis": "measured",
+         "calls": 1,
+         "in": [
+          5118.0,
+          5118.0
+         ],
+         "out": [
+          553.0,
+          553.0
+         ]
+        },
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          0.0,
+          1382.0
+         ],
+         "out": [
+          0.0,
+          447.0
+         ]
+        }
+       ]
+      },
+      "pending": false
+     },
+     "reasoning-medium": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          5118.0,
+          6500.0
+         ],
+         "out": [
+          553.0,
+          2500.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     }
+    },
+    "minutes": [
+     0.0,
+     0.0
+    ],
+    "modelsMax": 3,
+    "presets": {
+     "extended": {
+      "inputs": {
+       "V1": 255,
+       "V2": 114
+      },
+      "models": {
+       "non-reasoning-low": 2,
+       "reasoning-low": 1,
+       "reasoning-medium": 1
+      },
+      "reps": {
+       "non-reasoning-low": 3,
+       "reasoning-low": 3,
+       "reasoning-medium": 3
+      }
+     },
+     "minimum": {
+      "inputs": {
+       "V1": 255,
+       "V2": 114
+      },
+      "models": {
+       "reasoning-low": 1
+      },
+      "reps": {
+       "reasoning-low": 2
+      }
+     },
+     "planned": {
+      "inputs": {
+       "V1": 255,
+       "V2": 114
+      },
+      "models": {
+       "reasoning-low": 1
+      },
+      "reps": {
+       "reasoning-low": 3
+      }
+     }
+    },
+    "repsMax": 10,
+    "v1RepsCap": 3
+   },
+   "fixed": true,
+   "id": "input-parser",
+   "measures": "Structured-output agreement of the Parser on the request bank: validity, intent, interventions, topology, metrics, ambiguity, arm structure, consistency across runs",
+   "name": "Input Parser",
+   "threshold": "DoD 4.1 (E5.1); N4: intent agreement >= 95 % over 3 runs on held-out",
+   "tiers": {
+    "extended": {
+     "basis": {
+      "measured": [
+       1.3730917499999997,
+       1.3730917499999997
+      ],
+      "proxy": [
+       2.9893193999999994,
+       6.90263325
+      ]
+     },
+     "hours": [
+      0.0,
+      0.0
+     ],
+     "levels": [
+      "non-reasoning-low",
+      "reasoning-low",
+      "reasoning-medium"
+     ],
+     "net": {
+      "V1": [
+       0.9970627499999998,
+       1.2048749999999997
+      ],
+      "V2": [
+       3.3653483999999994,
+       7.07085
+      ]
+     },
+     "pending": true
+    },
+    "minimum": {
+     "basis": {
+      "measured": [
+       0.9153944999999999,
+       0.9153944999999999
+      ],
+      "proxy": [
+       0.0,
+       0.2469555
+      ]
+     },
+     "hours": [
+      0.0,
+      0.0
+     ],
+     "levels": [
+      "reasoning-low"
+     ],
+     "net": {
+      "V1": [
+       0.6647084999999999,
+       0.8032499999999999
+      ],
+      "V2": [
+       0.250686,
+       0.35910000000000003
+      ]
+     },
+     "pending": false
+    },
+    "planned": {
+     "basis": {
+      "measured": [
+       1.3730917499999997,
+       1.3730917499999997
+      ],
+      "proxy": [
+       0.0,
+       0.37043324999999994
+      ]
+     },
+     "hours": [
+      0.0,
+      0.0
+     ],
+     "levels": [
+      "reasoning-low"
+     ],
+     "net": {
+      "V1": [
+       0.9970627499999998,
+       1.2048749999999997
+      ],
+      "V2": [
+       0.376029,
+       0.53865
+      ]
+     },
+     "pending": false
+    }
+   },
+   "varies": "repetitions"
+  },
+  {
+   "contingency": 0.2,
+   "explore": {
+    "inputs": {
+     "V1": {
+      "default": 10,
+      "max": 30,
+      "min": 5
+     },
+     "V2": {
+      "default": 30,
+      "max": 90,
+      "min": 15
+     }
+    },
+    "levels": {
+     "non-reasoning-high": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          20000.0,
+          40000.0
+         ],
+         "out": [
+          2600.0,
+          6500.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "non-reasoning-low": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          20000.0,
+          40000.0
+         ],
+         "out": [
+          2000.0,
+          5000.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "non-reasoning-medium": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          20000.0,
+          40000.0
+         ],
+         "out": [
+          2000.0,
+          5000.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "reasoning-high": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          20000.0,
+          40000.0
+         ],
+         "out": [
+          8000.0,
+          20000.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "reasoning-low": {
+      "blocks": {
+       "V1": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          20000.0,
+          40000.0
+         ],
+         "out": [
+          2000.0,
+          5000.0
+         ]
+        }
+       ],
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          20000.0,
+          40000.0
+         ],
+         "out": [
+          2000.0,
+          5000.0
+         ]
+        }
+       ]
+      },
+      "pending": false
+     },
+     "reasoning-medium": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          20000.0,
+          50000.0
+         ],
+         "out": [
+          2000.0,
+          12000.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     }
+    },
+    "minutes": [
+     0.0,
+     0.0
+    ],
+    "modelsMax": 3,
+    "presets": {
+     "extended": {
+      "inputs": {
+       "V1": 10,
+       "V2": 30
+      },
+      "models": {
+       "reasoning-low": 1,
+       "reasoning-medium": 1
+      },
+      "reps": {
+       "reasoning-low": 3,
+       "reasoning-medium": 2
+      }
+     },
+     "minimum": {
+      "inputs": {
+       "V1": 10,
+       "V2": 30
+      },
+      "models": {
+       "reasoning-low": 1
+      },
+      "reps": {
+       "reasoning-low": 2
+      }
+     },
+     "planned": {
+      "inputs": {
+       "V1": 10,
+       "V2": 30
+      },
+      "models": {
+       "reasoning-low": 1
+      },
+      "reps": {
+       "reasoning-low": 3
+      }
+     }
+    },
+    "repsMax": 10,
+    "v1RepsCap": 2
+   },
+   "fixed": false,
+   "id": "scenario-builder",
+   "measures": "Builder bank: does the Builder turn a request into a valid stored scenario and compare it to the gold scenario, per case",
+   "name": "Scenario Builder",
+   "threshold": "DoD E2.7 (Builder bank, 3 repetitions)",
+   "tiers": {
+    "extended": {
+     "basis": {
+      "measured": [
+       0.0,
+       0.0
+      ],
+      "proxy": [
+       2.3099999999999996,
+       7.458
+      ]
+     },
+     "hours": [
+      0.0,
+      0.0
+     ],
+     "levels": [
+      "reasoning-low",
+      "reasoning-medium"
+     ],
+     "net": {
+      "V1": [
+       0.08399999999999999,
+       0.18
+      ],
+      "V2": [
+       2.226,
+       7.278
+      ]
+     },
+     "pending": true
+    },
+    "minimum": {
+     "basis": {
+      "measured": [
+       0.0,
+       0.0
+      ],
+      "proxy": [
+       0.33599999999999997,
+       0.72
+      ]
+     },
+     "hours": [
+      0.0,
+      0.0
+     ],
+     "levels": [
+      "reasoning-low"
+     ],
+     "net": {
+      "V1": [
+       0.08399999999999999,
+       0.18
+      ],
+      "V2": [
+       0.252,
+       0.5399999999999999
+      ]
+     },
+     "pending": false
+    },
+    "planned": {
+     "basis": {
+      "measured": [
+       0.0,
+       0.0
+      ],
+      "proxy": [
+       0.46199999999999997,
+       0.99
+      ]
+     },
+     "hours": [
+      0.0,
+      0.0
+     ],
+     "levels": [
+      "reasoning-low"
+     ],
+     "net": {
+      "V1": [
+       0.08399999999999999,
+       0.18
+      ],
+      "V2": [
+       0.378,
+       0.8099999999999999
+      ]
+     },
+     "pending": false
+    }
+   },
+   "varies": "repetitions"
+  },
+  {
+   "contingency": 0.3,
+   "explore": {
+    "inputs": {
+     "V2": {
+      "default": 30,
+      "max": 90,
+      "min": 15
+     }
+    },
+    "levels": {
+     "non-reasoning-high": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          40000.0,
+          90000.0
+         ],
+         "out": [
+          5200.0,
+          15600.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "non-reasoning-low": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          40000.0,
+          90000.0
+         ],
+         "out": [
+          4000.0,
+          12000.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "non-reasoning-medium": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          40000.0,
+          90000.0
+         ],
+         "out": [
+          4000.0,
+          12000.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "reasoning-high": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          40000.0,
+          90000.0
+         ],
+         "out": [
+          16000.0,
+          48000.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "reasoning-low": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          40000.0,
+          90000.0
+         ],
+         "out": [
+          4000.0,
+          12000.0
+         ]
+        }
+       ]
+      },
+      "pending": false
+     },
+     "reasoning-medium": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          40000.0,
+          100000.0
+         ],
+         "out": [
+          4000.0,
+          20000.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     }
+    },
+    "minutes": [
+     0.0,
+     0.0
+    ],
+    "modelsMax": 3,
+    "presets": {
+     "extended": {
+      "inputs": {
+       "V2": 30
+      },
+      "models": {
+       "reasoning-low": 1,
+       "reasoning-medium": 1
+      },
+      "reps": {
+       "reasoning-low": 5,
+       "reasoning-medium": 2
+      }
+     },
+     "minimum": {
+      "inputs": {
+       "V2": 30
+      },
+      "models": {
+       "reasoning-low": 1
+      },
+      "reps": {
+       "reasoning-low": 2
+      }
+     },
+     "planned": {
+      "inputs": {
+       "V2": 30
+      },
+      "models": {
+       "reasoning-low": 1
+      },
+      "reps": {
+       "reasoning-low": 3
+      }
+     }
+    },
+    "repsMax": 10,
+    "v1RepsCap": 0
+   },
+   "fixed": false,
+   "id": "network-author",
+   "measures": "GEN-LOCATIONS generation and derivation of edited networks: validity and match to the requested change, each generation seeded",
+   "name": "Network Author",
+   "threshold": "DoD E6.2 (GEN-LOCATIONS and derivation, 3 repetitions)",
+   "tiers": {
+    "extended": {
+     "basis": {
+      "measured": [
+       0.0,
+       0.0
+      ],
+      "proxy": [
+       4.9559999999999995,
+       14.985
+      ]
+     },
+     "hours": [
+      0.0,
+      0.0
+     ],
+     "levels": [
+      "reasoning-low",
+      "reasoning-medium"
+     ],
+     "net": {
+      "V1": [
+       0.0,
+       0.0
+      ],
+      "V2": [
+       4.9559999999999995,
+       14.985
+      ]
+     },
+     "pending": true
+    },
+    "minimum": {
+     "basis": {
+      "measured": [
+       0.0,
+       0.0
+      ],
+      "proxy": [
+       0.504,
+       1.242
+      ]
+     },
+     "hours": [
+      0.0,
+      0.0
+     ],
+     "levels": [
+      "reasoning-low"
+     ],
+     "net": {
+      "V1": [
+       0.0,
+       0.0
+      ],
+      "V2": [
+       0.504,
+       1.242
+      ]
+     },
+     "pending": false
+    },
+    "planned": {
+     "basis": {
+      "measured": [
+       0.0,
+       0.0
+      ],
+      "proxy": [
+       0.756,
+       1.863
+      ]
+     },
+     "hours": [
+      0.0,
+      0.0
+     ],
+     "levels": [
+      "reasoning-low"
+     ],
+     "net": {
+      "V1": [
+       0.0,
+       0.0
+      ],
+      "V2": [
+       0.756,
+       1.863
+      ]
+     },
+     "pending": false
+    }
+   },
+   "varies": "seeds"
+  },
+  {
+   "contingency": 0.25,
+   "explore": {
+    "inputs": {
+     "V2": {
+      "default": 20,
+      "max": 60,
+      "min": 10
+     }
+    },
+    "levels": {
+     "non-reasoning-high": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          15000.0,
+          40000.0
+         ],
+         "out": [
+          1950.0,
+          6500.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "non-reasoning-low": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          15000.0,
+          40000.0
+         ],
+         "out": [
+          1500.0,
+          5000.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "non-reasoning-medium": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          15000.0,
+          40000.0
+         ],
+         "out": [
+          1500.0,
+          5000.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "reasoning-high": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          15000.0,
+          40000.0
+         ],
+         "out": [
+          6000.0,
+          20000.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "reasoning-low": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          15000.0,
+          40000.0
+         ],
+         "out": [
+          1500.0,
+          5000.0
+         ]
+        }
+       ]
+      },
+      "pending": false
+     },
+     "reasoning-medium": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          15000.0,
+          50000.0
+         ],
+         "out": [
+          1500.0,
+          10000.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     }
+    },
+    "minutes": [
+     0.0,
+     0.0
+    ],
+    "modelsMax": 3,
+    "presets": {
+     "extended": {
+      "inputs": {
+       "V2": 20
+      },
+      "models": {
+       "reasoning-low": 1,
+       "reasoning-medium": 1
+      },
+      "reps": {
+       "reasoning-low": 5,
+       "reasoning-medium": 2
+      }
+     },
+     "minimum": {
+      "inputs": {
+       "V2": 20
+      },
+      "models": {
+       "reasoning-low": 1
+      },
+      "reps": {
+       "reasoning-low": 2
+      }
+     },
+     "planned": {
+      "inputs": {
+       "V2": 20
+      },
+      "models": {
+       "reasoning-low": 1
+      },
+      "reps": {
+       "reasoning-low": 3
+      }
+     }
+    },
+    "repsMax": 10,
+    "v1RepsCap": 0
+   },
+   "fixed": false,
+   "id": "demand-generator",
+   "measures": "Demand calibration: does generated demand reproduce the target flows within tolerance, each calibration run simulated with its own seed",
+   "name": "Demand Generator",
+   "threshold": "DoD E7.4 (demand calibration)",
+   "tiers": {
+    "extended": {
+     "basis": {
+      "measured": [
+       0.0,
+       0.0
+      ],
+      "proxy": [
+       1.2389999999999999,
+       4.859999999999999
+      ]
+     },
+     "hours": [
+      0.0,
+      0.0
+     ],
+     "levels": [
+      "reasoning-low",
+      "reasoning-medium"
+     ],
+     "net": {
+      "V1": [
+       0.0,
+       0.0
+      ],
+      "V2": [
+       1.2389999999999999,
+       4.859999999999999
+      ]
+     },
+     "pending": true
+    },
+    "minimum": {
+     "basis": {
+      "measured": [
+       0.0,
+       0.0
+      ],
+      "proxy": [
+       0.126,
+       0.36
+      ]
+     },
+     "hours": [
+      0.0,
+      0.0
+     ],
+     "levels": [
+      "reasoning-low"
+     ],
+     "net": {
+      "V1": [
+       0.0,
+       0.0
+      ],
+      "V2": [
+       0.126,
+       0.36
+      ]
+     },
+     "pending": false
+    },
+    "planned": {
+     "basis": {
+      "measured": [
+       0.0,
+       0.0
+      ],
+      "proxy": [
+       0.189,
+       0.5399999999999999
+      ]
+     },
+     "hours": [
+      0.0,
+      0.0
+     ],
+     "levels": [
+      "reasoning-low"
+     ],
+     "net": {
+      "V1": [
+       0.0,
+       0.0
+      ],
+      "V2": [
+       0.189,
+       0.5399999999999999
+      ]
+     },
+     "pending": false
+    }
+   },
+   "varies": "seeds"
+  },
+  {
+   "contingency": 0.2,
+   "explore": {
+    "inputs": {
+     "V1": {
+      "default": 39,
+      "max": 120,
+      "min": 20
+     },
+     "V2": {
+      "default": 117,
+      "max": 360,
+      "min": 60
+     }
+    },
+    "levels": {
+     "non-reasoning-high": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          45000.0,
+          55000.0
+         ],
+         "out": [
+          3120.0,
+          4160.0
+         ]
+        },
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          45000.0,
+          65000.0
+         ],
+         "out": [
+          3120.0,
+          4940.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "non-reasoning-low": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          45000.0,
+          55000.0
+         ],
+         "out": [
+          2400.0,
+          3200.0
+         ]
+        },
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          45000.0,
+          65000.0
+         ],
+         "out": [
+          2400.0,
+          3800.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "non-reasoning-medium": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          45000.0,
+          55000.0
+         ],
+         "out": [
+          2400.0,
+          3200.0
+         ]
+        },
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          45000.0,
+          65000.0
+         ],
+         "out": [
+          2400.0,
+          3800.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "reasoning-high": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          45000.0,
+          55000.0
+         ],
+         "out": [
+          9600.0,
+          12800.0
+         ]
+        },
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          45000.0,
+          65000.0
+         ],
+         "out": [
+          9600.0,
+          15200.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "reasoning-low": {
+      "blocks": {
+       "V1": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          45000.0,
+          55000.0
+         ],
+         "out": [
+          2400.0,
+          3200.0
+         ]
+        },
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          45000.0,
+          65000.0
+         ],
+         "out": [
+          2400.0,
+          3800.0
+         ]
+        }
+       ],
+       "V2": [
+        {
+         "basis": "measured",
+         "calls": 1,
+         "in": [
+          45000.0,
+          55000.0
+         ],
+         "out": [
+          2400.0,
+          3200.0
+         ]
+        },
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          45000.0,
+          65000.0
+         ],
+         "out": [
+          2400.0,
+          3800.0
+         ]
+        }
+       ]
+      },
+      "pending": false
+     },
+     "reasoning-medium": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          45000.0,
+          65000.0
+         ],
+         "out": [
+          2400.0,
+          8000.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     }
+    },
+    "minutes": [
+     0.0,
+     0.0
+    ],
+    "modelsMax": 3,
+    "presets": {
+     "extended": {
+      "inputs": {
+       "V1": 39,
+       "V2": 117
+      },
+      "models": {
+       "reasoning-low": 1,
+       "reasoning-medium": 1
+      },
+      "reps": {
+       "reasoning-low": 3,
+       "reasoning-medium": 2
+      }
+     },
+     "minimum": {
+      "inputs": {
+       "V1": 39,
+       "V2": 117
+      },
+      "models": {
+       "reasoning-low": 1
+      },
+      "reps": {
+       "reasoning-low": 2
+      }
+     },
+     "planned": {
+      "inputs": {
+       "V1": 39,
+       "V2": 117
+      },
+      "models": {
+       "reasoning-low": 1
+      },
+      "reps": {
+       "reasoning-low": 3
+      }
+     }
+    },
+    "repsMax": 10,
+    "v1RepsCap": 2
+   },
+   "fixed": false,
+   "id": "exp-01",
+   "measures": "Forced-mode accuracy across repetitions (N1) and whether the Expert abstains exactly where its forced answer would be wrong (N2), on the same 117 questions",
+   "name": "Network Expert, forced and free abstention (EXP-01)",
+   "threshold": "DoD 4.7 per-family accuracy (E4.2-E4.4); abstention_recall >= 70 % and abstention_false_requests \u003c= 30 % (E4.5)",
+   "tiers": {
+    "extended": {
+     "basis": {
+      "measured": [
+       2.8746899999999997,
+       3.56967
+      ],
+      "proxy": [
+       18.20637,
+       30.921929999999996
+      ]
+     },
+     "hours": [
+      0.0,
+      0.0
+     ],
+     "levels": [
+      "reasoning-low",
+      "reasoning-medium"
+     ],
+     "net": {
+      "V1": [
+       1.2776399999999999,
+       1.7315999999999998
+      ],
+      "V2": [
+       19.80342,
+       32.76
+      ]
+     },
+     "pending": true
+    },
+    "minimum": {
+     "basis": {
+      "measured": [
+       1.9164599999999998,
+       2.3797800000000002
+      ],
+      "proxy": [
+       3.1940999999999997,
+       4.546619999999999
+      ]
+     },
+     "hours": [
+      0.0,
+      0.0
+     ],
+     "levels": [
+      "reasoning-low"
+     ],
+     "net": {
+      "V1": [
+       1.2776399999999999,
+       1.7315999999999998
+      ],
+      "V2": [
+       3.8329199999999997,
+       5.1948
+      ]
+     },
+     "pending": false
+    },
+    "planned": {
+     "basis": {
+      "measured": [
+       2.8746899999999997,
+       3.56967
+      ],
+      "proxy": [
+       4.152329999999999,
+       5.954129999999999
+      ]
+     },
+     "hours": [
+      0.0,
+      0.0
+     ],
+     "levels": [
+      "reasoning-low"
+     ],
+     "net": {
+      "V1": [
+       1.2776399999999999,
+       1.7315999999999998
+      ],
+      "V2": [
+       5.7493799999999995,
+       7.792199999999999
+      ]
+     },
+     "pending": false
+    }
+   },
+   "varies": "repetitions"
+  },
+  {
+   "contingency": 0.2,
+   "explore": {
+    "inputs": {
+     "V2": {
+      "default": 40,
+      "max": 120,
+      "min": 20
+     }
+    },
+    "levels": {
+     "non-reasoning-high": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          45000.0,
+          65000.0
+         ],
+         "out": [
+          3120.0,
+          4940.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "non-reasoning-low": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          45000.0,
+          65000.0
+         ],
+         "out": [
+          2400.0,
+          3800.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "non-reasoning-medium": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          45000.0,
+          65000.0
+         ],
+         "out": [
+          2400.0,
+          3800.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "reasoning-high": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          45000.0,
+          65000.0
+         ],
+         "out": [
+          9600.0,
+          15200.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "reasoning-low": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          45000.0,
+          65000.0
+         ],
+         "out": [
+          2400.0,
+          3800.0
+         ]
+        }
+       ]
+      },
+      "pending": false
+     },
+     "reasoning-medium": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          45000.0,
+          65000.0
+         ],
+         "out": [
+          2400.0,
+          8000.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     }
+    },
+    "minutes": [
+     0.0,
+     0.0
+    ],
+    "modelsMax": 3,
+    "presets": {
+     "extended": {
+      "inputs": {
+       "V2": 40
+      },
+      "models": {
+       "reasoning-low": 1,
+       "reasoning-medium": 1
+      },
+      "reps": {
+       "reasoning-low": 3,
+       "reasoning-medium": 2
+      }
+     },
+     "minimum": {
+      "inputs": {
+       "V2": 40
+      },
+      "models": {
+       "reasoning-low": 1
+      },
+      "reps": {
+       "reasoning-low": 2
+      }
+     },
+     "planned": {
+      "inputs": {
+       "V2": 40
+      },
+      "models": {
+       "reasoning-low": 1
+      },
+      "reps": {
+       "reasoning-low": 3
+      }
+     }
+    },
+    "repsMax": 10,
+    "v1RepsCap": 0
+   },
+   "fixed": false,
+   "id": "expert-real-net",
+   "measures": "Forced-mode accuracy of the Expert on the frozen real district: descriptive, Jaccard and direction metrics",
+   "name": "Network Expert on REAL-NET",
+   "threshold": "DoD 4.7 REAL-NET (descriptive >= 85 %, Jaccard >= 0.5, direction >= 65 %; E8.5)",
+   "tiers": {
+    "extended": {
+     "basis": {
+      "measured": [
+       0.0,
+       0.0
+      ],
+      "proxy": [
+       5.7876,
+       9.9796
+      ]
+     },
+     "hours": [
+      0.0,
+      0.0
+     ],
+     "levels": [
+      "reasoning-low",
+      "reasoning-medium"
+     ],
+     "net": {
+      "V1": [
+       0.0,
+       0.0
+      ],
+      "V2": [
+       5.7876,
+       9.9796
+      ]
+     },
+     "pending": true
+    },
+    "minimum": {
+     "basis": {
+      "measured": [
+       0.0,
+       0.0
+      ],
+      "proxy": [
+       0.6552,
+       0.9623999999999999
+      ]
+     },
+     "hours": [
+      0.0,
+      0.0
+     ],
+     "levels": [
+      "reasoning-low"
+     ],
+     "net": {
+      "V1": [
+       0.0,
+       0.0
+      ],
+      "V2": [
+       0.6552,
+       0.9623999999999999
+      ]
+     },
+     "pending": false
+    },
+    "planned": {
+     "basis": {
+      "measured": [
+       0.0,
+       0.0
+      ],
+      "proxy": [
+       0.9827999999999999,
+       1.4436
+      ]
+     },
+     "hours": [
+      0.0,
+      0.0
+     ],
+     "levels": [
+      "reasoning-low"
+     ],
+     "net": {
+      "V1": [
+       0.0,
+       0.0
+      ],
+      "V2": [
+       0.9827999999999999,
+       1.4436
+      ]
+     },
+     "pending": false
+    }
+   },
+   "varies": "repetitions"
+  },
+  {
+   "contingency": 0.3,
+   "explore": {
+    "inputs": {
+     "V2": {
+      "default": 120,
+      "max": 360,
+      "min": 60
+     }
+    },
+    "levels": {
+     "non-reasoning-high": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          50000.0,
+          70000.0
+         ],
+         "out": [
+          3120.0,
+          4940.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "non-reasoning-low": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          50000.0,
+          70000.0
+         ],
+         "out": [
+          2400.0,
+          3800.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "non-reasoning-medium": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          50000.0,
+          70000.0
+         ],
+         "out": [
+          2400.0,
+          3800.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "reasoning-high": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          50000.0,
+          70000.0
+         ],
+         "out": [
+          9600.0,
+          15200.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "reasoning-low": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          50000.0,
+          70000.0
+         ],
+         "out": [
+          2400.0,
+          3800.0
+         ]
+        }
+       ]
+      },
+      "pending": false
+     },
+     "reasoning-medium": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          50000.0,
+          70000.0
+         ],
+         "out": [
+          5760.0,
+          9120.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     }
+    },
+    "minutes": [
+     0.0,
+     0.0
+    ],
+    "modelsMax": 3,
+    "presets": {
+     "extended": {
+      "inputs": {
+       "V2": 120
+      },
+      "models": {
+       "reasoning-low": 1
+      },
+      "reps": {
+       "reasoning-low": 5
+      }
+     },
+     "minimum": {
+      "inputs": {
+       "V2": 120
+      },
+      "models": {
+       "reasoning-low": 1
+      },
+      "reps": {
+       "reasoning-low": 2
+      }
+     },
+     "planned": {
+      "inputs": {
+       "V2": 120
+      },
+      "models": {
+       "reasoning-low": 1
+      },
+      "reps": {
+       "reasoning-low": 3
+      }
+     }
+    },
+    "repsMax": 10,
+    "v1RepsCap": 0
+   },
+   "fixed": false,
+   "id": "expert-learning-effect",
+   "measures": "Does accuracy rise as the Expert holds more prior experiences (0, 5, 15, 25): the learning-effect curve",
+   "name": "Network Expert learning effect",
+   "threshold": "DoD E4.9 (learning-effect curve)",
+   "tiers": {
+    "extended": {
+     "basis": {
+      "measured": [
+       0.0,
+       0.0
+      ],
+      "proxy": [
+       5.364,
+       7.668
+      ]
+     },
+     "hours": [
+      0.0,
+      0.0
+     ],
+     "levels": [
+      "reasoning-low"
+     ],
+     "net": {
+      "V1": [
+       0.0,
+       0.0
+      ],
+      "V2": [
+       5.364,
+       7.668
+      ]
+     },
+     "pending": false
+    },
+    "minimum": {
+     "basis": {
+      "measured": [
+       0.0,
+       0.0
+      ],
+      "proxy": [
+       2.1456,
+       3.0671999999999997
+      ]
+     },
+     "hours": [
+      0.0,
+      0.0
+     ],
+     "levels": [
+      "reasoning-low"
+     ],
+     "net": {
+      "V1": [
+       0.0,
+       0.0
+      ],
+      "V2": [
+       2.1456,
+       3.0671999999999997
+      ]
+     },
+     "pending": false
+    },
+    "planned": {
+     "basis": {
+      "measured": [
+       0.0,
+       0.0
+      ],
+      "proxy": [
+       3.2184,
+       4.6008
+      ]
+     },
+     "hours": [
+      0.0,
+      0.0
+     ],
+     "levels": [
+      "reasoning-low"
+     ],
+     "net": {
+      "V1": [
+       0.0,
+       0.0
+      ],
+      "V2": [
+       3.2184,
+       4.6008
+      ]
+     },
+     "pending": false
+    }
+   },
+   "varies": "seeds"
+  },
+  {
+   "contingency": 0.15,
+   "explore": {
+    "inputs": {
+     "V2": {
+      "default": 60,
+      "max": 180,
+      "min": 30
+     }
+    },
+    "levels": {
+     "non-reasoning-high": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          3000.0,
+          8000.0
+         ],
+         "out": [
+          650.0,
+          1950.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "non-reasoning-low": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          3000.0,
+          8000.0
+         ],
+         "out": [
+          500.0,
+          1500.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "non-reasoning-medium": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          3000.0,
+          8000.0
+         ],
+         "out": [
+          500.0,
+          1500.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "reasoning-high": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          3000.0,
+          8000.0
+         ],
+         "out": [
+          2000.0,
+          6000.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "reasoning-low": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          3000.0,
+          8000.0
+         ],
+         "out": [
+          500.0,
+          1500.0
+         ]
+        }
+       ]
+      },
+      "pending": false
+     },
+     "reasoning-medium": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          3000.0,
+          8000.0
+         ],
+         "out": [
+          500.0,
+          1500.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     }
+    },
+    "minutes": [
+     3.0,
+     5.0
+    ],
+    "modelsMax": 3,
+    "presets": {
+     "extended": {
+      "inputs": {
+       "V2": 60
+      },
+      "models": {
+       "non-reasoning-low": 2,
+       "non-reasoning-medium": 2,
+       "reasoning-low": 1,
+       "reasoning-medium": 1
+      },
+      "reps": {
+       "non-reasoning-low": 3,
+       "non-reasoning-medium": 3,
+       "reasoning-low": 3,
+       "reasoning-medium": 2
+      }
+     },
+     "minimum": {
+      "inputs": {
+       "V2": 60
+      },
+      "models": {
+       "reasoning-low": 1
+      },
+      "reps": {
+       "reasoning-low": 2
+      }
+     },
+     "planned": {
+      "inputs": {
+       "V2": 60
+      },
+      "models": {
+       "non-reasoning-low": 2,
+       "reasoning-low": 1
+      },
+      "reps": {
+       "non-reasoning-low": 3,
+       "reasoning-low": 3
+      }
+     }
+    },
+    "repsMax": 10,
+    "v1RepsCap": 0
+   },
+   "fixed": false,
+   "id": "output-composer",
+   "measures": "Hallucination review of composed text against the Expert's answer (no invented or contradicted claim), plus what the golden-path rubric already covers",
+   "name": "Output Composer",
+   "threshold": "DoD E5.7 rubric (Composer faithfulness) and E9.5",
+   "tiers": {
+    "extended": {
+     "basis": {
+      "measured": [
+       0.0,
+       0.0
+      ],
+      "proxy": [
+       1.0415999999999999,
+       2.9118
+      ]
+     },
+     "hours": [
+      18.0,
+      30.0
+     ],
+     "levels": [
+      "non-reasoning-low",
+      "non-reasoning-medium",
+      "reasoning-low",
+      "reasoning-medium"
+     ],
+     "net": {
+      "V1": [
+       0.0,
+       0.0
+      ],
+      "V2": [
+       1.0415999999999999,
+       2.9118
+      ]
+     },
+     "pending": true
+    },
+    "minimum": {
+     "basis": {
+      "measured": [
+       0.0,
+       0.0
+      ],
+      "proxy": [
+       0.09,
+       0.252
+      ]
+     },
+     "hours": [
+      3.0,
+      5.0
+     ],
+     "levels": [
+      "reasoning-low"
+     ],
+     "net": {
+      "V1": [
+       0.0,
+       0.0
+      ],
+      "V2": [
+       0.09,
+       0.252
+      ]
+     },
+     "pending": false
+    },
+    "planned": {
+     "basis": {
+      "measured": [
+       0.0,
+       0.0
+      ],
+      "proxy": [
+       0.21600000000000003,
+       0.603
+      ]
+     },
+     "hours": [
+      9.0,
+      15.0
+     ],
+     "levels": [
+      "non-reasoning-low",
+      "reasoning-low"
+     ],
+     "net": {
+      "V1": [
+       0.0,
+       0.0
+      ],
+      "V2": [
+       0.21600000000000003,
+       0.603
+      ]
+     },
+     "pending": true
+    }
+   },
+   "varies": "repetitions"
+  },
+  {
+   "contingency": 0.25,
+   "explore": {
+    "inputs": {
+     "V2": {
+      "default": 11,
+      "max": 33,
+      "min": 6
+     }
+    },
+    "levels": {
+     "non-reasoning-high": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          150000.0,
+          400000.0
+         ],
+         "out": [
+          13000.0,
+          39000.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "non-reasoning-low": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          150000.0,
+          400000.0
+         ],
+         "out": [
+          10000.0,
+          30000.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "non-reasoning-medium": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          150000.0,
+          400000.0
+         ],
+         "out": [
+          10000.0,
+          30000.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "reasoning-high": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          150000.0,
+          400000.0
+         ],
+         "out": [
+          40000.0,
+          120000.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     },
+     "reasoning-low": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          150000.0,
+          400000.0
+         ],
+         "out": [
+          10000.0,
+          30000.0
+         ]
+        }
+       ]
+      },
+      "pending": false
+     },
+     "reasoning-medium": {
+      "blocks": {
+       "V2": [
+        {
+         "basis": "proxy",
+         "calls": 1,
+         "in": [
+          150000.0,
+          400000.0
+         ],
+         "out": [
+          24000.0,
+          72000.0
+         ]
+        }
+       ]
+      },
+      "pending": true
+     }
+    },
+    "minutes": [
+     0.0,
+     0.0
+    ],
+    "modelsMax": 3,
+    "presets": {
+     "extended": {
+      "inputs": {
+       "V2": 11
+      },
+      "models": {
+       "reasoning-low": 1
+      },
+      "reps": {
+       "reasoning-low": 5
+      }
+     },
+     "minimum": {
+      "inputs": {
+       "V2": 11
+      },
+      "models": {
+       "reasoning-low": 1
+      },
+      "reps": {
+       "reasoning-low": 2
+      }
+     },
+     "planned": {
+      "inputs": {
+       "V2": 11
+      },
+      "models": {
+       "reasoning-low": 1
+      },
+      "reps": {
+       "reasoning-low": 3
+      }
+     }
+    },
+    "repsMax": 10,
+    "v1RepsCap": 0
+   },
+   "fixed": false,
+   "id": "golden-path",
+   "measures": "The 11 golden paths end to end through the CLI: pass/fail and the rubric over the composed answer",
+   "name": "Golden-path integration",
+   "threshold": "DoD E9.4 and E9.5 (golden paths), E5.7 rubric",
+   "tiers": {
+    "extended": {
+     "basis": {
+      "measured": [
+       0.0,
+       0.0
+      ],
+      "proxy": [
+       1.5675,
+       4.29
+      ]
+     },
+     "hours": [
+      0.0,
+      0.0
+     ],
+     "levels": [
+      "reasoning-low"
+     ],
+     "net": {
+      "V1": [
+       0.0,
+       0.0
+      ],
+      "V2": [
+       1.5675,
+       4.29
+      ]
+     },
+     "pending": false
+    },
+    "minimum": {
+     "basis": {
+      "measured": [
+       0.0,
+       0.0
+      ],
+      "proxy": [
+       0.627,
+       1.716
+      ]
+     },
+     "hours": [
+      0.0,
+      0.0
+     ],
+     "levels": [
+      "reasoning-low"
+     ],
+     "net": {
+      "V1": [
+       0.0,
+       0.0
+      ],
+      "V2": [
+       0.627,
+       1.716
+      ]
+     },
+     "pending": false
+    },
+    "planned": {
+     "basis": {
+      "measured": [
+       0.0,
+       0.0
+      ],
+      "proxy": [
+       0.9404999999999999,
+       2.574
+      ]
+     },
+     "hours": [
+      0.0,
+      0.0
+     ],
+     "levels": [
+      "reasoning-low"
+     ],
+     "net": {
+      "V1": [
+       0.0,
+       0.0
+      ],
+      "V2": [
+       0.9404999999999999,
+       2.574
+      ]
+     },
+     "pending": false
+    }
+   },
+   "varies": "repetitions"
   }
  ]
 }</script>
 <script id="core">
 "use strict";
-// Pure calculation: sums and shares over the precomputed per-suite figures. No DOM.
+// Pure calculation, no DOM. The cost formula is the model's: inputs x repetitions x calls x models x
+// (tokens x level price). A parity test checks it against the Python model.
+function clone(x) { return JSON.parse(JSON.stringify(x)); }
+function presetCfg(data, s, name) {
+  var p = s.explore.presets[name], plan = s.explore.presets[data.defaultTier];
+  var cfg = { inputs: clone(p.inputs), models: {}, reps: {} };
+  data.levels.forEach(function (l) {
+    cfg.models[l.name] = p.models[l.name] || 0;
+    cfg.reps[l.name] = p.reps[l.name] || plan.reps[data.defaultLevel] || data.repetitionFloor;
+  });
+  return cfg;
+}
+function whole(v, lo, hi, fallback) {
+  var n = Math.round(Number(v));
+  return isFinite(n) && v !== "" && v !== null ? Math.min(hi, Math.max(lo, n)) : fallback;
+}
+function clamp(data, s, cfg) {
+  var ex = s.explore;
+  Object.keys(ex.inputs).forEach(function (p) {
+    cfg.inputs[p] = whole(cfg.inputs[p], ex.inputs[p].min, ex.inputs[p].max, ex.inputs[p].default);
+  });
+  data.levels.forEach(function (l) {
+    var lo = l.name === data.defaultLevel ? 1 : 0;
+    cfg.models[l.name] = whole(cfg.models[l.name], lo, ex.modelsMax, lo);
+    cfg.reps[l.name] = whole(cfg.reps[l.name], data.repetitionFloor, ex.repsMax, data.repetitionFloor);
+  });
+  return cfg;
+}
+function sameCfg(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
+function presetOf(data, s, cfg) {
+  var found = null;
+  Object.keys(s.tiers).forEach(function (t) {
+    if (found === null && sameCfg(cfg, presetCfg(data, s, t))) found = t;
+  });
+  return found;
+}
 function defaults(data) {
-  var tiers = {}, c = {};
+  var cfg = {}, c = {};
   data.suites.forEach(function (s) {
-    tiers[s.id] = s.tiers[data.defaultTier] ? data.defaultTier : Object.keys(s.tiers)[0];
+    cfg[s.id] = presetCfg(data, s, data.defaultTier);
     c[s.id] = s.contingency;
   });
-  return { tiers: tiers, c: c, g: data.globalContingency };
+  return { cfg: cfg, c: c, g: data.globalContingency };
 }
 function share(text, fallback) {
   var v = Number(text);
@@ -1020,8 +5502,18 @@ function parseFragment(data, fragment) {
   var state = defaults(data);
   var params = new URLSearchParams(String(fragment || "").replace(/^#/, ""));
   data.suites.forEach(function (s) {
-    var t = params.get("tier." + s.id);
-    if (t !== null && Object.prototype.hasOwnProperty.call(s.tiers, t)) state.tiers[s.id] = t;
+    var t = params.get("tier." + s.id), cfg = state.cfg[s.id];
+    if (t !== null && Object.prototype.hasOwnProperty.call(s.tiers, t)) cfg = presetCfg(data, s, t);
+    Object.keys(s.explore.inputs).forEach(function (p) {
+      var v = params.get("n." + s.id + "." + p);
+      if (v !== null) cfg.inputs[p] = v;
+    });
+    data.levels.forEach(function (l) {
+      var m = params.get("m." + s.id + "." + l.name), r = params.get("r." + s.id + "." + l.name);
+      if (m !== null) cfg.models[l.name] = m;
+      if (r !== null) cfg.reps[l.name] = r;
+    });
+    state.cfg[s.id] = clamp(data, s, cfg);
     state.c[s.id] = share(params.get("c." + s.id), state.c[s.id]);
   });
   state.g = share(params.get("g"), state.g);
@@ -1030,7 +5522,18 @@ function parseFragment(data, fragment) {
 function toFragment(data, state) {
   var d = defaults(data), params = new URLSearchParams();
   data.suites.forEach(function (s) {
-    if (state.tiers[s.id] !== d.tiers[s.id]) params.set("tier." + s.id, state.tiers[s.id]);
+    var cfg = state.cfg[s.id], base = d.cfg[s.id], preset = presetOf(data, s, cfg);
+    if (preset !== null) {
+      if (preset !== data.defaultTier) params.set("tier." + s.id, preset);
+    } else {
+      Object.keys(cfg.inputs).forEach(function (p) {
+        if (cfg.inputs[p] !== base.inputs[p]) params.set("n." + s.id + "." + p, String(cfg.inputs[p]));
+      });
+      data.levels.forEach(function (l) {
+        if (cfg.models[l.name] !== base.models[l.name]) params.set("m." + s.id + "." + l.name, String(cfg.models[l.name]));
+        if (cfg.models[l.name] && cfg.reps[l.name] !== base.reps[l.name]) params.set("r." + s.id + "." + l.name, String(cfg.reps[l.name]));
+      });
+    }
     if (state.c[s.id] !== d.c[s.id]) params.set("c." + s.id, String(state.c[s.id]));
   });
   if (state.g !== d.g) params.set("g", String(state.g));
@@ -1039,12 +5542,35 @@ function toFragment(data, state) {
 }
 function add(a, b) { return [a[0] + b[0], a[1] + b[1]]; }
 function times(a, f) { return [a[0] * f, a[1] * f]; }
+function suiteCost(data, s, cfg) {
+  var ex = s.explore, zero = [0, 0], net = {}, basis = {}, pending = [], slots = 0;
+  data.passes.forEach(function (p) { net[p] = zero; });
+  data.bases.forEach(function (b) { basis[b] = zero; });
+  data.levels.forEach(function (l) {
+    var count = cfg.models[l.name];
+    if (!count) return;
+    slots += count;
+    if (ex.levels[l.name].pending) pending.push(l.name);
+    data.passes.forEach(function (p) {
+      if (p === "V1" && l.name !== data.defaultLevel) return;
+      var reps = cfg.reps[l.name];
+      if (p === "V1") reps = Math.min(reps, ex.v1RepsCap);
+      (ex.levels[l.name].blocks[p] || []).forEach(function (b) {
+        var run = [0, 1].map(function (i) { return (b.in[i] * l.in + b.out[i] * l.out) / 1000000; });
+        var cost = times(run, (cfg.inputs[p] || 0) * reps * b.calls * count);
+        net[p] = add(net[p], cost);
+        basis[b.basis] = add(basis[b.basis], cost);
+      });
+    });
+  });
+  return { net: net, basis: basis, pending: pending, hours: times(ex.minutes, (cfg.inputs.V2 || 0) * slots / 60) };
+}
 function totals(data, state) {
   var zero = [0, 0], net = {}, reserve = {}, byPass = {}, byBasis = {}, hours = zero, rows = [];
   data.passes.forEach(function (p) { net[p] = zero; reserve[p] = zero; });
   data.bases.forEach(function (b) { byBasis[b] = zero; });
   data.suites.forEach(function (s) {
-    var t = s.tiers[state.tiers[s.id]], own = zero, ownReserve = zero;
+    var t = suiteCost(data, s, state.cfg[s.id]), own = zero, ownReserve = zero;
     data.passes.forEach(function (p) {
       net[p] = add(net[p], t.net[p]);
       reserve[p] = add(reserve[p], times(t.net[p], state.c[s.id]));
@@ -1053,7 +5579,7 @@ function totals(data, state) {
     });
     data.bases.forEach(function (b) { byBasis[b] = add(byBasis[b], t.basis[b]); });
     hours = add(hours, t.hours);
-    rows.push({ id: s.id, net: own, reserve: ownReserve, pending: t.pending });
+    rows.push({ id: s.id, net: own, reserve: ownReserve, pending: t.pending, hours: t.hours });
   });
   var without = zero, withC = zero;
   data.passes.forEach(function (p) {
@@ -1092,38 +5618,73 @@ function totals(data, state) {
     });
     table.appendChild(tr);
   }
+  function numberInput(min, max) {
+    var i = el("input");
+    i.type = "number"; i.min = String(min); i.max = String(max); i.step = "1"; i.inputMode = "numeric";
+    return i;
+  }
   var nodes = {};
   function buildSuites() {
     var host = $("suites");
     data.suites.forEach(function (s) {
+      var ex = s.explore, n = { inputs: {}, models: {}, reps: {}, tags: {} };
       var card = el("div", undefined, "card");
       card.appendChild(el("h3", s.name));
       card.appendChild(el("div", s.measures + " (" + s.threshold + ")", "small"));
-      if (!s.fixed) card.appendChild(el("div", "Shape unfixed until its benchmark is designed.", "small"));
-      var controls = el("div", undefined, "row");
-      var tl = el("label", "Tier"), sel = el("select");
-      Object.keys(s.tiers).forEach(function (t) {
-        var o = el("option", t); o.value = t; sel.appendChild(o);
+      card.appendChild(el("div", "Varies " + s.varies + (s.fixed ? "" : ". Shape unfixed until its benchmark is designed."), "small"));
+      var top = el("div", undefined, "row");
+      var tl = el("label", "Preset"); n.preset = el("select");
+      Object.keys(s.tiers).concat(["custom"]).forEach(function (t) {
+        var o = el("option", t); o.value = t; n.preset.appendChild(o);
       });
-      sel.addEventListener("change", function () { state.tiers[s.id] = sel.value; update(); });
-      tl.appendChild(sel);
-      var cl = el("label", "Contingency (%)"), inp = el("input");
-      inp.type = "number"; inp.min = "0"; inp.max = "500"; inp.step = "1"; inp.inputMode = "decimal";
-      inp.addEventListener("input", function () {
-        state.c[s.id] = share(String(inp.value / 100), state.c[s.id]); update(true);
+      n.preset.addEventListener("change", function () {
+        if (n.preset.value !== "custom") { state.cfg[s.id] = presetCfg(data, s, n.preset.value); update(); }
       });
-      cl.appendChild(inp);
-      controls.appendChild(tl); controls.appendChild(cl);
-      card.appendChild(controls);
-      var out = el("div"); card.appendChild(out);
+      tl.appendChild(n.preset); top.appendChild(tl);
+      Object.keys(ex.inputs).forEach(function (p) {
+        var b = ex.inputs[p], l = el("label", "Inputs in " + p + " (" + b.min + " to " + b.max + ")");
+        var inp = numberInput(b.min, b.max);
+        inp.addEventListener("change", function () { state.cfg[s.id].inputs[p] = inp.value; edit(s); });
+        l.appendChild(inp); top.appendChild(l); n.inputs[p] = inp;
+      });
+      var cl = el("label", "Contingency (%)"); n.cont = numberInput(0, 500);
+      n.cont.addEventListener("input", function () {
+        state.c[s.id] = share(String(n.cont.value / 100), state.c[s.id]); update(true);
+      });
+      cl.appendChild(n.cont); top.appendChild(cl);
+      card.appendChild(top);
+      var grid = el("div", undefined, "grid");
+      grid.appendChild(el("span", "Capability level", "head"));
+      grid.appendChild(el("span", "Models (0 to " + ex.modelsMax + ")", "head"));
+      grid.appendChild(el("span", "Repetitions (" + data.repetitionFloor + " to " + ex.repsMax + ")", "head"));
+      data.levels.forEach(function (l) {
+        var name = el("span", l.name === data.defaultLevel ? l.name + " (default)" : l.name);
+        n.tags[l.name] = el("span", " pending policy approval", "tag"); name.appendChild(n.tags[l.name]);
+        var m = numberInput(l.name === data.defaultLevel ? 1 : 0, ex.modelsMax), r = numberInput(data.repetitionFloor, ex.repsMax);
+        m.addEventListener("change", function () { state.cfg[s.id].models[l.name] = m.value; edit(s); });
+        r.addEventListener("change", function () { state.cfg[s.id].reps[l.name] = r.value; edit(s); });
+        grid.appendChild(name); grid.appendChild(m); grid.appendChild(r);
+        n.models[l.name] = m; n.reps[l.name] = r;
+      });
+      card.appendChild(grid);
+      card.appendChild(el("div", "V1 runs only the default level, at no more repetitions than the planned preset's V1.", "small"));
+      n.out = el("div"); card.appendChild(n.out);
       host.appendChild(card);
-      nodes[s.id] = { sel: sel, inp: inp, out: out };
+      nodes[s.id] = n;
     });
   }
+  function edit(s) { clamp(data, s, state.cfg[s.id]); update(); }
   function sync() {
     data.suites.forEach(function (s) {
-      nodes[s.id].sel.value = state.tiers[s.id];
-      nodes[s.id].inp.value = Math.round(state.c[s.id] * 1000) / 10;
+      var n = nodes[s.id], cfg = state.cfg[s.id];
+      n.preset.value = presetOf(data, s, cfg) || "custom";
+      Object.keys(n.inputs).forEach(function (p) { n.inputs[p].value = cfg.inputs[p]; });
+      data.levels.forEach(function (l) {
+        n.models[l.name].value = cfg.models[l.name];
+        n.reps[l.name].value = cfg.reps[l.name];
+        n.reps[l.name].disabled = !cfg.models[l.name];
+      });
+      n.cont.value = Math.round(state.c[s.id] * 1000) / 10;
     });
     $("g").value = Math.round(state.g * 1000) / 10;
   }
@@ -1132,12 +5693,13 @@ function totals(data, state) {
     if (!keepInputs) sync();
     history.replaceState(null, "", location.pathname + location.search + toFragment(data, state));
     t.rows.forEach(function (r, i) {
-      var s = data.suites[i], tier = s.tiers[state.tiers[s.id]], n = nodes[s.id].out;
-      n.textContent = "";
-      n.appendChild(el("div", "Without contingency " + usd(r.net) + "; reserve " + usd(r.reserve)));
-      var meta = "Uses " + tier.levels.join(", ") + (tier.hours[1] ? "; reviewer effort " + tier.hours[0] + " to " + tier.hours[1] + " hours" : "");
-      n.appendChild(el("div", meta, "small"));
-      if (tier.pending) n.appendChild(el("span", "pending policy approval", "tag"));
+      var s = data.suites[i], n = nodes[s.id];
+      data.levels.forEach(function (l) {
+        n.tags[l.name].hidden = !(state.cfg[s.id].models[l.name] && s.explore.levels[l.name].pending);
+      });
+      n.out.textContent = "";
+      n.out.appendChild(el("div", "Without contingency " + usd(r.net) + "; reserve " + usd(r.reserve)));
+      if (r.hours[1]) n.out.appendChild(el("div", "Reviewer effort " + r.hours[0].toFixed(1) + " to " + r.hours[1].toFixed(1) + " hours", "small"));
     });
     var box = $("summary"); box.textContent = "";
     var table = el("table");
@@ -1148,7 +5710,7 @@ function totals(data, state) {
     });
     row(table, ["Total with contingency", usd(t.withContingency)]);
     row(table, ["Measured share of cost", pct(t.byBasis.measured, t.withoutContingency) + " of the high (rest is proxy: " + usd(t.byBasis.proxy) + ")"]);
-    if (t.hours[1]) row(table, ["Reviewer effort", t.hours[0] + " to " + t.hours[1] + " hours"]);
+    if (t.hours[1]) row(table, ["Reviewer effort", t.hours[0].toFixed(1) + " to " + t.hours[1].toFixed(1) + " hours"]);
     box.appendChild(table);
     var verdict = t.excess[1] <= 0
       ? el("p", "Within the $" + data.cap + " cap.", "ok")

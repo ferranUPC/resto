@@ -10,10 +10,10 @@ from dataclasses import replace
 from pathlib import Path
 
 import pytest
-from eval.budget import compute, load_plan
+from eval.budget import Config, compute, load_plan
 from eval.budget.page import render_page
 
-from tests.unit.eval.budget_fixtures import HEADER, suite, write
+from tests.unit.eval.budget_fixtures import EXPLORE, HEADER, suite, write
 
 ROOT = Path(__file__).resolve().parents[3] / "eval" / "budget"
 RUNNER = """
@@ -66,7 +66,8 @@ def test_page_matches_the_python_model_on_the_default_and_a_restored_link(tmp_pa
 
     link = "#tier.a=minimum&tier.b=planned&c.a=0.5&g=0.2"
     got = _node_totals(tmp_path, html, link)
-    assert got["state"]["tiers"] == {"a": "minimum", "b": "planned"}
+    reps = {sid: got["state"]["cfg"][sid]["reps"]["reasoning-low"] for sid in "ab"}
+    assert reps == {"a": 2, "b": 3}
     plan2 = replace(
         plan,
         global_contingency=0.2,
@@ -97,7 +98,7 @@ def test_parity_on_the_shipped_plan_for_every_uniform_tier(tmp_path):
 def test_a_bad_fragment_falls_back_to_the_defaults(tmp_path):
     plan = load_plan(write(tmp_path))
     got = _node_totals(tmp_path, render_page(plan), "#tier.s1=bogus&c.s1=abc&g=-3")
-    assert got["state"]["tiers"] == {"s1": "planned"}
+    assert got["state"]["cfg"]["s1"]["reps"]["reasoning-low"] == 3
     assert got["totals"]["withContingency"] == pytest.approx(_pair(compute(plan).with_contingency))
 
 
@@ -117,3 +118,62 @@ def test_the_committed_page_is_up_to_date():
 def test_the_page_script_says_may_exceed_when_only_the_high_total_is_over():
     html = (ROOT / "page_template.html").read_text(encoding="utf-8")
     assert "May exceed the $" in html
+
+
+def test_a_free_configuration_in_the_link_costs_what_the_python_model_says(tmp_path):
+    plan = load_plan(write(tmp_path, suite(suite_id="a", explore=EXPLORE)))
+    link = (
+        "#n.a.V2=25&m.a.reasoning-low=2&r.a.reasoning-low=4"
+        "&m.a.reasoning-high=1&r.a.reasoning-high=3"
+    )
+    got = _node_totals(tmp_path, render_page(plan), link)
+    config = Config(
+        {"V2": 25},
+        {"reasoning-low": 2, "reasoning-high": 1},
+        {"reasoning-low": 4, "reasoning-high": 3},
+    )
+    want = compute(plan, {"a": config})
+    t = got["totals"]
+    assert t["withContingency"] == pytest.approx(_pair(want.with_contingency))
+    assert t["withoutContingency"] == pytest.approx(_pair(want.without_contingency))
+    assert t["rows"][0]["pending"] == ["reasoning-high"]
+    assert t["hours"] == pytest.approx(_pair(compute_hours(plan, config)))
+
+
+def compute_hours(plan, config):
+    from eval.budget.model import review_hours
+
+    return review_hours(plan.suites[0].explore, config)
+
+
+def test_values_outside_the_bounds_in_the_link_are_clamped(tmp_path):
+    plan = load_plan(write(tmp_path, suite(suite_id="a", explore=EXPLORE)))
+    link = "#n.a.V2=9999&m.a.reasoning-low=0&r.a.reasoning-low=99&m.a.reasoning-high=-4"
+    cfg = _node_totals(tmp_path, render_page(plan), link)["state"]["cfg"]["a"]
+    assert cfg["inputs"] == {"V2": 40}
+    assert cfg["models"]["reasoning-low"] == 1 and cfg["models"]["reasoning-high"] == 0
+    assert cfg["reps"]["reasoning-low"] == 6
+
+
+def test_the_shipped_page_matches_python_on_a_free_configuration(tmp_path):
+    plan = load_plan(ROOT / "cost-data.toml")
+    html = render_page(plan)
+    live = [s for s in plan.suites if not s.removed]
+    top = {s.id: s.explore.inputs["V2"][1] for s in live if s.explore}
+    fragment = "#" + "&".join(
+        f"m.{s.id}.reasoning-medium=2&r.{s.id}.reasoning-medium=3&m.{s.id}.reasoning-high=1"
+        f"&n.{s.id}.V2={top[s.id]}"
+        for s in live
+    )
+    state = _node_totals(tmp_path, html, fragment)
+    configs = {
+        sid: Config(
+            c["inputs"],
+            {k: v for k, v in c["models"].items()},
+            {k: v for k, v in c["reps"].items()},
+        )
+        for sid, c in state["state"]["cfg"].items()
+    }
+    want = compute(plan, configs)
+    assert state["totals"]["withContingency"] == pytest.approx(_pair(want.with_contingency))
+    assert state["totals"]["byPass"]["V1"] == pytest.approx(_pair(want.by_pass["V1"]))

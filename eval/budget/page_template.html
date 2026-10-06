@@ -27,12 +27,15 @@
   .bad { color:var(--bad); font-weight:600; }
   .ok { color:var(--ok); font-weight:600; }
   .small { font-size:.85rem; color:var(--muted); }
+  .grid { display:grid; grid-template-columns:minmax(8rem,1fr) 6rem 6rem; gap:6px 12px; align-items:center; margin:.5rem 0; }
+  .grid input { min-width:0; width:100%; }
+  .grid .head { font-size:.8rem; color:var(--muted); }
   button { font:inherit; padding:6px 10px; border:1px solid var(--line); border-radius:6px; background:var(--card); color:var(--fg); cursor:pointer; }
 </style>
 </head>
 <body>
 <h1>Evaluation budget</h1>
-<p>Pick a tier per suite and adjust the contingency. Totals are low to high, in USD, with V1 and V2 shown apart and combined against the cap. The selection is kept in the page address: copy the link to share exactly this choice.</p>
+<p>For each suite, start from a preset (minimum, planned, extended) or set your own: how many inputs to run in each pass, which capability levels to test, how many models per level and how many repetitions. The bounds come from the cost data. Totals are low to high, in USD, with V1 and V2 apart and combined against the cap. The selection is kept in the page address: copy the link to share exactly this choice.</p>
 
 <div class="card" id="summary" aria-live="polite"></div>
 <div class="row">
@@ -50,16 +53,52 @@
 <p class="small">Figures marked measured rest on a recorded run; proxy figures are estimates. Reviewer effort is manual time in hours and is never converted to dollars.</p>
 
 <script id="data" type="application/json">/*DATA*/</script>
+<script id="data" type="application/json">/*DATA*/</script>
 <script id="core">
 "use strict";
-// Pure calculation: sums and shares over the precomputed per-suite figures. No DOM.
+// Pure calculation, no DOM. The cost formula is the model's: inputs x repetitions x calls x models x
+// (tokens x level price). A parity test checks it against the Python model.
+function clone(x) { return JSON.parse(JSON.stringify(x)); }
+function presetCfg(data, s, name) {
+  var p = s.explore.presets[name], plan = s.explore.presets[data.defaultTier];
+  var cfg = { inputs: clone(p.inputs), models: {}, reps: {} };
+  data.levels.forEach(function (l) {
+    cfg.models[l.name] = p.models[l.name] || 0;
+    cfg.reps[l.name] = p.reps[l.name] || plan.reps[data.defaultLevel] || data.repetitionFloor;
+  });
+  return cfg;
+}
+function whole(v, lo, hi, fallback) {
+  var n = Math.round(Number(v));
+  return isFinite(n) && v !== "" && v !== null ? Math.min(hi, Math.max(lo, n)) : fallback;
+}
+function clamp(data, s, cfg) {
+  var ex = s.explore;
+  Object.keys(ex.inputs).forEach(function (p) {
+    cfg.inputs[p] = whole(cfg.inputs[p], ex.inputs[p].min, ex.inputs[p].max, ex.inputs[p].default);
+  });
+  data.levels.forEach(function (l) {
+    var lo = l.name === data.defaultLevel ? 1 : 0;
+    cfg.models[l.name] = whole(cfg.models[l.name], lo, ex.modelsMax, lo);
+    cfg.reps[l.name] = whole(cfg.reps[l.name], data.repetitionFloor, ex.repsMax, data.repetitionFloor);
+  });
+  return cfg;
+}
+function sameCfg(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
+function presetOf(data, s, cfg) {
+  var found = null;
+  Object.keys(s.tiers).forEach(function (t) {
+    if (found === null && sameCfg(cfg, presetCfg(data, s, t))) found = t;
+  });
+  return found;
+}
 function defaults(data) {
-  var tiers = {}, c = {};
+  var cfg = {}, c = {};
   data.suites.forEach(function (s) {
-    tiers[s.id] = s.tiers[data.defaultTier] ? data.defaultTier : Object.keys(s.tiers)[0];
+    cfg[s.id] = presetCfg(data, s, data.defaultTier);
     c[s.id] = s.contingency;
   });
-  return { tiers: tiers, c: c, g: data.globalContingency };
+  return { cfg: cfg, c: c, g: data.globalContingency };
 }
 function share(text, fallback) {
   var v = Number(text);
@@ -69,8 +108,18 @@ function parseFragment(data, fragment) {
   var state = defaults(data);
   var params = new URLSearchParams(String(fragment || "").replace(/^#/, ""));
   data.suites.forEach(function (s) {
-    var t = params.get("tier." + s.id);
-    if (t !== null && Object.prototype.hasOwnProperty.call(s.tiers, t)) state.tiers[s.id] = t;
+    var t = params.get("tier." + s.id), cfg = state.cfg[s.id];
+    if (t !== null && Object.prototype.hasOwnProperty.call(s.tiers, t)) cfg = presetCfg(data, s, t);
+    Object.keys(s.explore.inputs).forEach(function (p) {
+      var v = params.get("n." + s.id + "." + p);
+      if (v !== null) cfg.inputs[p] = v;
+    });
+    data.levels.forEach(function (l) {
+      var m = params.get("m." + s.id + "." + l.name), r = params.get("r." + s.id + "." + l.name);
+      if (m !== null) cfg.models[l.name] = m;
+      if (r !== null) cfg.reps[l.name] = r;
+    });
+    state.cfg[s.id] = clamp(data, s, cfg);
     state.c[s.id] = share(params.get("c." + s.id), state.c[s.id]);
   });
   state.g = share(params.get("g"), state.g);
@@ -79,7 +128,18 @@ function parseFragment(data, fragment) {
 function toFragment(data, state) {
   var d = defaults(data), params = new URLSearchParams();
   data.suites.forEach(function (s) {
-    if (state.tiers[s.id] !== d.tiers[s.id]) params.set("tier." + s.id, state.tiers[s.id]);
+    var cfg = state.cfg[s.id], base = d.cfg[s.id], preset = presetOf(data, s, cfg);
+    if (preset !== null) {
+      if (preset !== data.defaultTier) params.set("tier." + s.id, preset);
+    } else {
+      Object.keys(cfg.inputs).forEach(function (p) {
+        if (cfg.inputs[p] !== base.inputs[p]) params.set("n." + s.id + "." + p, String(cfg.inputs[p]));
+      });
+      data.levels.forEach(function (l) {
+        if (cfg.models[l.name] !== base.models[l.name]) params.set("m." + s.id + "." + l.name, String(cfg.models[l.name]));
+        if (cfg.models[l.name] && cfg.reps[l.name] !== base.reps[l.name]) params.set("r." + s.id + "." + l.name, String(cfg.reps[l.name]));
+      });
+    }
     if (state.c[s.id] !== d.c[s.id]) params.set("c." + s.id, String(state.c[s.id]));
   });
   if (state.g !== d.g) params.set("g", String(state.g));
@@ -88,12 +148,35 @@ function toFragment(data, state) {
 }
 function add(a, b) { return [a[0] + b[0], a[1] + b[1]]; }
 function times(a, f) { return [a[0] * f, a[1] * f]; }
+function suiteCost(data, s, cfg) {
+  var ex = s.explore, zero = [0, 0], net = {}, basis = {}, pending = [], slots = 0;
+  data.passes.forEach(function (p) { net[p] = zero; });
+  data.bases.forEach(function (b) { basis[b] = zero; });
+  data.levels.forEach(function (l) {
+    var count = cfg.models[l.name];
+    if (!count) return;
+    slots += count;
+    if (ex.levels[l.name].pending) pending.push(l.name);
+    data.passes.forEach(function (p) {
+      if (p === "V1" && l.name !== data.defaultLevel) return;
+      var reps = cfg.reps[l.name];
+      if (p === "V1") reps = Math.min(reps, ex.v1RepsCap);
+      (ex.levels[l.name].blocks[p] || []).forEach(function (b) {
+        var run = [0, 1].map(function (i) { return (b.in[i] * l.in + b.out[i] * l.out) / 1000000; });
+        var cost = times(run, (cfg.inputs[p] || 0) * reps * b.calls * count);
+        net[p] = add(net[p], cost);
+        basis[b.basis] = add(basis[b.basis], cost);
+      });
+    });
+  });
+  return { net: net, basis: basis, pending: pending, hours: times(ex.minutes, (cfg.inputs.V2 || 0) * slots / 60) };
+}
 function totals(data, state) {
   var zero = [0, 0], net = {}, reserve = {}, byPass = {}, byBasis = {}, hours = zero, rows = [];
   data.passes.forEach(function (p) { net[p] = zero; reserve[p] = zero; });
   data.bases.forEach(function (b) { byBasis[b] = zero; });
   data.suites.forEach(function (s) {
-    var t = s.tiers[state.tiers[s.id]], own = zero, ownReserve = zero;
+    var t = suiteCost(data, s, state.cfg[s.id]), own = zero, ownReserve = zero;
     data.passes.forEach(function (p) {
       net[p] = add(net[p], t.net[p]);
       reserve[p] = add(reserve[p], times(t.net[p], state.c[s.id]));
@@ -102,7 +185,7 @@ function totals(data, state) {
     });
     data.bases.forEach(function (b) { byBasis[b] = add(byBasis[b], t.basis[b]); });
     hours = add(hours, t.hours);
-    rows.push({ id: s.id, net: own, reserve: ownReserve, pending: t.pending });
+    rows.push({ id: s.id, net: own, reserve: ownReserve, pending: t.pending, hours: t.hours });
   });
   var without = zero, withC = zero;
   data.passes.forEach(function (p) {
@@ -141,38 +224,73 @@ function totals(data, state) {
     });
     table.appendChild(tr);
   }
+  function numberInput(min, max) {
+    var i = el("input");
+    i.type = "number"; i.min = String(min); i.max = String(max); i.step = "1"; i.inputMode = "numeric";
+    return i;
+  }
   var nodes = {};
   function buildSuites() {
     var host = $("suites");
     data.suites.forEach(function (s) {
+      var ex = s.explore, n = { inputs: {}, models: {}, reps: {}, tags: {} };
       var card = el("div", undefined, "card");
       card.appendChild(el("h3", s.name));
       card.appendChild(el("div", s.measures + " (" + s.threshold + ")", "small"));
-      if (!s.fixed) card.appendChild(el("div", "Shape unfixed until its benchmark is designed.", "small"));
-      var controls = el("div", undefined, "row");
-      var tl = el("label", "Tier"), sel = el("select");
-      Object.keys(s.tiers).forEach(function (t) {
-        var o = el("option", t); o.value = t; sel.appendChild(o);
+      card.appendChild(el("div", "Varies " + s.varies + (s.fixed ? "" : ". Shape unfixed until its benchmark is designed."), "small"));
+      var top = el("div", undefined, "row");
+      var tl = el("label", "Preset"); n.preset = el("select");
+      Object.keys(s.tiers).concat(["custom"]).forEach(function (t) {
+        var o = el("option", t); o.value = t; n.preset.appendChild(o);
       });
-      sel.addEventListener("change", function () { state.tiers[s.id] = sel.value; update(); });
-      tl.appendChild(sel);
-      var cl = el("label", "Contingency (%)"), inp = el("input");
-      inp.type = "number"; inp.min = "0"; inp.max = "500"; inp.step = "1"; inp.inputMode = "decimal";
-      inp.addEventListener("input", function () {
-        state.c[s.id] = share(String(inp.value / 100), state.c[s.id]); update(true);
+      n.preset.addEventListener("change", function () {
+        if (n.preset.value !== "custom") { state.cfg[s.id] = presetCfg(data, s, n.preset.value); update(); }
       });
-      cl.appendChild(inp);
-      controls.appendChild(tl); controls.appendChild(cl);
-      card.appendChild(controls);
-      var out = el("div"); card.appendChild(out);
+      tl.appendChild(n.preset); top.appendChild(tl);
+      Object.keys(ex.inputs).forEach(function (p) {
+        var b = ex.inputs[p], l = el("label", "Inputs in " + p + " (" + b.min + " to " + b.max + ")");
+        var inp = numberInput(b.min, b.max);
+        inp.addEventListener("change", function () { state.cfg[s.id].inputs[p] = inp.value; edit(s); });
+        l.appendChild(inp); top.appendChild(l); n.inputs[p] = inp;
+      });
+      var cl = el("label", "Contingency (%)"); n.cont = numberInput(0, 500);
+      n.cont.addEventListener("input", function () {
+        state.c[s.id] = share(String(n.cont.value / 100), state.c[s.id]); update(true);
+      });
+      cl.appendChild(n.cont); top.appendChild(cl);
+      card.appendChild(top);
+      var grid = el("div", undefined, "grid");
+      grid.appendChild(el("span", "Capability level", "head"));
+      grid.appendChild(el("span", "Models (0 to " + ex.modelsMax + ")", "head"));
+      grid.appendChild(el("span", "Repetitions (" + data.repetitionFloor + " to " + ex.repsMax + ")", "head"));
+      data.levels.forEach(function (l) {
+        var name = el("span", l.name === data.defaultLevel ? l.name + " (default)" : l.name);
+        n.tags[l.name] = el("span", " pending policy approval", "tag"); name.appendChild(n.tags[l.name]);
+        var m = numberInput(l.name === data.defaultLevel ? 1 : 0, ex.modelsMax), r = numberInput(data.repetitionFloor, ex.repsMax);
+        m.addEventListener("change", function () { state.cfg[s.id].models[l.name] = m.value; edit(s); });
+        r.addEventListener("change", function () { state.cfg[s.id].reps[l.name] = r.value; edit(s); });
+        grid.appendChild(name); grid.appendChild(m); grid.appendChild(r);
+        n.models[l.name] = m; n.reps[l.name] = r;
+      });
+      card.appendChild(grid);
+      card.appendChild(el("div", "V1 runs only the default level, at no more repetitions than the planned preset's V1.", "small"));
+      n.out = el("div"); card.appendChild(n.out);
       host.appendChild(card);
-      nodes[s.id] = { sel: sel, inp: inp, out: out };
+      nodes[s.id] = n;
     });
   }
+  function edit(s) { clamp(data, s, state.cfg[s.id]); update(); }
   function sync() {
     data.suites.forEach(function (s) {
-      nodes[s.id].sel.value = state.tiers[s.id];
-      nodes[s.id].inp.value = Math.round(state.c[s.id] * 1000) / 10;
+      var n = nodes[s.id], cfg = state.cfg[s.id];
+      n.preset.value = presetOf(data, s, cfg) || "custom";
+      Object.keys(n.inputs).forEach(function (p) { n.inputs[p].value = cfg.inputs[p]; });
+      data.levels.forEach(function (l) {
+        n.models[l.name].value = cfg.models[l.name];
+        n.reps[l.name].value = cfg.reps[l.name];
+        n.reps[l.name].disabled = !cfg.models[l.name];
+      });
+      n.cont.value = Math.round(state.c[s.id] * 1000) / 10;
     });
     $("g").value = Math.round(state.g * 1000) / 10;
   }
@@ -181,12 +299,13 @@ function totals(data, state) {
     if (!keepInputs) sync();
     history.replaceState(null, "", location.pathname + location.search + toFragment(data, state));
     t.rows.forEach(function (r, i) {
-      var s = data.suites[i], tier = s.tiers[state.tiers[s.id]], n = nodes[s.id].out;
-      n.textContent = "";
-      n.appendChild(el("div", "Without contingency " + usd(r.net) + "; reserve " + usd(r.reserve)));
-      var meta = "Uses " + tier.levels.join(", ") + (tier.hours[1] ? "; reviewer effort " + tier.hours[0] + " to " + tier.hours[1] + " hours" : "");
-      n.appendChild(el("div", meta, "small"));
-      if (tier.pending) n.appendChild(el("span", "pending policy approval", "tag"));
+      var s = data.suites[i], n = nodes[s.id];
+      data.levels.forEach(function (l) {
+        n.tags[l.name].hidden = !(state.cfg[s.id].models[l.name] && s.explore.levels[l.name].pending);
+      });
+      n.out.textContent = "";
+      n.out.appendChild(el("div", "Without contingency " + usd(r.net) + "; reserve " + usd(r.reserve)));
+      if (r.hours[1]) n.out.appendChild(el("div", "Reviewer effort " + r.hours[0].toFixed(1) + " to " + r.hours[1].toFixed(1) + " hours", "small"));
     });
     var box = $("summary"); box.textContent = "";
     var table = el("table");
@@ -197,7 +316,7 @@ function totals(data, state) {
     });
     row(table, ["Total with contingency", usd(t.withContingency)]);
     row(table, ["Measured share of cost", pct(t.byBasis.measured, t.withoutContingency) + " of the high (rest is proxy: " + usd(t.byBasis.proxy) + ")"]);
-    if (t.hours[1]) row(table, ["Reviewer effort", t.hours[0] + " to " + t.hours[1] + " hours"]);
+    if (t.hours[1]) row(table, ["Reviewer effort", t.hours[0].toFixed(1) + " to " + t.hours[1].toFixed(1) + " hours"]);
     box.appendChild(table);
     var verdict = t.excess[1] <= 0
       ? el("p", "Within the $" + data.cap + " cap.", "ok")

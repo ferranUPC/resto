@@ -3,6 +3,8 @@
 from eval.budget.model import (
     BasisMissingError,
     BudgetDataError,
+    Config,
+    ConfigError,
     LevelUnknownError,
     LowAboveHighError,
     MinimumTierBelowFloorError,
@@ -20,6 +22,8 @@ from eval.budget.short import render_short_version
 __all__ = [
     "BasisMissingError",
     "BudgetDataError",
+    "Config",
+    "ConfigError",
     "LevelUnknownError",
     "LowAboveHighError",
     "MinimumTierBelowFloorError",

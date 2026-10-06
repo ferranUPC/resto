@@ -50,6 +50,7 @@ def suite(
     derived: str = "run-x",
     tiers: tuple[str, ...] = ("minimum", "planned"),
     removed: str = "",
+    explore: str = "",
 ) -> str:
     out = f"""
 [[suites]]
@@ -62,6 +63,7 @@ contingency = {contingency}
 """
     if removed:
         out += f'removed = "{removed}"\n'
+    out += explore
     for tier in tiers:
         out += f'\n[[suites.tiers]]\nname = "{tier}"\n'
         reps = min_reps if tier == "minimum" else 3
@@ -79,3 +81,15 @@ def write(tmp_path: Path, *suites: str, header: str = HEADER) -> Path:
     path = tmp_path / "cost.toml"
     path.write_text(header + "".join(suites or (suite(),)), encoding="utf-8")
     return path
+
+
+# Bounds for a suite whose planned tier runs 10 inputs in V2: 4 to 40 inputs, up to 6 repetitions,
+# and 2 review minutes per answer.
+EXPLORE = """
+[suites.explore]
+repetitions_max = 6
+review_minutes_low = 2
+review_minutes_high = 4
+[suites.explore.inputs]
+V2 = { min = 4, max = 40 }
+"""

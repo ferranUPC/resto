@@ -24,7 +24,9 @@ a level marked `pending policy approval` may not be used until the cost policy a
 Levels are those of the planned tier, with the models run at each (`x2` = two models).
 Basis shows the share of cost resting on a run or an estimate. Reviewer hours are manual
 time, never converted to USD. Runs, hours and cost (before contingency) are shown as
-minimum / planned. The suite varies repetitions or seeds as stated.
+minimum / planned. The suite varies repetitions or seeds as stated. The interactive page
+lets a reader set the inputs, the levels, the models per level and the repetitions of each
+suite within bounds fixed in the cost data, starting from any of these three sizes.
 
 | Suite | Pass | Levels tested | Varies | Runs | Basis | Reviewer hours | Cost |
 |---|---|---|---|---|---|---|---|
@@ -35,7 +37,7 @@ minimum / planned. The suite varies repetitions or seeds as stated.
 | Network Expert, forced and free abstention (EXP-01) | V1+V2 | reasoning-low x1 | repetitions | 624 / 858 | measured 37% + proxy 63% | none / none | $5.11 to $6.93 / $7.03 to $9.52 |
 | Network Expert on REAL-NET | V2 | reasoning-low x1 | repetitions | 80 / 120 | proxy 100% | none / none | $0.66 to $0.96 / $0.98 to $1.44 |
 | Network Expert learning effect | V2 | reasoning-low x1 | seeds | 240 / 360 | proxy 100% | none / none | $2.15 to $3.07 / $3.22 to $4.60 |
-| Output Composer | V2 | non-reasoning-low x2 (pending policy approval), reasoning-low x1 | repetitions | 120 / 360 | proxy 100% | 3 to 5 h / 5 to 9 h | $0.09 to $0.25 / $0.22 to $0.60 |
+| Output Composer | V2 | non-reasoning-low x2 (pending policy approval), reasoning-low x1 | repetitions | 120 / 360 | proxy 100% | 3 to 5 h / 9 to 15 h | $0.09 to $0.25 / $0.22 to $0.60 |
 | Golden-path integration | V2 | reasoning-low x1 | repetitions | 22 / 33 | proxy 100% | none / none | $0.63 to $1.72 / $0.94 to $2.57 |
 
 ## Totals

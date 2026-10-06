@@ -9,7 +9,7 @@ import pytest
 from eval.budget import compute, load_plan, render_short_version
 from eval.budget.model import MIN_TIER, Range, TierMissingError
 
-from tests.unit.eval.budget_fixtures import HEADER, suite, write
+from tests.unit.eval.budget_fixtures import EXPLORE, HEADER, suite, write
 
 ROOT = Path(__file__).resolve().parents[3] / "eval" / "budget"
 SIZE_BOUND_WORDS = 1500
@@ -79,10 +79,12 @@ def test_the_text_is_english():
     assert "evaluation budget" in text.lower()
 
 
-def _with_hours(text: str) -> str:
-    return text.replace(
-        'name = "planned"\n', 'name = "planned"\nreviewer_hours_low = 1\nreviewer_hours_high = 3\n'
+def _with_hours(**kw) -> str:
+    """Review time 6 to 18 minutes per answer: 10 inputs x 1 model = 1 to 3 hours."""
+    explore = EXPLORE.replace("review_minutes_low = 2", "review_minutes_low = 6").replace(
+        "review_minutes_high = 4", "review_minutes_high = 18"
     )
+    return suite(explore=explore, **kw)
 
 
 def test_a_level_awaiting_policy_approval_is_marked(tmp_path):
@@ -93,12 +95,12 @@ def test_a_level_awaiting_policy_approval_is_marked(tmp_path):
 
 
 def test_each_suite_states_levels_models_variation_and_reviewer_hours(tmp_path):
-    plan = load_plan(write(tmp_path, _with_hours(suite())))
+    plan = load_plan(write(tmp_path, _with_hours()))
     rows = render_short_version(plan).splitlines()
     row = next(ln for ln in rows if ln.startswith("| Suite s1 | V"))
     assert "reasoning-low x1" in row
     assert "repetitions" in row
-    assert "none / 1 to 3 h" in row
+    assert "1 to 3 h / 1 to 3 h" in row
 
 
 def test_totals_show_without_with_contingency_and_the_reserve(tmp_path):

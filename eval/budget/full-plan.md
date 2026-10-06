@@ -294,7 +294,7 @@ Measured $0.00 to $0.00, proxy $0.09 to $0.25 (before contingency).
 
 #### planned (pending policy approval: non-reasoning-low): $0.22 to $0.60 before contingency
 
-Reviewer effort (separate from model cost, not in USD): 5 to 9 hours.
+Reviewer effort (separate from model cost, not in USD): 9 to 15 hours.
 
 Measured $0.00 to $0.00, proxy $0.22 to $0.60 (before contingency).
 
@@ -305,7 +305,7 @@ Measured $0.00 to $0.00, proxy $0.22 to $0.60 (before contingency).
 
 #### extended (pending policy approval: non-reasoning-low, non-reasoning-medium, reasoning-medium): $1.04 to $2.91 before contingency
 
-Reviewer effort (separate from model cost, not in USD): 9 to 16 hours.
+Reviewer effort (separate from model cost, not in USD): 18 to 30 hours.
 
 Measured $0.00 to $0.00, proxy $1.04 to $2.91 (before contingency).
 
