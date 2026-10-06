@@ -49,11 +49,6 @@ class NoteStatusChanged:
 
 
 @dataclass(frozen=True, slots=True)
-class ClarificationAsked:
-    reason: str
-
-
-@dataclass(frozen=True, slots=True)
 class NoteWriterFailed:
     error: str
 
@@ -72,7 +67,7 @@ class PhaseStarted:
 
 @dataclass(frozen=True, slots=True)
 class PlanMade:
-    """The valid plan of a phase. A clarification or a failed plan is not emitted."""
+    """The valid plan of a phase. A failed plan is not emitted."""
 
     phase: int
     plan: StudyPlan
@@ -100,7 +95,6 @@ TraceEvent = (
     | NetworksAdded
     | NotesWritten
     | NoteStatusChanged
-    | ClarificationAsked
     | NoteWriterFailed
 )
 

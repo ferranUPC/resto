@@ -9,7 +9,6 @@ import pytest
 
 from resto.adapters.tracing.jsonl import SCHEMA_VERSION, JsonlTracer, read_run
 from resto.application.ports.tracing import (
-    ClarificationAsked,
     ExpertRoundHeld,
     NetworksAdded,
     NoteStatusChanged,
@@ -39,7 +38,6 @@ def _events() -> list[TraceEvent]:
             Question(text="how congested is the peak?", intent=Intent.DESCRIBE, mode=Mode.FORCED),
             Usage(input_tokens=5, output_tokens=7, cost_usd=0.001),
         ),
-        ClarificationAsked("which corridor?"),
         NetworksAdded(("n1", "n2")),
         StepTraced(
             phase=0,

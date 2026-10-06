@@ -1,5 +1,5 @@
 """The shared `ToolAgent` fake (ADR-0001): every agent module (Network Author, Demand Generator,
-Scenario Builder, Network Expert, Output Composer, Coordinator) is tested against this, never
+Scenario Builder, Network Expert, Output Composer) is tested against this, never
 against `adapters/llm/anthropic_client.py` — that keeps the real OpenRouter API entirely out of
 `pytest` (CLAUDE.md "LLM provider & cost policy").
 

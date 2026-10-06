@@ -1,7 +1,7 @@
 """Simulation Runner (code): Scenario + seed -> SimulationResult (DoD §2.4, §4.6; ADR-0017;
 ADR-0031).
 
-`run_simulation` is the stored path: it is what the Coordinator calls. `run_ephemeral` is the
+`run_simulation` is the stored path: it is what the Executor calls. `run_ephemeral` is the
 tool-shaped path behind `probe_run` / `calibration_run`: same Runner, no `Scenario`, and no
 repository argument at all, so those runs cannot reach the results store.
 

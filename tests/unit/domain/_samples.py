@@ -99,7 +99,6 @@ from resto.domain.value_objects.step_record import (
 )
 from resto.domain.value_objects.study_plan import (
     BuildScenarioStep,
-    ClarificationRequest,
     DeriveNetworkStep,
     FromStep,
     ObtainDemandStep,
@@ -338,9 +337,7 @@ SAMPLES: dict[type, Callable[[], object]] = {
     # study internals
     Question: question,
     StudyPlan: study_plan,
-    Phase: lambda: Phase(
-        question=question(), clarification=ClarificationRequest("two networks match")
-    ),
+    Phase: lambda: Phase(question=question()),
     FromStep: lambda: FromStep(0),
     ObtainNetworkStep: lambda: ObtainNetworkStep(
         network_ref="Barcelona, Eixample", goals=("drivable",)
@@ -379,9 +376,6 @@ SAMPLES: dict[type, Callable[[], object]] = {
         interventions=(static_intervention(),),
     ),
     Contrast: lambda: Contrast(treatment="new-edge+closure", reference="new-edge"),
-    ClarificationRequest: lambda: ClarificationRequest(
-        reason='two networks match "Gran Via"', candidates=("gv-2024", "gv-old")
-    ),
     StepRecord: lambda: StepRecord(tool="ask_expert", status=StepStatus.OK),
     StepError: lambda: StepError(
         StepErrorKind.USER_INPUT, "the Builder rejected an intervention", ("E99: unknown edge",)

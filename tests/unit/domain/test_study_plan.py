@@ -3,7 +3,6 @@ import pytest
 from resto.domain.value_objects.experiment import ExperimentRole
 from resto.domain.value_objects.study_plan import (
     BuildScenarioStep,
-    ClarificationRequest,
     DeriveNetworkStep,
     FromStep,
     ObtainDemandStep,
@@ -169,11 +168,6 @@ def test_explicit_seeds_are_non_empty_and_distinct() -> None:
 def test_role_and_purpose_are_declared() -> None:
     with pytest.raises(ValueError, match="purpose"):
         BuildScenarioStep(network_id="n1", demand_id="d1", arm="base", role=BASELINE, purpose=" ")
-
-
-def test_a_clarification_needs_a_reason() -> None:
-    with pytest.raises(ValueError):
-        ClarificationRequest(reason="", candidates=("gv-2024",))
 
 
 def test_each_arm_is_realised_once_per_plan() -> None:

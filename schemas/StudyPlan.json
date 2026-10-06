@@ -768,7 +768,7 @@
       "type": "object"
     }
   },
-  "description": "Emitted by the Coordinator, one per phase; measured against gold plans. `network_id` is the\nnetwork the study is about (`FromStep` when the plan creates it). A plan always contains an\n`obtain_network` step (ADR-0037 \u00a72), so it is never empty.",
+  "description": "Emitted by the planner, one per phase; measured against gold plans. `network_id` is the\nnetwork the study is about (`FromStep` when the plan creates it). A plan always contains an\n`obtain_network` step (ADR-0037 \u00a72), so it is never empty.",
   "properties": {
     "network_id": {
       "anyOf": [

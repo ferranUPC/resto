@@ -194,7 +194,7 @@ class InMemoryNoteRepository:
 
 class InMemoryDatabase:
     """The five DatabaseMCP repositories held in memory, for tests and demos. It offers no
-    `historical_demand`, so the Coordinator can be checked against a backend without it."""
+    `historical_demand`, so the planner can be checked against a backend without it."""
 
     def __init__(self, embedder: Embedder | None = None) -> None:
         self.networks = InMemoryNetworkRepository()
