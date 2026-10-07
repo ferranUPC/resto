@@ -10,7 +10,7 @@ effort: medium
 
 Audit what moved since the last review. A task is done when the code proves it, whatever its row says.
 
-Status legend, counting rules, review text and diary rules: `docs/agents/review-rules.md`. Read it before step 3.
+Status legend, counting rules, review text and diary rules: `.claude/skills/common/review-rules.md`. Read it before step 3.
 
 ## 1. Evidence
 
@@ -40,7 +40,7 @@ Done when `git diff docs/progress-tracker.md` touches only hot rows, the summary
 ## 4. Review and diary
 
 - Write `docs/progress-reviews/{yyyy-mm-dd}.md`: the delta since the last review, pace against the work-plan calendar, the risks seen in this run's evidence, and one recommendation (keep going, or which fallback step of work-plan §5). Short when little moved. Cite commits and test results.
-- Add the diary entries, following the diary rules in `docs/agents/review-rules.md`.
+- Add the diary entries, following the diary rules in `.claude/skills/common/review-rules.md`.
 - Run `unslop` (`.claude/skills/unslop/SKILL.md`) over the new review, the diary entries and every Notes cell you changed. Rewrite prose only; leave facts, hashes, numbers, task ids and table structure.
 
 Done when the review cites at least one piece of evidence per claim and the diary has no active day missing.
