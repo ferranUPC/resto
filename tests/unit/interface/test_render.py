@@ -25,7 +25,7 @@ from resto.domain.value_objects.study_plan import (
     RunSimulationStep,
     StudyPlan,
 )
-from resto.interface.render import WHAT_TO_DO, render_study
+from resto.interface.render import WHAT_TO_DO, render_study, render_study_text
 from tests.unit.domain._fixtures import study_with_rounds
 from tests.unit.domain._samples import study as completed_study
 
@@ -143,7 +143,7 @@ def test_a_completed_study_renders_its_report_in_a_fixed_layout() -> None:
     headings = (
         "# Study st-1",
         "## Summary",
-        "### Method",
+        "## Method",
         "## Claims",
         "## Evidence",
         "## Experiments",
@@ -243,9 +243,9 @@ def test_a_section_title_cannot_duplicate_a_fixed_heading_or_span_lines() -> Non
 
     text = render_study(study)
 
-    assert "### Evidence (from the Composer)" in text
-    assert "### Two ## Claims" in text
-    assert "### Untitled section" in text
+    assert "## Evidence (from the Composer)" in text
+    assert "## Two ## Claims" in text
+    assert "## Untitled section" in text
     assert text.count("\n## Evidence\n") == 1
     assert text.count("\n## Claims\n") == 1
 
@@ -270,3 +270,190 @@ def test_experiment_cells_escape_pipes_and_newlines() -> None:
     study = replace(study, phases=(replace(phase, experiments=(odd,)), *study.phases[1:]))
 
     assert "| 0 | a\\|b c | baseline | s\\|0 | 1 | reused |" in render_study(study)
+
+
+# --- plain text (E5.4/06) ---
+
+_FORBIDDEN = ("#", "|", "`")
+
+
+def _long_ids(study: Study, base: str, treat: str) -> Study:
+    """`study` with scenario ids of the given values on the first phase's two experiments."""
+    phase = study.phases[0]
+    a, b = phase.experiments
+    experiments = (replace(a, scenario_id=base), replace(b, scenario_id=treat))
+    return replace(study, phases=(replace(phase, experiments=experiments), *study.phases[1:]))
+
+
+def _plain(study: Study) -> str:
+    """A completed study with the model's prose reduced to words, so the whole text is checkable
+    for Markdown syntax."""
+    assert study.report is not None
+    report = replace(
+        study.report,
+        summary="Delay grows.",
+        sections=(ReportSection("Method", "One baseline, one treatment."),),
+        claims=(Claim("delay +12 %", ("query_edgedata:r1", "ghost"), "12%"),),
+    )
+    return render_study_text(replace(study, report=report))
+
+
+def test_the_plain_text_of_a_completed_study_has_the_fixed_layout() -> None:
+    text = render_study_text(_completed())
+
+    headings = (
+        "STUDY st-1  (completed)",
+        "Question: what if we close lane 1 of E12 at peak?",
+        "SUMMARY",
+        "METHOD",
+        "CLAIMS",
+        "EVIDENCE",
+        "EXPERIMENTS",
+        "MODE AND BASIS",
+        "LIMITATIONS",
+    )
+    positions = [text.index(h) for h in headings]
+    assert positions == sorted(positions)
+    assert "closing the lane shifts delay to the parallel corridor" in text
+    assert "one baseline, one treatment" in text
+    assert "  - delay +12 % [value: 12%] [evidence: query_edgedata:r1, ghost]" in text
+    assert "  free, observed" in text
+    assert "  - single seed" in text
+
+
+def test_the_plain_text_has_no_markdown_syntax_outside_the_models_prose() -> None:
+    text = _plain(_completed(forced=True))
+
+    assert not any(c in text for c in _FORBIDDEN)
+
+
+def test_the_plain_text_keeps_the_content_of_the_markdown() -> None:
+    study = _completed()
+    text = render_study_text(study)
+
+    assert "  query_edgedata:r1  query       E12 0.91" in text
+    assert "  ghost              unresolved  -" in text
+    assert "phase 0  base       baseline   scenario s0  1 result  reused" in text
+    assert "phase 0  treatment  treatment  scenario s1  1 result  run now" in text
+    assert "phase 1  extra      treatment  scenario s2  1 result  run now" in text
+
+
+def test_a_study_without_experiments_run_now_renders_in_plain_text() -> None:
+    text = render_study_text(_completed(run_now=False, two_phases=False))
+
+    experiments = text.split("EXPERIMENTS")[1].split("MODE AND BASIS")[0]
+    assert "run now" not in experiments
+    assert experiments.count("reused") == 2
+
+
+def test_the_forced_by_limit_line_is_in_the_plain_text_limitations() -> None:
+    text = render_study_text(_completed(forced=True))
+
+    assert f"  - {FORCED_LIMITATION}" in text.split("LIMITATIONS")[1]
+
+
+def test_a_report_without_limitations_or_claims_says_so_in_plain_text() -> None:
+    study = _with_report(limitations=(), claims=())
+
+    text = render_study_text(study)
+
+    assert "  None stated." in text.split("LIMITATIONS")[1]
+    assert "  No claims." in text.split("CLAIMS")[1]
+
+
+def test_plain_text_ids_are_cut_to_eight_characters() -> None:
+    study = _long_ids(_completed(), "2b6cb38a1111", "6b06b10a2222")
+    study = replace(study, study_id="ded4f627aaaa")
+
+    text = render_study_text(study)
+
+    assert "STUDY ded4f627  (completed)" in text
+    assert "scenario 2b6cb38a  " in text and "scenario 6b06b10a  " in text
+    assert "2b6cb38a1" not in text
+
+
+def test_plain_text_ids_are_extended_only_when_two_collide() -> None:
+    study = _long_ids(_completed(), "2b6cb38a1111", "2b6cb38a2222")
+
+    text = render_study_text(study)
+
+    assert "scenario 2b6cb38a1  " in text and "scenario 2b6cb38a2  " in text
+    assert "scenario s2  " in text  # the third one is short and untouched
+
+
+def test_the_markdown_keeps_full_ids() -> None:
+    study = _long_ids(_completed(), "2b6cb38a1111", "6b06b10a2222")
+
+    assert "2b6cb38a1111" in render_study(study)
+
+
+def test_plain_text_columns_line_up_whatever_the_content() -> None:
+    study = _completed()
+    phase = study.phases[0]
+    odd = replace(phase.experiments[0], arm="a-very-long-arm-name", scenario_id="s" * 20)
+    study = replace(
+        study, phases=(replace(phase, experiments=(odd, *phase.experiments[1:])), *study.phases[1:])
+    )
+
+    text = render_study_text(study)
+
+    rows = [x for x in text.splitlines() if x.startswith("  phase ")]
+    assert len(rows) == 3
+    for column in ("scenario s", "1 result"):
+        assert len({r.index(column) for r in rows}) == 1
+    origins = [r.index("reused" if "reused" in r else "run now") for r in rows]
+    assert len(set(origins)) == 1
+
+
+def test_plain_text_fields_stay_on_one_line_and_titles_cannot_mimic_headings() -> None:
+    study = _with_report(
+        sections=(ReportSection("Evidence", "a"), ReportSection("Two\n## Claims", "b")),
+        claims=(Claim("delay\nup", ("query_edgedata:r1",), "12\n%"),),
+        limitations=("one\ntwo",),
+    )
+
+    text = render_study_text(study)
+
+    assert "EVIDENCE (from the Composer)\na" in text
+    assert "TWO ## CLAIMS\nb" in text
+    assert "  - delay up [value: 12 %] [evidence: query_edgedata:r1]" in text
+    assert "  - one two" in text
+    assert text.count("\nEVIDENCE\n") == 1
+
+
+@pytest.mark.parametrize("kind", list(StepErrorKind))
+def test_a_failed_study_renders_the_three_blocks_in_plain_text(kind: StepErrorKind) -> None:
+    text = render_study_text(failed(kind, "unknown lane 'E99_0'"))
+
+    blocks = ("WHAT HAPPENED", "WHAT WAS DONE", "WHAT YOU CAN DO")
+    assert [text.index(b) for b in blocks] == sorted(text.index(b) for b in blocks)
+    assert text.startswith("STUDY st-9  (failed)\nQuestion: what if we close lane 1 of E12?\n")
+    assert f"Step build_scenario of phase 0 (the question as asked) failed ({kind})" in text
+    assert "  - unknown lane 'E99_0'" in text
+    assert "  - plan ok" in text
+    assert "  - experiment base (baseline, reused): scenario s-base, 2 result(s)" in text
+    assert text.rstrip().endswith(WHAT_TO_DO[kind])
+    assert not any(c in text for c in _FORBIDDEN)
+
+
+def test_an_awaiting_user_study_renders_the_three_blocks_in_plain_text() -> None:
+    study = Study(
+        study_id="st-a",
+        status=StudyStatus.AWAITING_USER,
+        phases=(Phase(question=Question("close it", Intent.RUN, ambiguities=("which edge?",))),),
+    )
+
+    text = render_study_text(study)
+
+    assert text.startswith("STUDY st-a  (awaiting_user)\nQuestion: close it\n")
+    assert "WHAT HAPPENED\nThe question is ambiguous:\n  - which edge?" in text
+    assert "WHAT WAS DONE\nNothing was run: the study stopped before planning." in text
+    assert "WHAT YOU CAN DO\nAsk again" in text
+    assert not any(c in text for c in _FORBIDDEN)
+
+
+def test_a_study_still_running_has_no_plain_text() -> None:
+    study = replace(_completed(), status=StudyStatus.RUNNING, report=None)
+
+    with pytest.raises(ValueError):
+        render_study_text(study)

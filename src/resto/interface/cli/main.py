@@ -39,10 +39,10 @@ from resto.application.ports.tracing import Tracer
 from resto.application.tools.expert import ExpertCollaborators
 from resto.application.tools.scenario_builder import BuilderCollaborators
 from resto.application.use_cases.run_study import ParserFailed, run_study
-from resto.domain.entities.study import StudyStatus
+from resto.domain.entities.study import Study, StudyStatus
 from resto.domain.services.planner import plan_study
 from resto.domain.value_objects.question import Mode
-from resto.interface.render import render_study
+from resto.interface.render import render_study, render_study_text
 
 AGENT_SECONDS = 300.0
 
@@ -122,6 +122,19 @@ def build_deps(
     )
 
 
+def _save_report(study: Study, out_dir: Path) -> None:
+    """The study as Markdown in `<out_dir>/reports/<study_id>.md`, whatever was printed. The path
+    goes to stderr so that stdout holds only the report."""
+    path = out_dir / "reports" / f"{study.study_id}.md"
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(render_study(study), encoding="utf-8")
+    except OSError as e:
+        print(f"warning: the report was not saved: {e}", file=sys.stderr)
+        return
+    print(f"report saved: {path}", file=sys.stderr)
+
+
 def main(
     argv: Sequence[str] | None = None,
     *,
@@ -134,6 +147,12 @@ def main(
     parser.add_argument("--mode", choices=[m.value for m in Mode], default=None)
     parser.add_argument("--db", type=Path, default=Path("resto.sqlite"))
     parser.add_argument("--out", type=Path, default=Path("runs"))
+    parser.add_argument(
+        "--format",
+        choices=("auto", "text", "markdown"),
+        default="auto",
+        help="auto: plain text on a terminal, Markdown when redirected or piped",
+    )
     args = parser.parse_args(argv)
     mode = Mode(args.mode) if args.mode else None
 
@@ -169,7 +188,9 @@ def main(
     finally:
         if db is not None:
             db.close()
-    print(render_study(study), end="")
+    as_text = args.format == "text" or (args.format == "auto" and sys.stdout.isatty())
+    print(render_study_text(study) if as_text else render_study(study), end="")
+    _save_report(study, args.out)
     return 0 if study.status is StudyStatus.COMPLETED else 1
 
 
