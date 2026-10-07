@@ -22,7 +22,7 @@ Done when the report is in view and the three checks have a verdict. A check tha
 
 ## 2. Audit by epic
 
-Work through the report one epic at a time, E0 first. Every live task gets a verdict from the code, and the burden of proof sits on ✅.
+Launch one subagent per epic, in parallel. Give each its epic's section of the report and the rules below. It audits every live task of its epic, edits no file, and returns only the rows whose status should change and the claims that failed, each with its evidence. Every live task gets a verdict from the code, and the burden of proof sits on ✅.
 
 - **✅ rows.** Check that the evidence its Notes name (commit, test, file, ADR) still exists: `git cat-file -t <sha>`, `grep -rn <test name> tests`. Evidence that is gone, or a DoD that no longer passes, downgrades the row.
 - **⏳ rows.** Confirm the work is built and the named suite in `eval/measurement-plans.md` is the only thing left.
@@ -30,9 +30,9 @@ Work through the report one epic at a time, E0 first. Every live task gets a ver
 - **Rows where tracker and spec disagree.** The code decides, and the Notes say which of the two was wrong.
 - **🚫 rows.** Confirm the spec reads `Status: cancelled` and that the replacement, if any, exists.
 
-Keep a running list of the rows whose status changes and of the claims that failed their check. A confirmed row needs no entry.
+Merge the subagents' returns into one running list of the rows whose status changes and of the claims that failed their check. A confirmed row needs no entry.
 
-Done when every row of the report has a verdict and the running list covers every change.
+Done when every epic has a subagent return and the running list covers every change.
 
 ## 3. Tracker
 
