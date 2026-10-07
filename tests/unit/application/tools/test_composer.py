@@ -12,7 +12,7 @@ from resto.adapters.persistence.memory import InMemoryResultRepository, InMemory
 from resto.application.ports.llm import Tool
 from resto.application.schemas import adapter_for
 from resto.application.tools.composer import build_composer_tools, composer_context
-from resto.application.tools.expert import NotAvailableError
+from resto.application.tools.results import NotAvailableError
 from resto.domain.entities.study import Study
 from tests.unit.adapters.llm._fakes import call_tool
 from tests.unit.domain._samples import simulation_result as sample_result
@@ -78,6 +78,19 @@ def test_query_edgedata_returns_the_edge_data_of_a_result_of_the_study() -> None
     got = call_tool(tools, "query_edgedata", result_id="res1", edge_ids=["A0A1"])
     assert got == {"A0A1": {"occupancy": 2.5}}
     assert results.edgedata_calls == [("res1", ["A0A1"], None)]
+
+
+def test_query_edgedata_passes_the_window_to_the_repository() -> None:
+    tools, _, results = _tools()
+    call_tool(tools, "query_edgedata", result_id="res1", window=[28800, 29100])
+    assert results.edgedata_calls == [("res1", [], (28800.0, 29100.0))]
+
+
+def test_query_edgedata_refuses_a_window_that_is_not_a_pair() -> None:
+    tools, _, results = _tools()
+    with pytest.raises(ValueError, match="window"):
+        call_tool(tools, "query_edgedata", result_id="res1", window=[1.0])
+    assert results.edgedata_calls == []
 
 
 def test_query_edgedata_refuses_a_result_outside_the_study() -> None:

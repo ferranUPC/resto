@@ -8,7 +8,7 @@ study's results are the allow-list: a result outside the study's experiments can
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Annotated, Any
 
@@ -18,8 +18,16 @@ from resto.application.ports.llm import Tool
 from resto.application.ports.repositories import ResultRepository, StudyRepository
 from resto.application.schemas import adapter_for
 from resto.application.tools.declaration import tool
-from resto.application.tools.expert import NotAvailableError
-from resto.domain.entities.simulation_result import SimulationResult
+from resto.application.tools.results import (
+    EDGEDATA_COST,
+    RESULT_DESCRIPTION,
+    EdgeIdsOrAll,
+    NotAvailableError,
+    ResultId,
+    Window,
+    read_edgedata,
+    read_result,
+)
 from resto.domain.entities.study import Study
 
 
@@ -31,13 +39,6 @@ class ComposerContext:
     study: Study
     results: ResultRepository
     available: frozenset[str]
-
-    def require_result(self, result_id: str) -> None:
-        """Raises:
-        NotAvailableError: `result_id` is not a result of an experiment of this study.
-        """
-        if result_id not in self.available:
-            raise NotAvailableError(f"result {result_id!r} is not a result of this study")
 
 
 def composer_context(
@@ -55,9 +56,6 @@ def composer_context(
         rid for phase in study.phases for e in phase.experiments for rid in e.result_ids
     )
     return ComposerContext(study=study, results=results, available=available)
-
-
-_ResultId = Annotated[str, Field(description="Id of a result of this study's experiments.")]
 
 
 @tool(
@@ -82,48 +80,34 @@ def get_study(
     return adapter_for(Study).dump_python(ctx.study, mode="json")
 
 
-@tool(
-    name="get_result",
-    description=(
-        "One simulation result of this study: scenario_id, seed, status, KPIs and artifact "
-        "references."
-    ),
-)
-def get_result(ctx: ComposerContext, result_id: _ResultId) -> Mapping[str, Any]:
+@tool(name="get_result", description=RESULT_DESCRIPTION)
+def get_result(ctx: ComposerContext, result_id: ResultId) -> Mapping[str, Any]:
     """One simulation result of the study.
 
     Raises:
         NotAvailableError: `result_id` is not a result of this study.
         KeyError: no stored result has that id.
     """
-    ctx.require_result(result_id)
-    result = ctx.results.get(result_id)
-    if result is None:
-        raise KeyError(f"result {result_id!r} not found")
-    return adapter_for(SimulationResult).dump_python(result, mode="json")
+    return read_result(ctx, result_id)
 
 
 @tool(
     name="query_edgedata",
-    description=(
-        "EXPENSIVE raw per-run data of every edge (~17,000 characters per result), very large. "
-        "A last resort: use it only when the study and result summaries cannot answer."
-    ),
+    description=f"{EDGEDATA_COST}use it only when the study and result summaries cannot answer.",
 )
 def query_edgedata(
     ctx: ComposerContext,
-    result_id: _ResultId,
-    edge_ids: Annotated[
-        Sequence[str], Field(description="Edge ids to return; empty or omitted for every edge.")
-    ] = (),
+    result_id: ResultId,
+    edge_ids: EdgeIdsOrAll = (),
+    window: Window = None,
 ) -> Mapping[str, Any]:
-    """EXPENSIVE raw per-run data of every edge of a result of the study, whole run.
+    """EXPENSIVE raw per-run data of every edge of a result of the study.
 
     Raises:
         NotAvailableError: `result_id` is not a result of this study.
+        ValueError: `window` is not a `[start, end]` pair.
     """
-    ctx.require_result(result_id)
-    return ctx.results.query_edgedata(result_id, list(edge_ids), None)
+    return read_edgedata(ctx, result_id, edge_ids, window)
 
 
 _COMPOSER_TOOLS = (get_study, get_result, query_edgedata)
