@@ -2,8 +2,9 @@
 ports meet their implementations and the infrastructure is bound.
 
 Agents that do not exist yet — Network Author (E6.1), Demand Generator (E7.1) — and the
-promotions of their drafts are placeholders that raise `NotImplementedError`. A request the Input Parser cannot turn into a `Question` ends in
-`ParserFailed`, and the CLI reports it without creating a Study.
+promotions of their drafts are placeholders that raise `NotImplementedError`. A request the
+Input Parser cannot turn into a `Question` ends in `ParserFailed`, and the CLI reports it without
+creating a Study.
 
     python -m resto.interface.cli.main "how congested is the peak?" [--mode forced]
 """
