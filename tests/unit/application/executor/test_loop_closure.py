@@ -9,12 +9,15 @@ from dataclasses import replace
 from pathlib import Path
 
 from resto.domain.constants import DEFAULT_SEEDS
+from resto.domain.entities.simulation_result import RunMode, RunStatus
 from resto.domain.entities.study import StudyStatus
+from resto.domain.services.ids import result_id_for
 from resto.domain.value_objects.arm import Arm
 from resto.domain.value_objects.experiment import ExperimentRole
 from resto.domain.value_objects.question import Intent, Mode, Question
 from resto.domain.value_objects.step_record import StepStatus
 from resto.domain.value_objects.study_plan import StudyPlan
+from tests.unit.application._doubles import FakeRunner
 from tests.unit.application._world import (
     BASE_SID,
     BASELINE_PLAN,
@@ -28,7 +31,10 @@ from tests.unit.application._world import (
     World,
     abstains,
     answers,
+    failed_output,
+    ok_output,
     plan,
+    run_of,
     tools,
 )
 from tests.unit.domain._fixtures import build_step, run_step
@@ -183,3 +189,38 @@ def test_a_question_whose_two_arms_are_stored_costs_no_simulation(tmp_path: Path
     base, treatment = study.phases[0].experiments
     assert (base.reused, treatment.reused) == (True, True)
     assert (base.result_ids, treatment.result_ids) == (base_ids, closure_ids)
+
+
+def test_a_failed_run_is_simulated_again_by_the_next_study(tmp_path: Path) -> None:
+    """A failed run is not an ok result (GLOSSARY.md, ADR-0031): it is never stored, so the same
+    (scenario, seed) is not redundant when a later study asks for it. The failing step ends the
+    first study, so the retry is the next study over the same stores."""
+    # The base's load check is the runner's first call and passes; its first study run fails.
+    runner = FakeRunner([ok_output(), failed_output()], default=ok_output())
+    world = World(
+        tmp_path,
+        question=WHAT_IF,
+        plans=(WHAT_IF_PLAN, WHAT_IF_PLAN),
+        expert=(answers(), answers()),
+        runner=runner,
+    )
+
+    world.parser.items.append(run_of(WHAT_IF, tokens=50))  # the second study parses again
+    first = world.run()
+
+    assert first.status is StudyStatus.FAILED
+    failed_seed = DEFAULT_SEEDS[0]  # the first study run of the base; seed 0 is the load check
+    failed_rid = result_id_for(BASE_SID, failed_seed, RunMode.BATCH.value)
+    assert world.results.get(failed_rid) is None  # a failed run is never stored
+
+    second = world.run()
+
+    assert second.status is StudyStatus.COMPLETED
+    base_runs = [
+        seed
+        for _, seed, out_dir in runner.calls
+        if out_dir.name.split(".")[0] == result_id_for(BASE_SID, seed, RunMode.BATCH.value)
+    ]
+    assert sorted(base_runs) == sorted((failed_seed, *DEFAULT_SEEDS))  # the failed seed twice
+    stored = world.results.get(failed_rid)
+    assert stored is not None and stored.status is RunStatus.OK
