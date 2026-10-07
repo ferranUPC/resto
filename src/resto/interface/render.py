@@ -10,7 +10,10 @@ its `Report` (E5.4): the model's prose as written, every table and line of fixed
 
 from __future__ import annotations
 
+import re
+
 from resto.domain.entities.study import Phase, Study, StudyStatus
+from resto.domain.value_objects.report import Claim
 from resto.domain.value_objects.step_record import StepErrorKind, StepStatus
 
 WHAT_TO_DO: dict[StepErrorKind, str] = {
@@ -52,6 +55,17 @@ def render_study(study: Study) -> str:
 
 
 def render_completed(study: Study) -> str:
+    """A `completed` study's `Report` as Markdown: the fixed layout is code, the model's prose is
+    inserted as written except for what would break that layout.
+
+    The summary and section bodies keep their text, but a Markdown heading in them is demoted
+    below the fixed ones (`####` or deeper; code fences are left alone). Section titles, claim
+    text and values and table cells are single lines (newlines become spaces, `|` is escaped in
+    cells), and a section titled like a fixed heading is marked as the Composer's.
+
+    Raises:
+        ValueError: the study is not completed.
+    """
     if study.status is not StudyStatus.COMPLETED:
         raise ValueError("not a completed study")
     report = study.report
@@ -59,27 +73,25 @@ def render_completed(study: Study) -> str:
     lines = [
         f"# Study {study.study_id}: report",
         "",
-        f"> {study.question.text}",
+        f"> {_line(study.question.text)}",
         "",
         "## Summary",
         "",
-        report.summary,
+        _prose(report.summary),
     ]
     for section in report.sections:
-        lines += ["", f"## {section.title}", "", section.body]
+        lines += ["", f"### {_section_title(section.title)}", "", _prose(section.body)]
     lines += ["", "## Claims", ""]
-    lines += [
-        f"- {c.text} (evidence: {', '.join(f'`{r}`' for r in c.evidence_refs)})"
-        for c in report.claims
-    ] or ["No claims."]
+    lines += [_claim(c) for c in report.claims] or ["No claims."]
     lines += ["", "## Evidence", "", "| Ref | Kind | Description |", "| --- | --- | --- |"]
-    known = {e.ref: e for r in study.rounds[-1:] for e in r.answer.evidence}
+    last_round = study.rounds[-1]
+    known = {e.ref: e for e in last_round.answer.evidence}
     cited = dict.fromkeys(ref for c in report.claims for ref in c.evidence_refs)
     for ref in cited:
         ev = known.get(ref)
         kind = ev.kind.value if ev else "unresolved"
         text = _cell(ev.excerpt) if ev and ev.excerpt else "-"
-        lines.append(f"| `{ref}` | {kind} | {text} |")
+        lines.append(f"| `{_cell(ref)}` | {kind} | {text} |")
     lines += [
         "",
         "## Experiments",
@@ -91,8 +103,8 @@ def render_completed(study: Study) -> str:
         for e in phase.experiments:
             origin = "reused" if e.reused else "run now"
             lines.append(
-                f"| {k} | {_cell(e.arm)} | {e.role} | {e.scenario_id} | {len(e.result_ids)} "
-                f"| {origin} |"
+                f"| {k} | {_cell(e.arm)} | {_cell(str(e.role))} | {_cell(e.scenario_id)} "
+                f"| {len(e.result_ids)} | {origin} |"
             )
     lines += [
         "",
@@ -103,12 +115,56 @@ def render_completed(study: Study) -> str:
         "## Limitations",
         "",
     ]
-    lines += [f"- {x}" for x in report.limitations] or ["None stated."]
+    lines += [f"- {_line(x)}" for x in report.limitations] or ["None stated."]
     return "\n".join(lines) + "\n"
 
 
+_FIXED_HEADINGS = frozenset(
+    h.casefold()
+    for h in ("Summary", "Claims", "Evidence", "Experiments", "Mode and basis", "Limitations")
+)
+_HEADING = re.compile(r"^(\s{0,3})(#{1,6})(?=\s|$)")
+_FENCE = re.compile(r"^\s{0,3}(```|~~~)")
+
+
+def _line(text: str) -> str:
+    """`text` on one line."""
+    return " ".join(text.split())
+
+
 def _cell(text: str) -> str:
-    return text.replace("|", "\\|").replace("\n", " ")
+    """`text` as the content of one table cell."""
+    return _line(text).replace("|", "\\|")
+
+
+def _section_title(title: str) -> str:
+    clean = _line(title).lstrip("#").strip()
+    if not clean:
+        return "Untitled section"
+    if clean.casefold() in _FIXED_HEADINGS:
+        return f"{clean} (from the Composer)"
+    return clean
+
+
+def _claim(claim: Claim) -> str:
+    refs = ", ".join(f"`{_cell(r)}`" for r in claim.evidence_refs)
+    value = f"value: {_cell(claim.value)}; " if claim.value else ""
+    return f"- {_cell(claim.text)} ({value}evidence: {refs})"
+
+
+def _prose(text: str) -> str:
+    """The model's text with its Markdown headings demoted to level 4 or deeper."""
+    out: list[str] = []
+    fenced = False
+    for raw in text.splitlines():
+        if _FENCE.match(raw):
+            fenced = not fenced
+        match = None if fenced else _HEADING.match(raw)
+        if match:
+            level = min(6, len(match.group(2)) + 3)
+            raw = f"{match.group(1)}{'#' * level}{raw[match.end() :]}"
+        out.append(raw)
+    return "\n".join(out)
 
 
 def render_failed(study: Study) -> str:

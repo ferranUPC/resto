@@ -49,6 +49,7 @@ from resto.application.tools.results import (
     EdgeIdsOrAll,
     NotAvailableError,
     ResultId,
+    ResultIds,
     Window,
     bounds,
     read_edgedata,
@@ -240,7 +241,6 @@ _NetworkId = Annotated[
 ]
 _EdgeId = Annotated[str, Field(description="Edge id, e.g. 'A0A1'.")]
 _TlsIds = Annotated[Sequence[str], Field(min_length=1, description="Traffic light ids.")]
-ResultIds = Annotated[Sequence[str], Field(min_length=1)]
 _Measure = Annotated[str, Field(json_schema_extra={"enum": list(EDGE_MEASURES)})]
 _TopK = Annotated[int, Field(ge=1)]
 

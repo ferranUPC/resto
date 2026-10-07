@@ -43,6 +43,7 @@ EDGEDATA_COST = (
 """Start of the `query_edgedata` description of every agent; each adds when not to reach for it."""
 
 ResultId = Annotated[str, Field(description="Id of an available simulation result.")]
+ResultIds = Annotated[Sequence[str], Field(min_length=1)]
 EdgeIdsOrAll = Annotated[
     Sequence[str], Field(description="Edge ids to return; empty or omitted for every edge.")
 ]

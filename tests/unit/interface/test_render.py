@@ -4,15 +4,14 @@ the failing step named, what the user can do by `StepError.kind`, ambiguities or
 from __future__ import annotations
 
 from dataclasses import replace
+from typing import Any
 
 import pytest
 
 from resto.domain.entities.study import Phase, Study, StudyStatus
 from resto.domain.value_objects.experiment import Experiment, ExperimentRole
-from resto.domain.value_objects.expert_answer import Basis, ExpertAnswer
-from resto.domain.value_objects.expert_round import ExpertRound
 from resto.domain.value_objects.question import Intent, Question
-from resto.domain.value_objects.report import Claim
+from resto.domain.value_objects.report import Claim, ReportSection
 from resto.domain.value_objects.step_record import (
     StepError,
     StepErrorKind,
@@ -27,6 +26,7 @@ from resto.domain.value_objects.study_plan import (
     StudyPlan,
 )
 from resto.interface.render import WHAT_TO_DO, render_study
+from tests.unit.domain._fixtures import study_with_rounds
 from tests.unit.domain._samples import study as completed_study
 
 FORCED_LIMITATION = "The Expert was forced to answer at the round limit."
@@ -110,46 +110,31 @@ def test_an_ambiguous_question_lists_its_ambiguities() -> None:
 
 def _completed(*, forced: bool = False, run_now: bool = True, two_phases: bool = True) -> Study:
     """A completed study; with `two_phases` the Expert first asked for a simulation."""
+    reused = not run_now
     base = completed_study()
     assert base.report is not None
-    first = base.phases[0]
-    assert first.round is not None
-    reused = not run_now
-    first = replace(
-        first,
-        experiments=tuple(replace(e, reused=e.reused or reused) for e in first.experiments),
-    )
+    first = tuple(replace(e, reused=e.reused or reused) for e in base.phases[0].experiments)
+    extra = Experiment("s2", "extra", ExperimentRole.TREATMENT, "second look", ("res2",), reused)
     report = replace(
         base.report,
         limitations=("single seed", FORCED_LIMITATION) if forced else ("single seed",),
         claims=(Claim("delay +12 %", ("query_edgedata:r1", "ghost"), "12%"),),
     )
-    assert first.round is not None
-    last = replace(first.round, forced_by_limit=forced)
-    if not two_phases:
-        return replace(
-            base,
-            phases=(replace(first, round=last),),
-            report=report,
-            max_rounds=1 if forced else 3,
-        )
-    ask = ExpertAnswer(
-        "needs a second look",
-        Basis.INFERRED,
-        0.5,
-        needs_simulation=True,
-        proposed_experiment=QUESTION,
+    return study_with_rounds(
+        2 if two_phases else 1,
+        last_forced=forced,
+        question=base.question,
+        answer=base.rounds[-1].answer,
+        experiments=(first, (extra,)) if two_phases else (first,),
+        report=report,
+        study_id=base.study_id,
     )
-    first = replace(first, round=ExpertRound("how bad is it?", ask))
-    second = Phase(
-        question=QUESTION,
-        plan=PLAN,
-        experiments=(
-            Experiment("s2", "extra", ExperimentRole.TREATMENT, "second look", ("res2",), reused),
-        ),
-        round=last,
-    )
-    return replace(base, phases=(first, second), report=report, max_rounds=2 if forced else 3)
+
+
+def _with_report(**changes: Any) -> Study:
+    study = _completed()
+    assert study.report is not None
+    return replace(study, report=replace(study.report, **changes))
 
 
 def test_a_completed_study_renders_its_report_in_a_fixed_layout() -> None:
@@ -158,7 +143,7 @@ def test_a_completed_study_renders_its_report_in_a_fixed_layout() -> None:
     headings = (
         "# Study st-1",
         "## Summary",
-        "## Method",
+        "### Method",
         "## Claims",
         "## Evidence",
         "## Experiments",
@@ -170,7 +155,7 @@ def test_a_completed_study_renders_its_report_in_a_fixed_layout() -> None:
     assert "> what if we close lane 1 of E12 at peak?" in text
     assert "closing the lane shifts delay to the parallel corridor" in text
     assert "one baseline, one treatment" in text
-    assert "- delay +12 % (evidence: `query_edgedata:r1`, `ghost`)" in text
+    assert "- delay +12 % (value: 12%; evidence: `query_edgedata:r1`, `ghost`)" in text
     assert "free" in text.split("## Mode and basis")[1] and "observed" in text
     assert "- single seed" in text
 
@@ -224,3 +209,64 @@ def test_a_report_without_limitations_says_so() -> None:
     text = render_study(replace(study, report=replace(study.report, limitations=())))
 
     assert "None stated." in text.split("## Limitations")[1]
+
+
+def test_a_claim_without_a_value_shows_only_its_evidence() -> None:
+    study = _with_report(claims=(Claim("delay up", ("query_edgedata:r1",)),))
+
+    assert "- delay up (evidence: `query_edgedata:r1`)" in render_study(study)
+
+
+def test_headings_in_the_models_prose_sit_below_the_fixed_ones() -> None:
+    study = _with_report(
+        summary="# Evidence\nit grew",
+        sections=(ReportSection("Method", "## Limitations\ntext\n```\n# kept\n```\n#tag"),),
+    )
+
+    text = render_study(study)
+
+    assert "#### Evidence\nit grew" in text
+    assert "##### Limitations\ntext" in text
+    assert "```\n# kept\n```\n#tag" in text
+    assert text.count("\n## Limitations\n") == 1
+    assert text.count("\n## Evidence\n") == 1
+
+
+def test_a_section_title_cannot_duplicate_a_fixed_heading_or_span_lines() -> None:
+    study = _with_report(
+        sections=(
+            ReportSection("Evidence", "a"),
+            ReportSection("Two\n## Claims", "b"),
+            ReportSection("  ", "c"),
+        )
+    )
+
+    text = render_study(study)
+
+    assert "### Evidence (from the Composer)" in text
+    assert "### Two ## Claims" in text
+    assert "### Untitled section" in text
+    assert text.count("\n## Evidence\n") == 1
+    assert text.count("\n## Claims\n") == 1
+
+
+def test_claim_text_keeps_to_one_line_and_does_not_break_the_tables() -> None:
+    study = _with_report(
+        claims=(Claim("delay\n## Evidence\n| x |", ("query_edgedata:r1",), "12\n%"),),
+        limitations=("one\ntwo",),
+    )
+
+    text = render_study(study)
+
+    assert "- delay ## Evidence \\| x \\| (value: 12 %; evidence: `query_edgedata:r1`)" in text
+    assert "- one two" in text
+    assert text.count("\n## Evidence\n") == 1
+
+
+def test_experiment_cells_escape_pipes_and_newlines() -> None:
+    study = _completed()
+    phase = study.phases[0]
+    odd = replace(phase.experiments[0], arm="a|b\nc", scenario_id="s|0")
+    study = replace(study, phases=(replace(phase, experiments=(odd,)), *study.phases[1:]))
+
+    assert "| 0 | a\\|b c | baseline | s\\|0 | 1 | reused |" in render_study(study)

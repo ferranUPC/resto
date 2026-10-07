@@ -5,8 +5,10 @@ Promotion order (ADR-0001):
   1. syntactic - the run stopped with a draft.
   2. semantic  - every claim carries evidence, and every ref resolves to evidence of the last
                  Expert answer. (The check of numbers against artifacts is E5.7 and goes here.)
-  3. construct - `mode` and `basis` come from the last Expert round, and the fixed limitation line
-                 is added when that round was forced by the limit; the prose is kept as written.
+  3. construct - `basis` comes from the last Expert round; `mode` is forced when that round was
+                 forced by the limit or the question itself asked for forced mode; the fixed
+                 limitation line is added only when the limit forced the round; the prose is kept
+                 as written.
 """
 
 from __future__ import annotations
