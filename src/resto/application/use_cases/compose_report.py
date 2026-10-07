@@ -19,13 +19,24 @@ from resto.domain.value_objects.question import Mode
 from resto.domain.value_objects.report import Claim, Report
 
 FORCED_LIMITATION = (
-    "The Expert reached the round limit and was forced to answer: this answer was not reached "
-    "freely and is an extrapolation."
+    "The study reached the round limit, so the Expert answered without being able to request "
+    "another simulation."
 )
 """Added by code, never by the model, when the last round has `forced_by_limit` (ADR-0025 §4)."""
 
 
 def compose_report(study: Study, run: AgentRun[ReportDraft]) -> Report:
+    """Promotes the Composer's draft to the `Report` of `study`.
+
+    `mode` is `Mode.FORCED` when the last round was forced by the round limit or the question
+    itself asked for forced mode: either way the Expert could not request another simulation. It
+    says nothing about `basis` (observed, inferred or extrapolated), which comes from the last
+    answer's data coverage. Only the limit adds `FORCED_LIMITATION`.
+
+    Raises:
+        DraftRejected: a claim has no evidence, or cites a ref the last answer does not hold.
+        ValueError: the study has no Expert round.
+    """
     draft = require_draft(run, "composer")
     rounds = study.rounds
     if not rounds:

@@ -111,6 +111,20 @@ def test_the_limitation_line_appears_if_and_only_if_the_last_round_was_forced_by
     assert forced.mode is Mode.FORCED
 
 
+def test_the_limitation_states_only_the_round_limit_not_the_basis() -> None:
+    assert "round limit" in FORCED_LIMITATION
+    assert "extrapolat" not in FORCED_LIMITATION
+    observed = compose_report(_study(forced_by_limit=True, basis=Basis.OBSERVED), _run(_draft()))
+    assert (observed.basis, observed.limitations) == (Basis.OBSERVED, (FORCED_LIMITATION,))
+
+
+def test_a_forced_question_is_forced_without_the_limitation_line() -> None:
+    report = compose_report(
+        _study(question=Question("q", Intent.DESCRIBE, Mode.FORCED)), _run(_draft())
+    )
+    assert (report.mode, report.limitations) == (Mode.FORCED, ())
+
+
 def test_a_claim_without_evidence_is_rejected() -> None:
     bad = ReportDraft(summary="s", claims=(ClaimDraft(text="t", evidence_refs=()),))
     with pytest.raises(DraftRejected, match="evidence"):

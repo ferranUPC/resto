@@ -19,10 +19,10 @@ from resto.application.ports.llm import Tool
 from resto.application.promotion import DraftRejected
 from resto.application.tools.expert import (
     EvidenceLedger,
-    NotAvailableError,
     build_expert_tools,
     expert_context,
 )
+from resto.application.tools.results import NotAvailableError
 from resto.domain.entities.expert_note import ExpertNote
 from resto.domain.value_objects.expert_answer import Evidence, EvidenceKind
 from resto.domain.value_objects.question import Mode
