@@ -19,7 +19,7 @@ from resto.application.ports.tracing import (
     StudyCreated,
     TraceEvent,
 )
-from resto.domain.entities.study import Study
+from resto.domain.entities.study import Study, StudyStatus
 from resto.domain.value_objects.experiment import Experiment, ExperimentRole
 from resto.domain.value_objects.expert_answer import Basis
 from resto.domain.value_objects.step_record import StepStatus, Usage
@@ -159,3 +159,20 @@ def test_free_text_tokens_and_ids_are_not_compared() -> None:
     other = replace(study, study_id="another-id")
 
     assert compare(EXPECTED, observe(other, noisy)).ok
+
+
+def test_an_expected_study_status_is_compared_when_given() -> None:
+    study = _study()
+    expected = replace(EXPECTED, status=StudyStatus.AWAITING_USER)
+
+    diff = compare(expected, observe(study, _events(study)), study.status)
+
+    text = diff.render()
+    assert text.startswith("study, status:")
+    assert "awaiting_user" in text and f"observed {study.status.value}" in text
+
+
+def test_a_study_status_the_expectation_leaves_out_is_not_compared() -> None:
+    study = _study()
+
+    assert compare(EXPECTED, observe(study, _events(study)), StudyStatus.FAILED).ok

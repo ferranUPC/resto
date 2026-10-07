@@ -10,9 +10,10 @@ specialist that asks the user mid-plan is a different flow.
 """
 
 from golden.framework import ExpectedPhase, ExpectedTrace, GoldenPath
+from resto.domain.entities.study import StudyStatus
 
 GP9 = GoldenPath(
     name="gp9",
     request="Make the morning peak better, either by cutting delays or by cutting emissions.",
-    expected=ExpectedTrace((ExpectedPhase(steps=()),)),
+    expected=ExpectedTrace((ExpectedPhase(steps=()),), status=StudyStatus.AWAITING_USER),
 )

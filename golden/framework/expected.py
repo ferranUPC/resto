@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from resto.domain.constants import DEFAULT_SEEDS
+from resto.domain.entities.study import StudyStatus
 from resto.domain.value_objects.expert_answer import Basis
 from resto.domain.value_objects.intervention import Intervention
 from resto.domain.value_objects.step_record import StepStatus
@@ -31,9 +32,11 @@ class ExpectedPhase:
 @dataclass(frozen=True, slots=True)
 class ExpectedTrace:
     """One entry per `PhaseStarted`, in order. An ambiguous request that stops before planning is
-    still phase 0, with no steps."""
+    still phase 0, with no steps. `status` is the status the study ends in; left as `None` it is
+    not compared."""
 
     phases: tuple[ExpectedPhase, ...]
+    status: StudyStatus | None = None
 
 
 @dataclass(frozen=True, slots=True)
