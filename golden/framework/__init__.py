@@ -15,9 +15,16 @@ Free text, tokens and ids are never compared: the observed side does not even ho
 """
 
 from golden.framework.compare import Diff, Mismatch, compare
-from golden.framework.expected import ExpectedPhase, ExpectedStep, ExpectedTrace, GoldenPath
+from golden.framework.expected import (
+    ExpectedPhase,
+    ExpectedStep,
+    ExpectedTrace,
+    GoldenPath,
+    PriorState,
+    StoredScenario,
+)
 from golden.framework.observed import ObservedPhase, observe
-from golden.framework.setup import Run, Setup
+from golden.framework.setup import Run, Setup, check
 
 __all__ = [
     "Diff",
@@ -26,9 +33,12 @@ __all__ = [
     "ExpectedTrace",
     "GoldenPath",
     "Mismatch",
+    "PriorState",
     "ObservedPhase",
     "Run",
     "Setup",
+    "StoredScenario",
+    "check",
     "compare",
     "observe",
 ]
