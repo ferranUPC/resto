@@ -32,4 +32,4 @@ def test_a_parser_that_does_not_flag_the_request_fails_gp9_with_a_diff() -> None
     diff = check(unflagged, GP9)
 
     assert not diff.ok
-    assert "phase 0, steps (tool, status)" in diff.render()
+    assert "steps (tool, status): expected ()" in diff.render()
