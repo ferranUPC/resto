@@ -1,4 +1,4 @@
-# Agentic Traffic Simulation Framework — Work Plan (v0.4)
+# Agentic Traffic Simulation Framework — Work Plan (v0.5)
 
 Scope: reach **Done** on every module of the Architecture & DoD document (**v1.0**, frozen) as amended by
 **ADR-0001 … ADR-0039**, plus the thesis document, between **Wed 9 Sep 2026** and **Thu 18 Feb 2027**
@@ -52,6 +52,22 @@ tested, so what remains is the zero-redundant-simulations counter across phases,
 level, and a closing note. The plan goes from 973 to **965 pts**; the spine becomes 8 pts shorter (§4.3).
 No scope is dropped and no date moves. No ADR.
 
+r16 (2026-10-07) adds **E11, the user interface** (61 pts), which neither the DoD v1.0 nor v0.4 listed: a
+chat-style web client over the pipeline, with a network selector, a database explorer, a view of the plan
+and of the messages between agents, a report viewer with evidence links, and a VTK export. It is planned
+work in a new **wave 6** (4 → 22 Jan) with its own milestone **MUI**, not Stretch, and it is the **first**
+step of the fallback order (§5): if it is not built, the thesis says it was not built. No DoD criterion
+depends on it. The plan goes from 965 to **1026 pts**. E9.7 (the usability session, Stretch, never
+scheduled) moves into E11 as E11.10. No ADR: E11.1 records the stack decision in one.
+
+r17 (2026-10-07) adds **E12, cost optimization** (32 pts): a study of how far the **Study cost** can fall and
+what each step down costs in quality, per agent and across agents, plus the user-facing configuration it needs.
+**E12.1** (5 pts) lets the user set model and limits per agent, with the defaults and the cost policy unchanged;
+it is planned work in wave 5 and in **M7**. **E12.2 to E12.5** (27 pts) have points but no wave, no latest due and
+no milestone: their money is outside the $30 cap, so E12.2 designs the experiments and prices them, and the
+calendar follows from what it finds. They are not Stretch and they are not in any DoD criterion. The plan goes
+from 1026 to **1058 pts**; the slack counts only E12.1 (+98 → +93). No ADR.
+
 The notes v0.2 accumulated in its §0 (ADR-0023/0025/0026 scope, E3.4 split,
 estimates for E4.11 and E5.9–E5.12) are absorbed into the task rows; the old text is in
 [`_old/tfm-work-plan-v0.2.md`](_old/tfm-work-plan-v0.2.md). Task status lives in
@@ -70,13 +86,14 @@ estimates for E4.11 and E5.9–E5.12) are absorbed into the task rows; the old t
 | Christmas break | **24 Dec → 2 Jan, zero work** (21–23 Dec are working days) |
 | Planning rate | 40 pts/week nominal → **38.5 pts/week** after supervisor meetings (DLR + FIB, ~3 h every two weeks): ≈ 34.5 build + ≈ 4 writing |
 | Capacity to 18 Feb | ≈ **745 pts** |
-| Remaining work | ≈ **585 pts**: 399 build (incl. E3.8, E3.11, E3.12, E5.13, E5.14, E5.15 and E7.2, E7.3, E7.5, E7.6) + ≈ 47 measurement-only + ≈ 120 writing + 12 E9.6 + 7 (E3.9, E3.10) |
-| Slack | ≈ **+159 pts** (v0.2: −95 h; +170 before E3.11; −26 for E7.2, E7.3, E7.5, E7.6; −11 net for ADR-0037, tentative; +12 net for ADR-0039; +18 for r14; +8 for r15). Conservative: it still counts the writing that sits in the M9 window (second half of E10.7, E10.8, ≈ 18 pts) |
-| Plan total (every row of §1) | **965 pts**: 973 before r15, 991 before r14 and 1003 before r13 (v0.2's 935 + E3.8 (10) + E3.9 (5) + E3.10 (2) + E3.11 (12) + E5.13 (2) + E7.2, E7.3, E7.5, E7.6 (26) + ADR-0037 net (+11: E5.14 +5, E3.12 +8, E6.1 +2, E7.1 +3, E3.7 −3, E5.2 −4) − 12 for ADR-0039 (E5.2 −5, E5.5 −7, E5.8 −3, E5.15 +3)); r14 takes 18 more (E5.2 −3 cancelled, E5.5 −11 cancelled, E5.15 −2, E3.7 −2); r15 takes 8 more (E5.3 14 → 6) |
+| Remaining work | ≈ **651 pts**: 465 build (incl. E3.8, E3.11, E3.12, E5.13, E5.14, E5.15, E7.2, E7.3, E7.5, E7.6, E11's 61 and E12.1's 5) + ≈ 47 measurement-only + ≈ 120 writing + 12 E9.6 + 7 (E3.9, E3.10) |
+| Slack | ≈ **+93 pts** (+98 before r17, which adds E12.1's 5; +159 before r16, which adds E11's 61; v0.2: −95 h; +170 before E3.11; −26 for E7.2, E7.3, E7.5, E7.6; −11 net for ADR-0037, tentative; +12 net for ADR-0039; +18 for r14; +8 for r15). Conservative: it still counts the writing that sits in the M9 window (second half of E10.7, E10.8, ≈ 18 pts) |
+| Plan total (every row of §1) | **1058 pts**: 1026 before r17 (E12 +32), 965 before r16 (E11 +61), 973 before r15, 991 before r14 and 1003 before r13 (v0.2's 935 + E3.8 (10) + E3.9 (5) + E3.10 (2) + E3.11 (12) + E5.13 (2) + E7.2, E7.3, E7.5, E7.6 (26) + ADR-0037 net (+11: E5.14 +5, E3.12 +8, E6.1 +2, E7.1 +3, E3.7 −3, E5.2 −4) − 12 for ADR-0039 (E5.2 −5, E5.5 −7, E5.8 −3, E5.15 +3)); r14 takes 18 more (E5.2 −3 cancelled, E5.5 −11 cancelled, E5.15 −2, E3.7 −2); r15 takes 8 more (E5.3 14 → 6) |
 | After 18 Feb | ~7 h/week from about March (the maintainer likely has a job), reserved for revisions, the thesis and the defense: M9 window, not planned here |
 
 The slack is not a licence for Stretch work: it is the January buffer (§3) and the first step of the
-fallback order (§5). Do not add Stretch work before M7.
+fallback order (§5). Do not add Stretch work before M7. E11 (r16) is the one planned use of that slack, and
+it gives it back first: it is the first thing §5 cuts. E12.1 (r17) takes 5 pts of it; E12.2 to E12.5 take none until E12.2 sets their window.
 
 ### 0.2 Cross-cutting rules
 
@@ -120,7 +137,7 @@ fallback order (§5). Do not add Stretch work before M7.
 - A **milestone** has a *target* (internal, computed from the planning rate) and a *deadline* (the v0.2
   date). A target may move; a deadline never moves later. A moved date is struck through, never
   deleted.
-- A **build milestone** (M2–M7) is met when every task it lists is ✅ or ⏳. Its measurement happens in
+- A **build milestone** (M2–M7 and MUI) is met when every task it lists is ✅ or ⏳. Its measurement happens in
   V2; "do not cut M2, M3, M6" protects both the build and the V2 measurement.
 - A **task** has no target date: it carries a **wave** (§3) and a **latest due**, the latest date that
   keeps its consumers on time.
@@ -133,7 +150,7 @@ fallback order (§5). Do not add Stretch work before M7.
 Points are plan hours read as story points (§0.1). "DoD" points to the section of the Architecture & DoD
 document the task satisfies.
 
-**Wave** (§3): `1a`, `1b`, `2`, `3`, `4`, `5` build waves · `W` rolling writing track · `V2` only its
+**Wave** (§3): `1a`, `1b`, `2`, `3`, `4`, `5`, `6` build waves · `W` rolling writing track · `V2` only its
 measurement suite is left (built; ⏳ once the tracker syncs) · `F` final stretch, after V2 ·
 `M9` delivery window, not planned · `—` completed before this re-baseline (status in the tracker), or a
 **cancelled** row (r14: 0 pts, no wave, no date).
@@ -263,7 +280,7 @@ measurement suite is left (built; ⏳ once the tracker syncs) · `F` final stret
 | E9.4 | Cost / latency per golden path, read from E9.5's V2 traces; thresholds set from that first measurement | table | 6 | F | 9 Feb |
 | E9.5 | Full run in V2: 11/11 golden paths × 3; GP-2 reproducibility (identical `result_id`s, hashes and conclusions) | report | 10 | F | 9 Feb |
 | E9.6 | Release packaging only (no behaviour change after the feature freeze): tag, README, reproducibility package (one command per experiment in the thesis) | release | 12 | F | **Wed 10 Feb** |
-| E9.7 | *(Stretch, only if M7 is on time)* usability session with 2–3 DLR engineers | — | — | — | — |
+| E9.7 | *(moved to E11.10 by r16)* | — | — | — | — |
 | E9.8 | GP-8 (full pipeline from a new place name) and GP-11 (add an edge, a `run` request per ADR-0025: derive → reroute → baseline vs treatment) passing | tests | 8 | 3 | 15 Jan |
 
 ### E10 — Thesis document (120) · rolling from now, concentrated 1 → 18 Feb
@@ -282,11 +299,60 @@ fresh (~4 pts/week of writing from now on).
 | E10.7 | Full draft v1 to supervisors (FIB + DLR) → **M8** (10) · revision round → v2 (10, M9 window, not planned) | draft v1 → v2 | 20 | F / M9 | **18 Feb** (v1) |
 | E10.8 | Final delivery → **M9** | — | 8 | M9 | May 2027 (TBC) |
 
+### E11 — User interface (61) · not in the DoD · added by r16
+
+A web client over the existing use cases, in the shape of an LLM console: a chat on one side, the detail of
+each study next to it. It adds code only in `interface/` and a read port for traces; it changes no module's
+behaviour, so the feature freeze does not touch it. Not in any DoD criterion and not measured: if it is not
+built by its deadline, it is not built (§5, step 0). The UI is one more client of the application:
+per-agent models, budgets and other settings are configured the way any client configures them, not by the
+UI (the editable selection of models per agent is out of E11; its configuration is E12.1). Reading a running study goes through a port
+(the application never depends on the interface); the likely adapter reads the study's JSONL trace, and the
+detail is decided in E11.6.
+
+| ID | Task | Output | pts | Wave | Latest due |
+|---|---|---|---|---|---|
+| E11.1 | Stack decision for the UI (server, front end, packaging), recorded in an ADR; walking skeleton that serves one page | ADR + skeleton | 3 | 4 (gap) | 11 Dec |
+| E11.2 | Chat and sessions: send a request, get the report back, history of past requests; runs through the same use cases as the CLI | `interface/web/` | 8 | 4 (gap) / 6 | 15 Jan |
+| E11.3 | Two modes: scripted fake LLM (no cost, shows the data moving through the whole pipeline) and real; real mode shows model and estimated cost, asks for confirmation, and a panel reports model, tokens and cost per study | modes + panel | 8 | 6 | 20 Jan |
+| E11.4 | Network selector: list, choose and inspect the stored networks a request runs on | selector | 5 | 6 | 20 Jan |
+| E11.5 | Database explorer: browse and query the stored entities (networks, demands, results, notes) from the UI, read-only | explorer | 8 | 6 | 20 Jan |
+| E11.6 | Plan and message view: the plan, the steps and the messages between agents, live while a study runs and replayed afterwards, read through a trace-reading port | view + port | 10 | 6 | 22 Jan |
+| E11.7 | Report viewer: claims with links to their evidence (artifact or query), experiments and a side-by-side comparison of the arms | viewer | 8 | 6 | 22 Jan |
+| E11.8 | Export of a result to VTK (network coloured by edge KPI from `edgedata`), with a download; viewing it in ParaView or in the UI is outside E11 | export | 5 | 6 | 22 Jan |
+| E11.9 | Docker packaging: the UI as one service, token printed at start, key never sent to the browser | image | 3 | 6 | 22 Jan |
+| E11.10 | *(Optional, does not block MUI; was E9.7)* usability session with 2–3 DLR engineers on the UI | notes | — | — | — |
+| E11.11 | Close-out: integration tests for every view in fake mode, README section | tests + docs | 3 | 6 | 22 Jan |
+
+Out of E11 and out of the plan, each with a `wontfix` spec: a `VisualizationAgent` that tunes simulation
+parameters for the KPIs to draw (future work); in-browser replay of vehicles (needs `netstate` or `fcd`
+output, which the Runner does not produce); editable per-agent model selection in the UI; multi-user access
+and remote deployment.
+
+---
+
+### E12 — Cost optimization (32) · not in the DoD · added by r17
+
+A study of the **Study cost**: how far it can fall with a cheaper model or tighter limits per agent, and what the
+pipeline loses in quality at each step, agent by agent and then together. Not in any DoD criterion. E12.1 is
+build work and is planned (wave 5, M7). E12.2 to E12.5 are a study whose money is outside the $30 cap
+(§0.2, `docs/llm-cost-policy.md`): they carry points but no wave, no latest due and no milestone, and E12.2
+fixes their calendar from the money that exists. The default model and the cost policy do not change: a model
+other than the default still needs the maintainer's approval before a real run.
+
+| ID | Task | Output | pts | Wave | Latest due |
+|---|---|---|---|---|---|
+| E12.1 | Per-agent run configuration: model, `max_steps`, `max_output_tokens` and round limits per agent, set by the user without editing code; each study records the configuration it ran with | config + record | 5 | 5 | 22 Jan |
+| E12.2 | Cost study design and its own evaluation budget: agents and knobs in the grid, the benchmark that gives each agent's quality, cost per cell, what shrinks first if money is short | design + budget | 5 | — | — |
+| E12.3 | Quality curve per agent: lower one agent's cost with the others at their defaults and read its quality on its own benchmark | curves | 8 | — | — |
+| E12.4 | Quality across agents: lower several at once, read the quality of the whole pipeline, find the cheapest configuration that meets the DoD thresholds | table | 8 | — | — |
+| E12.5 | Thesis chapter on cost optimization (method, curves, interaction, cheapest configuration; says what was left out if the study ran at a reduced tier) | chapter | 6 | — | — |
+
 ---
 
 ## 2. Milestones
 
-M2–M7 are **build milestones** (§0.2): met when every task listed is ✅ or ⏳. Their measurements run in
+M2–M7 and MUI are **build milestones** (§0.2): met when every task listed is ✅ or ⏳. Their measurements run in
 V2 and are read by the tasks in wave F. v0.4 renumbered M3–M9 (§8); the dates below are recomputed from the
 planning rate, not carried over.
 
@@ -299,7 +365,8 @@ planning rate, not carried over.
 | **M4** | **Fri 6 Nov** | Fri 11 Dec | **Builder and Runner built** | E3.10 ✅ (Decisions log trimmed); E2.5, E2.6 ✅; E2.7 ✅ or ⏳; GP-6 and GP-7 pass (E9.2) |
 | **M5** | **Mon 30 Nov** | Fri 15 Jan | **Generators built** | E6.1, E7.1, E3.12, E7.2, E7.3 ✅; E6.2, E7.4 ✅ or ⏳ (both need E8.1, the frozen REAL-NET); GP-8 and GP-11 pass (E9.8) |
 | **M6** | **Tue 8 Dec** | Fri 22 Jan | **REAL-NET ready (built)** | REAL-NET frozen with fix log (E8.1); profiles, matrix and question bank stored (E8.2, E8.3, E8.4 ✅); E8.5 ⏳ (ported and tuned on REAL-NET, development evidence stated). The figures come from V2 → E4.10 → E10.5 |
-| **M7** | **Fri 15 Jan** (~~Fri 11 Dec~~) | ~~Fri 5 Feb~~ Fri 29 Jan | **All modules built** | E5.6, E5.7 (checker), E9.3 ✅ or ⏳ (E5.5 cancelled, r14: the Executor's failure behaviour is E9.3's and its zero-redundant-simulations counter is E5.3's); E7.5, E7.6 ✅ or ⏳; E4.9 ⏳ (learning-effect setup on DEV-NET ready to run); 11 golden paths pass as tests; failure injection green |
+| **M7** | **Fri 15 Jan** (~~Fri 11 Dec~~) | ~~Fri 5 Feb~~ Fri 29 Jan | **All modules built** | E5.6, E5.7 (checker), E9.3 ✅ or ⏳ (E5.5 cancelled, r14: the Executor's failure behaviour is E9.3's and its zero-redundant-simulations counter is E5.3's); E7.5, E7.6 ✅ or ⏳; E12.1 ✅ (the user sets model and limits per agent, defaults unchanged); E4.9 ⏳ (learning-effect setup on DEV-NET ready to run); 11 golden paths pass as tests; failure injection green |
+| **MUI** | **Fri 22 Jan** | Fri 29 Jan | **UI built** (r16) | E11.1–E11.9 and E11.11 ✅: a request runs from the browser in fake mode and in real mode, the plan and messages are visible, a report opens with its evidence links, a result exports to VTK, and the image starts. Not in any DoD criterion; not met means not built (§5, step 0) |
 | **V1** | Mon 14 → Fri 18 Dec | Fri 18 Dec | Validation 1 | Reduced checkpoints of every module built by 11 Dec (M2–M6) on dev splits, figures recorded as interim. Wave 5 is not in V1. If a milestone slips, V1 covers what is built on 14 Dec and does not move |
 | **FF** | **Fri 22 Jan** | Fri 29 Jan | Feature freeze | No behaviour change after it; V1 fixes and slips absorbed by the buffer of 18 → 22 Jan and the margin days |
 | **V2** | Mon 25 → Fri 29 Jan | Fri 5 Feb | Validation 2 | Every measurement suite run once at its definitive size (under the $30 cap), held-out included; a missed threshold is a result |
@@ -326,9 +393,15 @@ by the DAG (§4), not by the week.
 | V1 | 14 → 18 Dec | Validation 1 (modules built by 11 Dec) | — | Fri 18 Dec | 18 Dec |
 | — | 21 → 23 Dec | Margin (working days), not planned | — | — | — |
 | — | **24 Dec → 2 Jan** | **Break, zero work** | — | — | — |
-| 5 | 4 → 15 Jan | E5.6, E9.3, E7.5 → E4.9, E5.7 (checker), E7.6 | 399 | **M7 = all built: Fri 15 Jan** | 29 Jan |
+| 5 | 4 → 15 Jan | E5.6, E9.3, E7.5 → E4.9, E5.7 (checker), E7.6, E12.1 | 404 | **M7 = all built: Fri 15 Jan** | 29 Jan |
+| 6 | 4 → 22 Jan, plus gaps in wave 4 | E11.1, E11.2 in the gaps before V1; then E11.3 → E11.4, E11.5 → E11.6 → E11.7 → E11.8 → E11.9 → E11.11 (E11.10 optional) | 465 | **MUI: Fri 22 Jan** | 29 Jan |
 
-Cumulative points leave out E3.9 and E3.10 (7 pts, counted apart in §0.1). Wave 5 holds only work that V1 does not measure (no suite of §4.2's V1 checkpoints reads it), so it can sit
+| 7 | after M7, no date | E12.2 → E12.3 → E12.4 → E12.5 (27 pts, outside the cumulative count) | — | none | — |
+
+Cumulative points leave out E3.9 and E3.10 (7 pts, counted apart in §0.1). Wave 6 (E11, 61 pts) shares the
+January weeks with wave 5 and the buffer below: 4 → 22 Jan holds ≈ 90 build pts and wave 5 takes 65 (E12.1 included), so E11 only
+fits if E11.1 and E11.2 (11 pts) are done in the 40 pts of room before V1 and the buffer is not needed for V1
+fixes. When it is, E11 gives way (§5, step 0). Wave 5 holds only work that V1 does not measure (no suite of §4.2's V1 checkpoints reads it), so it can sit
 after the break. Cumulative points before the break are 339, within the 379 the planning rate gives by
 11 Dec (40 pts of room since r14 and r15 took 26 out of waves 1b and 4; no date moves); v0.3 asked for 434 by that date.
 
@@ -574,19 +647,56 @@ flowchart LR
 - **E10.5 needs E4.9 and E4.10's figures**, which is why the learning-effect setup is in wave 5, not
   after.
 
+### 4.5 User interface (E11, r16)
+
+Not in the build DAG above: no milestone M2–M7 waits for it and it feeds no measurement suite.
+
+| Task | Blocked by |
+|---|---|
+| E11.1 | — |
+| E11.2 | E11.1, E5.4 |
+| E11.3, E11.4, E11.5, E11.6, E11.7 | E11.2 |
+| E11.8 | E11.7 |
+| E11.9 | E11.2 |
+| E11.10 (optional) | E11.6, E11.7 |
+| E11.11 | E11.3 – E11.9 |
+
+The longest chain is E11.1 → E11.2 → E11.7 → E11.8 → E11.11 (27 pts). MUI reaches the planner spine only
+through E5.4 (the report the UI shows); E5.3 and E9.1 make the demo realistic but do not block it.
+
+### 4.6 Cost optimization (E12, r17)
+
+Not in the build DAG above. Only E12.1 sits in a milestone (M7); E12.2 to E12.5 feed no milestone and no
+measurement suite of the $30 cap.
+
+| Task | Blocked by |
+|---|---|
+| E12.1 | E5.7, E6.2, E7.4 (the last agents to reach Done) |
+| E12.2 | E3.9, E9.4 |
+| E12.3 | E12.1, E12.2, E9.5 |
+| E12.4 | E12.3 |
+| E12.5 | E12.4 |
+
+The longest chain is E12.2 → E12.3 → E12.4 → E12.5 (27 pts). Its calendar is E12.2's output.
+
 ---
 
 ## 5. Fallback order if a milestone slips
 
 Apply one step at a time, in order. Record every downgrade in the thesis as a stated limitation.
 
+0. **E12.2 to E12.5 and E11 go first** (r17, r16). E12.2 to E12.5 have no date and are not started without the
+   money E12.2 finds; they are cut before anything else, and the thesis says what was left out. E12.1 is small
+   build work and stays. **E11 (the UI)** (r16): build its tasks in the order of §1 and stop when the January buffer is
+   needed. A task not built is closed `wontfix`, not carried over. No threshold depends on it; the thesis
+   states that the interface was not built or was built in part.
 1. **Consume the January buffer**: targets slide towards their deadlines. A deadline never moves later.
 2. **Cost axis**: under the $30 cap, measurement suites shrink in scale (inputs × repetitions × models,
    never below 2 repetitions); no suite is dropped.
 3. **Move E10.6** (discussion, limitations, conclusions) to the March–May window. It is the only writing
    that may move; E10.5 may not.
 4. **Downgrade *Done* criteria to *Minimal*** (the v0.2 list, unchanged):
-   1. E9.7 (already Stretch) — never scheduled.
+   1. E9.7 is no longer Stretch: it is E11.10 (r16) and goes with E11 in step 0.
    2. E6.2 / E7.4 agent tuning → keep the v1 tool catalogue with a single prompt; drop the *agent
       stability over 3 runs* criterion (replay determinism and the derivation bank stay).
    3. E7.4 history-driven demand generation → keep parameter-driven and count-calibrated only
@@ -638,6 +748,9 @@ the numbering.
 | r13 | Planning is a deterministic function; the Coordinator agent is removed | After ADR-0037 and ADR-0038 the agent decided nothing that code did not already decide (no database tools, arms fixed by the contrast, plans validated by the Executor), and its routing metric would have measured imitation of the gold script. Adds E5.15 (3 pts); E5.2 8 → 3, E5.5 18 → 11, E5.8 8 → 5; the plan bank routing suite leaves the $30 budget (E3.9). Net 12 pts fewer. | [0039](adr/0039-deterministic-planner-replaces-the-coordinator.md) | E3.7, E5.2, E5.3, E5.5, E5.8, E3.9 |
 | r14 | Tasks cancelled and absorbed: E5.2 and E5.5; E5.15 and E3.7 reduced | ADR-0039 replaced the Coordinator with the planner and r13 (PR #20) delivered it: `planner.py`, the Executor calls it, the agent is deleted, phase 1 case set with 57 cases. That left E5.2 without an object and E5.5 with pieces that already have an owner (`StepRecord` traces in E9.1 and E5.3, failure injection with `StepError.kind`, planning error included, in E9.3 with r13-07, the zero-redundant-simulations counter in E5.3), and cut E5.15 to a verification and E3.7 to a maintainer review of a snapshot that `plan_study` produces (its independence is the 14 + 1 plans frozen in r13-03). New task status **cancelled**: the task leaves the plan, counts no points or pending work, and its dependents inherit its blockers (absorption) unless a substitute is declared; the spine becomes E3.7 → E5.15 → E5.3. E5.2 −3, E5.5 −11, E5.15 3 → 1, E3.7 4 → 2: 18 pts fewer, 991 → 973; no date moves. No ADR: it applies ADR-0039. | — | E3.7, E5.3, E5.15, E9.1, E9.3 |
 | r15 | E5.3 re-estimated 14 → 6 pts | Triage against the code found the loop closure, `max_rounds` with the forced last round and the multi-network `ExpertTask` (ADR-0032) already built and tested. What is left: a counter of simulations over a multi-phase study (no pair (scenario, seed) run twice, stored and earlier-phase results reused), GP-4 and GP-5 at use-case level, a closing note on the network scope. 14 → 6 pts: 973 → 965; no date moves. No ADR: it applies ADR-0023, ADR-0025, ADR-0032 and ADR-0038. | — | E5.3, E9.1 |
+| r16 | New epic E11, the user interface (61 pts), and milestone MUI | A chat-style client over the pipeline (network selector, database explorer, plan and message view, report viewer with evidence links, VTK export, Docker image) was never in the DoD or in v0.4. It is planned in a wave 6 and is the first step of the fallback order, so missing it costs nothing measured. E9.7 moves into it as E11.10. 965 → 1026 pts; slack +159 → +98; no existing date moves. E11.1 records the stack in an ADR. | — | E11.1–E11.11 |
+
+| r17 | New epic E12, cost optimization (32 pts) | The cost policy fixes one default model and a $30 cap, but nothing studies how far the cost per study can fall or what it costs in quality, and `LlmConfig` has one model and one pair of limits for every agent. E12.1 (5 pts, wave 5, M7) makes them configurable per agent; E12.2 to E12.5 (27 pts) are a study with its own money, so they carry points and no wave, due date or milestone. 1026 → 1058 pts; slack +98 → +93; no existing date moves. No ADR. | — | E12.1–E12.5 |
 
 A cancelled task keeps its id in the "Prepares" column of the rows above as history (E5.2, E5.5): read what it prepared through r14.
 
@@ -666,7 +779,7 @@ E3.5 and E3.6, E4 except E4.8, E5).
 | E3.5 | E8.3 | REAL-NET scenario matrix |
 | E3.6 | E8.4 | REAL-NET question bank |
 | E4.8 | E8.5 | Expert on REAL-NET |
-| E7.1 – E7.7 | E9.1 – E9.7 | Integration (same order) |
+| E7.1 – E7.7 | E9.1 – E9.7 | Integration (same order); E9.7 became E11.10 in v0.5 (r16) |
 | E6.7 | E9.8 | GP-8 and GP-11 |
 | E8.1 – E8.8 | E10.1 – E10.8 | Thesis (same order) |
 
