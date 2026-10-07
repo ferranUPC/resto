@@ -386,9 +386,9 @@ def _text_failed(study: Study, ids: Mapping[str, str]) -> list[str]:
     error = step.error
     lines = [
         "WHAT HAPPENED",
-        f"Step {step.tool} of {_phase_name(k)} failed ({error.kind}): {error.message}",
+        f"Step {step.tool} of {_phase_name(k)} failed ({error.kind}): {_line(error.message)}",
     ]
-    lines += [f"  - {d}" for d in error.details if d]
+    lines += [f"  - {_line(d)}" for d in error.details if d]
     lines += ["", "WHAT WAS DONE"]
     done = _text_done(study, ids)
     if done:
@@ -414,11 +414,15 @@ def _text_awaiting_user(study: Study, ids: Mapping[str, str]) -> list[str]:
             "WHAT YOU CAN DO",
             "Ask again, saying precisely what you mean for each point above.",
         ]
-    lines = ["WHAT HAPPENED", needs.message]
+    lines = ["WHAT HAPPENED", _line(needs.message)]
     if needs.candidates:
-        lines += ["", "Candidates:", *(f"  - {c}" for c in needs.candidates)]
+        lines += ["", "Candidates:", *(f"  - {_line(c)}" for c in needs.candidates)]
     if needs.found:
-        lines += ["", "Already found:", *(f"  - {f.what} {f.id}" for f in needs.found)]
+        lines += [
+            "",
+            "Already found:",
+            *(f"  - {_line(f.what)} {_line(f.id)}" for f in needs.found),
+        ]
     lines += ["", "WHAT WAS DONE"]
     done = _text_done(study, ids)
     if done:
@@ -426,5 +430,5 @@ def _text_awaiting_user(study: Study, ids: Mapping[str, str]) -> list[str]:
     else:
         stopped = _phase_name(len(study.phases) - 1)
         lines.append(f"Nothing was run or stored before {stopped} stopped.")
-    lines += ["", "WHAT YOU CAN DO", *(f"  - {r}" for r in needs.recommendations)]
+    lines += ["", "WHAT YOU CAN DO", *(f"  - {_line(r)}" for r in needs.recommendations)]
     return lines

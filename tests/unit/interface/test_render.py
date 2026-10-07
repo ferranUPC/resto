@@ -457,3 +457,18 @@ def test_a_study_still_running_has_no_plain_text() -> None:
 
     with pytest.raises(ValueError):
         render_study_text(study)
+
+
+def test_plain_text_failure_fields_stay_on_one_line() -> None:
+    study = failed(StepErrorKind.USER_INPUT, "unknown\nlane")
+    phase = study.phases[0]
+    step = replace(
+        phase.steps[1],
+        error=StepError(StepErrorKind.USER_INPUT, "the\nstep failed", ("unknown\nlane",)),
+    )
+    steps = (phase.steps[0], step, phase.steps[2])
+    study = replace(study, phases=(replace(phase, steps=steps),))
+
+    text = render_study_text(study)
+
+    assert "failed (user_input): the step failed\n  - unknown lane\n" in text
