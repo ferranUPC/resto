@@ -1,6 +1,6 @@
 # Diary
 
-A short summary of what happened on each working day. The most recent entry comes first, and days with no activity have no entry. `progress-review` adds the new entries.
+A short summary of what happened on each working day. The most recent entry comes first, and days with no activity have no entry. `daily-review` and `weekly-review` add the new entries.
 
 ## 06.10.2026
 

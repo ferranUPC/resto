@@ -55,7 +55,7 @@ No scope is dropped and no date moves. No ADR.
 The notes v0.2 accumulated in its §0 (ADR-0023/0025/0026 scope, E3.4 split,
 estimates for E4.11 and E5.9–E5.12) are absorbed into the task rows; the old text is in
 [`_old/tfm-work-plan-v0.2.md`](_old/tfm-work-plan-v0.2.md). Task status lives in
-[`progress-tracker.md`](progress-tracker.md), kept in sync by the `progress-review` skill, never here.
+[`progress-tracker.md`](progress-tracker.md), kept in sync by the `daily-review` and `weekly-review` skills, never here.
 
 ---
 
@@ -80,7 +80,7 @@ fallback order (§5). Do not add Stretch work before M7.
 
 ### 0.2 Cross-cutting rules
 
-**Status** (used by the tracker; defined here, applied by `progress-review`):
+**Status** (used by the tracker; defined here, applied by `daily-review` and `weekly-review`):
 
 - ⬜ not started · 🔄 in progress · ✅ done: the DoD threshold, measured with the DoD protocol, in a
   validation pass (or met outright for tasks with no measurement).
@@ -604,7 +604,7 @@ thesis. Nothing that needs SUMO, API budget or sustained work moves past 18 Feb.
 
 ## 6. Weekly ritual (15 min, Friday)
 
-1. Read the tracker (kept by the morning `progress-review`); do not tick tasks by hand in either file.
+1. Read the tracker (kept by the morning `daily-review`); do not tick tasks by hand in either file.
 2. Check the current wave against the next milestone's **target** and **deadline**. A target may move
    (strike the old date through, never delete it); a deadline never moves later.
 3. If a milestone's target is past and its deadline is at risk, apply the next step of §5 and note it.

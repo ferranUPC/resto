@@ -1,13 +1,13 @@
 ---
 name: daily-briefing
-description: Quick-read status briefing for starting a RESTO work session — summarizes what happened since the last session (commits, uncommitted work) against docs/progress-tracker.md and docs/tfm-work-plan.md, and ends with the exact next command to type (e.g. `/triage E3.7`), read from the task's phase in the local `.scratch/` tracker. Read-only, interactive, fast — never commits, pushes, or edits files. For a full evidence-based DoD audit that updates the tracker, use progress-review instead.
+description: Quick-read status briefing for starting a RESTO work session — summarizes what happened since the last session (commits, uncommitted work) against docs/progress-tracker.md and docs/tfm-work-plan.md, and ends with the exact next command to type (e.g. `/triage E3.7`), read from the task's phase in the local `.scratch/` tracker. Read-only, interactive, fast — never commits, pushes, or edits files. For a full evidence-based DoD audit that updates the tracker, use `daily-review` (what moved) or `weekly-review` (everything) instead.
 ---
 
 # Daily briefing
 
 A short "good morning" status check, meant to run in a few seconds at the start of a session, not a full audit. It answers three questions: what happened since I last looked, where does the project stand, what's the one command to run next. It never modifies the repo — no commits, no pushes, no edits to docs or to `.scratch/`.
 
-Do not duplicate `progress-review`'s job: don't re-derive DoD compliance from scratch, don't run the full test suite, don't write a feasibility analysis. Trust `docs/progress-tracker.md` as the current source of truth for task status and only flag when it looks stale (see step 5).
+Do not duplicate the review skills' job: don't re-derive DoD compliance from scratch, don't run the full test suite, don't write a feasibility analysis. Trust `docs/progress-tracker.md` as the current source of truth for task status and only flag when it looks stale (see step 5).
 
 ## 1. Gather evidence (fast, read-only)
 
@@ -44,7 +44,7 @@ Never pick a `cancelled` spec or ticket as the next action, and leave it out of 
 | spec `ready`, `## Spec` still the placeholder | `/to-spec` on `.scratch/<task>/spec.md` |
 | spec written, `issues/` empty | `/to-tickets` on `.scratch/<task>/spec.md` |
 | open tickets in `issues/` | `/implement` on the lowest-numbered open ticket whose `Blocked by` tickets are all `done` |
-| every ticket `done`, spec not yet `done` | close the spec (`Status: done`); the ✅ is `progress-review`'s call |
+| every ticket `done`, spec not yet `done` | close the spec (`Status: done`); the ✅ is `daily-review`'s call |
 | a `map.md` with an open, unblocked, unclaimed ticket | `/wayfinder` on that map |
 
 Small tasks may skip `/to-spec` and `/to-tickets` when the triage brief says so; follow the brief.
@@ -63,6 +63,6 @@ Keep it short — bullets, not prose. Structure:
 
 ## 5. Staleness check
 
-If the tracker's "Last updated" date is more than ~7 days old, or `git log` shows meaningfully more activity than the tracker's notes reflect, say so explicitly and suggest running `progress-review` to refresh it — but do not run it yourself or attempt any of its steps.
+If the tracker's "Last updated" date is more than ~7 days old, or `git log` shows meaningfully more activity than the tracker's notes reflect, say so explicitly and suggest running `daily-review` to refresh it — but do not run it yourself or attempt any of its steps.
 
 Flag a mismatch between the two trackers in one line when you see it: a `.scratch/` spec `done` whose task is still ⬜ in the tracker (normal until the next review), or a ✅ task whose spec is still open (the spec needs closing).
