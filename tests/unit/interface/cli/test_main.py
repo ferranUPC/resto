@@ -191,7 +191,7 @@ def test_the_parsers_model_call_reaches_the_jsonl_trace(tmp_path: Path) -> None:
         out_dir=tmp_path,
     )
 
-    main(["how congested is the peak?"], deps=deps)
+    main(["how congested is the peak?", "--out", str(tmp_path)], deps=deps)
 
     db.close()
     (trace,) = traces.glob("*.jsonl")
