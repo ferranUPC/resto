@@ -8,6 +8,7 @@ import threading
 import urllib.error
 import urllib.request
 from collections.abc import Iterator
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -182,7 +183,11 @@ def base_url(
     plan = tmp_path / "tfm-work-plan.md"
     plan.write_text(plan_text, encoding="utf-8")
     server = make_server(
-        scratch, tracker, plan=plan, launcher=lambda prompt, cwd: launches.append((prompt, cwd))
+        scratch,
+        tracker,
+        plan=plan,
+        launcher=lambda prompt, cwd: launches.append((prompt, cwd)),
+        today=lambda: date(2026, 10, 7),
     )
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -646,3 +651,45 @@ def test_the_osascript_source_escapes_backslashes_and_quotes_in_the_prompt(monke
     assert calls[0][:2] == ["osascript", "-e"]
     # The shell line is single-quoted, so only the AppleScript layer escapes " and \.
     assert 'do script "cd /repo && claude \'/implement a\\"b\\\\c\'"' in script
+
+
+def _review_status(base_url: str) -> dict[str, Any]:
+    with urllib.request.urlopen(f"{base_url}/api/review-status") as response:
+        status: dict[str, Any] = json.load(response)
+    return status
+
+
+def test_review_status_reports_no_review_today_when_the_folder_is_missing(base_url):
+    assert _review_status(base_url) == {"today": "2026-10-07", "has_review": False, "last": None}
+
+
+def test_review_status_sees_a_review_dated_today_and_the_latest_one(base_url, tmp_path):
+    reviews = tmp_path / "progress-reviews"
+    reviews.mkdir()
+    (reviews / "2026-10-05.md").write_text("old", encoding="utf-8")
+    assert _review_status(base_url) == {
+        "today": "2026-10-07",
+        "has_review": False,
+        "last": "2026-10-05",
+    }
+    (reviews / "2026-10-07.md").write_text("new", encoding="utf-8")
+    assert _review_status(base_url) == {
+        "today": "2026-10-07",
+        "has_review": True,
+        "last": "2026-10-07",
+    }
+
+
+def test_the_daily_review_button_launches_the_fixed_prompt_and_takes_no_id(base_url, launches):
+    assert _post(base_url, {"action": "daily-review"}) == 200
+    assert [p for p, _ in launches] == ["/daily-review"]
+    assert _post(base_url, {"action": "daily-review", "id": "E2.1"}) == 400
+    assert len(launches) == 1
+
+
+def test_implement_spec_launches_the_whole_spec_of_a_ticketed_task_only(
+    base_url, scratch, launches
+):
+    assert _post(base_url, {"id": "E2.4", "action": "implement-spec"}) == 200
+    assert _post(base_url, {"id": "E2.3", "action": "implement-spec"}) == 400
+    assert [p for p, _ in launches] == ["/implement-spec .scratch/e2-4-ticketed/spec.md"]

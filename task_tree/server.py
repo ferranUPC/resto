@@ -5,11 +5,20 @@ from __future__ import annotations
 import argparse
 import contextlib
 import json
+from collections.abc import Callable
+from datetime import date
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote
 
-from task_tree.launch import Launcher, LaunchRejected, build_prompt, terminal_launcher
+from task_tree.launch import (
+    DAILY_REVIEW_ACTION,
+    DAILY_REVIEW_PROMPT,
+    Launcher,
+    LaunchRejected,
+    build_prompt,
+    terminal_launcher,
+)
 from task_tree.tree import build_tree, task_detail, ticket_detail
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -22,8 +31,16 @@ def make_server(
     port: int = 0,
     plan: Path | None = None,
     launcher: Launcher = terminal_launcher,
+    today: Callable[[], date] = date.today,
 ) -> ThreadingHTTPServer:
     plan_path = plan or tracker.with_name("tfm-work-plan.md")
+    reviews = tracker.with_name("progress-reviews")
+
+    def review_status() -> dict[str, object]:
+        """Whether `progress-reviews/` holds a review dated today, and the latest review's date."""
+        stamp = today().isoformat()
+        dates = sorted(p.stem for p in reviews.glob("????-??-??.md"))
+        return {"today": stamp, "has_review": stamp in dates, "last": dates[-1] if dates else None}
 
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:
@@ -33,6 +50,8 @@ def make_server(
             elif path == "/api/tree":
                 body = json.dumps(build_tree(scratch, tracker, plan_path)).encode("utf-8")
                 self._send(200, "application/json", body)
+            elif path == "/api/review-status":
+                self._send(200, "application/json", json.dumps(review_status()).encode("utf-8"))
             elif path.startswith("/api/task/"):
                 parts = [unquote(p) for p in path[len("/api/task/") :].split("/")]
                 if len(parts) == 1:
@@ -67,11 +86,14 @@ def make_server(
                 if not isinstance(body, dict):
                     raise ValueError("body must be an object")
                 task_id, action, ticket = body.get("id"), body.get("action"), body.get("ticket")
-                if not isinstance(task_id, str) or not isinstance(action, str):
-                    raise ValueError("id and action are required strings")
-                if ticket is not None and not isinstance(ticket, str):
-                    raise ValueError("ticket must be a string")
-                prompt = build_prompt(scratch, tracker, task_id, action, ticket)
+                if action == DAILY_REVIEW_ACTION and task_id is None and ticket is None:
+                    prompt = DAILY_REVIEW_PROMPT
+                else:
+                    if not isinstance(task_id, str) or not isinstance(action, str):
+                        raise ValueError("id and action are required strings")
+                    if ticket is not None and not isinstance(ticket, str):
+                        raise ValueError("ticket must be a string")
+                    prompt = build_prompt(scratch, tracker, task_id, action, ticket)
             except (ValueError, LaunchRejected) as exc:
                 self._send(400, "text/plain; charset=utf-8", str(exc).encode("utf-8"))
                 return

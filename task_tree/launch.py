@@ -11,6 +11,9 @@ from task_tree.tree import CLOSED, _load_tasks
 
 Launcher = Callable[[str, Path], None]
 
+DAILY_REVIEW_ACTION = "daily-review"
+DAILY_REVIEW_PROMPT = "/daily-review"
+
 
 class LaunchRejected(ValueError):
     """The id, action or ticket does not match anything that exists."""
@@ -54,6 +57,12 @@ def build_prompt(
         if task.stage in ("done", "cancelled"):
             raise LaunchRejected(f"a {task.stage} task has nothing left to grill")
         return f"/grill-with-docs {spec}"
+    if action == "implement-spec":
+        if task.stage != "ticketed" or not any(
+            t["stage"] not in CLOSED and not t["blocked"] for t in task.tickets
+        ):
+            raise LaunchRejected("only a ticketed task with a takeable ticket can be implemented")
+        return f"/implement-spec {spec}"
     if action == "ticket" or (action == "next" and task.stage == "ticketed"):
         if action == "ticket":
             ticket = next((t for t in task.tickets if t["id"] == ticket_id), None)
