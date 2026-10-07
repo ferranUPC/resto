@@ -28,7 +28,6 @@ from __future__ import annotations
 
 import statistics
 from collections.abc import Iterable, Mapping, Sequence
-from collections.abc import Set as AbstractSet
 from dataclasses import dataclass, field
 from typing import Annotated, Any
 
@@ -44,6 +43,19 @@ from resto.application.ports.repositories import (
 from resto.application.promotion import DraftRejected
 from resto.application.schemas import adapter_for
 from resto.application.tools.declaration import tool
+from resto.application.tools.results import (
+    EDGEDATA_COST,
+    RESULT_DESCRIPTION,
+    EdgeIdsOrAll,
+    NotAvailableError,
+    ResultId,
+    ResultIds,
+    Window,
+    bounds,
+    read_edgedata,
+    read_result,
+    require_available,
+)
 from resto.domain.entities.expert_note import ExpertNote
 from resto.domain.entities.scenario import Scenario
 from resto.domain.entities.simulation_result import SimulationResult
@@ -64,10 +76,6 @@ EDGE_MEASURES = (
     "time_loss_per_vehicle",
 )
 KPI_NAMES = ("mean_delay", "mean_travel_time", "teleports", "departed", "arrived")
-
-
-class NotAvailableError(LookupError):
-    """The id exists (or may exist) but is not among what this question may use."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -130,13 +138,6 @@ def _artifact_ids(result: Mapping[str, Any]) -> set[str]:
         ids.add(str(artifact["path"]))
         ids.add(str(artifact["content_hash"]))
     return ids
-
-
-def _require_available(available: AbstractSet[str], result_id: str) -> None:
-    if result_id not in available:
-        raise NotAvailableError(
-            f"result {result_id!r} is not among the results available to this question"
-        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -240,24 +241,8 @@ _NetworkId = Annotated[
 ]
 _EdgeId = Annotated[str, Field(description="Edge id, e.g. 'A0A1'.")]
 _TlsIds = Annotated[Sequence[str], Field(min_length=1, description="Traffic light ids.")]
-_ResultId = Annotated[str, Field(description="Id of an available simulation result.")]
-_ResultIds = Annotated[Sequence[str], Field(min_length=1)]
 _Measure = Annotated[str, Field(json_schema_extra={"enum": list(EDGE_MEASURES)})]
 _TopK = Annotated[int, Field(ge=1)]
-_Window = (
-    Annotated[
-        Sequence[float],
-        Field(
-            min_length=2,
-            max_length=2,
-            description=(
-                "[start, end) as time of day in seconds since midnight (08:00-08:05 is "
-                "[28800, 29100]); omit for the whole run."
-            ),
-        ),
-    ]
-    | None
-)
 
 
 @tool(
@@ -395,23 +380,16 @@ def _tls_or_absent(query: NetworkQuery, tls_id: str) -> Mapping[str, Any]:
 
 @tool(
     name="get_result",
-    description=(
-        "One simulation result: scenario_id, seed, status, KPIs and artifact references. Its "
-        "scenario_id is what get_scenario takes."
-    ),
+    description=f"{RESULT_DESCRIPTION} Its scenario_id is what get_scenario takes.",
 )
-def get_result(ctx: ExpertContext, result_id: _ResultId) -> Mapping[str, Any]:
+def get_result(ctx: ExpertContext, result_id: ResultId) -> Mapping[str, Any]:
     """One simulation result: scenario_id, seed, status, KPIs and artifact references.
 
     Raises:
         NotAvailableError: `result_id` is not available to this question.
         KeyError: no stored result has that id.
     """
-    _require_available(ctx.available, result_id)
-    result = ctx.results.get(result_id)
-    if result is None:
-        raise KeyError(f"result {result_id!r} not found")
-    return adapter_for(SimulationResult).dump_python(result, mode="json")
+    return read_result(ctx, result_id)
 
 
 @tool(
@@ -455,14 +433,6 @@ def _summary(values: Sequence[float | None]) -> dict[str, float | int] | None:
     }
 
 
-def _bounds(window: Sequence[float] | None) -> tuple[float, float] | None:
-    if window is None:
-        return None
-    if len(window) != 2:
-        raise ValueError("window must be [start, end] in seconds since midnight")
-    return float(window[0]), float(window[1])
-
-
 def _per_run(
     ctx: ExpertContext,
     result_ids: Sequence[str],
@@ -472,9 +442,9 @@ def _per_run(
     if not result_ids:
         raise ValueError("give at least one result_id")
     for result_id in result_ids:
-        _require_available(ctx.available, result_id)
-    bounds = _bounds(window)
-    return [ctx.results.query_edgedata(rid, list(edge_ids), bounds) for rid in result_ids]
+        require_available(ctx.available, result_id)
+    window_bounds = bounds(window)
+    return [ctx.results.query_edgedata(rid, list(edge_ids), window_bounds) for rid in result_ids]
 
 
 def _edge_summary(
@@ -491,9 +461,9 @@ def _edge_summary(
 )
 def edge_stats(
     ctx: ExpertContext,
-    result_ids: _ResultIds,
+    result_ids: ResultIds,
     edge_ids: Annotated[Sequence[str], Field(min_length=1)],
-    window: _Window = None,
+    window: Window = None,
 ) -> Mapping[str, Any]:
     """Mean, std and run count of every measure on the given edges, across the given runs.
 
@@ -521,9 +491,9 @@ def edge_stats(
 )
 def rank_edges(
     ctx: ExpertContext,
-    result_ids: _ResultIds,
+    result_ids: ResultIds,
     measure: _Measure,
-    window: _Window = None,
+    window: Window = None,
     top_k: _TopK = 10,
     min_value: float | None = None,
     ascending: bool = False,
@@ -554,10 +524,10 @@ def rank_edges(
 )
 def compare_edges(
     ctx: ExpertContext,
-    baseline_result_ids: _ResultIds,
-    treatment_result_ids: _ResultIds,
+    baseline_result_ids: ResultIds,
+    treatment_result_ids: ResultIds,
     measure: _Measure,
-    window: _Window = None,
+    window: Window = None,
     edge_ids: Sequence[str] = (),
     top_k: _TopK = 10,
 ) -> list[dict[str, Any]]:
@@ -598,7 +568,7 @@ def compare_edges(
     ),
 )
 def compare_kpis(
-    ctx: ExpertContext, baseline_result_ids: _ResultIds, treatment_result_ids: _ResultIds
+    ctx: ExpertContext, baseline_result_ids: ResultIds, treatment_result_ids: ResultIds
 ) -> Mapping[str, Any]:
     """Network-wide KPIs (mean_delay, mean_travel_time, teleports, departed, arrived): mean across
     baseline and treatment runs, the difference and the relative change in percent."""
@@ -608,7 +578,7 @@ def compare_kpis(
             raise ValueError("give at least one result_id per side")
         values: dict[str, list[float | None]] = {name: [] for name in KPI_NAMES}
         for result_id in result_ids:
-            _require_available(ctx.available, result_id)
+            require_available(ctx.available, result_id)
             result = ctx.results.get(result_id)
             if result is None or result.kpis is None:
                 raise KeyError(f"result {result_id!r} has no KPIs")
@@ -630,35 +600,24 @@ def compare_kpis(
 @tool(
     name="query_edgedata",
     description=(
-        "EXPENSIVE raw per-run data of every edge (~17,000 characters per result), very large. "
-        "A last resort: prefer edge_stats, rank_edges or compare_edges, and use this only when "
+        f"{EDGEDATA_COST}prefer edge_stats, rank_edges or compare_edges, and use this only when "
         "they cannot express what you need."
     ),
 )
 def query_edgedata(
     ctx: ExpertContext,
-    result_id: _ResultId,
-    edge_ids: Annotated[
-        Sequence[str], Field(description="Edge ids to return; empty or omitted for every edge.")
-    ] = (),
-    window: _Window = None,
+    result_id: ResultId,
+    edge_ids: EdgeIdsOrAll = (),
+    window: Window = None,
 ) -> Mapping[str, Any]:
     """EXPENSIVE raw per-run data of every edge (~17,000 characters per result): prefer edge_stats,
     rank_edges or compare_edges, and use this only when they cannot express what you need.
-
-    Per-edge measures of one result over `[start, end)`, time of day in seconds since midnight
-    (None: whole run).
-    Empty `edge_ids` means every edge. Measures: sampled_seconds, density, occupancy, speed,
-    waiting_time, time_loss, travel_time, entered, left (DATABASE_MCP_CONTRACT.md §5.4);
-    waiting_time and time_loss are totals over all vehicles (vehicle-seconds).
 
     Raises:
         NotAvailableError: `result_id` is not available to this question.
         ValueError: `window` is not a `[start, end]` pair.
     """
-    _require_available(ctx.available, result_id)
-    bounds = _bounds(window)
-    return ctx.results.query_edgedata(result_id, list(edge_ids), bounds)
+    return read_edgedata(ctx, result_id, edge_ids, window)
 
 
 @tool(

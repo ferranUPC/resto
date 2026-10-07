@@ -9,6 +9,7 @@ from resto.application.executor.recorder import StudyRecorder
 from resto.application.executor.spend import StudySpend
 from resto.application.ports.repositories import NetworkRepository, ScenarioRepository
 from resto.application.tools.expert import EvidenceLedger
+from resto.application.use_cases.compose_report import compose_report
 from resto.application.use_cases.write_note import write_note
 from resto.domain.entities.scenario import Scenario
 from resto.domain.entities.study import Study, StudyStatus
@@ -118,7 +119,7 @@ def compose(recorder: StudyRecorder, spend: StudySpend, deps: StudyDeps) -> None
     try:
         run = spend.agent_call(lambda: deps.agents.composer.compose(study))
         draft_of(run, "composer")
-        report = promote(lambda: deps.promotions.report(study, run), run.usage)
+        report = promote(lambda: compose_report(study, run), run.usage)
     except StepFailed as failed:
         recorder.record_failure("compose_report", task, failed)
         return

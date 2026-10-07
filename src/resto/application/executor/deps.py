@@ -34,11 +34,9 @@ from resto.domain.constants import (
 )
 from resto.domain.entities.demand import Demand
 from resto.domain.entities.network import Network
-from resto.domain.entities.study import Study
 from resto.domain.services.planner import PlanningContext
 from resto.domain.value_objects.drafts import DemandDraft, NetworkDraft
 from resto.domain.value_objects.question import Question
-from resto.domain.value_objects.report import Report
 from resto.domain.value_objects.study_plan import StudyPlan
 from resto.domain.value_objects.tasks import NetworkTask, ObtainDemandTask, ObtainNetworkTask
 
@@ -78,18 +76,18 @@ class StudyAgents:
 
 @dataclass(frozen=True, slots=True)
 class StudyPromotions:
-    """The promotions not implemented yet (E5.4, E6.1, E7.1), injected so the Executor does not
-    change when they land. A `ValueError` means the draft was rejected (`StepError(agent)`); any
-    other exception is `infrastructure`. `network` promotes both a created and a derived network
-    (the task says which: a `base_network_id`, or an `ObtainNetworkTask`).
+    """The promotions not implemented yet (E6.1, E7.1), injected so the Executor does not
+    change when they land. A `DraftRejected` means the draft was rejected (`StepError(agent)`, or
+    `user_input` when it blames the user); a bare `ValueError` is also read as `agent`, any other
+    exception as `infrastructure` (`failures.promote`). `network` promotes both a created and a
+    derived network (the task says which: a `base_network_id`, or an `ObtainNetworkTask`).
 
-    A temporary seam, not a port to extend: it goes away with E5.4 / E6.1 / E7.1, when the
+    A temporary seam, not a port to extend: it goes away with E6.1 / E7.1, when the
     Executor calls those use cases directly, as it already does with `build_scenario`."""
 
     network: Callable[[NetworkTask | ObtainNetworkTask, AgentRun[NetworkDraft]], Network]
     demand: Callable[[ObtainDemandTask, AgentRun[DemandDraft]], Demand]
     reroute: Callable[[Demand, Network], Demand]
-    report: Callable[[Study, AgentRun[Report]], Report]
 
 
 Planner = Callable[[Question, PlanningContext], StudyPlan]

@@ -4,6 +4,8 @@ import dataclasses
 from pathlib import Path
 from typing import Any
 
+from resto.domain.entities.study import Phase, Study, StudyStatus
+from resto.domain.value_objects.answer_value import Edges
 from resto.domain.value_objects.arm import BASE_ARM
 from resto.domain.value_objects.artifact_ref import ArtifactRef
 from resto.domain.value_objects.condition import Condition, Metric, Operator
@@ -14,8 +16,9 @@ from resto.domain.value_objects.drafts import (
     NetworkDraft,
     ScenarioDraft,
 )
-from resto.domain.value_objects.experiment import ExperimentRole
-from resto.domain.value_objects.expert_answer import Basis, Evidence, EvidenceKind
+from resto.domain.value_objects.experiment import Experiment, ExperimentRole
+from resto.domain.value_objects.expert_answer import Basis, Evidence, EvidenceKind, ExpertAnswer
+from resto.domain.value_objects.expert_round import ExpertRound
 from resto.domain.value_objects.fidelity import EdgeFidelity, Fidelity
 from resto.domain.value_objects.intervention import Intervention, InterventionType
 from resto.domain.value_objects.intervention_target import LaneTarget
@@ -23,6 +26,8 @@ from resto.domain.value_objects.mechanism import RegenerateDemandMechanism
 from resto.domain.value_objects.network_recipe import NetworkRecipe
 from resto.domain.value_objects.network_source import NetworkSource
 from resto.domain.value_objects.probe_report import ProbeReport
+from resto.domain.value_objects.question import Intent, Question
+from resto.domain.value_objects.report import Report
 from resto.domain.value_objects.sanity_report import SanityReport
 from resto.domain.value_objects.study_plan import (
     BuildScenarioStep,
@@ -219,3 +224,63 @@ def after_obtain_network(*steps: PlanStep) -> tuple[PlanStep, ...]:
 def plan_network(network: str | FromStep) -> str | FromStep:
     """The plan's `network_id` as `after_obtain_network` leaves the steps it indexes."""
     return _shifted(network)
+
+
+ASKED = Question(text="what happens at peak?", intent=Intent.DESCRIBE)
+PROPOSED = Question(text="close E12 at peak", intent=Intent.RUN)
+ANSWER_EVIDENCE = (
+    Evidence(kind=EvidenceKind.QUERY, ref="q1"),
+    Evidence(kind=EvidenceKind.ARTIFACT, ref="/runs/r1/edgedata.xml"),
+)
+
+
+def study_with_rounds(
+    rounds: int = 1,
+    *,
+    last_forced: bool = False,
+    question: Question = ASKED,
+    basis: Basis = Basis.OBSERVED,
+    answer: ExpertAnswer | None = None,
+    experiments: tuple[tuple[Experiment, ...], ...] = (),
+    report: Report | None = None,
+    study_id: str = "s",
+) -> Study:
+    """A study of `rounds` Expert rounds: every round but the last asks for a simulation, the last
+    answers with `answer` (default: `basis` and `ANSWER_EVIDENCE`) and is forced by the limit when
+    `last_forced`. `experiments` are those of each phase in order; with a `report` the study is
+    completed, otherwise running."""
+    last = answer or ExpertAnswer(
+        answer="E12",
+        basis=basis,
+        confidence=0.9,
+        evidence=ANSWER_EVIDENCE,
+        values=(Edges(edge_ids=("E12",), network_id=NET),),
+    )
+    ask = ExpertAnswer(
+        answer="need a run",
+        basis=Basis.EXTRAPOLATED,
+        confidence=0.3,
+        needs_simulation=True,
+        proposed_experiment=PROPOSED,
+    )
+    plan = StudyPlan(network_id=FromStep(0), rationale="x", steps=(ObtainNetworkStep("RIVERSIDE"),))
+    phases = tuple(
+        Phase(
+            question=question if k == 0 else PROPOSED,
+            plan=plan,
+            experiments=experiments[k] if k < len(experiments) else (),
+            round=ExpertRound(
+                "q",
+                last if k == rounds - 1 else ask,
+                forced_by_limit=last_forced and k == rounds - 1,
+            ),
+        )
+        for k in range(rounds)
+    )
+    return Study(
+        study_id=study_id,
+        status=StudyStatus.COMPLETED if report else StudyStatus.RUNNING,
+        phases=phases,
+        report=report,
+        max_rounds=rounds if last_forced else max(rounds, 3),
+    )

@@ -1,10 +1,10 @@
 """CLI entrypoint and composition root (ADR-0025 §6): the one place where the Executor's agent
 ports meet their implementations and the infrastructure is bound.
 
-Agents that do not exist yet — Output Composer (E5.4), Network Author (E6.1),
-Demand Generator (E7.1) — and the promotions of their drafts are placeholders that raise
-`NotImplementedError`. A request the Input Parser cannot turn into a `Question` ends in
-`ParserFailed`, and the CLI reports it without creating a Study.
+Agents that do not exist yet — Network Author (E6.1), Demand Generator (E7.1) — and the
+promotions of their drafts are placeholders that raise `NotImplementedError`. A request the
+Input Parser cannot turn into a `Question` ends in `ParserFailed`, and the CLI reports it without
+creating a Study.
 
     python -m resto.interface.cli.main "how congested is the peak?" [--mode forced]
 """
@@ -17,6 +17,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import NoReturn
 
+from resto.adapters.llm.agents.composer import ComposerPort
 from resto.adapters.llm.agents.expert import ExpertPort, NoteWriterPort
 from resto.adapters.llm.agents.input_parser import InputParserPort
 from resto.adapters.llm.agents.scenario_builder import ScenarioBuilderPort
@@ -38,10 +39,10 @@ from resto.application.ports.tracing import Tracer
 from resto.application.tools.expert import ExpertCollaborators
 from resto.application.tools.scenario_builder import BuilderCollaborators
 from resto.application.use_cases.run_study import ParserFailed, run_study
-from resto.domain.entities.study import StudyStatus
+from resto.domain.entities.study import Study, StudyStatus
 from resto.domain.services.planner import plan_study
 from resto.domain.value_objects.question import Mode
-from resto.interface.render import render_study
+from resto.interface.render import render_study, render_study_text
 
 AGENT_SECONDS = 300.0
 
@@ -67,6 +68,7 @@ def build_deps(
     `out_dir` here is only the Builder's; the study's own settings are `StudySettings`.
     """
     network_query_loader = StoredNetworkQueryLoader(db.networks)
+    studies = InMemoryStudyRepository()
     return StudyDeps(
         agents=StudyAgents(
             parser=InputParserPort(agent=agent, budget=budget),
@@ -99,26 +101,38 @@ def build_deps(
                 ),
             ),
             note_writer=NoteWriterPort(agent=agent, budget=budget),
-            composer=_Pending("Output Composer", "E5.4"),
+            composer=ComposerPort(agent=agent, budget=budget, results=db.results),
         ),
         promotions=StudyPromotions(
             network=_Pending("network promotion", "E6.1"),
             demand=_Pending("demand promotion", "E7.1"),
             reroute=_Pending("reroute_demand", "E7.1"),
-            report=_Pending("compose_report promotion", "E5.4"),
         ),
         networks=db.networks,
         demands=db.demands,
         scenarios=db.scenarios,
         results=db.results,
         notes=db.notes,
-        studies=InMemoryStudyRepository(),
+        studies=studies,
         runner=SubprocessSumoRunner(),
         run_dirs=FilesystemRunDirectories(),
         network_query_loader=network_query_loader,
         tracer=tracer,
         planner=plan_study,
     )
+
+
+def _save_report(study: Study, out_dir: Path) -> None:
+    """The study as Markdown in `<out_dir>/reports/<study_id>.md`, whatever was printed. The path
+    goes to stderr so that stdout holds only the report."""
+    path = out_dir / "reports" / f"{study.study_id}.md"
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(render_study(study), encoding="utf-8")
+    except OSError as e:
+        print(f"warning: the report was not saved: {e}", file=sys.stderr)
+        return
+    print(f"report saved: {path}", file=sys.stderr)
 
 
 def main(
@@ -133,6 +147,12 @@ def main(
     parser.add_argument("--mode", choices=[m.value for m in Mode], default=None)
     parser.add_argument("--db", type=Path, default=Path("resto.sqlite"))
     parser.add_argument("--out", type=Path, default=Path("runs"))
+    parser.add_argument(
+        "--format",
+        choices=("auto", "text", "markdown"),
+        default="auto",
+        help="auto: plain text on a terminal, Markdown when redirected or piped",
+    )
     args = parser.parse_args(argv)
     mode = Mode(args.mode) if args.mode else None
 
@@ -168,11 +188,10 @@ def main(
     finally:
         if db is not None:
             db.close()
-    if study.status is StudyStatus.COMPLETED:
-        print(f"study {study.study_id}: completed")  # the report's Markdown comes with E5.4
-        return 0
-    print(render_study(study), end="")
-    return 1
+    as_text = args.format == "text" or (args.format == "auto" and sys.stdout.isatty())
+    print(render_study_text(study) if as_text else render_study(study), end="")
+    _save_report(study, args.out)
+    return 0 if study.status is StudyStatus.COMPLETED else 1
 
 
 if __name__ == "__main__":

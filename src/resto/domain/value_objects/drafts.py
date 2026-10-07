@@ -27,6 +27,7 @@ from resto.domain.value_objects.mechanism import (
 )
 from resto.domain.value_objects.network_recipe import NetworkRecipe
 from resto.domain.value_objects.probe_report import ProbeReport
+from resto.domain.value_objects.report import ReportSection
 from resto.domain.value_objects.sanity_report import DEFAULT_MIN_SCC_RATIO, SanityReport
 from resto.domain.value_objects.traci_script import TraciScript
 
@@ -180,3 +181,31 @@ class ExpertNoteDrafts:
     def __post_init__(self) -> None:
         if len(self.notes) > MAX_NOTES_PER_STUDY:
             raise ValueError(f"at most {MAX_NOTES_PER_STUDY} notes per study")
+
+
+@dataclass(frozen=True, slots=True)
+class ClaimDraft:
+    """A claim as the Composer writes it. Unlike `Claim` it may arrive without evidence: the
+    promotion (`compose_report`) rejects that, so the rejection shows in the trace as an agent
+    failure instead of as a parse error."""
+
+    text: str
+    evidence_refs: tuple[str, ...]
+    value: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ReportDraft:
+    """Output Composer output: only what the model writes. `compose_report` takes `basis` from the
+    last Expert round, `mode` from that round (forced by the limit) or from the question (forced
+    mode), and adds the limitation line when the limit forced the round, so the model cannot
+    declare a basis the Expert did not, or omit the line (E5.4; departs from the §2.4 table, which
+    lists `Report` as the Composer's output)."""
+
+    summary: str
+    sections: tuple[ReportSection, ...] = ()
+    claims: tuple[ClaimDraft, ...] = ()
+
+    def __post_init__(self) -> None:
+        if not self.summary.strip():
+            raise ValueError("a ReportDraft requires a summary")

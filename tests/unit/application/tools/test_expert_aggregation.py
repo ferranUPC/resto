@@ -13,12 +13,12 @@ from resto.adapters.persistence.memory import InMemoryResultRepository, InMemory
 from resto.application.ports.network_query import NetworkQueryLoader
 from resto.application.tools.expert import (
     ExpertContext,
-    NotAvailableError,
     compare_edges,
     compare_kpis,
     edge_stats,
     rank_edges,
 )
+from resto.application.tools.results import NotAvailableError
 from resto.domain.value_objects.kpis import Kpis
 from tests.unit.domain._samples import simulation_result
 
