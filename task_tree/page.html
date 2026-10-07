@@ -145,7 +145,46 @@
   .crit-mode .edge.crit { stroke: var(--milestone); stroke-width: 3; opacity: 1; }
   .crit-mode .edge.crit.transient { display: inline; }
   #toolbar button.next-btn { color: #bfe3c0; border-color: #3f7d4e; }
+  #toolbar button.review-btn.missing { color: #fbbf24; border-color: #b8893a; }
+  #review-popup { position: fixed; top: 64px; left: 12px; z-index: 4; width: 340px; padding: 12px 14px;
+    background-color: #2b1d13; border: 1px solid #b8893a; border-radius: 8px; color: var(--fg);
+    font: 14px var(--text); box-shadow: 0 6px 20px rgba(0,0,0,.55); }
+  #review-popup[hidden] { display: none; }
+  #review-popup p { margin: 0 0 10px; }
+  #review-popup button { background: rgba(0,0,0,.2); color: var(--muted); border: 1px solid var(--line);
+    border-radius: 5px; padding: 2px 10px; font: 14px var(--text); cursor: pointer; margin-right: 8px; }
+  #review-popup button:hover { color: var(--fg); border-color: var(--brass); }
+  #review-popup button.run { color: #fbbf24; border-color: #b8893a; }
   #arrows path { stroke: none; }
+
+  #queue { position: fixed; top: 0; right: 0; width: 340px; height: 100vh; z-index: 3; display: none;
+    flex-direction: column; padding: 18px 16px; background-color: #22170f; border-left: 2px solid var(--line); }
+  body.queue-open #queue { display: flex; }
+  body.queue-open svg { width: calc(100vw - 340px); }
+  body.open.queue-open #queue { right: 33.333vw; border-right: 1px solid var(--line); }
+  body.open.queue-open svg { width: calc(66.667vw - 340px); }
+  #queue h2 { margin: 0 24px 4px 0; font: 600 18px/1.25 var(--serif); color: var(--milestone); }
+  #queue p { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
+  #queue-list { flex: 1; min-height: 0; overflow-y: auto; margin: 0; padding: 0; list-style: none; }
+  #queue-list li { display: grid; grid-template-columns: 76px 1fr auto; gap: 4px 10px; align-items: start;
+    padding: 7px 8px; cursor: pointer; border-radius: 5px; border: 1px solid transparent; }
+  #queue-list li:hover, #queue-list li.sel { background: rgba(176,141,87,.16); border-color: var(--line); }
+  #queue-list .qid { color: var(--brass); overflow-wrap: anywhere; }
+  #queue-list .qname { color: var(--fg); }
+  #queue-list .qdue { color: var(--muted); font-size: 12px; text-align: right; white-space: nowrap; }
+  #queue-list .qdue small { display: block; color: var(--dim); }
+  #queue-list .qdue small.late { color: #f87171; }
+  #queue-list .wave { display: inline-block; margin-top: 3px; padding: 0 6px; border: 1px solid var(--line);
+    border-radius: 9px; color: var(--muted); font-size: 11px; white-space: nowrap; }
+  /* A tab on the right edge; it rides on the left edge of whatever panels are open. */
+  #queue-toggle { position: fixed; top: 50%; right: 0; z-index: 4; transform: translateY(-50%);
+    width: 30px; height: 56px; display: flex; align-items: center; justify-content: center; padding: 0;
+    background-color: #2b1d13; color: var(--muted); border: 1px solid var(--line); border-right: 0;
+    border-radius: 8px 0 0 8px; cursor: pointer; }
+  #queue-toggle:hover, body.queue-open #queue-toggle { color: var(--brass); border-color: var(--brass); }
+  body.open #queue-toggle { right: 33.333vw; }
+  body.queue-open #queue-toggle { right: 340px; }
+  body.open.queue-open #queue-toggle { right: calc(33.333vw + 340px); }
 
   #panel { position: fixed; top: 0; right: 0; width: 33.333vw; height: 100vh; z-index: 3;
     display: none; flex-direction: column; padding: 18px 20px; background-color: #22170f;
@@ -168,6 +207,10 @@
     border: 1px solid var(--brass); border-radius: 5px; padding: 4px 12px; cursor: pointer;
     font: 600 14px var(--text); box-shadow: inset 0 1px 0 rgba(255,228,180,.2); }
   #panel button.launch:hover { background: linear-gradient(180deg, #7d5732, #5d4025); }
+  #panel .split { position: relative; display: inline-flex; }
+  #panel .split button.launch:first-child { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+  #panel .split button.caret { border-top-left-radius: 0; border-bottom-left-radius: 0; padding: 0 6px; margin-left: 1px; }
+  #panel .split .menu { position: absolute; top: 100%; left: 0; z-index: 5; margin-top: 2px; white-space: nowrap; }
   #panel button.launch.small { padding: 0 6px; margin-left: 8px; font-size: 11px; }
   #launch-status { font-size: 12px; color: var(--muted); }
   #close { position: absolute; top: 12px; right: 14px; background: none; border: 0;
@@ -225,8 +268,25 @@
     <input id="search" type="search" placeholder="Search by ID or name  ( / )" autocomplete="off" spellcheck="false">
     <div id="results"></div>
   </div>
+  <button id="review" class="review-btn" title="Open a Terminal session running /daily-review">Daily review</button>
   <button id="fit">Fit</button>
   <button id="refresh" title="Re-read the specs and the tracker">Refresh</button>
+</div>
+<div id="review-popup" hidden>
+  <p id="review-popup-text"></p>
+  <button class="run" id="review-popup-run">Run daily review</button>
+  <button id="review-popup-dismiss">Not now</button>
+  <span id="review-popup-status"></span>
+</div>
+<button id="queue-toggle" title="Up next: the startable tasks in order" aria-label="Toggle the up-next list">
+  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
+    stroke-linecap="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1" fill="currentColor"/>
+    <circle cx="4.5" cy="12" r="1" fill="currentColor"/><circle cx="4.5" cy="18" r="1" fill="currentColor"/></svg>
+</button>
+<div id="queue">
+  <h2>Up next</h2>
+  <p>Startable tasks, earliest due date first.</p>
+  <ol id="queue-list"></ol>
 </div>
 <div id="legend"></div>
 <svg id="canvas">
@@ -779,6 +839,7 @@ function paintHighlight() {
     view.els[view.sel]?.classList.remove("selected");
     view.els[selected]?.classList.add("selected");
     view.sel = selected;
+    markQueueSelection();
   }
   const dimmed = !!id;
   if (view.dimmed !== dimmed) { canvas.classList.toggle("dimmed", dimmed); view.dimmed = dimmed; }
@@ -803,6 +864,64 @@ function goToNext() {
   if (next) goTo({ task: next.id });
   else document.getElementById("error").textContent = "No startable task on the critical path.";
 }
+
+// "30 Oct" has no year: the plan runs Aug-Dec in one year and Jan-Jul in the next.
+function daysUntil(due) {
+  const m = due.match(/^(\d+) (\w+)$/);
+  if (!m) return null;
+  const month = new Date(`${m[2]} 1 2000`).getMonth();
+  const now = new Date(), today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const year = month < 7 && now.getMonth() >= 7 ? now.getFullYear() + 1 : now.getFullYear();
+  return Math.round((new Date(year, month, +m[1]) - today) / 86400000);
+}
+function daysText(n) {
+  if (n === 0) return "today";
+  const abs = Math.abs(n), unit = abs === 1 ? "day" : "days";
+  return n > 0 ? `in ${abs} ${unit}` : `${abs} ${unit} overdue`;
+}
+function renderQueue() {
+  const list = document.getElementById("queue-list");
+  list.textContent = "";
+  const byId = new Map(tree.nodes.map(n => [n.id, n]));
+  const cell = (cls, text) => Object.assign(document.createElement("div"), { className: cls, textContent: text });
+  for (const id of tree.queue || []) {
+    const n = byId.get(id);
+    if (!n) continue;
+    const li = document.createElement("li");
+    li.dataset.id = id;
+    if (id === selected) li.className = "sel";
+    const idCell = cell("qid", id);
+    if (n.wave) idCell.append(document.createElement("br"), cell("wave", "Wave " + n.wave));
+    const dueCell = cell("qdue", n.due || "");
+    const days = n.due ? daysUntil(n.due) : null;
+    if (days !== null) {
+      const small = document.createElement("small");
+      small.textContent = daysText(days);
+      if (days < 0) small.className = "late";
+      dueCell.appendChild(small);
+    }
+    li.append(idCell, cell("qname", n.name), dueCell);
+    li.addEventListener("mouseenter", () => highlight(id));
+    li.addEventListener("mouseleave", () => highlight(selected));
+    li.addEventListener("click", () => { goTo({ task: id }); markQueueSelection(); });
+    list.appendChild(li);
+  }
+  if (!list.children.length) {
+    const li = document.createElement("li"); li.textContent = "No startable task."; li.style.cursor = "default";
+    list.appendChild(li);
+  }
+}
+function markQueueSelection() {
+  for (const li of document.querySelectorAll("#queue-list li[data-id]"))
+    li.classList.toggle("sel", li.dataset.id === selected);
+}
+function toggleQueue(open) {
+  document.body.classList.toggle("queue-open", open);
+  if (open) renderQueue();
+  else highlight(selected);
+}
+document.getElementById("queue-toggle").addEventListener("click",
+  () => toggleQueue(!document.body.classList.contains("queue-open")));
 
 function applyEdgeMode() {
   canvas.classList.toggle("all-edges", document.getElementById("all-edges").checked);
@@ -1004,6 +1123,24 @@ async function load(url) {
 }
 const NEXT_LABELS = { "needs-triage": "Triage", ready: "Grill and write spec", specified: "Split into tickets",
   ticketed: "Implement next ticket" };
+// Split button: the main part runs `main`, the caret opens a menu with the alternatives.
+function splitButton(main, alternatives, parent) {
+  const wrap = document.createElement("span"); wrap.className = "split";
+  parent.insertBefore(wrap, parent.querySelector("#launch-status"));
+  const b = document.createElement("button"); b.className = "launch"; b.textContent = main.label;
+  b.addEventListener("click", ev => { ev.stopPropagation(); launch(main.body); });
+  const caret = document.createElement("button"); caret.className = "launch caret"; caret.textContent = "\u25BE";
+  caret.title = "Other ways to implement";
+  const menu = document.createElement("div"); menu.className = "menu"; menu.hidden = true;
+  for (const alt of alternatives) {
+    const item = document.createElement("button"); item.className = "launch"; item.textContent = alt.label;
+    item.addEventListener("click", ev => { ev.stopPropagation(); menu.hidden = true; launch(alt.body); });
+    menu.appendChild(item);
+  }
+  caret.addEventListener("click", ev => { ev.stopPropagation(); menu.hidden = !menu.hidden; });
+  document.addEventListener("click", () => { menu.hidden = true; });
+  wrap.append(b, caret, menu); return wrap;
+}
 async function launch(body) {
   const status = document.getElementById("launch-status");
   if (status) status.textContent = "Opening Terminal...";
@@ -1054,7 +1191,10 @@ async function showTask(id) {
     const actions = actionsBar();
     // A ticketed task with no takeable ticket has no next step, and the server would reject it.
     const takeable = d.tickets.some(t => !FINISHED.includes(t.stage) && t.stage !== "cancelled" && !t.blocked);
-    if (d.has_spec && NEXT_LABELS[d.stage] && (d.stage !== "ticketed" || takeable))
+    if (d.has_spec && d.stage === "ticketed") {
+      if (takeable) splitButton({ label: "Implement spec", body: { id: d.id, action: "implement-spec" } },
+        [{ label: "Implement next ticket", body: { id: d.id, action: "next" } }], actions);
+    } else if (d.has_spec && NEXT_LABELS[d.stage])
       launchButton(NEXT_LABELS[d.stage], { id: d.id, action: "next" }, actions);
     if (d.stage !== "done" && d.stage !== "cancelled" && d.has_spec) launchButton("Grill", { id: d.id, action: "grill" }, actions);
     if (d.markdown) markdownButton("View spec", `${d.id} ${d.name} · spec.md`, d.markdown, actions);
@@ -1194,6 +1334,7 @@ makeArrows();
 function loadTree(first) {
   return fetch("/api/tree").then(r => r.json()).then(t => {
       tree = t; drawLegend(); draw(); if (first) fit();
+      if (document.body.classList.contains("queue-open")) renderQueue();
       document.getElementById("warning").textContent = tree.warnings.length
         ? "Work plan: " + tree.warnings.join("; ") : "";
       document.getElementById("error").textContent = "";
@@ -1202,6 +1343,43 @@ function loadTree(first) {
 }
 document.getElementById("refresh").addEventListener("click", () => loadTree(false));
 loadTree(true);
+
+// Daily review: the toolbar button is always there; it turns amber and a popup appears (once per day)
+// while `docs/progress-reviews/` has no file dated today.
+const reviewButton = document.getElementById("review");
+const reviewPopup = document.getElementById("review-popup");
+async function runDailyReview(statusEl) {
+  statusEl.textContent = "Opening Terminal...";
+  try {
+    const r = await fetch("/api/launch", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "daily-review" }) });
+    statusEl.textContent = r.ok ? "Terminal opened." : await r.text();
+    if (r.ok) reviewPopup.hidden = true;
+  } catch (err) { statusEl.textContent = "Launch failed: " + err; }
+}
+function dismissedToday(day) {
+  try { return localStorage.getItem("review-dismissed") === day; } catch { return false; }
+}
+function checkReview() {
+  return fetch("/api/review-status").then(r => r.json()).then(s => {
+    reviewButton.classList.toggle("missing", !s.has_review);
+    reviewButton.title = s.has_review ? "Today's review exists (" + s.today + "). Run /daily-review again"
+      : "No review dated " + s.today + ". Run /daily-review";
+    if (s.has_review || dismissedToday(s.today)) { reviewPopup.hidden = true; return; }
+    document.getElementById("review-popup-text").textContent = "No progress review dated " + s.today
+      + " yet" + (s.last ? " (last: " + s.last + ")" : "") + ".";
+    reviewPopup.hidden = false;
+    document.getElementById("review-popup-dismiss").onclick = () => {
+      try { localStorage.setItem("review-dismissed", s.today); } catch { /* no storage: it returns on reload */ }
+      reviewPopup.hidden = true;
+    };
+  }).catch(() => { reviewPopup.hidden = true; });
+}
+reviewButton.addEventListener("click", () => runDailyReview(document.getElementById("review-popup-status")));
+document.getElementById("review-popup-run").addEventListener("click",
+  () => runDailyReview(document.getElementById("review-popup-status")));
+document.getElementById("refresh").addEventListener("click", checkReview);
+checkReview();
 </script>
 </body>
 </html>

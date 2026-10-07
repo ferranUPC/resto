@@ -239,6 +239,22 @@ def _tracker_marks(path: Path) -> dict[str, str]:
     return marks
 
 
+def _tracker_waves(path: Path) -> dict[str, str]:
+    """Task id -> wave (`2`, `1b`, `W`, `F`) from the first `Wave X` in the row's notes."""
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return {}
+    waves: dict[str, str] = {}
+    for line in text.splitlines():
+        cells = [c.strip() for c in line.strip().strip("|").split(" | ")]
+        if line.startswith("|") and len(cells) > 3 and re.fullmatch(r"E\d+\.\d+", cells[0]):
+            found = re.search(r"\bwave (\w+)", " | ".join(cells[3:]), re.IGNORECASE)
+            if found:
+                waves[cells[0]] = found.group(1)
+    return waves
+
+
 def _infer_chains(ids: list[str]) -> dict[str, list[str]]:
     """Guessed order for done tasks that have no spec and so no `Blocked by:` line.
 
@@ -631,6 +647,7 @@ def build_tree(scratch: Path, tracker: Path, plan: Path | None = None) -> dict[s
     done = {t.id for t in tasks.values() if t.stage in FINISHED}
     points = _plan_points(plan) if plan is not None else {}
     marks = _tracker_marks(tracker)
+    waves = _tracker_waves(tracker)
     dues = _due_dates(plan) if plan is not None else {}
     milestones, freeze = _parse_milestones(plan) if plan is not None else ([], None)
     member = _members(plan)
@@ -686,6 +703,7 @@ def build_tree(scratch: Path, tracker: Path, plan: Path | None = None) -> dict[s
             and task.id not in marks,
             "urgent": task.urgent,
             "tracker_mark": marks.get(task.id),
+            "wave": waves.get(task.id),
             "tickets": task.tickets,
             "warnings": task.warnings,
         }
@@ -708,6 +726,7 @@ def build_tree(scratch: Path, tracker: Path, plan: Path | None = None) -> dict[s
                 "frontier": False,
                 "urgent": False,
                 "tracker_mark": None,
+                "wave": None,
                 "tickets": [],
                 "warnings": [],
             }
@@ -738,12 +757,11 @@ def build_tree(scratch: Path, tracker: Path, plan: Path | None = None) -> dict[s
     # The task to work on next is the startable one with the earliest due date. Tasks without a
     # due date come last, and ties go to the one earlier on the critical path.
     rank = {i: n for n, i in enumerate(path)}
-    startable = [i for i, n in nodes.items() if n["frontier"]]
-    next_id = min(
-        startable,
+    startable = sorted(
+        (i for i, n in nodes.items() if n["frontier"]),
         key=lambda i: (dues.get(i, float("inf")), rank.get(i, len(rank)), i),
-        default=None,
     )
+    next_id = startable[0] if startable else None
     for node in nodes.values():
         node["critical"] = node["id"] in on_path
         node["next"] = node["id"] == next_id
@@ -753,6 +771,7 @@ def build_tree(scratch: Path, tracker: Path, plan: Path | None = None) -> dict[s
         "stages": list(STAGES),
         "rails": rails,
         "critical_path": path,
+        "queue": startable,
         "warnings": tree_warnings,
     }
 
