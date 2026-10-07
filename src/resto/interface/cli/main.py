@@ -101,7 +101,7 @@ def build_deps(
                 ),
             ),
             note_writer=NoteWriterPort(agent=agent, budget=budget),
-            composer=ComposerPort(agent=agent, budget=budget, studies=studies, results=db.results),
+            composer=ComposerPort(agent=agent, budget=budget, results=db.results),
         ),
         promotions=StudyPromotions(
             network=_Pending("network promotion", "E6.1"),

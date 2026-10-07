@@ -77,9 +77,10 @@ class StudyAgents:
 @dataclass(frozen=True, slots=True)
 class StudyPromotions:
     """The promotions not implemented yet (E6.1, E7.1), injected so the Executor does not
-    change when they land. A `ValueError` means the draft was rejected (`StepError(agent)`); any
-    other exception is `infrastructure`. `network` promotes both a created and a derived network
-    (the task says which: a `base_network_id`, or an `ObtainNetworkTask`).
+    change when they land. A `DraftRejected` means the draft was rejected (`StepError(agent)`, or
+    `user_input` when it blames the user); a bare `ValueError` is also read as `agent`, any other
+    exception as `infrastructure` (`failures.promote`). `network` promotes both a created and a
+    derived network (the task says which: a `base_network_id`, or an `ObtainNetworkTask`).
 
     A temporary seam, not a port to extend: it goes away with E6.1 / E7.1, when the
     Executor calls those use cases directly, as it already does with `build_scenario`."""

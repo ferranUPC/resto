@@ -6,14 +6,14 @@ need to prove they still reach the real DEV-NET through the ledger wrapper.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from typing import Any
 
 import pytest
 from eval.fixed_network_query_loader import FixedNetworkQueryLoader
 
-from resto.adapters.persistence.memory import InMemoryResultRepository, InMemoryScenarioRepository
+from resto.adapters.persistence.memory import InMemoryScenarioRepository
 from resto.adapters.sumo.netxml import SumolibNetworkQuery
 from resto.application.ports.llm import Tool
 from resto.application.promotion import DraftRejected
@@ -30,6 +30,7 @@ from resto.domain.value_objects.tasks import ExpertTask
 from tests.unit._paths import DEV_NET
 from tests.unit.adapters.llm._fakes import call_tool
 from tests.unit.application.tools._expert_names import EXPERT_TOOL_NAMES
+from tests.unit.application.tools._recorders import RecordingResultRepository
 from tests.unit.domain._samples import expert_note as sample_note
 from tests.unit.domain._samples import scenario as sample_scenario
 from tests.unit.domain._samples import simulation_result as sample_result
@@ -38,20 +39,6 @@ from tests.unit.domain._samples import simulation_result as sample_result
 @pytest.fixture(scope="module")
 def query() -> SumolibNetworkQuery:
     return SumolibNetworkQuery(DEV_NET)
-
-
-class RecordingResultRepository(InMemoryResultRepository):
-    """In-memory results whose `query_edgedata` records its arguments instead of parsing XML."""
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.edgedata_calls: list[tuple[str, list[str], tuple[float, float] | None]] = []
-
-    def query_edgedata(
-        self, result_id: str, edge_ids: Iterable[str], window: tuple[float, float] | None
-    ) -> Mapping[str, Any]:
-        self.edgedata_calls.append((result_id, list(edge_ids), window))
-        return {"A0A1": {"occupancy": 2.5}}
 
 
 class RecordingNoteRepository:

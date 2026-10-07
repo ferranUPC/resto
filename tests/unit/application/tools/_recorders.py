@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping
 from pathlib import Path
+from typing import Any
 
+from resto.adapters.persistence.memory import InMemoryResultRepository
 from resto.application.ports.writers import SimulationSettings
 from resto.domain.value_objects.artifact_ref import ArtifactRef
 from resto.domain.value_objects.intervention import Intervention
@@ -85,3 +88,17 @@ class RecordingAdditionalFileWriter:
         return StaticFileMechanism(file_kind="rerouter", path=path), ArtifactRef(
             path=path, content_hash="deadbeef", kind="additional"
         )
+
+
+class RecordingResultRepository(InMemoryResultRepository):
+    """In-memory results whose `query_edgedata` records its arguments instead of parsing XML."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.edgedata_calls: list[tuple[str, list[str], tuple[float, float] | None]] = []
+
+    def query_edgedata(
+        self, result_id: str, edge_ids: Iterable[str], window: tuple[float, float] | None
+    ) -> Mapping[str, Any]:
+        self.edgedata_calls.append((result_id, list(edge_ids), window))
+        return {"A0A1": {"occupancy": 2.5}}

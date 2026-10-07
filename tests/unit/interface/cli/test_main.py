@@ -71,7 +71,6 @@ def test_a_completed_study_prints_the_report_the_composer_wrote(
     composer = ComposerPort(
         agent=FakeToolAgent(output=draft),
         budget=Budget(max_steps=1, max_tokens=1, max_seconds=1.0),
-        studies=world.studies,
         results=world.results,
     )
     agents = replace(world.deps.agents, composer=composer)

@@ -196,10 +196,11 @@ class ClaimDraft:
 
 @dataclass(frozen=True, slots=True)
 class ReportDraft:
-    """Output Composer output: only what the model writes. `mode`, `basis` and `limitations` are
-    taken by `compose_report` from the last Expert round, so the model cannot declare a basis the
-    Expert did not, or omit the limitation line (E5.4; departs from the §2.4 table, which lists
-    `Report` as the Composer's output)."""
+    """Output Composer output: only what the model writes. `compose_report` takes `basis` from the
+    last Expert round, `mode` from that round (forced by the limit) or from the question (forced
+    mode), and adds the limitation line when the limit forced the round, so the model cannot
+    declare a basis the Expert did not, or omit the line (E5.4; departs from the §2.4 table, which
+    lists `Report` as the Composer's output)."""
 
     summary: str
     sections: tuple[ReportSection, ...] = ()

@@ -1,28 +1,25 @@
 """Tools of the Output Composer as typed Python functions (DoD §2.4; offered in-process or via MCP).
 
 Three read-only tools, all scoped to the study being composed: `get_study`, `get_result` and
-`query_edgedata`. They depend on the `StudyRepository` and `ResultRepository` ports only. The
+`query_edgedata`. They depend on the `ResultRepository` port only. The
 study's results are the allow-list: a result outside the study's experiments cannot be read, and
-`get_study` refuses any study id but the one being composed.
+`get_study` takes no arguments.
 """
 
 from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Annotated, Any
-
-from pydantic import Field
+from typing import Any
 
 from resto.application.ports.llm import Tool
-from resto.application.ports.repositories import ResultRepository, StudyRepository
+from resto.application.ports.repositories import ResultRepository
 from resto.application.schemas import adapter_for
 from resto.application.tools.declaration import tool
 from resto.application.tools.results import (
     EDGEDATA_COST,
     RESULT_DESCRIPTION,
     EdgeIdsOrAll,
-    NotAvailableError,
     ResultId,
     Window,
     read_edgedata,
@@ -41,17 +38,8 @@ class ComposerContext:
     available: frozenset[str]
 
 
-def composer_context(
-    study_id: str, *, studies: StudyRepository, results: ResultRepository
-) -> ComposerContext:
-    """The context for composing `study_id`.
-
-    Raises:
-        KeyError: no stored study has that id.
-    """
-    study = studies.get(study_id)
-    if study is None:
-        raise KeyError(f"study {study_id!r} not found")
+def composer_context(study: Study, *, results: ResultRepository) -> ComposerContext:
+    """The context for composing `study`: its experiments' results are the allow-list."""
     available = frozenset(
         rid for phase in study.phases for e in phase.experiments for rid in e.result_ids
     )
@@ -64,19 +52,8 @@ def composer_context(
         "The study being composed: its question, phases, experiments, Expert rounds and answers."
     ),
 )
-def get_study(
-    ctx: ComposerContext,
-    study_id: Annotated[
-        str | None, Field(description="Omit; only the study being composed can be read.")
-    ] = None,
-) -> Mapping[str, Any]:
-    """The study being composed.
-
-    Raises:
-        NotAvailableError: `study_id` is given and is not the study being composed.
-    """
-    if study_id is not None and study_id != ctx.study.study_id:
-        raise NotAvailableError(f"study {study_id!r} is not the study being composed")
+def get_study(ctx: ComposerContext) -> Mapping[str, Any]:
+    """The study being composed."""
     return adapter_for(Study).dump_python(ctx.study, mode="json")
 
 

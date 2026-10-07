@@ -12,7 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from resto.application.ports.llm import AgentRun, AgentTask, Budget, ToolAgent
-from resto.application.ports.repositories import ResultRepository, StudyRepository
+from resto.application.ports.repositories import ResultRepository
 from resto.application.schemas import adapter_for
 from resto.application.tools.composer import build_composer_tools, composer_context
 from resto.domain.entities.study import Study
@@ -65,15 +65,14 @@ def build_task(study: Study) -> AgentTask:
 
 @dataclass(frozen=True, slots=True)
 class ComposerPort:
-    """`ComposerAgent` port over the `ToolAgent`: the tools read the study from `studies` and its
+    """`ComposerAgent` port over the `ToolAgent`: the tools read the study being composed and its
     results from `results`. The budget is the conservative default; it is not raised."""
 
     agent: ToolAgent
     budget: Budget
-    studies: StudyRepository
     results: ResultRepository
 
     def compose(self, study: Study) -> AgentRun[ReportDraft]:
-        context = composer_context(study.study_id, studies=self.studies, results=self.results)
+        context = composer_context(study, results=self.results)
         tools = build_composer_tools(context)
         return self.agent.run(build_task(study), tools, ReportDraft, self.budget)
