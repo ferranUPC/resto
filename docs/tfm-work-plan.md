@@ -68,6 +68,15 @@ no milestone: their money is outside the $30 cap, so E12.2 designs the experimen
 calendar follows from what it finds. They are not Stretch and they are not in any DoD criterion. The plan goes
 from 1026 to **1058 pts**; the slack counts only E12.1 (+98 → +93). No ADR.
 
+r18 (2026-10-07) adds **E3.13 and E3.14** (13 pts), a **judge** for free-text fields in the golden paths: a model
+that says whether two texts are equivalent, with a confidence per dimension and a threshold each. The repo
+compares typed values first (`eval/README.md`, principle 5); this is the exception for text that has no typed
+value (the Output Composer's prose, the Expert's prose, demand descriptions). **E3.13** (5 pts) designs it and
+calibrates it against a human; **E3.14** (8 pts) builds it into the golden-path framework. Both have points and
+no wave, no latest due and no milestone, like E12.2 to E12.5; they are candidates for a future milestone M10 for
+work at the edge of the plan, not created yet. They are not Stretch and not in any DoD criterion. The plan goes
+from 1058 to **1071 pts**; the slack does not change. No ADR: E3.13 decides whether the judge is worth building.
+
 The notes v0.2 accumulated in its §0 (ADR-0023/0025/0026 scope, E3.4 split,
 estimates for E4.11 and E5.9–E5.12) are absorbed into the task rows; the old text is in
 [`_old/tfm-work-plan-v0.2.md`](_old/tfm-work-plan-v0.2.md). Task status lives in
@@ -88,12 +97,12 @@ estimates for E4.11 and E5.9–E5.12) are absorbed into the task rows; the old t
 | Capacity to 18 Feb | ≈ **745 pts** |
 | Remaining work | ≈ **651 pts**: 465 build (incl. E3.8, E3.11, E3.12, E5.13, E5.14, E5.15, E7.2, E7.3, E7.5, E7.6, E11's 61 and E12.1's 5) + ≈ 47 measurement-only + ≈ 120 writing + 12 E9.6 + 7 (E3.9, E3.10) |
 | Slack | ≈ **+93 pts** (+98 before r17, which adds E12.1's 5; +159 before r16, which adds E11's 61; v0.2: −95 h; +170 before E3.11; −26 for E7.2, E7.3, E7.5, E7.6; −11 net for ADR-0037, tentative; +12 net for ADR-0039; +18 for r14; +8 for r15). Conservative: it still counts the writing that sits in the M9 window (second half of E10.7, E10.8, ≈ 18 pts) |
-| Plan total (every row of §1) | **1058 pts**: 1026 before r17 (E12 +32), 965 before r16 (E11 +61), 973 before r15, 991 before r14 and 1003 before r13 (v0.2's 935 + E3.8 (10) + E3.9 (5) + E3.10 (2) + E3.11 (12) + E5.13 (2) + E7.2, E7.3, E7.5, E7.6 (26) + ADR-0037 net (+11: E5.14 +5, E3.12 +8, E6.1 +2, E7.1 +3, E3.7 −3, E5.2 −4) − 12 for ADR-0039 (E5.2 −5, E5.5 −7, E5.8 −3, E5.15 +3)); r14 takes 18 more (E5.2 −3 cancelled, E5.5 −11 cancelled, E5.15 −2, E3.7 −2); r15 takes 8 more (E5.3 14 → 6) |
+| Plan total (every row of §1) | **1071 pts**: 1058 before r18 (E3.13, E3.14 +13), 1026 before r17 (E12 +32), 965 before r16 (E11 +61), 973 before r15, 991 before r14 and 1003 before r13 (v0.2's 935 + E3.8 (10) + E3.9 (5) + E3.10 (2) + E3.11 (12) + E5.13 (2) + E7.2, E7.3, E7.5, E7.6 (26) + ADR-0037 net (+11: E5.14 +5, E3.12 +8, E6.1 +2, E7.1 +3, E3.7 −3, E5.2 −4) − 12 for ADR-0039 (E5.2 −5, E5.5 −7, E5.8 −3, E5.15 +3)); r14 takes 18 more (E5.2 −3 cancelled, E5.5 −11 cancelled, E5.15 −2, E3.7 −2); r15 takes 8 more (E5.3 14 → 6) |
 | After 18 Feb | ~7 h/week from about March (the maintainer likely has a job), reserved for revisions, the thesis and the defense: M9 window, not planned here |
 
 The slack is not a licence for Stretch work: it is the January buffer (§3) and the first step of the
 fallback order (§5). Do not add Stretch work before M7. E11 (r16) is the one planned use of that slack, and
-it gives it back first: it is the first thing §5 cuts. E12.1 (r17) takes 5 pts of it; E12.2 to E12.5 take none until E12.2 sets their window.
+it gives it back first: it is the first thing §5 cuts. E12.1 (r17) takes 5 pts of it; E12.2 to E12.5 take none until E12.2 sets their window. E3.13 and E3.14 (r18) take none.
 
 ### 0.2 Cross-cutting rules
 
@@ -192,7 +201,7 @@ measurement suite is left (built; ⏳ once the tracker syncs) · `F` final stret
 | E2.6 | Builder scripts: `condition` → `when(...)` script; `custom` interventions (static mechanism if one fits, else free Python against `traci_api`); `rejected[]` with reason; mechanism-selection tests | builder | 14 | 2 | 8 Dec |
 | E2.7 | Builder bank (25–30 specs covering every §2.5 cell incl. `custom`) built and checked on a development run; rejection of unsupported specs with reason. **Measured in V2:** ≥27/30 and the structural-determinism check over 3 runs (static files + `declared_rules`) | bank + report | 14 | 2 | 11 Dec |
 
-### E3 — Evaluation assets & harness (95)
+### E3 — Evaluation assets & harness (108)
 
 | ID | Task | Output | pts | Wave | Latest due |
 |---|---|---|---|---|---|
@@ -206,6 +215,10 @@ measurement suite is left (built; ⏳ once the tracker syncs) · `F` final stret
 | E3.10 | *(new 2026-09-24)* Trim `eval/decisions-log.md` to one line per decision, linking the tuning logs | doc edit | 2 | 1b | 11 Dec |
 | E3.11 | *(new 2026-09-30, widened by its grilling the same day)* ADR-0035 described demand, found while triaging E3.7: `Demand.description` (required) + free `labels` (domain, `DemandDraft`, schemas, both `Database` backends, DatabaseMCP demand record; `matrix.db` rebuilt); DEV-NET's three demands described; `Question.network_only` marked by the Parser; `time_window` is the period the user asks about for every `intent`; `demand_ref` becomes a short English phrase, scored by presence; DatabaseMCP contract and GP-10 ask instead of falling back to random demand; request bank (E3.4): concepts that need a demand name it (some with the demand spread across the text), a few stay without one on purpose, + 3 network-only `describe` concepts and one traffic counterexample, + 3 concepts on networks not in the DB (Berlin-Mitte, the Eixample, a 4x4 grid), variants regenerated and reviewed, new concepts placed by the frozen split rule (`concepts.py`); module docstring's "peak hour" rule updated; Parser (E5.1) development pass on dev, logged as one contract change (bank + the `demand_ref`/`time_window`/`network_only` prompt rules). DoD: bank rebuilt and verified, Parser dev thresholds still met, tests green. Development runs only (≈ $0.30) | domain + DEV-NET demands + request bank | 12 | 1b | 13 Nov |
 | E3.12 | *(new 2026-10-01, from the E3.7 grilling)* Resolution banks for the specialists (ADR-0037): the DB states built by functions in `eval/` from `matrix.db` (nothing, network, network + demands, results exist), all four for a stratified subset of ~15 concepts and "results exist" with synthetic marked results for the rest; distractors (`DEV-NET-2`, `Eixample-1347` and `Eixample-1211`, demands described by day); the 32-row demand resolution table (reuse only when the stored window contains the study window, generate otherwise, ask for typical-day phrases without raw data, ask for the period when none is derivable, `random traffic` always generates); gold per case as `Found`, draft or `NeedsUser` with candidates, reviewed on an annotation page. Single gold in V1. Detail in `.scratch/unplanned/issues/04`. Used by E6.1 and E7.1 (their resolution is tuned against it, so it follows them) | resolution banks | 8 | 3 | 11 Dec |
+| E3.13 | *(new 2026-10-07, r18)* Judge for free text, design and calibration: what "equivalent" means for two free-text fields (the conclusion must match; extra information is tolerated; missing information is not; a different supporting indicator is accepted when the trace backs it), the dimensions the judge scores, one threshold per dimension (all must pass), the verdict (`equivalent`, `different`, `uncertain`, `different_but_supported`; `uncertain` never counts as passed), the prompt, a `RESTO_JUDGE_MODEL` setting (default: the default model until the maintainer approves another) and its agreement with a human on hand-labelled pairs. Fields in scope: the Output Composer's prose and claims, the Expert's prose, demand descriptions and other free fields of plan steps. Includes a grilling session that fixes the dimensions and the thresholds. May end with "not worth building" | design + labelled pairs | 5 | — | — |
+| E3.14 | *(new 2026-10-07, r18)* Free-text judge check in the golden-path framework: a deterministic double in `pytest` and CI (no network), the real judge only in development rounds on demand and in V2, used only where no typed value exists; the report shows every dimension, its threshold and the reason for a `different` or `uncertain` | check in `golden/` | 8 | — | — |
+
+*E3.13 and E3.14 carry points but no wave, no latest due and no milestone (r18): their calendar comes from E3.13, and they are candidates for a future milestone M10.*
 
 ### E4 — Network Expert (142) · DoD §4.7 · **research focus**
 
@@ -679,13 +692,26 @@ measurement suite of the $30 cap.
 
 The longest chain is E12.2 → E12.3 → E12.4 → E12.5 (27 pts). Its calendar is E12.2's output.
 
+
+### 4.7 Judge for free text (E3.13, E3.14, r18)
+
+Not in the build DAG. Neither task sits in a milestone or in a measurement suite of the $30 cap; the real judge
+runs only in development rounds and, if E3.14 is built, in V2's golden-path run.
+
+| Task | Blocked by |
+|---|---|
+| E3.13 | — |
+| E3.14 | E3.13, E9.1 |
+
+The chain is E3.13 → E3.14 (13 pts). E3.13 can close as "not worth building", and then E3.14 is cancelled.
+
 ---
 
 ## 5. Fallback order if a milestone slips
 
 Apply one step at a time, in order. Record every downgrade in the thesis as a stated limitation.
 
-0. **E12.2 to E12.5 and E11 go first** (r17, r16). E12.2 to E12.5 have no date and are not started without the
+0. **E3.13, E3.14, E12.2 to E12.5 and E11 go first** (r18, r17, r16). E3.13 and E3.14 have no date and are not started before E9.1 is done. E12.2 to E12.5 have no date and are not started without the
    money E12.2 finds; they are cut before anything else, and the thesis says what was left out. E12.1 is small
    build work and stays. **E11 (the UI)** (r16): build its tasks in the order of §1 and stop when the January buffer is
    needed. A task not built is closed `wontfix`, not carried over. No threshold depends on it; the thesis
@@ -751,6 +777,7 @@ the numbering.
 | r16 | New epic E11, the user interface (61 pts), and milestone MUI | A chat-style client over the pipeline (network selector, database explorer, plan and message view, report viewer with evidence links, VTK export, Docker image) was never in the DoD or in v0.4. It is planned in a wave 6 and is the first step of the fallback order, so missing it costs nothing measured. E9.7 moves into it as E11.10. 965 → 1026 pts; slack +159 → +98; no existing date moves. E11.1 records the stack in an ADR. | — | E11.1–E11.11 |
 
 | r17 | New epic E12, cost optimization (32 pts) | The cost policy fixes one default model and a $30 cap, but nothing studies how far the cost per study can fall or what it costs in quality, and `LlmConfig` has one model and one pair of limits for every agent. E12.1 (5 pts, wave 5, M7) makes them configurable per agent; E12.2 to E12.5 (27 pts) are a study with its own money, so they carry points and no wave, due date or milestone. 1026 → 1058 pts; slack +98 → +93; no existing date moves. No ADR. | — | E12.1–E12.5 |
+| r18 | New tasks E3.13 and E3.14, a judge for free text (13 pts) | Golden paths compare typed values, but the Composer's prose, the Expert's prose and demand descriptions have none, so nothing checks them. ADR-0019, ADR-0029 and `eval/README.md` rejected a judge as the first choice and left it for text without a typed value. E3.13 designs and calibrates it against a human, and E3.14 builds it. No wave, no date, no milestone. 1058 → 1071 pts; slack unchanged. No ADR yet. | — | E3.13, E3.14, E9.1 |
 
 A cancelled task keeps its id in the "Prepares" column of the rows above as history (E5.2, E5.5): read what it prepared through r14.
 
