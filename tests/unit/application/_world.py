@@ -285,11 +285,6 @@ def derived_network(task: Any, run: Any) -> Network:
     )
 
 
-def _report(study: Study, run: AgentRun[Report]) -> Report:
-    assert run.output is not None
-    return run.output
-
-
 @dataclass(frozen=True)
 class Simulations:
     """The runner's calls as (scenario_id, seed) pairs, in call order."""
