@@ -25,7 +25,7 @@ def _load() -> ModuleType:
     return module
 
 
-re_ = _load()
+evidence = _load()
 
 TRACKER = """# Progress tracker
 
@@ -65,7 +65,7 @@ LAST_REVIEW = date(2026, 10, 6)
 
 
 def test_parse_tracker_reads_status_and_first_note_date() -> None:
-    rows = re_.parse_tracker(TRACKER)
+    rows = evidence.parse_tracker(TRACKER)
 
     assert [r.task_id for r in rows] == [f"E1.{n}" for n in range(1, 9)]
     by_id = {r.task_id: r for r in rows}
@@ -77,13 +77,13 @@ def test_parse_tracker_reads_status_and_first_note_date() -> None:
 
 
 def test_parse_tracker_skips_milestone_rows() -> None:
-    ids = {r.task_id for r in re_.parse_tracker(TRACKER)}
+    ids = {r.task_id for r in evidence.parse_tracker(TRACKER)}
 
     assert "M1" not in ids
 
 
 def test_parse_work_plan_reads_points_wave_due_and_epic_dod() -> None:
-    plan = re_.parse_work_plan(WORK_PLAN, today=TODAY)
+    plan = evidence.parse_work_plan(WORK_PLAN, today=TODAY)
 
     assert plan["E1.3"].points == 6
     assert plan["E1.3"].wave == "1b"
@@ -96,17 +96,17 @@ def test_parse_work_plan_reads_points_wave_due_and_epic_dod() -> None:
 def test_parse_work_plan_takes_cells_from_the_right_so_a_pipe_in_the_task_cell_is_harmless() -> (
     None
 ):
-    plan = re_.parse_work_plan(WORK_PLAN, today=TODAY)
+    plan = evidence.parse_work_plan(WORK_PLAN, today=TODAY)
 
     assert plan["E1.1"].points == 8
     assert plan["E1.1"].due == date(2026, 9, 10)
 
 
 def test_spec_task_id_comes_from_the_directory_slug() -> None:
-    assert re_.task_id_from_slug("e5-3-loop-closure") == "E5.3"
-    assert re_.task_id_from_slug("e10-7-thesis-draft-v1") == "E10.7"
-    assert re_.task_id_from_slug("r13-deterministic-planner") is None
-    assert re_.task_id_from_slug("unplanned") is None
+    assert evidence.task_id_from_slug("e5-3-loop-closure") == "E5.3"
+    assert evidence.task_id_from_slug("e10-7-thesis-draft-v1") == "E10.7"
+    assert evidence.task_id_from_slug("r13-deterministic-planner") is None
+    assert evidence.task_id_from_slug("unplanned") is None
 
 
 def test_parse_spec_reads_status_and_dod() -> None:
@@ -115,14 +115,14 @@ def test_parse_spec_reads_status_and_dod() -> None:
         "**Work plan:** E5.3 · E5 — Input Parser · DoD §4.1, §4.2, §4.8 · 6 pts · wave 1b\n"
     )
 
-    spec = re_.parse_spec(text)
+    spec = evidence.parse_spec(text)
 
     assert spec.status == "ready"
     assert spec.dod == "§4.1, §4.2, §4.8"
 
 
 def test_parse_spec_tolerates_missing_fields() -> None:
-    spec = re_.parse_spec("# Something\n")
+    spec = evidence.parse_spec("# Something\n")
 
     assert spec.status is None
     assert spec.dod is None
@@ -135,7 +135,7 @@ def test_parse_git_log_maps_task_ids_in_subject_and_body_to_commits() -> None:
         "0123456\x1f2026-10-06\x1fRefactor r13, no task\x1f\x1e"
     )
 
-    commits = re_.parse_git_log(raw)
+    commits = evidence.parse_git_log(raw)
 
     assert [c.sha for c in commits] == ["abc1234", "0123456"]
     assert commits[0].task_ids == frozenset({"E5.15", "E3.7"})
@@ -150,19 +150,19 @@ def test_latest_review_picks_the_newest_file_across_directories() -> None:
         "docs/progress-reviews/notes.md",
     ]
 
-    path, when = re_.latest_review(names)
+    path, when = evidence.latest_review(names)
 
     assert path == "docs/feasability-analisis/2026-10-07.md"
     assert when == date(2026, 10, 7)
 
 
 def test_latest_review_is_none_when_there_is_no_review_yet() -> None:
-    assert re_.latest_review(["docs/progress-reviews/notes.md"]) is None
+    assert evidence.latest_review(["docs/progress-reviews/notes.md"]) is None
 
 
 def _specs(**by_id: tuple[str, datetime]) -> dict[str, Any]:
     return {
-        task_id: re_.SpecInfo(
+        task_id: evidence.SpecInfo(
             path=f".scratch/{task_id}/spec.md", status=status, dod=None, touched=touched
         )
         for task_id, (status, touched) in by_id.items()
@@ -170,8 +170,8 @@ def _specs(**by_id: tuple[str, datetime]) -> dict[str, Any]:
 
 
 def _classify(**overrides: object) -> dict[str, Any]:
-    rows = re_.parse_tracker(TRACKER)
-    plan = re_.parse_work_plan(WORK_PLAN, today=TODAY)
+    rows = evidence.parse_tracker(TRACKER)
+    plan = evidence.parse_work_plan(WORK_PLAN, today=TODAY)
     kwargs: dict[str, Any] = {
         "rows": rows,
         "plan": plan,
@@ -183,7 +183,7 @@ def _classify(**overrides: object) -> dict[str, Any]:
         "scope": "daily",
     }
     kwargs.update(overrides)
-    result = re_.classify(**kwargs)
+    result = evidence.classify(**kwargs)
     return {t.task_id: t for t in result.hot} | {"_cold": result.cold}
 
 
@@ -202,7 +202,7 @@ def test_a_task_due_within_the_window_is_hot_and_a_far_one_is_cold() -> None:
 
 
 def test_a_task_due_just_outside_the_window_is_cold() -> None:
-    plan = re_.parse_work_plan(WORK_PLAN.replace("16 Oct", "22 Oct"), today=TODAY)
+    plan = evidence.parse_work_plan(WORK_PLAN.replace("16 Oct", "22 Oct"), today=TODAY)
 
     result = _classify(plan=plan)
 
@@ -210,7 +210,7 @@ def test_a_task_due_just_outside_the_window_is_cold() -> None:
 
 
 def test_a_commit_or_a_spec_touched_since_the_last_review_makes_a_task_hot() -> None:
-    commit = re_.Commit("abc1234", "2026-10-06", "E1.4: start", frozenset({"E1.4"}))
+    commit = evidence.Commit("abc1234", "2026-10-06", "E1.4: start", frozenset({"E1.4"}))
     touched = datetime(2026, 10, 6, 21, 0)
     specs = _specs(**{"E1.8": ("ready", touched)})
 
@@ -252,7 +252,7 @@ def test_mismatches_between_tracker_and_spec() -> None:
         }
     )
 
-    problems = re_.mismatches(re_.parse_tracker(TRACKER), specs)
+    problems = evidence.mismatches(evidence.parse_tracker(TRACKER), specs)
 
     ids = {task_id for task_id, _ in problems}
     assert ids == {"E1.1", "E1.8"}
@@ -261,7 +261,7 @@ def test_mismatches_between_tracker_and_spec() -> None:
 def test_a_done_spec_matches_a_row_awaiting_measurement() -> None:
     specs = _specs(**{"E1.6": ("done", datetime(2026, 9, 1))})
 
-    assert re_.mismatches(re_.parse_tracker(TRACKER), specs) == []
+    assert evidence.mismatches(evidence.parse_tracker(TRACKER), specs) == []
 
 
 def test_mismatched_tasks_are_hot() -> None:
@@ -287,10 +287,10 @@ def test_cold_tasks_are_counted_by_status() -> None:
 
 
 def test_format_report_names_hot_tasks_and_only_counts_cold_ones() -> None:
-    commit = re_.Commit("abc1234", "2026-10-06", "E1.3: more", frozenset({"E1.3"}))
-    rows = re_.parse_tracker(TRACKER)
-    plan = re_.parse_work_plan(WORK_PLAN, today=TODAY)
-    result = re_.classify(
+    commit = evidence.Commit("abc1234", "2026-10-06", "E1.3: more", frozenset({"E1.3"}))
+    rows = evidence.parse_tracker(TRACKER)
+    plan = evidence.parse_work_plan(WORK_PLAN, today=TODAY)
+    result = evidence.classify(
         rows=rows,
         plan=plan,
         specs={},
@@ -301,7 +301,7 @@ def test_format_report_names_hot_tasks_and_only_counts_cold_ones() -> None:
         scope="daily",
     )
 
-    text = re_.format_report(
+    text = evidence.format_report(
         result,
         plan=plan,
         specs={},
@@ -318,3 +318,35 @@ def test_format_report_names_hot_tasks_and_only_counts_cold_ones() -> None:
     assert "Cold (not opened)" in text
     assert "E1.4" not in text
     assert "docs/feasability-analisis/2026-10-07.md" in text
+
+
+def test_format_report_marks_a_hot_task_with_no_commit_and_no_dod() -> None:
+    rows = evidence.parse_tracker(TRACKER)
+    plan = evidence.parse_work_plan(WORK_PLAN, today=TODAY)
+    result = evidence.classify(
+        rows=rows,
+        plan=plan,
+        specs={},
+        commits=[],
+        since=LAST_REVIEW,
+        today=TODAY,
+        window_days=14,
+        scope="daily",
+    )
+    plan_without_dod = {k: evidence.PlanRow(v.points, v.wave, v.due, None) for k, v in plan.items()}
+
+    text = evidence.format_report(
+        result,
+        plan=plan_without_dod,
+        specs={},
+        commits=[],
+        problems=[],
+        last_review=None,
+        today=TODAY,
+        scope="daily",
+        window_days=14,
+    )
+
+    assert "no commit names this task" in text
+    assert "DoD not recorded" in text
+    assert "Last review: none found" in text

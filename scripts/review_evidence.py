@@ -10,10 +10,17 @@ the tasks worth auditing (the hot set), the facts the audit needs for each, and 
 A task is hot when any of these holds (daily scope):
   * its tracker status is 🔄 or ⏳;
   * a commit since the last review names it, or its `.scratch` spec or issues were edited since;
-  * it is not done and its latest due date falls inside the window (overdue included);
+  * its status is ⬜, 🔄 or 🚧 and its latest due date is on or before today plus the window (so an
+    overdue task is hot);
   * its row says ✅ with a note dated on or after the last review (a fresh done claim);
   * the tracker and its `.scratch` spec disagree (✅ with a spec that is not done, and so on).
-Cancelled (🚫) rows are cold unless the spec disagrees. The weekly scope makes every row hot but 🚫.
+Cancelled (🚫) rows are cold unless the spec disagrees. The weekly scope makes every row hot except
+🚫 rows with no spec mismatch.
+
+"Since the last review" starts at midnight of the last review's date, so the criteria over-include
+(a commit or a done claim from the review day itself counts) and never miss. Commits match tasks by
+an id such as `E5.3` in the subject or body; a commit that names no task is invisible, and a ✅ row
+whose note carries no date is caught only by the other criteria.
 """
 
 from __future__ import annotations
@@ -293,12 +300,11 @@ def format_report(
             )
             facts.append(f"  {row.points} pts · wave {row.wave} · {due}")
         dod = (spec.dod if spec and spec.dod else None) or (row.dod if row else None)
-        if dod:
-            facts.append(f"  DoD {dod}")
+        facts.append(f"  DoD {dod}" if dod else "  DoD not recorded: read the work plan row")
         facts.append("  why: " + "; ".join(task.reasons))
         if spec is not None:
             facts.append(f"  spec: {spec.status or 'no status'} ({spec.path})")
-        facts.extend(_commit_lines(task.task_id, commits))
+        facts.extend(_commit_lines(task.task_id, commits) or ["    no commit names this task"])
         lines.extend(facts)
         lines.append("")
     if problems:
@@ -314,6 +320,8 @@ def format_report(
 
 def _git(*args: str, root: Path) -> str:
     done = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True, check=False)
+    if done.returncode != 0:
+        raise SystemExit(f"git {' '.join(args[:2])} failed: {done.stderr.strip()}")
     return done.stdout
 
 
