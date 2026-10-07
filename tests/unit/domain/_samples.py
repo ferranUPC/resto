@@ -44,11 +44,13 @@ from resto.domain.value_objects.demand_source import (
 )
 from resto.domain.value_objects.demand_spec import DemandSpec
 from resto.domain.value_objects.drafts import (
+    ClaimDraft,
     DemandDraft,
     ExpertNoteDraft,
     ExpertNoteDrafts,
     NetworkDraft,
     RejectedIntervention,
+    ReportDraft,
     ScenarioDraft,
     UnresolvedIssue,
 )
@@ -324,6 +326,12 @@ SAMPLES: dict[type, Callable[[], object]] = {
     NetworkDraft: network_draft,
     DemandDraft: demand_draft,
     ScenarioDraft: scenario_draft,
+    ClaimDraft: lambda: ClaimDraft(text="delay +12 %", evidence_refs=("r1",), value="12%"),
+    ReportDraft: lambda: ReportDraft(
+        summary="closing the lane shifts delay",
+        sections=(ReportSection(title="Method", body="one baseline"),),
+        claims=(ClaimDraft(text="delay +12 %", evidence_refs=("r1",)),),
+    ),
     ExpertNoteDraft: lambda: expert_note_draft(
         values=(Change(measure=Measure.MEAN_DELAY, direction=ChangeDirection.INCREASE),)
     ),

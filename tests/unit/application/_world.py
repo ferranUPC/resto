@@ -41,6 +41,7 @@ from resto.domain.services.planner import PlanningContext
 from resto.domain.value_objects.answer_value import Measure, Quantity
 from resto.domain.value_objects.drafts import (
     ExpertNoteDrafts,
+    ReportDraft,
     ScenarioDraft,
 )
 from resto.domain.value_objects.experiment import ExperimentRole
@@ -51,8 +52,7 @@ from resto.domain.value_objects.kpis import Kpis
 from resto.domain.value_objects.mechanism import ScriptMechanism, StaticFileMechanism
 from resto.domain.value_objects.network_recipe import NetworkRecipe
 from resto.domain.value_objects.outcomes import Found
-from resto.domain.value_objects.question import Intent, Mode, Question
-from resto.domain.value_objects.report import Report
+from resto.domain.value_objects.question import Intent, Question
 from resto.domain.value_objects.step_record import StepErrorKind, StepStatus, Usage
 from resto.domain.value_objects.study_plan import (
     StudyPlan,
@@ -86,7 +86,7 @@ UNKNOWN_LANE = Intervention(
 NEW_EDGE = AddEdge("J7", "J9", lanes=2, speed=13.9, edge_id="J7J9")
 QUERY = StubNetworkQuery(edges={"E12"}, lanes={("E12", 1)})
 DERIVED_QUERY = StubNetworkQuery(edges={"E12", "J7J9"}, lanes={("E12", 1)})  # NEW_EDGE added
-REPORT = Report(summary="done", mode=Mode.FREE, basis=Basis.OBSERVED)
+REPORT_DRAFT = ReportDraft(summary="done")
 KPIS = Kpis(mean_delay=24.4, mean_travel_time=85.4, teleports=0, departed=50, arrived=43)
 
 NETWORK_ROUNDS = 7
@@ -180,7 +180,7 @@ class FakeNoteWriter(Scripted):
 
 
 class FakeComposer(Scripted):
-    def compose(self, study: Study) -> AgentRun[Report]:
+    def compose(self, study: Study) -> AgentRun[ReportDraft]:
         return self._next(study)  # type: ignore[no-any-return]
 
 
@@ -285,11 +285,6 @@ def derived_network(task: Any, run: Any) -> Network:
     )
 
 
-def _report(study: Study, run: AgentRun[Report]) -> Report:
-    assert run.output is not None
-    return run.output
-
-
 class World:
     """Everything `run_study` needs, with the scripted agents reachable for assertions."""
 
@@ -327,7 +322,7 @@ class World:
         )
         self.composer = FakeComposer(
             *composer,
-            default=lambda study: run_of(REPORT),
+            default=lambda study: run_of(REPORT_DRAFT),
         )
         self.networks = InMemoryNetworkRepository()
         self.networks.store(sample_network())
@@ -355,7 +350,6 @@ class World:
                 network=self._promote_network,
                 demand=self._promote_demand,
                 reroute=self._reroute,
-                report=_report,
             ),
             networks=self.networks,
             demands=self.demands,
