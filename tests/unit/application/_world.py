@@ -431,9 +431,11 @@ class World:
             if out_dir.name == "load_check":
                 load_checks.append((out_dir.parent.name, seed))
                 continue
+            # Convention: a study run's out_dir is named `<result_id>.<suffix>`; the scenario comes
+            # from the stored result, the seed from what the runner actually received.
             result = self.results.get(out_dir.name.split(".")[0])
             assert result is not None, f"a run left no result: {out_dir}"
-            study_runs.append((result.scenario_id, result.seed))
+            study_runs.append((result.scenario_id, seed))
         return Simulations(tuple(load_checks), tuple(study_runs))
 
     def run(self, **kwargs: Any) -> Study:
