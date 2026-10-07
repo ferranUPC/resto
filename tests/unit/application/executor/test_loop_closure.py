@@ -5,13 +5,15 @@ seed) that already has an ok result. The counter is `world.runner.calls` read th
 Not redundant (GLOSSARY.md): the load check (seed 0, one per built scenario), a rerun of a failed
 result, and the missing seeds of a partly stored scenario."""
 
+from dataclasses import replace
 from pathlib import Path
 
 from resto.domain.constants import DEFAULT_SEEDS
 from resto.domain.entities.study import StudyStatus
 from resto.domain.value_objects.arm import Arm
 from resto.domain.value_objects.experiment import ExperimentRole
-from resto.domain.value_objects.question import Intent, Question
+from resto.domain.value_objects.question import Intent, Mode, Question
+from resto.domain.value_objects.step_record import StepStatus
 from tests.unit.application._world import (
     BASE_SID,
     BASELINE_PLAN,
@@ -26,8 +28,13 @@ from tests.unit.application._world import (
     abstains,
     answers,
     plan,
+    tools,
 )
 from tests.unit.domain._fixtures import build_step, run_step
+
+
+def _ok(*names: str) -> list[tuple[str, StepStatus]]:
+    return [(name, StepStatus.OK) for name in names]
 
 
 def _pairs(sid: str) -> set[tuple[str, int]]:
@@ -106,3 +113,60 @@ def test_an_experiment_whose_scenario_is_already_stored_runs_nothing(tmp_path: P
     assert simulations.study_runs == tuple((BASE_SID, seed) for seed in DEFAULT_SEEDS)  # phase 0
     assert len(world.runner.calls) == runner_log_at_phase_1[0]  # unchanged after the proposal
     assert all(sid != CLOSURE_SID for sid, _ in simulations.load_checks + simulations.study_runs)
+
+
+def test_forced_mode_only_forbids_abstaining_so_the_treatment_is_predicted_not_simulated(
+    tmp_path: Path,
+) -> None:
+    """GP-4 (ADR-0038 §4, not the frozen §5 row "no simulation"): forced mode forbids only the
+    Expert's abstention. The plan still simulates the base; the treatment it was not planned to
+    run comes out as a predicted scenario."""
+    world = World(
+        tmp_path,
+        question=replace(DESCRIBE_CHANGE, mode=Mode.FORCED),
+        plans=(BASELINE_PLAN,),
+        expert=(answers(),),
+    )
+
+    study = world.run()
+
+    assert study.status is StudyStatus.COMPLETED and len(study.phases) == 1
+    assert tools(study) == _ok(
+        "plan", "obtain_network", "build_scenario", "run_simulation", "ask_expert", "compose_report"
+    )
+    assert len(world.planner.calls) == 1
+    assert len(world.expert.calls) == 1 and world.expert.calls[0][0].mode is Mode.FORCED
+    simulations = world.simulations()
+    assert simulations.study_runs == tuple((BASE_SID, seed) for seed in DEFAULT_SEEDS)
+    assert {sid for sid, _ in simulations.load_checks} == {BASE_SID}
+    (task,) = (call[0] for call in world.note_writer.calls)
+    predicted = [s for s in task.scenarios if s.scenario_id == CLOSURE_SID]
+    assert [s.simulated for s in predicted] == [False]
+
+
+def test_a_question_whose_two_arms_are_stored_costs_no_simulation(tmp_path: Path) -> None:
+    """GP-5: with both arms of the contrast already stored, the plan builds and runs nothing."""
+    world = World(tmp_path, question=WHAT_IF, plans=(WHAT_IF_PLAN,), expert=(answers(),))
+    _, base_ids = world.store_scenario(())
+    _, closure_ids = world.store_scenario((CLOSURE,))
+
+    study = world.run()
+
+    assert study.status is StudyStatus.COMPLETED and len(study.phases) == 1
+    # The steps are still recorded; each build and run finds its result stored and does no work.
+    assert tools(study) == _ok(
+        "plan",
+        "obtain_network",
+        "build_scenario",
+        "run_simulation",
+        "build_scenario",
+        "run_simulation",
+        "ask_expert",
+        "compose_report",
+    )
+    assert world.runner.calls == []
+    assert world.builder.calls == []
+    assert len(world.planner.calls) == 1 and len(world.expert.calls) == 1
+    base, treatment = study.phases[0].experiments
+    assert (base.reused, treatment.reused) == (True, True)
+    assert (base.result_ids, treatment.result_ids) == (base_ids, closure_ids)
