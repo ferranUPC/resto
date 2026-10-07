@@ -46,6 +46,12 @@ declared), applies to **E5.2** (3 pts) and **E5.5** (11 pts); **E5.15** goes 3 �
 plan goes from 991 to **973 pts**; the spine becomes E3.7 → E5.15 → E5.3 and is 7 pts shorter (§4.3).
 No scope is dropped: the pieces of E5.5 have owners (E5.3, E9.1, E9.3). No ADR.
 
+r15 (2026-10-06) re-estimates **E5.3** from 14 to **6 pts** after triaging it against the code: the loop,
+`max_rounds` with the forced last round and the multi-network `ExpertTask` (ADR-0032) were already built and
+tested, so what remains is the zero-redundant-simulations counter across phases, GP-4 and GP-5 at use-case
+level, and a closing note. The plan goes from 973 to **965 pts**; the spine becomes 8 pts shorter (§4.3).
+No scope is dropped and no date moves. No ADR.
+
 The notes v0.2 accumulated in its §0 (ADR-0023/0025/0026 scope, E3.4 split,
 estimates for E4.11 and E5.9–E5.12) are absorbed into the task rows; the old text is in
 [`_old/tfm-work-plan-v0.2.md`](_old/tfm-work-plan-v0.2.md). Task status lives in
@@ -64,9 +70,9 @@ estimates for E4.11 and E5.9–E5.12) are absorbed into the task rows; the old t
 | Christmas break | **24 Dec → 2 Jan, zero work** (21–23 Dec are working days) |
 | Planning rate | 40 pts/week nominal → **38.5 pts/week** after supervisor meetings (DLR + FIB, ~3 h every two weeks): ≈ 34.5 build + ≈ 4 writing |
 | Capacity to 18 Feb | ≈ **745 pts** |
-| Remaining work | ≈ **593 pts**: 407 build (incl. E3.8, E3.11, E3.12, E5.13, E5.14, E5.15 and E7.2, E7.3, E7.5, E7.6) + ≈ 47 measurement-only + ≈ 120 writing + 12 E9.6 + 7 (E3.9, E3.10) |
-| Slack | ≈ **+151 pts** (v0.2: −95 h; +170 before E3.11; −26 for E7.2, E7.3, E7.5, E7.6; −11 net for ADR-0037, tentative; +12 net for ADR-0039; +18 for r14). Conservative: it still counts the writing that sits in the M9 window (second half of E10.7, E10.8, ≈ 18 pts) |
-| Plan total (every row of §1) | **973 pts**: 991 before r14 and 1003 before r13 (v0.2's 935 + E3.8 (10) + E3.9 (5) + E3.10 (2) + E3.11 (12) + E5.13 (2) + E7.2, E7.3, E7.5, E7.6 (26) + ADR-0037 net (+11: E5.14 +5, E3.12 +8, E6.1 +2, E7.1 +3, E3.7 −3, E5.2 −4) − 12 for ADR-0039 (E5.2 −5, E5.5 −7, E5.8 −3, E5.15 +3)); r14 takes 18 more (E5.2 −3 cancelled, E5.5 −11 cancelled, E5.15 −2, E3.7 −2) |
+| Remaining work | ≈ **585 pts**: 399 build (incl. E3.8, E3.11, E3.12, E5.13, E5.14, E5.15 and E7.2, E7.3, E7.5, E7.6) + ≈ 47 measurement-only + ≈ 120 writing + 12 E9.6 + 7 (E3.9, E3.10) |
+| Slack | ≈ **+159 pts** (v0.2: −95 h; +170 before E3.11; −26 for E7.2, E7.3, E7.5, E7.6; −11 net for ADR-0037, tentative; +12 net for ADR-0039; +18 for r14; +8 for r15). Conservative: it still counts the writing that sits in the M9 window (second half of E10.7, E10.8, ≈ 18 pts) |
+| Plan total (every row of §1) | **965 pts**: 973 before r15, 991 before r14 and 1003 before r13 (v0.2's 935 + E3.8 (10) + E3.9 (5) + E3.10 (2) + E3.11 (12) + E5.13 (2) + E7.2, E7.3, E7.5, E7.6 (26) + ADR-0037 net (+11: E5.14 +5, E3.12 +8, E6.1 +2, E7.1 +3, E3.7 −3, E5.2 −4) − 12 for ADR-0039 (E5.2 −5, E5.5 −7, E5.8 −3, E5.15 +3)); r14 takes 18 more (E5.2 −3 cancelled, E5.5 −11 cancelled, E5.15 −2, E3.7 −2); r15 takes 8 more (E5.3 14 → 6) |
 | After 18 Feb | ~7 h/week from about March (the maintainer likely has a job), reserved for revisions, the thesis and the defense: M9 window, not planned here |
 
 The slack is not a licence for Stretch work: it is the January buffer (§3) and the first step of the
@@ -199,13 +205,13 @@ measurement suite is left (built; ⏳ once the tracker syncs) · `F` final stret
 | E4.10 | Calibration analysis (Brier, accuracy by `basis`) and ablation facts-only vs facts + notes, read from EXP-01 and E4.9's V2 runs (store size 0 is the facts-only arm) | figures | 8 | F | 9 Feb |
 | E4.11 | Notes per ADR-0026: note writer returns 0–3 `ExpertNoteDraft`s, each with a `scenario_ref` from an allow-list (study scenarios + predicted `scenario_id`); `write_note` validates the ref and sets `provenance = simulation` only if that scenario has results in the study; tests with the fake agent | notes v2 + tests | 6 | — | 12 Nov |
 
-### E5 — Input Parser, Planner, Executor, Output Composer (113) · DoD §4.1, §4.2, §4.8
+### E5 — Input Parser, Planner, Executor, Output Composer (105) · DoD §4.1, §4.2, §4.8
 
 | ID | Task | Output | pts | Wave | Latest due |
 |---|---|---|---|---|---|
 | E5.1 | Input Parser (own agent, ADR-0023): text → `Question`, no tools, retry-then-fail, `ambiguities[]` → `awaiting_user` before the planner runs; `InputParserAgent` port implementation (ADR-0025); tuned on dev (§4.1 + arm structure ≥ 90 %). **Measured in V2:** held-out, second use (N4) | parser agent + report | 14 | V2 | 5 Feb |
 | E5.2 | *(cancelled 2026-10-06, r14: delivered by r13, ADR-0039)* ~~Planner: the pure function `plan(question, context) -> StudyPlan` in the domain layer, validated by a hand-frozen oracle, properties, metamorphic tests and the plan bank as a regression snapshot; no agent, prompt or port.~~ Delivered by r13 (PR #20): `src/resto/domain/services/planner.py`, called by the Executor; the oracle is r13-03. Its 3 pts leave the plan | ~~planner + tests~~ | 0 | — | — |
-| E5.3 | Loop closure (ADR-0023): `needs_simulation` → the planner plans the `proposed_experiment` as a new phase → Executor runs it → re-ask with the original question and all phases' results, `max_rounds` respected with the last round forced (`forced_by_limit`, ADR-0025); `ExpertTask` over base + derived networks (decided here, §4 risks); GP-3 / GP-4 / GP-5 passing; **zero redundant simulations** across the rounds, checked by a counter of `run_simulation` calls on the fake world (a scenario that already has results is never simulated again; moved here from E5.5, r14); the `StepRecord` trace of the loop is asserted by E9.1 | tests | 14 | 1b | 26 Nov |
+| E5.3 | Loop closure (ADR-0023): `needs_simulation` → the planner plans the `proposed_experiment` as a new phase → Executor runs it → re-ask with the original question and all phases' results, `max_rounds` respected with the last round forced (`forced_by_limit`, ADR-0025); multi-network `ExpertTask` already resolved by ADR-0032 (r4), closed here with a note; GP-3 / GP-4 / GP-5 passing at use-case level (E9.1 re-expresses them on `golden/`); **zero redundant simulations** across the rounds, checked by a counter of `run_simulation` calls on the fake world (a scenario that already has results is never simulated again; moved here from E5.5, r14); the `StepRecord` trace of the loop is asserted by E9.1 (14 → 6 pts, r15: the loop, `max_rounds` and the network scope were already built) | tests | 6 | 1b | 26 Nov |
 | E5.4 | Output Composer Minimal (agent): completed `Study` → `Report` (claims with `evidence_refs`) → Markdown with evidence table; experiments table marks reused experiments; fixed limitation line added by code when the last round was `forced_by_limit` (ADR-0025) | composer | 6 | 1b | 27 Nov |
 | E5.5 | *(cancelled 2026-10-06, r14: its pieces have an owner, ADR-0039)* ~~Executor Done (build): `StepRecord` trace vs expected with the fake world; zero redundant simulations (counter); failure injection with the right `StepError.kind`, including the planning error; no routing harness.~~ The `StepRecord` traces go to E9.1 and E5.3; failure injection with `StepError.kind` (the planning error is already covered by r13-07) goes to E9.3; the zero-redundant-simulations counter moves to E5.3. Its 11 pts leave the plan | ~~tests + report~~ | 0 | — | — |
 | E5.6 | Capability negotiation with DatabaseMCP (`raw_demand_data` group and `list_demand_data`, ADR-0036); GP-10 | tests | 8 | 5 | 12 Jan |
@@ -313,18 +319,18 @@ by the DAG (§4), not by the week.
 | Wave | Weeks | Content (in order) | Cum. pts | Target | Deadline |
 |---|---|---|---|---|---|
 | 1a | 24 Sep → 9 Oct | E3.8 → E5.13 (accept/change ADR-0027) → E4.2–E4.4 development sweep and tuning | 68 | **M2: Tue 20 Oct** | 13 Nov |
-| 1b | 12 → 26 Oct | E3.11 → E5.14 → E3.7 → E5.15 → E5.3 → E5.4 → E9.1; E8.1 (REAL-NET) in the gaps; E3.9 evaluation budget (before ~24 Oct); E3.10 Decisions-log trim | 134 | **M3: Mon 26 Oct** | 27 Nov |
-| 2 | 27 Oct → 6 Nov | E2.5 → E2.6 → E9.2 → E2.7 | 192 | **M4: Fri 6 Nov** | 11 Dec |
-| 3 | 9 → 30 Nov | E6.1, E7.1 → E3.12, E7.2 → E7.3, E6.2, E7.4, E9.8 (E8.1 here if it missed 1b) | 303 | **M5: Mon 30 Nov** | 15 Jan |
-| 4 | 1 → 11 Dec | E8.2 → E8.3 → E8.4 → E8.5 (347 pts, M6); E5.2 and E5.5 are cancelled (r14), so V1 sees the Executor and planner built by r13 and E5.3 | 347 | **M6: Tue 8 Dec** | 22 Jan |
+| 1b | 12 → 26 Oct | E3.11 → E5.14 → E3.7 → E5.15 → E5.3 → E5.4 → E9.1; E8.1 (REAL-NET) in the gaps; E3.9 evaluation budget (before ~24 Oct); E3.10 Decisions-log trim | 126 | **M3: Mon 26 Oct** | 27 Nov |
+| 2 | 27 Oct → 6 Nov | E2.5 → E2.6 → E9.2 → E2.7 | 184 | **M4: Fri 6 Nov** | 11 Dec |
+| 3 | 9 → 30 Nov | E6.1, E7.1 → E3.12, E7.2 → E7.3, E6.2, E7.4, E9.8 (E8.1 here if it missed 1b) | 295 | **M5: Mon 30 Nov** | 15 Jan |
+| 4 | 1 → 11 Dec | E8.2 → E8.3 → E8.4 → E8.5 (339 pts, M6); E5.2 and E5.5 are cancelled (r14), so V1 sees the Executor and planner built by r13 and E5.3 | 339 | **M6: Tue 8 Dec** | 22 Jan |
 | V1 | 14 → 18 Dec | Validation 1 (modules built by 11 Dec) | — | Fri 18 Dec | 18 Dec |
 | — | 21 → 23 Dec | Margin (working days), not planned | — | — | — |
 | — | **24 Dec → 2 Jan** | **Break, zero work** | — | — | — |
-| 5 | 4 → 15 Jan | E5.6, E9.3, E7.5 → E4.9, E5.7 (checker), E7.6 | 407 | **M7 = all built: Fri 15 Jan** | 29 Jan |
+| 5 | 4 → 15 Jan | E5.6, E9.3, E7.5 → E4.9, E5.7 (checker), E7.6 | 399 | **M7 = all built: Fri 15 Jan** | 29 Jan |
 
 Cumulative points leave out E3.9 and E3.10 (7 pts, counted apart in §0.1). Wave 5 holds only work that V1 does not measure (no suite of §4.2's V1 checkpoints reads it), so it can sit
-after the break. Cumulative points before the break are 347, within the 379 the planning rate gives by
-11 Dec (32 pts of room since r14 took 18 out of waves 1b and 4; no date moves); v0.3 asked for 434 by that date.
+after the break. Cumulative points before the break are 339, within the 379 the planning rate gives by
+11 Dec (40 pts of room since r14 and r15 took 26 out of waves 1b and 4; no date moves); v0.3 asked for 434 by that date.
 
 ### Writing track
 
@@ -351,8 +357,8 @@ after the break. Cumulative points before the break are 347, within the 379 the 
 
 ## 4. Dependencies
 
-The plan is **limited by capacity, not by dependencies**: the longest chain of pending build work is 72
-of 407 points (≈ 18 %), so the order within a wave is mostly free. Two DAGs: what must be **built**
+The plan is **limited by capacity, not by dependencies**: the longest chain of pending build work is 64
+of 399 points (≈ 16 %), so the order within a wave is mostly free. Two DAGs: what must be **built**
 before V2, and which **measurement suites** turn ⏳ into ✅.
 
 ### 4.1 Build DAG
@@ -387,7 +393,7 @@ flowchart LR
     E37["E3.7 plan bank (review) · 2"]:::pending
     E52["E5.2 planner · cancelled r14"]:::cancelled
     E515["E5.15 r13 leftovers check · 1"]:::pending
-    E53["E5.3 loop closure · 14"]:::pending
+    E53["E5.3 loop closure · 6"]:::pending
     E54["E5.4 Composer Min · 6"]:::frontier
     E51["E5.1 Input Parser ⏳"]:::await
     E91["E9.1 golden-path fw, GP-1…5 + GP-9 · 10"]:::pending
@@ -539,11 +545,11 @@ flowchart LR
 | Target | Points | Chain |
 |---|---|---|
 | M2 (build) | 34 | E3.8 → E4.4 |
-| M3 (build) | 54 | E3.8 → E3.11 → E5.14 → E3.7 → E5.15 → E5.3 → E9.1 |
-| M4 (build) | 60 | E3.8 → E3.11 → E5.14 → E3.7 → E5.15 → E5.3 → E9.1 → E9.2 (the Builder chain E2.5 → E2.6 → E2.7 is 52) |
-| M5 (build) | 62 | E3.8 → E3.11 → E5.14 → E3.7 → E5.15 → E5.3 → E9.1 → E9.8 |
+| M3 (build) | 46 | E3.8 → E3.11 → E5.14 → E3.7 → E5.15 → E5.3 → E9.1 |
+| M4 (build) | 52 | E3.8 → E3.11 → E5.14 → E3.7 → E5.15 → E5.3 → E9.1 → E9.2 (the Builder chain E2.5 → E2.6 → E2.7 is also 52) |
+| M5 (build) | 54 | E3.8 → E3.11 → E5.14 → E3.7 → E5.15 → E5.3 → E9.1 → E9.8 |
 | M6 (build) | 60 | E8.1 → E8.2 → E8.3 → E8.4 → E8.5 |
-| M7 (build) = all built | **72** | E3.8 → E3.11 → E5.14 → E3.7 → E5.15 → E5.3 → E9.1 → E9.8 → E9.3 (E4.9: E3.8 → E4.4 → E4.9 = 52) |
+| M7 (build) = all built | **64** | E3.8 → E3.11 → E5.14 → E3.7 → E5.15 → E5.3 → E9.1 → E9.8 → E9.3 (E4.9: E3.8 → E4.4 → E4.9 = 52) |
 | Tail after V2 | 68 + V2 runs | E4.10 → E10.5 → E10.6 → E10.7 → (E10.8 in M9) |
 
 ### 4.4 What to watch
@@ -552,13 +558,9 @@ flowchart LR
   feeds M3, M4, M5 (GP-8/GP-11 need the planner and the golden-path framework) and M7. Start it first.
 - **ADR-0027 sits at the root of the spine** (E3.7, E5.4, E9.8 build on arms; the planner already does): E5.13 settles it
   right after E3.8, before E3.7 starts.
-- **Multi-network `ExpertTask`** (risk, decided inside E5.3): `ExpertTask` carries one `network_id`; the
-  Expert's topology tools are built over one `NetworkQuery`, `ask_expert` rejects `values` naming an edge
-  that network lacks, and `proposed_experiment.network_ref` must be that network. When an arm changes
-  topology (GP-11: `treatment` on a derived network adding edge `J7J9`) a correct answer about the new
-  edge is rejected. E5.10 passes the phase-0 network plus every result id (`TODO(E5.3)` in
-  `application/use_cases/run_study.py`). E5.3 decides the fix (e.g. `network_ids` and one
-  `NetworkQuery` per network); it also gates GP-11 (E9.8).
+- **Multi-network `ExpertTask`** (risk, resolved by ADR-0032 / r4, 2026-09-30): `ExpertTask` carries `network_ids`,
+  one `NetworkQuery` per network comes from the `NetworkQueryLoader` port, and an answer naming an edge names its
+  network. E5.3 closes it with a note that lists the tests; GP-11 (E9.8) still depends on it.
 - **E3.8 before any Expert sweep.** A sweep on the pre-ADR-0028 bank is paid again after the rebuild:
   E4.2–E4.4's development sweep and EXP-01 both read the E3.8 bank.
 - **E8.1 has no prerequisite.** The whole REAL-NET chain (M6) can start any week; keep it in the gaps of
@@ -635,6 +637,7 @@ the numbering.
 | r11 | The Input Parser reads four intents | The prompt teaches five; the `compare`/`run` boundary replaces the unstable `counterfactual` one. | [0038](adr/0038-no-counterfactual-intent-contrast-decides-the-arms.md) | E5.1, E5.8 |
 | r13 | Planning is a deterministic function; the Coordinator agent is removed | After ADR-0037 and ADR-0038 the agent decided nothing that code did not already decide (no database tools, arms fixed by the contrast, plans validated by the Executor), and its routing metric would have measured imitation of the gold script. Adds E5.15 (3 pts); E5.2 8 → 3, E5.5 18 → 11, E5.8 8 → 5; the plan bank routing suite leaves the $30 budget (E3.9). Net 12 pts fewer. | [0039](adr/0039-deterministic-planner-replaces-the-coordinator.md) | E3.7, E5.2, E5.3, E5.5, E5.8, E3.9 |
 | r14 | Tasks cancelled and absorbed: E5.2 and E5.5; E5.15 and E3.7 reduced | ADR-0039 replaced the Coordinator with the planner and r13 (PR #20) delivered it: `planner.py`, the Executor calls it, the agent is deleted, phase 1 case set with 57 cases. That left E5.2 without an object and E5.5 with pieces that already have an owner (`StepRecord` traces in E9.1 and E5.3, failure injection with `StepError.kind`, planning error included, in E9.3 with r13-07, the zero-redundant-simulations counter in E5.3), and cut E5.15 to a verification and E3.7 to a maintainer review of a snapshot that `plan_study` produces (its independence is the 14 + 1 plans frozen in r13-03). New task status **cancelled**: the task leaves the plan, counts no points or pending work, and its dependents inherit its blockers (absorption) unless a substitute is declared; the spine becomes E3.7 → E5.15 → E5.3. E5.2 −3, E5.5 −11, E5.15 3 → 1, E3.7 4 → 2: 18 pts fewer, 991 → 973; no date moves. No ADR: it applies ADR-0039. | — | E3.7, E5.3, E5.15, E9.1, E9.3 |
+| r15 | E5.3 re-estimated 14 → 6 pts | Triage against the code found the loop closure, `max_rounds` with the forced last round and the multi-network `ExpertTask` (ADR-0032) already built and tested. What is left: a counter of simulations over a multi-phase study (no pair (scenario, seed) run twice, stored and earlier-phase results reused), GP-4 and GP-5 at use-case level, a closing note on the network scope. 14 → 6 pts: 973 → 965; no date moves. No ADR: it applies ADR-0023, ADR-0025, ADR-0032 and ADR-0038. | — | E5.3, E9.1 |
 
 A cancelled task keeps its id in the "Prepares" column of the rows above as history (E5.2, E5.5): read what it prepared through r14.
 
