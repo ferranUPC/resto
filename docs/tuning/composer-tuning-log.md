@@ -295,8 +295,7 @@ LIMITATIONS
 
 ## Closing note, 2026-10-07
 
-The maintainer ran what was needed for now (the three runs above, then `v3` with the plain-text renderer
-from ticket 06) and closed E5.4's tickets 05 and 06. The prose is judged good enough to move on, not
-final: the Composer gets its real evaluation with the golden paths (E9.1), on real Expert answers
-instead of the hand-written one of the first run. Open for then: the traceability checker and the
+The maintainer tried what they needed for now (the three runs above) and closed E5.4's tickets 05 and
+06. That is not a verdict on the prose: the Composer gets its real evaluation with the golden paths
+(E9.1), on real Expert answers instead of the hand-written one of the first run. Open for then: the traceability checker and the
 faithfulness rubric (E5.7), and a `v3` run on DEV-NET, which was not repeated here.
