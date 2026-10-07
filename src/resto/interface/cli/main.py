@@ -168,11 +168,8 @@ def main(
     finally:
         if db is not None:
             db.close()
-    if study.status is StudyStatus.COMPLETED:
-        print(f"study {study.study_id}: completed")  # the report's Markdown comes with E5.4
-        return 0
     print(render_study(study), end="")
-    return 1
+    return 0 if study.status is StudyStatus.COMPLETED else 1
 
 
 if __name__ == "__main__":

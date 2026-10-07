@@ -4,8 +4,8 @@
 E5.11): the Executor already knows what went wrong, so the Output Composer only runs for `completed`
 studies. A failed study is shown in three blocks — what happened, what was done (a rerun of the same
 request reuses it), what the user can do (by `StepError.kind`); an `awaiting_user` study lists the
-Input Parser's ambiguities, or what a specialist needs from the user. Rendering a completed
-study's `Report` is E5.4.
+Input Parser's ambiguities, or what a specialist needs from the user. A `completed` study renders
+its `Report` (E5.4): the model's prose as written, every table and line of fixed shape by code.
 """
 
 from __future__ import annotations
@@ -35,17 +35,80 @@ WHAT_TO_DO: dict[StepErrorKind, str] = {
 
 
 def render_study(study: Study) -> str:
-    """A `failed` or `awaiting_user` study as Markdown.
+    """A `completed`, `failed` or `awaiting_user` study as Markdown.
 
     Raises:
-        ValueError: the study is not in one of those states (a completed study is rendered from
-            its report; one still planning or running has nothing to show yet).
+        ValueError: the study is still planning or running: it has nothing to show yet.
     """
+    if study.status is StudyStatus.COMPLETED:
+        return render_completed(study)
     if study.status is StudyStatus.FAILED:
         return render_failed(study)
     if study.status is StudyStatus.AWAITING_USER:
         return render_awaiting_user(study)
-    raise ValueError(f"only failed or awaiting_user studies are rendered here, not {study.status}")
+    raise ValueError(
+        f"a study is rendered once completed, failed or awaiting_user, not {study.status}"
+    )
+
+
+def render_completed(study: Study) -> str:
+    if study.status is not StudyStatus.COMPLETED:
+        raise ValueError("not a completed study")
+    report = study.report
+    assert report is not None  # Study invariant: completed <=> a report
+    lines = [
+        f"# Study {study.study_id}: report",
+        "",
+        f"> {study.question.text}",
+        "",
+        "## Summary",
+        "",
+        report.summary,
+    ]
+    for section in report.sections:
+        lines += ["", f"## {section.title}", "", section.body]
+    lines += ["", "## Claims", ""]
+    lines += [
+        f"- {c.text} (evidence: {', '.join(f'`{r}`' for r in c.evidence_refs)})"
+        for c in report.claims
+    ] or ["No claims."]
+    lines += ["", "## Evidence", "", "| Ref | Kind | Description |", "| --- | --- | --- |"]
+    known = {e.ref: e for r in study.rounds[-1:] for e in r.answer.evidence}
+    cited = dict.fromkeys(ref for c in report.claims for ref in c.evidence_refs)
+    for ref in cited:
+        ev = known.get(ref)
+        kind = ev.kind.value if ev else "unresolved"
+        text = _cell(ev.excerpt) if ev and ev.excerpt else "-"
+        lines.append(f"| `{ref}` | {kind} | {text} |")
+    lines += [
+        "",
+        "## Experiments",
+        "",
+        "| Phase | Arm | Role | Scenario | Results | Origin |",
+        "| --- | --- | --- | --- | --- | --- |",
+    ]
+    for k, phase in enumerate(study.phases):
+        for e in phase.experiments:
+            origin = "reused" if e.reused else "run now"
+            lines.append(
+                f"| {k} | {_cell(e.arm)} | {e.role} | {e.scenario_id} | {len(e.result_ids)} "
+                f"| {origin} |"
+            )
+    lines += [
+        "",
+        "## Mode and basis",
+        "",
+        f"Mode: {report.mode}. Basis: {report.basis}.",
+        "",
+        "## Limitations",
+        "",
+    ]
+    lines += [f"- {x}" for x in report.limitations] or ["None stated."]
+    return "\n".join(lines) + "\n"
+
+
+def _cell(text: str) -> str:
+    return text.replace("|", "\\|").replace("\n", " ")
 
 
 def render_failed(study: Study) -> str:
