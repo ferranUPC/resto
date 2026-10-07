@@ -2,6 +2,17 @@
 
 A short summary of what happened on each working day. The most recent entry comes first, and days with no activity have no entry. `progress-review` adds the new entries.
 
+## 06.10.2026
+
+`Intent` no longer has a `counterfactual` value. A contrast now decides which arms are simulated,
+whether the request asks about one setup or compares several (ADR-0038). The Coordinator agent is
+removed outright and replaced by a plain function in the domain layer that plans a study from a
+`Question`; the Executor calls it directly, with no agent, prompt, or clarification step in between
+(ADR-0039). The evaluation budget document for the supervisors is written, with a cost model, an
+interactive page, and a short English version stating plainly that the planned tier can exceed the
+$30 reference by a few dollars. The work plan drops two tasks that this day's refactor made redundant
+and records what became of their scope.
+
 ## 05.10.2026
 
 The plan bank gets a rules script that derives a gold `StudyPlan` for each of the 54 request-bank
