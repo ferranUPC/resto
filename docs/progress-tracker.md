@@ -4,7 +4,7 @@ Tracks completion of every task in [`tfm-work-plan.md`](tfm-work-plan.md) (**v0.
 2026-09-24). Task descriptions here are shortened for scanning — the source of truth for scope, points
 and due dates is `tfm-work-plan.md` §1, and for DoD thresholds `tfm-architecture-and-dod.md` §4.x.
 
-Status (decided 2026-09-24, wayfinder #3 — exact wording, applied by the `progress-review` skill):
+Status (decided 2026-09-24, wayfinder #3 — exact wording, applied by the `daily-review` and `weekly-review` skills):
 
 - ⬜ not started · 🔄 in progress · ✅ done.
 - ⏳ **awaiting measurement**: the work is built and every development run it needs has been done; the
@@ -265,10 +265,10 @@ measurement happens in Validation 2. Plan v0.4 renumbered M3–M9; the equivalen
 | M1 | Fri 16 Oct | Fri 16 Oct | Tooling complete | ✅ | 2026-09-15, a month early: E1 fully ✅, E2.1/E2.2 (Runner/Builder Minimal) ✅, E3.1 (20×3 scenario matrix stored via real DatabaseMCP) ✅ |
 | M2 | Tue 20 Oct | Fri 13 Nov | Expert built on DEV-NET | ✅ | 2026-09-25: E3.8 ✅, E4.2/E4.3/E4.4 ⏳ (dev sweep on the E3.8 bank meets every DoD bar), E4.5 ⏳ (EXP-01 ready to run in V2). Every listed task is ✅ or ⏳. 2026-10-01: the work plan re-baselined this milestone's target from Fri 9 Oct to Tue 20 Oct (deadline unchanged), a re-baselining rather than a slip, since M2 was already met and is now 25 days ahead of the new target instead of 11. The measurement itself (EXP-01, all four §4.7 families at full scale) still runs in Validation 2, per the build/measurement split this milestone type is defined around |
 | M3 | Mon 26 Oct | Fri 27 Nov | Planner loop built | ⬜ | Needs E5.13, E3.11, E3.7, E5.14, E5.15, E5.3, E5.4 ✅ (or ⏳) and GP-1…5/GP-9 passing (E9.1); E5.2 is cancelled, r14, since the planner is r13's, delivered. E5.13/E3.11/E5.14 ✅. 2026-10-06: r13 (ADR-0039) delivers the planner itself, removing what used to be this milestone's biggest open risk, an agent that routes from a live model. The spine's remaining work is now the E3.7 human review, E5.15's leftover search, the zero-redundant-simulations counter on E5.3, E5.4's placeholder, and E9.1's golden-path framework, none of which exist yet. |
-| M4 | Fri 6 Nov | Fri 11 Dec | Builder and Runner built | ⬜ | E2.5, E2.6 ✅, E2.7 ✅ or ⏳; GP-6 and GP-7 passing (E9.2). Renumbered by plan v0.4 (§8); the next `progress-review` refreshes the evidence. |
-| M5 | Mon 30 Nov | Fri 15 Jan | Generators built | ⬜ | E6.1, E7.1, E3.12, E7.2, E7.3 ✅; E6.2, E7.4 ✅ or ⏳; GP-8 and GP-11 (E9.8). Renumbered by plan v0.4 (§8); the next `progress-review` refreshes the evidence. |
-| M6 | Tue 8 Dec | Fri 22 Jan | REAL-NET ready (built) | ⬜ | E8.1 frozen; E8.2, E8.3, E8.4 ✅; E8.5 ⏳. Renumbered by plan v0.4 (§8); the next `progress-review` refreshes the evidence. |
-| M7 | Fri 15 Jan (~~Fri 11 Dec~~) | ~~Fri 5 Feb~~ Fri 29 Jan | All modules built | ⬜ | E5.6, E5.7 (checker), E9.3, E7.5, E7.6 ✅ or ⏳; E4.9 ⏳ (setup); 11 golden paths as tests. E5.5 is cancelled (r14): its failure-injection half is now E9.3's, its zero-redundant-simulations half is E5.3's. Renumbered by plan v0.4 (§8); the next `progress-review` refreshes the evidence. |
+| M4 | Fri 6 Nov | Fri 11 Dec | Builder and Runner built | ⬜ | E2.5, E2.6 ✅, E2.7 ✅ or ⏳; GP-6 and GP-7 passing (E9.2). Renumbered by plan v0.4 (§8); the next `daily-review` refreshes the evidence. |
+| M5 | Mon 30 Nov | Fri 15 Jan | Generators built | ⬜ | E6.1, E7.1, E3.12, E7.2, E7.3 ✅; E6.2, E7.4 ✅ or ⏳; GP-8 and GP-11 (E9.8). Renumbered by plan v0.4 (§8); the next `daily-review` refreshes the evidence. |
+| M6 | Tue 8 Dec | Fri 22 Jan | REAL-NET ready (built) | ⬜ | E8.1 frozen; E8.2, E8.3, E8.4 ✅; E8.5 ⏳. Renumbered by plan v0.4 (§8); the next `daily-review` refreshes the evidence. |
+| M7 | Fri 15 Jan (~~Fri 11 Dec~~) | ~~Fri 5 Feb~~ Fri 29 Jan | All modules built | ⬜ | E5.6, E5.7 (checker), E9.3, E7.5, E7.6 ✅ or ⏳; E4.9 ⏳ (setup); 11 golden paths as tests. E5.5 is cancelled (r14): its failure-injection half is now E9.3's, its zero-redundant-simulations half is E5.3's. Renumbered by plan v0.4 (§8); the next `daily-review` refreshes the evidence. |
 | V1 | Mon 14 → Fri 18 Dec | Fri 18 Dec | Validation 1 | ⬜ | Reduced checkpoints of every module built by 11 Dec on dev splits, interim figures. Wave 5 is not in V1 |
 | FF | Fri 22 Jan | Fri 29 Jan | Feature freeze | ⬜ | No behaviour change after it |
 | V2 | Mon 25 → Fri 29 Jan | Fri 5 Feb | Validation 2 | ⬜ | Every measurement suite run once at definitive size, held-out included |

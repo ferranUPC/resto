@@ -54,7 +54,7 @@ The DEV-NET assets move to clock time (08:00 to 09:00, ADR-0028) and the verific
 
 ## 24.09.2026
 
-The work plan is reorganized into version 0.3, with capacity measured in story points, slack, milestones with a target and a deadline, and a new cut order. A graph of pending tasks with its critical path is tried out, and the maintainer's decisions are noted, such as doing E4.9 on DEV-NET and freezing features before Validation 2. The progress page now reads the new plan format and shows tasks awaiting measurement separately. Work also continues on annotating Parser requests, and the progress-review skill is updated.
+The work plan is reorganized into version 0.3, with capacity measured in story points, slack, milestones with a target and a deadline, and a new cut order. A graph of pending tasks with its critical path is tried out, and the maintainer's decisions are noted, such as doing E4.9 on DEV-NET and freezing features before Validation 2. The progress page now reads the new plan format and shows tasks awaiting measurement separately. Work also continues on annotating Parser requests, and the progress-review (deprecated) skill is updated.
 
 ## 23.09.2026
 
@@ -66,7 +66,7 @@ Work focused on architecture decisions and Expert evaluation. ADR-0023 splits th
 
 ## 18.09.2026
 
-No code changes. The automatic progress review found no new commits and PyPI was not responding, so that result was reverted. The second pass marks E3.2 and E4.1 as done and E3.3 as partial. The progress-review skill is also fixed so that it audits every tracker row against evidence and not only the latest diffs, because two rows had gone stale.
+No code changes. The automatic progress review (deprecated) found no new commits and PyPI was not responding, so that result was reverted. The second pass marks E3.2 and E4.1 as done and E3.3 as partial. The progress-review (deprecated) skill is also fixed so that it audits every tracker row against evidence and not only the latest diffs, because two rows had gone stale.
 
 ## 17.09.2026
 
@@ -74,7 +74,7 @@ Work focused on Network Expert development. The DEV-NET/peak question bank now e
 
 ## 16.09.2026
 
-No code changes. The day's progress review verifies tasks E2.3, E2.4 and E3.1 as done, and milestone M1 is met.
+No code changes. The day's progress review (deprecated) verifies tasks E2.3, E2.4 and E3.1 as done, and milestone M1 is met.
 
 ## 15.09.2026
 
@@ -86,7 +86,7 @@ The contracts are closed: domain, drafts, JSON schemas and the v1.0 DatabaseMCP 
 
 ## 13.09.2026
 
-No code commits. The progress review confirms that CI is green and that E0.1 is closed. It warns that the drafts, schemas and DatabaseMCP contract work was still uncommitted locally.
+No code commits. The progress review (deprecated) confirms that CI is green and that E0.1 is closed. It warns that the drafts, schemas and DatabaseMCP contract work was still uncommitted locally.
 
 ## 11.09.2026
 
@@ -94,4 +94,4 @@ SUMO is pinned to version 1.27.1 and CI uses that version. The architecture (v0.
 
 ## 10.09.2026
 
-First commit of the project. The repository skeleton is created with the hexagonal architecture as folders, the CI workflow, the work plan and the architecture and DoD document. The progress-review skill is also added, and it runs the first progress review of the day.
+First commit of the project. The repository skeleton is created with the hexagonal architecture as folders, the CI workflow, the work plan and the architecture and DoD document. The progress-review (deprecated) skill is also added, and it runs the first progress review of the day.
