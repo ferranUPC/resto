@@ -4,7 +4,7 @@ ports, fake promotions, in-memory repositories, a fake SUMO runner and sample pl
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -285,6 +285,19 @@ def derived_network(task: Any, run: Any) -> Network:
     )
 
 
+def _report(study: Study, run: AgentRun[Report]) -> Report:
+    assert run.output is not None
+    return run.output
+
+
+@dataclass(frozen=True)
+class Simulations:
+    """The runner's calls as (scenario_id, seed) pairs, in call order."""
+
+    load_checks: tuple[tuple[str, int], ...]
+    study_runs: tuple[tuple[str, int], ...]
+
+
 class World:
     """Everything `run_study` needs, with the scripted agents reachable for assertions."""
 
@@ -407,6 +420,22 @@ class World:
         )
         self.demands.store(rerouted)
         return rerouted
+
+    def simulations(self) -> Simulations:
+        """What reached the runner, read off `runner.calls` as (scenario_id, seed) pairs: the load
+        checks of built scenarios apart from the study's runs."""
+        load_checks: list[tuple[str, int]] = []
+        study_runs: list[tuple[str, int]] = []
+        for _, seed, out_dir in self.runner.calls:
+            if out_dir.name == "load_check":
+                load_checks.append((out_dir.parent.name, seed))
+                continue
+            # Convention: a study run's out_dir is named `<result_id>.<suffix>`; the scenario comes
+            # from the stored result, the seed from what the runner actually received.
+            result = self.results.get(out_dir.name.split(".")[0])
+            assert result is not None, f"a run left no result: {out_dir}"
+            study_runs.append((result.scenario_id, seed))
+        return Simulations(tuple(load_checks), tuple(study_runs))
 
     def run(self, **kwargs: Any) -> Study:
         return run_study("the user's text", self.deps, self.settings, **kwargs)
