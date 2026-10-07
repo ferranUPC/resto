@@ -1,10 +1,10 @@
 """CLI entrypoint and composition root (ADR-0025 §6): the one place where the Executor's agent
 ports meet their implementations and the infrastructure is bound.
 
-Agents that do not exist yet — Output Composer (E5.4), Network Author (E6.1),
-Demand Generator (E7.1) — and the promotions of their drafts are placeholders that raise
-`NotImplementedError`. A request the Input Parser cannot turn into a `Question` ends in
-`ParserFailed`, and the CLI reports it without creating a Study.
+Agents that do not exist yet — Network Author (E6.1), Demand Generator (E7.1) — and the
+promotions of their drafts are placeholders that raise `NotImplementedError`. A request the
+Input Parser cannot turn into a `Question` ends in `ParserFailed`, and the CLI reports it without
+creating a Study.
 
     python -m resto.interface.cli.main "how congested is the peak?" [--mode forced]
 """
@@ -17,6 +17,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import NoReturn
 
+from resto.adapters.llm.agents.composer import ComposerPort
 from resto.adapters.llm.agents.expert import ExpertPort, NoteWriterPort
 from resto.adapters.llm.agents.input_parser import InputParserPort
 from resto.adapters.llm.agents.scenario_builder import ScenarioBuilderPort
@@ -67,6 +68,7 @@ def build_deps(
     `out_dir` here is only the Builder's; the study's own settings are `StudySettings`.
     """
     network_query_loader = StoredNetworkQueryLoader(db.networks)
+    studies = InMemoryStudyRepository()
     return StudyDeps(
         agents=StudyAgents(
             parser=InputParserPort(agent=agent, budget=budget),
@@ -99,7 +101,7 @@ def build_deps(
                 ),
             ),
             note_writer=NoteWriterPort(agent=agent, budget=budget),
-            composer=_Pending("Output Composer", "E5.4"),
+            composer=ComposerPort(agent=agent, budget=budget, studies=studies, results=db.results),
         ),
         promotions=StudyPromotions(
             network=_Pending("network promotion", "E6.1"),
@@ -111,7 +113,7 @@ def build_deps(
         scenarios=db.scenarios,
         results=db.results,
         notes=db.notes,
-        studies=InMemoryStudyRepository(),
+        studies=studies,
         runner=SubprocessSumoRunner(),
         run_dirs=FilesystemRunDirectories(),
         network_query_loader=network_query_loader,
