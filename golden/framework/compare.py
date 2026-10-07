@@ -7,6 +7,7 @@ from dataclasses import dataclass
 
 from golden.framework.expected import ExpectedPhase, ExpectedTrace
 from golden.framework.observed import ObservedPhase
+from resto.application.ports.tracing import TraceEvent
 from resto.domain.entities.study import StudyStatus
 
 _ATTRIBUTES = ("arms", "reused", "basis", "forced_by_limit", "round")
@@ -57,8 +58,19 @@ def compare(
     expected: ExpectedTrace,
     observed: Sequence[ObservedPhase],
     study_status: StudyStatus | None = None,
+    events: Sequence[TraceEvent] | None = None,
 ) -> Diff:
+    """`events` is needed only when the expectation sets `allowed_events`."""
     found: list[Mismatch] = []
+    if expected.allowed_events is not None:
+        if events is None:
+            raise ValueError("the expected trace sets allowed_events, so compare needs the events")
+        extra = sorted(
+            {type(e).__name__ for e in events if not isinstance(e, expected.allowed_events)}
+        )
+        if extra:
+            allowed = sorted(t.__name__ for t in expected.allowed_events)
+            found.append(Mismatch(None, "events", f"only {allowed}", f"also {extra}"))
     if expected.status is not None and expected.status is not study_status:
         found.append(Mismatch(None, "status", _show(expected.status), _show(study_status)))
     for k, want in enumerate(expected.phases):

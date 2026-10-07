@@ -176,3 +176,23 @@ def test_a_study_status_the_expectation_leaves_out_is_not_compared() -> None:
     study = _study()
 
     assert compare(EXPECTED, observe(study, _events(study)), StudyStatus.FAILED).ok
+
+
+def test_an_event_type_outside_allowed_events_is_reported() -> None:
+    study = _study()
+    expected = replace(EXPECTED, allowed_events=(StudyCreated, PhaseStarted, StepTraced))
+
+    text = compare(expected, observe(study, _events(study)), events=_events(study)).render()
+
+    assert text.startswith("study, events: expected only")
+    assert "ExpertRoundHeld" in text and "PlanMade" in text
+
+
+def test_events_inside_allowed_events_pass() -> None:
+    study = _study()
+    expected = replace(
+        EXPECTED,
+        allowed_events=(StudyCreated, PhaseStarted, PlanMade, StepTraced, ExpertRoundHeld),
+    )
+
+    assert compare(expected, observe(study, _events(study)), events=_events(study)).ok

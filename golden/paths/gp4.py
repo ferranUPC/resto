@@ -5,7 +5,8 @@ mode only forbids abstaining. The base is simulated; the treatment is predicted,
 phase, only the base experiment, the answer's `basis` is set and no second phase follows.
 """
 
-from golden.framework import ExpectedPhase, ExpectedStep, ExpectedTrace, GoldenPath
+from golden.framework import ExpectedPhase, ExpectedTrace, GoldenPath, steps
+from resto.domain.entities.study import StudyStatus
 from resto.domain.value_objects.expert_answer import Basis
 
 GP4 = GoldenPath(
@@ -14,15 +15,12 @@ GP4 = GoldenPath(
     expected=ExpectedTrace(
         (
             ExpectedPhase(
-                steps=tuple(
-                    ExpectedStep(tool)
-                    for tool in (
-                        "obtain_network",
-                        "build_scenario",
-                        "run_simulation",
-                        "ask_expert",
-                        "compose_report",
-                    )
+                steps=steps(
+                    "obtain_network",
+                    "build_scenario",
+                    "run_simulation",
+                    "ask_expert",
+                    "compose_report",
                 ),
                 arms=("base",),
                 reused=(False,),
@@ -30,6 +28,7 @@ GP4 = GoldenPath(
                 forced_by_limit=False,
                 round=1,
             ),
-        )
+        ),
+        status=StudyStatus.COMPLETED,
     ),
 )
