@@ -7,21 +7,21 @@ from dataclasses import dataclass
 
 from golden.framework.expected import ExpectedPhase, ExpectedTrace
 from golden.framework.observed import ObservedPhase
+from resto.domain.entities.study import StudyStatus
 
 _ATTRIBUTES = ("arms", "reused", "basis", "forced_by_limit", "round")
 
 
 @dataclass(frozen=True, slots=True)
 class Mismatch:
-    phase: int
+    phase: int | None
     what: str
     expected: object
     observed: object
 
     def render(self) -> str:
-        return (
-            f"phase {self.phase}, {self.what}: expected {self.expected}, observed {self.observed}"
-        )
+        where = "study" if self.phase is None else f"phase {self.phase}"
+        return f"{where}, {self.what}: expected {self.expected}, observed {self.observed}"
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,8 +53,14 @@ def _phase(k: int, expected: ExpectedPhase, observed: ObservedPhase) -> list[Mis
     return found
 
 
-def compare(expected: ExpectedTrace, observed: Sequence[ObservedPhase]) -> Diff:
+def compare(
+    expected: ExpectedTrace,
+    observed: Sequence[ObservedPhase],
+    study_status: StudyStatus | None = None,
+) -> Diff:
     found: list[Mismatch] = []
+    if expected.status is not None and expected.status is not study_status:
+        found.append(Mismatch(None, "status", _show(expected.status), _show(study_status)))
     for k, want in enumerate(expected.phases):
         if k >= len(observed):
             found.append(Mismatch(k, "phase", "present", "missing"))
