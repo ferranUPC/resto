@@ -6,7 +6,7 @@ certify, this module chains them.
     -> report
 
 - **Agents** are reached through their ports (`application/ports/agents/`), promotions the Executor
-  cannot call directly yet (network, demand, reroute, report) through `StudyPromotions`; both are
+  cannot call directly yet (network, demand, reroute) through `StudyPromotions`; both are
   bound in the composition root (`interface/cli`).
 - **Persistence.** `StudyRecorder` is the only writer of the `Study`: every change (a step, a new
   phase, a network added, the note ids) is a new `Study` built with `dataclasses.replace`, stored

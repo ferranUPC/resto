@@ -105,7 +105,6 @@ def build_deps(
             network=_Pending("network promotion", "E6.1"),
             demand=_Pending("demand promotion", "E7.1"),
             reroute=_Pending("reroute_demand", "E7.1"),
-            report=_Pending("compose_report promotion", "E5.4"),
         ),
         networks=db.networks,
         demands=db.demands,
