@@ -22,6 +22,7 @@ from golden.framework.expected import (
     GoldenPath,
     PriorState,
     StoredScenario,
+    steps,
 )
 from golden.framework.observed import ObservedPhase, observe
 from golden.framework.setup import Run, Setup, check
@@ -41,4 +42,5 @@ __all__ = [
     "check",
     "compare",
     "observe",
+    "steps",
 ]

@@ -26,6 +26,10 @@ class FakeSetup:
     def repetitions(self) -> int:
         return REPETITIONS
 
+    @property
+    def compare_repetitions(self) -> bool:
+        return True
+
     def _script(self, path: GoldenPath) -> AgentScript:
         available = self._scripts if self._scripts is not None else scripts.discover()
         try:

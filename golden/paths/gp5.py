@@ -8,12 +8,13 @@ from tests.unit.application._world import CLOSURE
 
 from golden.framework import (
     ExpectedPhase,
-    ExpectedStep,
     ExpectedTrace,
     GoldenPath,
     PriorState,
     StoredScenario,
+    steps,
 )
+from resto.domain.entities.study import StudyStatus
 from resto.domain.value_objects.expert_answer import Basis
 
 GP5 = GoldenPath(
@@ -23,17 +24,14 @@ GP5 = GoldenPath(
     expected=ExpectedTrace(
         (
             ExpectedPhase(
-                steps=tuple(
-                    ExpectedStep(tool)
-                    for tool in (
-                        "obtain_network",
-                        "build_scenario",
-                        "run_simulation",
-                        "build_scenario",
-                        "run_simulation",
-                        "ask_expert",
-                        "compose_report",
-                    )
+                steps=steps(
+                    "obtain_network",
+                    "build_scenario",
+                    "run_simulation",
+                    "build_scenario",
+                    "run_simulation",
+                    "ask_expert",
+                    "compose_report",
                 ),
                 arms=("base", "treatment"),
                 reused=(True, True),
@@ -41,6 +39,7 @@ GP5 = GoldenPath(
                 forced_by_limit=False,
                 round=1,
             ),
-        )
+        ),
+        status=StudyStatus.COMPLETED,
     ),
 )

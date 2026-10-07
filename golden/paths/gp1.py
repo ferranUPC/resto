@@ -2,12 +2,13 @@
 
 from golden.framework import (
     ExpectedPhase,
-    ExpectedStep,
     ExpectedTrace,
     GoldenPath,
     PriorState,
     StoredScenario,
+    steps,
 )
+from resto.domain.entities.study import StudyStatus
 from resto.domain.value_objects.expert_answer import Basis
 
 PATH = GoldenPath(
@@ -17,15 +18,12 @@ PATH = GoldenPath(
     expected=ExpectedTrace(
         (
             ExpectedPhase(
-                steps=tuple(
-                    ExpectedStep(tool)
-                    for tool in (
-                        "obtain_network",
-                        "build_scenario",
-                        "run_simulation",
-                        "ask_expert",
-                        "compose_report",
-                    )
+                steps=steps(
+                    "obtain_network",
+                    "build_scenario",
+                    "run_simulation",
+                    "ask_expert",
+                    "compose_report",
                 ),
                 arms=("base",),
                 reused=(True,),
@@ -33,6 +31,7 @@ PATH = GoldenPath(
                 forced_by_limit=False,
                 round=1,
             ),
-        )
+        ),
+        status=StudyStatus.COMPLETED,
     ),
 )

@@ -17,7 +17,9 @@ from golden.framework import (
 )
 from golden.setups.fake import AgentScript, FakeSetup, scripts
 
+from resto.application.ports.tracing import ModelCall
 from resto.domain.value_objects.expert_answer import Basis
+from resto.domain.value_objects.step_record import Usage
 from tests.unit.application._world import BASELINE_PLAN, DESCRIBE, answers
 
 TOOLS = (
@@ -88,7 +90,8 @@ class _Wobbly:
 
     repetitions = 3
 
-    def __init__(self, inner: FakeSetup, *, vary: bool) -> None:
+    def __init__(self, inner: FakeSetup, *, vary: bool, compare_repetitions: bool = True) -> None:
+        self.compare_repetitions = compare_repetitions
         self._inner = inner
         self._vary = vary
         self._runs = 0
@@ -117,3 +120,53 @@ def test_repetitions_that_differ_fail_the_check() -> None:
 
 def test_repetitions_that_are_equal_pass_the_check() -> None:
     assert check(_Wobbly(FakeSetup({"throwaway": SCRIPT}), vary=False), _path()).ok
+
+
+def test_a_setup_that_does_not_compare_repetitions_passes_when_each_meets_the_trace() -> None:
+    path = replace(
+        _path(), expected=ExpectedTrace((replace(_path().expected.phases[0], basis=None),))
+    )
+    setup = _Wobbly(FakeSetup({"throwaway": SCRIPT}), vary=True, compare_repetitions=False)
+
+    assert check(setup, path).ok
+
+
+def test_the_fake_compares_repetitions() -> None:
+    assert FakeSetup({}).compare_repetitions is True
+
+
+class _LateEventDrift:
+    """The second repetition equals the first in every observed attribute, but a later
+    repetition adds an event the projection ignores; the first (earlier) difference must not mask
+    it."""
+
+    repetitions = 3
+    compare_repetitions = True
+
+    def __init__(self, inner: FakeSetup) -> None:
+        self._inner = inner
+        self._runs = 0
+
+    def run(self, path: GoldenPath) -> Run:
+        run = self._inner.run(path)
+        self._runs += 1
+        if self._runs == 2:
+            phase = run.study.phases[0]
+            assert phase.round is not None
+            answer = replace(phase.round.answer, basis=Basis.INFERRED)
+            other = replace(phase, round=replace(phase.round, answer=answer))
+            return Run(replace(run.study, phases=(other, *run.study.phases[1:])), run.events)
+        if self._runs == 3:
+            return Run(run.study, (*run.events, ModelCall(Usage(input_tokens=1))))
+        return run
+
+
+def test_a_difference_in_a_later_repetition_is_not_masked_by_an_earlier_one() -> None:
+    path = replace(
+        _path(), expected=ExpectedTrace((replace(_path().expected.phases[0], basis=None),))
+    )
+
+    text = check(_LateEventDrift(FakeSetup({"throwaway": SCRIPT})), path).render()
+
+    assert "repetition 1 differs" in text
+    assert "events of repetition 2 differ" in text

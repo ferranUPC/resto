@@ -1,7 +1,6 @@
-"""GP-5: a contrast whose two arms are stored; the plan names both, the Expert answers once."""
+"""GP-5: a contrast whose two arms are stored; the plan names both, the Expert answers once. Same
+script as the GP-3 single-phase variant: the paths differ in the stored prior state."""
 
-from tests.unit.application._world import WHAT_IF, WHAT_IF_PLAN, answers
+from golden.setups.fake.scripts.gp3_single_phase import SCRIPT
 
-from golden.setups.fake.script import AgentScript
-
-SCRIPT = AgentScript(question=WHAT_IF, plans=(WHAT_IF_PLAN,), expert=(answers(),))
+__all__ = ["SCRIPT"]

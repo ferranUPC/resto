@@ -1,7 +1,6 @@
-"""GP-2: the baseline is built and run, then the Expert answers."""
+"""GP-2: the baseline is built and run, then the Expert answers. Same script as GP-1: the paths
+differ in the stored prior state, not in what the agents do."""
 
-from tests.unit.application._world import BASELINE_PLAN, DESCRIBE, answers
+from golden.setups.fake.scripts.gp1 import SCRIPT
 
-from golden.setups.fake.script import AgentScript
-
-SCRIPT = AgentScript(question=DESCRIBE, plans=(BASELINE_PLAN,), expert=(answers(),))
+__all__ = ["SCRIPT"]

@@ -22,6 +22,7 @@ from resto.domain.value_objects.study_plan import StudyPlan
 
 class _Stub:
     repetitions = 1
+    compare_repetitions = False
     models: Mapping[str, str] = {"expert": "m"}
 
     def estimate_cost(self, paths: tuple[GoldenPath, ...]) -> Decimal:
@@ -38,6 +39,7 @@ def test_an_object_with_the_agentic_members_is_an_agentic_setup() -> None:
 def test_an_object_without_a_cost_estimate_is_not_an_agentic_setup() -> None:
     class NoEstimate:
         repetitions = 1
+        compare_repetitions = False
         models: Mapping[str, str] = {}
 
         def run(self, path: GoldenPath) -> Run:
@@ -78,6 +80,10 @@ def test_golden_path_data_is_plain_values_and_stored_facts() -> None:
             module = type(value).__module__
             assert (
                 value is None
+                or (
+                    isinstance(value, type)
+                    and value.__module__ == "resto.application.ports.tracing"
+                )
                 or isinstance(value, str | int | float | bool | Enum | tuple | dict)
                 or module.startswith("golden.framework")
                 or module.startswith("resto.domain.value_objects.")

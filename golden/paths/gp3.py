@@ -5,14 +5,11 @@ match and `needs_simulation`, and phase 1 realises the treatment. Two phases, ar
 `SINGLE_PHASE` is the variant where the plan covers both sides in phase 0 (ADR-0038).
 """
 
-from golden.framework import ExpectedPhase, ExpectedStep, ExpectedTrace, GoldenPath
+from golden.framework import ExpectedPhase, ExpectedTrace, GoldenPath, steps
+from resto.domain.entities.study import StudyStatus
 from resto.domain.value_objects.expert_answer import Basis
 
 _BUILD_AND_RUN = ("obtain_network", "build_scenario", "run_simulation")
-
-
-def _steps(*tools: str) -> tuple[ExpectedStep, ...]:
-    return tuple(ExpectedStep(t) for t in tools)
 
 
 PATH = GoldenPath(
@@ -21,7 +18,7 @@ PATH = GoldenPath(
     expected=ExpectedTrace(
         (
             ExpectedPhase(
-                steps=_steps(*_BUILD_AND_RUN, "ask_expert"),
+                steps=steps(*_BUILD_AND_RUN, "ask_expert"),
                 arms=("base",),
                 reused=(False,),
                 basis=Basis.INFERRED,
@@ -29,14 +26,15 @@ PATH = GoldenPath(
                 round=1,
             ),
             ExpectedPhase(
-                steps=_steps(*_BUILD_AND_RUN, "ask_expert", "compose_report"),
+                steps=steps(*_BUILD_AND_RUN, "ask_expert", "compose_report"),
                 arms=("treatment",),
                 reused=(False,),
                 basis=Basis.OBSERVED,
                 forced_by_limit=False,
                 round=2,
             ),
-        )
+        ),
+        status=StudyStatus.COMPLETED,
     ),
 )
 
@@ -46,7 +44,7 @@ SINGLE_PHASE = GoldenPath(
     expected=ExpectedTrace(
         (
             ExpectedPhase(
-                steps=_steps(
+                steps=steps(
                     "obtain_network",
                     "build_scenario",
                     "run_simulation",
@@ -61,6 +59,7 @@ SINGLE_PHASE = GoldenPath(
                 forced_by_limit=False,
                 round=1,
             ),
-        )
+        ),
+        status=StudyStatus.COMPLETED,
     ),
 )
