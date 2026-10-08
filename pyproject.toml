@@ -36,7 +36,7 @@ packages = ["src/resto"]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-src = ["src", "tests", "conformance", "verify", "eval"]
+src = ["src", "tests", "conformance", "verify", "golden", "eval"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
@@ -48,7 +48,7 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 # never written against mypy and fixing its untyped ElementTree navigation is a separate task -
 # only the mypy-clean eval/ packages are listed here.
 files = [
-    "src", "tests", "conformance", "verify",
+    "src", "tests", "conformance", "verify", "golden",
     "task_tree",
     "eval/scenario_matrix", "eval/budget", "eval/benchmarks", "eval/question_bank", "eval/expert_benchmark",
 ]
