@@ -55,7 +55,7 @@ No scope is dropped and no date moves. No ADR.
 r16 (2026-10-07) adds **E11, the user interface** (61 pts), which neither the DoD v1.0 nor v0.4 listed: a
 chat-style web client over the pipeline, with a network selector, a database explorer, a view of the plan
 and of the messages between agents, a report viewer with evidence links, and a VTK export. It is planned
-work in a new **wave 6** (4 → 22 Jan) with its own milestone **MUI**, not Stretch, and it is the **first**
+work in a new **wave 6** (4 → 22 Jan) with its own milestone **M51** (named MUI until r19), not Stretch, and it is the **first**
 step of the fallback order (§5): if it is not built, the thesis says it was not built. No DoD criterion
 depends on it. The plan goes from 965 to **1026 pts**. E9.7 (the usability session, Stretch, never
 scheduled) moves into E11 as E11.10. No ADR: E11.1 records the stack decision in one.
@@ -73,9 +73,13 @@ that says whether two texts are equivalent, with a confidence per dimension and 
 compares typed values first (`eval/README.md`, principle 5); this is the exception for text that has no typed
 value (the Output Composer's prose, the Expert's prose, demand descriptions). **E3.13** (5 pts) designs it and
 calibrates it against a human; **E3.14** (8 pts) builds it into the golden-path framework. Both have points and
-no wave, no latest due and no milestone, like E12.2 to E12.5; they are candidates for a future milestone M10 for
+no wave, no latest due and no milestone, like E12.2 to E12.5; they belong to milestone **M52** (r19), a package for
 work at the edge of the plan, not created yet. They are not Stretch and not in any DoD criterion. The plan goes
 from 1058 to **1071 pts**; the slack does not change. No ADR: E3.13 decides whether the judge is worth building.
+
+r19 (2026-10-08) names the optional packages. **M51** is the old MUI (the UI, E11 without E11.10; wave 6, target Fri 22 Jan). **M52**
+holds the work that has points but no date: E12.2 to E12.5, E3.13, E3.14 and E11.10. Both are optional and the first things §5
+cuts, M52 before M51, so if only one gets built it is M51. Later packages are M53, M54 and so on. No points move (1071). No ADR.
 
 The notes v0.2 accumulated in its §0 (ADR-0023/0025/0026 scope, E3.4 split,
 estimates for E4.11 and E5.9–E5.12) are absorbed into the task rows; the old text is in
@@ -146,7 +150,7 @@ it gives it back first: it is the first thing §5 cuts. E12.1 (r17) takes 5 pts 
 - A **milestone** has a *target* (internal, computed from the planning rate) and a *deadline* (the v0.2
   date). A target may move; a deadline never moves later. A moved date is struck through, never
   deleted.
-- A **build milestone** (M2–M7 and MUI) is met when every task it lists is ✅ or ⏳. Its measurement happens in
+- A **build milestone** (M2–M7 and M51) is met when every task it lists is ✅ or ⏳. Its measurement happens in
   V2; "do not cut M2, M3, M6" protects both the build and the V2 measurement.
 - A **task** has no target date: it carries a **wave** (§3) and a **latest due**, the latest date that
   keeps its consumers on time.
@@ -161,7 +165,7 @@ document the task satisfies.
 
 **Wave** (§3): `1a`, `1b`, `2`, `3`, `4`, `5`, `6` build waves · `W` rolling writing track · `V2` only its
 measurement suite is left (built; ⏳ once the tracker syncs) · `F` final stretch, after V2 ·
-`M9` delivery window, not planned · `—` completed before this re-baseline (status in the tracker), or a
+`M9` delivery window, not planned · `M52` optional package, not scheduled · `—` completed before this re-baseline (status in the tracker), or a
 **cancelled** row (r14: 0 pts, no wave, no date).
 **Latest due** for a `—` row is its v0.2 due date (a cancelled row has none).
 
@@ -215,10 +219,10 @@ measurement suite is left (built; ⏳ once the tracker syncs) · `F` final stret
 | E3.10 | *(new 2026-09-24)* Trim `eval/decisions-log.md` to one line per decision, linking the tuning logs | doc edit | 2 | 1b | 11 Dec |
 | E3.11 | *(new 2026-09-30, widened by its grilling the same day)* ADR-0035 described demand, found while triaging E3.7: `Demand.description` (required) + free `labels` (domain, `DemandDraft`, schemas, both `Database` backends, DatabaseMCP demand record; `matrix.db` rebuilt); DEV-NET's three demands described; `Question.network_only` marked by the Parser; `time_window` is the period the user asks about for every `intent`; `demand_ref` becomes a short English phrase, scored by presence; DatabaseMCP contract and GP-10 ask instead of falling back to random demand; request bank (E3.4): concepts that need a demand name it (some with the demand spread across the text), a few stay without one on purpose, + 3 network-only `describe` concepts and one traffic counterexample, + 3 concepts on networks not in the DB (Berlin-Mitte, the Eixample, a 4x4 grid), variants regenerated and reviewed, new concepts placed by the frozen split rule (`concepts.py`); module docstring's "peak hour" rule updated; Parser (E5.1) development pass on dev, logged as one contract change (bank + the `demand_ref`/`time_window`/`network_only` prompt rules). DoD: bank rebuilt and verified, Parser dev thresholds still met, tests green. Development runs only (≈ $0.30) | domain + DEV-NET demands + request bank | 12 | 1b | 13 Nov |
 | E3.12 | *(new 2026-10-01, from the E3.7 grilling)* Resolution banks for the specialists (ADR-0037): the DB states built by functions in `eval/` from `matrix.db` (nothing, network, network + demands, results exist), all four for a stratified subset of ~15 concepts and "results exist" with synthetic marked results for the rest; distractors (`DEV-NET-2`, `Eixample-1347` and `Eixample-1211`, demands described by day); the 32-row demand resolution table (reuse only when the stored window contains the study window, generate otherwise, ask for typical-day phrases without raw data, ask for the period when none is derivable, `random traffic` always generates); gold per case as `Found`, draft or `NeedsUser` with candidates, reviewed on an annotation page. Single gold in V1. Detail in `.scratch/unplanned/issues/04`. Used by E6.1 and E7.1 (their resolution is tuned against it, so it follows them) | resolution banks | 8 | 3 | 11 Dec |
-| E3.13 | *(new 2026-10-07, r18)* Judge for free text, design and calibration: what "equivalent" means for two free-text fields (the conclusion must match; extra information is tolerated; missing information is not; a different supporting indicator is accepted when the trace backs it), the dimensions the judge scores, one threshold per dimension (all must pass), the verdict (`equivalent`, `different`, `uncertain`, `different_but_supported`; `uncertain` never counts as passed), the prompt, a `RESTO_JUDGE_MODEL` setting (default: the default model until the maintainer approves another) and its agreement with a human on hand-labelled pairs. Fields in scope: the Output Composer's prose and claims, the Expert's prose, demand descriptions and other free fields of plan steps. Includes a grilling session that fixes the dimensions and the thresholds. May end with "not worth building" | design + labelled pairs | 5 | — | — |
-| E3.14 | *(new 2026-10-07, r18)* Free-text judge check in the golden-path framework: a deterministic double in `pytest` and CI (no network), the real judge only in development rounds on demand and in V2, used only where no typed value exists; the report shows every dimension, its threshold and the reason for a `different` or `uncertain` | check in `golden/` | 8 | — | — |
+| E3.13 | *(new 2026-10-07, r18)* Judge for free text, design and calibration: what "equivalent" means for two free-text fields (the conclusion must match; extra information is tolerated; missing information is not; a different supporting indicator is accepted when the trace backs it), the dimensions the judge scores, one threshold per dimension (all must pass), the verdict (`equivalent`, `different`, `uncertain`, `different_but_supported`; `uncertain` never counts as passed), the prompt, a `RESTO_JUDGE_MODEL` setting (default: the default model until the maintainer approves another) and its agreement with a human on hand-labelled pairs. Fields in scope: the Output Composer's prose and claims, the Expert's prose, demand descriptions and other free fields of plan steps. Includes a grilling session that fixes the dimensions and the thresholds. May end with "not worth building" | design + labelled pairs | 5 | M52 | — |
+| E3.14 | *(new 2026-10-07, r18)* Free-text judge check in the golden-path framework: a deterministic double in `pytest` and CI (no network), the real judge only in development rounds on demand and in V2, used only where no typed value exists; the report shows every dimension, its threshold and the reason for a `different` or `uncertain` | check in `golden/` | 8 | M52 | — |
 
-*E3.13 and E3.14 carry points but no wave, no latest due and no milestone (r18): their calendar comes from E3.13, and they are candidates for a future milestone M10.*
+*E3.13 and E3.14 carry points but no latest due (r18): their calendar comes from E3.13. Since r19 they sit in the optional package M52 (wave column `M52`).*
 
 ### E4 — Network Expert (142) · DoD §4.7 · **research focus**
 
@@ -334,7 +338,7 @@ detail is decided in E11.6.
 | E11.7 | Report viewer: claims with links to their evidence (artifact or query), experiments and a side-by-side comparison of the arms | viewer | 8 | 6 | 22 Jan |
 | E11.8 | Export of a result to VTK (network coloured by edge KPI from `edgedata`), with a download; viewing it in ParaView or in the UI is outside E11 | export | 5 | 6 | 22 Jan |
 | E11.9 | Docker packaging: the UI as one service, token printed at start, key never sent to the browser | image | 3 | 6 | 22 Jan |
-| E11.10 | *(Optional, does not block MUI; was E9.7)* usability session with 2–3 DLR engineers on the UI | notes | — | — | — |
+| E11.10 | *(Optional, does not block M51; was E9.7)* usability session with 2–3 DLR engineers on the UI | notes | — | M52 | — |
 | E11.11 | Close-out: integration tests for every view in fake mode, README section | tests + docs | 3 | 6 | 22 Jan |
 
 Out of E11 and out of the plan, each with a `wontfix` spec: a `VisualizationAgent` that tunes simulation
@@ -349,23 +353,23 @@ and remote deployment.
 A study of the **Study cost**: how far it can fall with a cheaper model or tighter limits per agent, and what the
 pipeline loses in quality at each step, agent by agent and then together. Not in any DoD criterion. E12.1 is
 build work and is planned (wave 5, M7). E12.2 to E12.5 are a study whose money is outside the $30 cap
-(§0.2, `docs/llm-cost-policy.md`): they carry points but no wave, no latest due and no milestone, and E12.2
+(§0.2, `docs/llm-cost-policy.md`): they carry points and no latest due, sit in the optional package M52 (wave column `M52`), and E12.2
 fixes their calendar from the money that exists. The default model and the cost policy do not change: a model
 other than the default still needs the maintainer's approval before a real run.
 
 | ID | Task | Output | pts | Wave | Latest due |
 |---|---|---|---|---|---|
 | E12.1 | Per-agent run configuration: model, `max_steps`, `max_output_tokens` and round limits per agent, set by the user without editing code; each study records the configuration it ran with | config + record | 5 | 5 | 22 Jan |
-| E12.2 | Cost study design and its own evaluation budget: agents and knobs in the grid, the benchmark that gives each agent's quality, cost per cell, what shrinks first if money is short | design + budget | 5 | — | — |
-| E12.3 | Quality curve per agent: lower one agent's cost with the others at their defaults and read its quality on its own benchmark | curves | 8 | — | — |
-| E12.4 | Quality across agents: lower several at once, read the quality of the whole pipeline, find the cheapest configuration that meets the DoD thresholds | table | 8 | — | — |
-| E12.5 | Thesis chapter on cost optimization (method, curves, interaction, cheapest configuration; says what was left out if the study ran at a reduced tier) | chapter | 6 | — | — |
+| E12.2 | Cost study design and its own evaluation budget: agents and knobs in the grid, the benchmark that gives each agent's quality, cost per cell, what shrinks first if money is short | design + budget | 5 | M52 | — |
+| E12.3 | Quality curve per agent: lower one agent's cost with the others at their defaults and read its quality on its own benchmark | curves | 8 | M52 | — |
+| E12.4 | Quality across agents: lower several at once, read the quality of the whole pipeline, find the cheapest configuration that meets the DoD thresholds | table | 8 | M52 | — |
+| E12.5 | Thesis chapter on cost optimization (method, curves, interaction, cheapest configuration; says what was left out if the study ran at a reduced tier) | chapter | 6 | M52 | — |
 
 ---
 
 ## 2. Milestones
 
-M2–M7 and MUI are **build milestones** (§0.2): met when every task listed is ✅ or ⏳. Their measurements run in
+M2–M7 and M51 are **build milestones** (§0.2): met when every task listed is ✅ or ⏳. Their measurements run in
 V2 and are read by the tasks in wave F. v0.4 renumbered M3–M9 (§8); the dates below are recomputed from the
 planning rate, not carried over.
 
@@ -379,7 +383,8 @@ planning rate, not carried over.
 | **M5** | **Mon 30 Nov** | Fri 15 Jan | **Generators built** | E6.1, E7.1, E3.12, E7.2, E7.3 ✅; E6.2, E7.4 ✅ or ⏳ (both need E8.1, the frozen REAL-NET); GP-8 and GP-11 pass (E9.8) |
 | **M6** | **Tue 8 Dec** | Fri 22 Jan | **REAL-NET ready (built)** | REAL-NET frozen with fix log (E8.1); profiles, matrix and question bank stored (E8.2, E8.3, E8.4 ✅); E8.5 ⏳ (ported and tuned on REAL-NET, development evidence stated). The figures come from V2 → E4.10 → E10.5 |
 | **M7** | **Fri 15 Jan** (~~Fri 11 Dec~~) | ~~Fri 5 Feb~~ Fri 29 Jan | **All modules built** | E5.6, E5.7 (checker), E9.3 ✅ or ⏳ (E5.5 cancelled, r14: the Executor's failure behaviour is E9.3's and its zero-redundant-simulations counter is E5.3's); E7.5, E7.6 ✅ or ⏳; E12.1 ✅ (the user sets model and limits per agent, defaults unchanged); E4.9 ⏳ (learning-effect setup on DEV-NET ready to run); 11 golden paths pass as tests; failure injection green |
-| **MUI** | **Fri 22 Jan** | Fri 29 Jan | **UI built** (r16) | E11.1–E11.9 and E11.11 ✅: a request runs from the browser in fake mode and in real mode, the plan and messages are visible, a report opens with its evidence links, a result exports to VTK, and the image starts. Not in any DoD criterion; not met means not built (§5, step 0) |
+| **M51** | **Fri 22 Jan** | Fri 29 Jan | **UI built**, optional package 1 (r16, renamed r19) | E11.1–E11.9 and E11.11 ✅: a request runs from the browser in fake mode and in real mode, the plan and messages are visible, a report opens with its evidence links, a result exports to VTK, and the image starts. Not in any DoD criterion; not met means not built (§5, step 0) |
+| **M52** | no date | — | **Optional package 2** (r19) | E12.2–E12.5 (cost study), E3.13 and E3.14 (judge for free text), E11.10 (usability session). Not scheduled, not in any DoD criterion; they start only when M51 is met and time is left, and they are cut before M51 (§5, step 0). Not met means not built |
 | **V1** | Mon 14 → Fri 18 Dec | Fri 18 Dec | Validation 1 | Reduced checkpoints of every module built by 11 Dec (M2–M6) on dev splits, figures recorded as interim. Wave 5 is not in V1. If a milestone slips, V1 covers what is built on 14 Dec and does not move |
 | **FF** | **Fri 22 Jan** | Fri 29 Jan | Feature freeze | No behaviour change after it; V1 fixes and slips absorbed by the buffer of 18 → 22 Jan and the margin days |
 | **V2** | Mon 25 → Fri 29 Jan | Fri 5 Feb | Validation 2 | Every measurement suite run once at its definitive size (under the $30 cap), held-out included; a missed threshold is a result |
@@ -407,9 +412,9 @@ by the DAG (§4), not by the week.
 | — | 21 → 23 Dec | Margin (working days), not planned | — | — | — |
 | — | **24 Dec → 2 Jan** | **Break, zero work** | — | — | — |
 | 5 | 4 → 15 Jan | E5.6, E9.3, E7.5 → E4.9, E5.7 (checker), E7.6, E12.1 | 404 | **M7 = all built: Fri 15 Jan** | 29 Jan |
-| 6 | 4 → 22 Jan, plus gaps in wave 4 | E11.1, E11.2 in the gaps before V1; then E11.3 → E11.4, E11.5 → E11.6 → E11.7 → E11.8 → E11.9 → E11.11 (E11.10 optional) | 465 | **MUI: Fri 22 Jan** | 29 Jan |
+| 6 | 4 → 22 Jan, plus gaps in wave 4 | E11.1, E11.2 in the gaps before V1; then E11.3 → E11.4, E11.5 → E11.6 → E11.7 → E11.8 → E11.9 → E11.11 (E11.10 optional) | 465 | **M51: Fri 22 Jan** | 29 Jan |
 
-| 7 | after M7, no date | E12.2 → E12.3 → E12.4 → E12.5 (27 pts, outside the cumulative count) | — | none | — |
+| 7 | after M7, no date | E12.2 → E12.3 → E12.4 → E12.5, E3.13 → E3.14 and E11.10 (the M52 package; E12 is 27 pts, outside the cumulative count) | — | **M52** (no date) | — |
 
 Cumulative points leave out E3.9 and E3.10 (7 pts, counted apart in §0.1). Wave 6 (E11, 61 pts) shares the
 January weeks with wave 5 and the buffer below: 4 → 22 Jan holds ≈ 90 build pts and wave 5 takes 65 (E12.1 included), so E11 only
@@ -674,12 +679,12 @@ Not in the build DAG above: no milestone M2–M7 waits for it and it feeds no me
 | E11.10 (optional) | E11.6, E11.7 |
 | E11.11 | E11.3 – E11.9 |
 
-The longest chain is E11.1 → E11.2 → E11.7 → E11.8 → E11.11 (27 pts). MUI reaches the planner spine only
+The longest chain is E11.1 → E11.2 → E11.7 → E11.8 → E11.11 (27 pts). M51 reaches the planner spine only
 through E5.4 (the report the UI shows); E5.3 and E9.1 make the demo realistic but do not block it.
 
 ### 4.6 Cost optimization (E12, r17)
 
-Not in the build DAG above. Only E12.1 sits in a milestone (M7); E12.2 to E12.5 feed no milestone and no
+Not in the build DAG above. Only E12.1 sits in a milestone (M7); E12.2 to E12.5 belong to M52 (optional, no date) and feed no
 measurement suite of the $30 cap.
 
 | Task | Blocked by |
@@ -711,7 +716,7 @@ The chain is E3.13 → E3.14 (13 pts). E3.13 can close as "not worth building", 
 
 Apply one step at a time, in order. Record every downgrade in the thesis as a stated limitation.
 
-0. **E3.13, E3.14, E12.2 to E12.5 and E11 go first** (r18, r17, r16). E3.13 and E3.14 have no date and are not started before E9.1 is done. E12.2 to E12.5 have no date and are not started without the
+0. **M52 goes first, then M51** (r19; before r19: E3.13, E3.14, E12.2 to E12.5 and E11, r18, r17, r16). M52 holds E3.13, E3.14, E12.2 to E12.5 and E11.10; M51 holds the rest of E11. M51 has priority: if time is left for one package, it is M51. E3.13 and E3.14 have no date and are not started before E9.1 is done. E12.2 to E12.5 have no date and are not started without the
    money E12.2 finds; they are cut before anything else, and the thesis says what was left out. E12.1 is small
    build work and stays. **E11 (the UI)** (r16): build its tasks in the order of §1 and stop when the January buffer is
    needed. A task not built is closed `wontfix`, not carried over. No threshold depends on it; the thesis
@@ -778,6 +783,7 @@ the numbering.
 
 | r17 | New epic E12, cost optimization (32 pts) | The cost policy fixes one default model and a $30 cap, but nothing studies how far the cost per study can fall or what it costs in quality, and `LlmConfig` has one model and one pair of limits for every agent. E12.1 (5 pts, wave 5, M7) makes them configurable per agent; E12.2 to E12.5 (27 pts) are a study with its own money, so they carry points and no wave, due date or milestone. 1026 → 1058 pts; slack +98 → +93; no existing date moves. No ADR. | — | E12.1–E12.5 |
 | r18 | New tasks E3.13 and E3.14, a judge for free text (13 pts) | Golden paths compare typed values, but the Composer's prose, the Expert's prose and demand descriptions have none, so nothing checks them. ADR-0019, ADR-0029 and `eval/README.md` rejected a judge as the first choice and left it for text without a typed value. E3.13 designs and calibrates it against a human, and E3.14 builds it. No wave, no date, no milestone. 1058 → 1071 pts; slack unchanged. No ADR yet. | — | E3.13, E3.14, E9.1 |
+| r19 | Optional packages M51 and M52 | MUI is renamed M51 and becomes optional package 1. The undated work (E12.2 to E12.5, E3.13, E3.14, E11.10) goes into M52, optional package 2. M51 has priority over M52, and both are cut before any other work. 1071 pts, no date moves. No ADR. | — | E11, E12.2–E12.5, E3.13, E3.14 |
 
 A cancelled task keeps its id in the "Prepares" column of the rows above as history (E5.2, E5.5): read what it prepared through r14.
 
