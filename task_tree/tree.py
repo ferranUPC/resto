@@ -567,9 +567,13 @@ def _assign_rails(
 
     chosen = {i: rail_of(i) for i, n in nodes.items() if n["lane"] == "active"}
     used = {r for r in chosen.values() if r is not None}
-    rails: list[dict[str, Any]] = [
-        {k: v for k, v in c.items() if k != "key"} for c in candidates if c["id"] in used
-    ]
+    # Drawn order: M0 to M9, then M51 and M52, then the rest by date. `order` keeps the date
+    # order, which the closing-milestone and earliest-downstream rules above depend on.
+    drawn = sorted(
+        (c for c in candidates if c["id"] in used),
+        key=lambda c: (_rail_rank(str(c["id"])), order[str(c["id"])]),
+    )
+    rails: list[dict[str, Any]] = [{k: v for k, v in c.items() if k != "key"} for c in drawn]
     if "refactors" in used:
         rails.append({"id": "refactors", "name": "Refactors", "collapsed": True})
     if "retrospectives" in used:
@@ -580,6 +584,17 @@ def _assign_rails(
     for node_id, rail in chosen.items():
         nodes[node_id]["rail"] = index["unscheduled" if rail is None else rail]
     return rails
+
+
+def _rail_rank(milestone_id: str) -> tuple[int, int]:
+    """Sort key of a milestone rail: M0 to M9 first, then M51 and M52, then everything else."""
+    match = re.fullmatch(r"M(\d+)", milestone_id)
+    number = int(match.group(1)) if match else None
+    if number is not None and 0 <= number <= 9:
+        return 0, number
+    if number in (51, 52):
+        return 1, number
+    return 2, 0
 
 
 def _id_order(task_id: str) -> tuple[str, int, int, str]:
