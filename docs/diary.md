@@ -2,6 +2,10 @@
 
 A short summary of what happened on each working day. The most recent entry comes first, and days with no activity have no entry. `daily-review` and `weekly-review` add the new entries.
 
+## 08.10.2026
+
+Work plan r19 names the optional packages. M51 is the old MUI (the user interface, wave 6, target 22 Jan) and M52 holds the work without a date: E12.2 to E12.5, E3.13, E3.14 and E11.10. Section 5 cuts M52 first, then M51. No points move (1071). The progress site draws the original plan and a plan with M51 and M52 as separate lines.
+
 ## 07.10.2026
 
 E5.3 and E5.4 landed. Loop closure now has tests for zero redundant simulations across Expert rounds, GP-4 and GP-5, and the Output Composer turns a closed `Study` into a `Report` that renders as Markdown or plain text. The work plan grew to v0.5 with E11 (user interface, r16) and E12 (cost optimization, r17), then with E3.13 and E3.14 (a judge for free-text fields in the golden paths, r18), which brings it to 1071 pts with about +93 pts of slack. The `daily-review` and `weekly-review` skills replace `progress-review`, and `scripts/review_evidence.py` produces their evidence report.
