@@ -35,7 +35,6 @@ from tests.unit.application._world import (
     ok_output,
     plan,
     run_of,
-    tools,
 )
 from tests.unit.domain._fixtures import build_step, run_step
 
@@ -132,10 +131,10 @@ def test_an_experiment_whose_scenario_is_already_stored_runs_nothing(tmp_path: P
     assert len(world.builder.calls) == builder_calls_at_phase_1[0]  # nothing built in phase 1
 
 
-def test_forced_mode_only_forbids_abstaining_so_the_treatment_is_predicted_not_simulated(
+def test_forced_mode_simulates_only_the_planned_base_and_predicts_the_treatment(
     tmp_path: Path,
 ) -> None:
-    """GP-4 (ADR-0038 §4, not the frozen §5 row "no simulation"): forced mode forbids only the
+    """ADR-0038 §4, not the frozen §5 row "no simulation": forced mode forbids only the
     Expert's abstention. The plan still simulates the base; the treatment it was not planned to
     run comes out as a predicted scenario."""
     world = World(
@@ -147,10 +146,7 @@ def test_forced_mode_only_forbids_abstaining_so_the_treatment_is_predicted_not_s
 
     study = world.run()
 
-    assert study.status is StudyStatus.COMPLETED and len(study.phases) == 1
-    assert tools(study) == _ok(
-        "plan", "obtain_network", "build_scenario", "run_simulation", "ask_expert", "compose_report"
-    )
+    assert study.status is StudyStatus.COMPLETED
     assert len(world.planner.calls) == 1
     assert len(world.expert.calls) == 1 and world.expert.calls[0][0].mode is Mode.FORCED
     simulations = world.simulations()
@@ -163,31 +159,19 @@ def test_forced_mode_only_forbids_abstaining_so_the_treatment_is_predicted_not_s
     assert [s.simulated for s in predicted] == [False]
 
 
-def test_a_question_whose_two_arms_are_stored_costs_no_simulation(tmp_path: Path) -> None:
-    """GP-5: with both arms of the contrast already stored, the plan builds and runs nothing."""
+def test_a_question_whose_two_arms_are_stored_builds_and_runs_nothing(tmp_path: Path) -> None:
+    """With both arms of the contrast already stored, the plan builds and runs nothing."""
     world = World(tmp_path, question=WHAT_IF, plans=(WHAT_IF_PLAN,), expert=(answers(),))
     _, base_ids = world.store_scenario(())
     _, closure_ids = world.store_scenario((CLOSURE,))
 
     study = world.run()
 
-    assert study.status is StudyStatus.COMPLETED and len(study.phases) == 1
-    # The steps are still recorded; each build and run finds its result stored and does no work.
-    assert tools(study) == _ok(
-        "plan",
-        "obtain_network",
-        "build_scenario",
-        "run_simulation",
-        "build_scenario",
-        "run_simulation",
-        "ask_expert",
-        "compose_report",
-    )
+    assert study.status is StudyStatus.COMPLETED
     assert world.runner.calls == []
     assert world.builder.calls == []
     assert len(world.planner.calls) == 1 and len(world.expert.calls) == 1
     base, treatment = study.phases[0].experiments
-    assert (base.reused, treatment.reused) == (True, True)
     assert (base.result_ids, treatment.result_ids) == (base_ids, closure_ids)
 
 

@@ -83,10 +83,11 @@ from tests.unit.domain._fixtures import (
     run_step,
 )
 
-# -- golden paths ---------------------------------------------------------------------------------
+# -- the first studies: what the doubles saw ------------------------------------------------------
+# The tool sequence of each study lives in `golden/` (GP-1 to GP-5, GP-9).
 
 
-def test_gp1_a_stored_baseline_is_answered_from_its_results(tmp_path: Path) -> None:
+def test_a_stored_baseline_is_answered_without_building_or_simulating(tmp_path: Path) -> None:
     world = World(tmp_path, plans=(BASELINE_PLAN,), expert=(answers(),))
     sid, ids = world.store_scenario()
 
@@ -94,14 +95,6 @@ def test_gp1_a_stored_baseline_is_answered_from_its_results(tmp_path: Path) -> N
 
     assert study.status is StudyStatus.COMPLETED
     assert study.report is not None
-    assert tools(study) == [
-        ("plan", StepStatus.OK),
-        ("obtain_network", StepStatus.OK),
-        ("build_scenario", StepStatus.OK),
-        ("run_simulation", StepStatus.OK),
-        ("ask_expert", StepStatus.OK),
-        ("compose_report", StepStatus.OK),
-    ]
     assert study.phases[0].experiments == (
         Experiment(sid, BASE_ARM, ExperimentRole.BASELINE, "arm base", ids, reused=True),
     )
@@ -111,20 +104,12 @@ def test_gp1_a_stored_baseline_is_answered_from_its_results(tmp_path: Path) -> N
     assert study.network_ids == (NET,)
 
 
-def test_gp2_builds_and_runs_the_baseline_with_the_default_seeds(tmp_path: Path) -> None:
+def test_the_baseline_gets_one_result_per_default_seed_and_a_load_check(tmp_path: Path) -> None:
     world = World(tmp_path, plans=(BASELINE_PLAN,), expert=(answers(),))
 
     study = world.run()
 
     assert study.status is StudyStatus.COMPLETED
-    assert [t for t, _ in tools(study)] == [
-        "plan",
-        "obtain_network",
-        "build_scenario",
-        "run_simulation",
-        "ask_expert",
-        "compose_report",
-    ]
     (experiment,) = study.phases[0].experiments
     expected = tuple(result_id_for(BASE_SID, s, RunMode.BATCH.value) for s in DEFAULT_SEEDS)
     assert experiment == Experiment(
@@ -135,21 +120,23 @@ def test_gp2_builds_and_runs_the_baseline_with_the_default_seeds(tmp_path: Path)
     assert study.phases[0].steps[2].usage == Usage(input_tokens=100)
 
 
-def test_gp3_a_question_that_names_a_change_plans_both_sides_in_phase_0(tmp_path: Path) -> None:
+def test_a_question_that_names_a_change_hands_the_expert_both_arms_results(
+    tmp_path: Path,
+) -> None:
     world = World(tmp_path, question=WHAT_IF, plans=(WHAT_IF_PLAN,), expert=(answers(),))
 
     study = world.run()
 
     assert study.status is StudyStatus.COMPLETED
-    assert len(study.phases) == 1
-    assert [e.arm for e in study.phases[0].experiments] == [BASE_ARM, "treatment"]
     (call,) = world.expert.calls
     assert call[0].question == WHAT_IF.text and call[0].mode is Mode.FREE
     assert len(call[0].result_ids) == 6
     assert not any(r.forced_by_limit for r in study.rounds)
 
 
-def test_the_expert_may_still_ask_for_an_arm_the_plan_did_not_need(tmp_path: Path) -> None:
+def test_an_arm_the_expert_asks_for_is_planned_with_the_realised_arms_in_context(
+    tmp_path: Path,
+) -> None:
     world = World(
         tmp_path,
         question=DESCRIBE_CHANGE,
@@ -160,9 +147,7 @@ def test_the_expert_may_still_ask_for_an_arm_the_plan_did_not_need(tmp_path: Pat
     study = world.run()
 
     assert study.status is StudyStatus.COMPLETED
-    assert len(study.phases) == 2
     assert study.phases[1].question == PROPOSED
-    assert [e.arm for p in study.phases for e in p.experiments] == [BASE_ARM, "treatment"]
     (_, first_context), (second_question, second_context) = world.planner.calls
     assert first_context == PlanningContext(phase=0)
     assert second_question == PROPOSED
@@ -173,7 +158,7 @@ def test_the_expert_may_still_ask_for_an_arm_the_plan_did_not_need(tmp_path: Pat
     assert len(first.result_ids) == 3 and len(second.result_ids) == 6
 
 
-def test_forced_mode_answers_in_one_phase_and_offers_the_predicted_scenario(
+def test_forced_mode_offers_the_predicted_scenario_to_the_note_writer(
     tmp_path: Path,
 ) -> None:
     world = World(
@@ -185,7 +170,7 @@ def test_forced_mode_answers_in_one_phase_and_offers_the_predicted_scenario(
 
     study = world.run()
 
-    assert study.status is StudyStatus.COMPLETED and len(study.phases) == 1
+    assert study.status is StudyStatus.COMPLETED
     assert world.expert.calls[0][0].mode is Mode.FORCED
     assert study.rounds[0].forced_by_limit is False
     (task,) = (call[0] for call in world.note_writer.calls)
@@ -354,12 +339,11 @@ def test_a_network_derived_after_the_first_round_is_in_the_scope_of_the_second(
     assert set(second.network_ids) == {NET, "derived-1"}
 
 
-def test_an_ambiguous_question_awaits_the_user_without_planning(tmp_path: Path) -> None:
+def test_an_ambiguous_question_is_never_planned_and_is_persisted_once(tmp_path: Path) -> None:
     world = World(tmp_path, question=replace(DESCRIBE, ambiguities=("which peak?",)))
 
-    study = world.run()
+    world.run()
 
-    assert study.status is StudyStatus.AWAITING_USER
     assert world.planner.calls == []
     assert len(world.studies.states) == 1
 
