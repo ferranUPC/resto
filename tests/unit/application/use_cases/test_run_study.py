@@ -13,7 +13,6 @@ from resto.application.executor import (
 from resto.application.ports.llm import StopReason
 from resto.application.ports.network_query import NetworkNotStored
 from resto.application.ports.tracing import HandlerFailed, ModelCall, NoteWriterFailed
-from resto.application.use_cases.ask_expert import AskExpert
 from resto.domain.constants import DEFAULT_SEEDS
 from resto.domain.entities.expert_note import ExpertNote, NoteStatus, Provenance
 from resto.domain.entities.simulation_result import RunMode
@@ -565,7 +564,7 @@ def test_an_online_scenario_is_infrastructure_until_e2_5(tmp_path: Path) -> None
 
 def test_an_expert_round_on_a_network_that_is_not_stored_is_infrastructure(tmp_path: Path) -> None:
     world = World(tmp_path, plans=(BASELINE_PLAN,))
-    loader = world.deps.ask_expert.loader
+    loader = world.deps.network_queries
     gone = False
 
     class VanishingLoader:
@@ -579,10 +578,7 @@ def test_an_expert_round_on_a_network_that_is_not_stored_is_infrastructure(tmp_p
         gone = True
         return answers()(task, ledger)
 
-    world.deps = replace(
-        world.deps,
-        ask_expert=AskExpert(loader=VanishingLoader()),
-    )
+    world.deps = replace(world.deps, network_queries=VanishingLoader())
     world.expert.items.append(answer_after_the_network_vanishes)
 
     study = world.run()
@@ -743,7 +739,7 @@ def test_only_missing_seeds_are_run(tmp_path: Path) -> None:
 # -- notes ----------------------------------------------------------------------------------------
 
 
-def test_notes_are_written_after_the_final_round_with_its_ledger(tmp_path: Path) -> None:
+def test_notes_citing_the_final_answer_are_written_after_the_final_round(tmp_path: Path) -> None:
     draft = ExpertNoteDraft(
         text="the peak baseline has a mean delay of 24 s",
         basis=Basis.OBSERVED,
@@ -764,6 +760,35 @@ def test_notes_are_written_after_the_final_round_with_its_ledger(tmp_path: Path)
     ((hit, _),) = world.notes.search("", NET, {"scenario_id": BASE_SID})
     assert hit.note_id == note_id and hit.provenance is Provenance.SIMULATION
     assert hit.study_id == study.study_id
+
+
+def test_a_note_citing_a_tool_call_the_final_answer_did_not_cite_stores_no_note(
+    tmp_path: Path,
+) -> None:
+    def answer_citing_one_of_two_calls(task: Any, ledger: Any) -> Any:
+        ledger.record("get_result", {"result_id": "r0"}, {"ok": True})  # q1, never cited
+        return answers()(task, ledger)  # cites q2
+
+    good = ExpertNoteDraft(
+        text="the peak baseline has a mean delay of 24 s",
+        basis=Basis.OBSERVED,
+        evidence=(Evidence(kind=EvidenceKind.QUERY, ref="q2"),),
+        scenario_ref=BASE_SID,
+    )
+    uncited = replace(good, evidence=(Evidence(kind=EvidenceKind.QUERY, ref="q1"),))
+    world = World(
+        tmp_path,
+        plans=(BASELINE_PLAN,),
+        expert=(answer_citing_one_of_two_calls,),
+        note_writer=(run_of(ExpertNoteDrafts(notes=(good, uncited))),),
+    )
+
+    study = world.run()
+
+    assert study.resolution is StudyResolution.COMPLETED
+    assert study.note_ids == ()
+    assert world.notes.search("", NET, {}) == []
+    assert any(isinstance(e, NoteWriterFailed) for e in world.tracer.events)
 
 
 def _note(scenario_ref: str | None, basis: Basis = Basis.INFERRED) -> ExpertNoteDraft:

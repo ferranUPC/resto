@@ -8,10 +8,13 @@ from resto.application.executor.failures import StepFailed, crash, describe, dra
 from resto.application.executor.recorder import StudyRecorder
 from resto.application.executor.spend import StudySpend
 from resto.application.ports.agents.note_writer import NoteWriterAgent
-from resto.application.ports.repositories import NetworkRepository, ScenarioRepository
+from resto.application.ports.repositories import (
+    NetworkRepository,
+    NoteRepository,
+    ScenarioRepository,
+)
 from resto.application.ports.tracing import NoteWriterFailed, Tracer
-from resto.application.tools.expert import EvidenceLedger
-from resto.application.use_cases.write_note import WriteNote
+from resto.application.promoters.notes import NoteContext, NotePromoter
 from resto.domain.entities.scenario import Scenario
 from resto.domain.entities.study import Study
 from resto.domain.services.ids import scenario_id_for
@@ -24,7 +27,6 @@ from resto.domain.value_objects.tasks import NoteScenario, NoteTask
 
 def close(
     final: ExpertRound,
-    ledger: EvidenceLedger,
     recorder: StudyRecorder,
     spend: StudySpend,
     deps: StudyDeps,
@@ -32,13 +34,13 @@ def close(
     """Closes the study after the Expert's `final` answer: the notes first, then the report."""
     write_notes(
         final,
-        ledger,
         recorder,
         spend,
         deps.networks,
         deps.scenarios,
+        deps.notes,
         deps.agents.note_writer,
-        deps.write_note,
+        deps.note_promoter,
         deps.tracer,
     )
     compose(recorder, spend, deps)
@@ -46,17 +48,18 @@ def close(
 
 def write_notes(
     final: ExpertRound,
-    ledger: EvidenceLedger,
     recorder: StudyRecorder,
     spend: StudySpend,
     networks: NetworkRepository,
     scenarios: ScenarioRepository,
+    notes: NoteRepository,
     note_writer: NoteWriterAgent,
-    write_note: WriteNote,
+    note_promoter: NotePromoter,
     tracer: Tracer,
 ) -> None:
-    """Asks the note writer about the final round and stores the notes' ids on the study; a
-    failure is traced (`NoteWriterFailed`, telemetry) and leaves the study as it was."""
+    """Asks the note writer about the final round, stores the notes `note_promoter` returns and
+    their ids on the study; a failure is traced (`NoteWriterFailed`, telemetry) and leaves the
+    study as it was. The promoter checks every draft before any note is stored."""
     try:
         study = recorder.study
         task = NoteTask(
@@ -65,7 +68,9 @@ def write_notes(
             scenarios=allow_list(study, scenarios),
         )
         run = spend.agent_call(lambda: note_writer.write(task))
-        written = write_note.execute(run, ledger, task, study.study_id)
+        written = note_promoter.promote(run, NoteContext(task=task, study_id=study.study_id))
+        for note in written:
+            notes.store(note)
     except Exception as e:
         tracer.emit(recorder.study.study_id, NoteWriterFailed(describe(e)))
         return
@@ -140,7 +145,7 @@ def compose(recorder: StudyRecorder, spend: StudySpend, deps: StudyDeps) -> None
     try:
         run = spend.agent_call(lambda: deps.agents.composer.compose(study))
         draft_of(run, "composer")
-        report = promote(lambda: deps.compose_report.execute(study, run), run.usage)
+        report = promote(lambda: deps.report_promoter.promote(run, study), run.usage)
     except StepFailed as failed:
         recorder.apply(study.record_failure(failed.record("compose_report", task)))
         return

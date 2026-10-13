@@ -1,17 +1,18 @@
-"""`write_note` promotion (E4.6, E4.11; ADR-0001, ADR-0011, ADR-0026): notes are accepted only if
-every evidence ref resolves to the round's own ledger and every scenario ref is in the study's
-allow-list; `provenance`/`status`/`note_id` are always set by this code, never by the agent."""
+"""`NotePromoter` (E4.6, E4.11; ADR-0001, ADR-0011, ADR-0026, ADR-0042 §10): notes are accepted only
+if every evidence ref is evidence of the final Expert answer and every scenario ref is in the
+study's allow-list; `provenance`/`status`/`note_id` are always set by this code, never by the
+agent. The promoter stores nothing: the stored notes are checked at the `World` seam."""
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pytest
 
-from resto.adapters.persistence.memory import InMemoryNoteRepository
 from resto.application.ports.llm import AgentRun, StopReason
+from resto.application.promoters.notes import NoteContext, NotePromoter
 from resto.application.promotion import DraftRejected, RunWithoutDraft
-from resto.application.tools.expert import EvidenceLedger
-from resto.application.use_cases.write_note import WriteNote
-from resto.domain.entities.expert_note import NoteStatus, Provenance
+from resto.domain.entities.expert_note import ExpertNote, NoteStatus, Provenance
 from resto.domain.value_objects.answer_value import Measure, Quantity
 from resto.domain.value_objects.drafts import ExpertNoteDraft, ExpertNoteDrafts
 from resto.domain.value_objects.experiment import ExperimentRole
@@ -23,8 +24,15 @@ from tests.unit.domain._samples import expert_answer
 
 NETWORK = "abc123"
 STUDY = "st-1"
+FINAL_ANSWER = replace(
+    expert_answer(),
+    evidence=(
+        Evidence(kind=EvidenceKind.QUERY, ref="q1", excerpt="E12 0.91"),
+        Evidence(kind=EvidenceKind.ARTIFACT, ref="/runs/r1/edgedata.xml"),
+    ),
+)
 TASK = NoteTask(
-    round=ExpertRound(question="what if lane 0 of E12 closes?", answer=expert_answer()),
+    round=ExpertRound(question="what if lane 0 of E12 closes?", answer=FINAL_ANSWER),
     base_network_id=NETWORK,
     scenarios=(
         NoteScenario(
@@ -77,51 +85,41 @@ def _run(*drafts: ExpertNoteDraft, stop: StopReason = StopReason.OUTPUT) -> Agen
     return AgentRun(output=output, tool_calls=(), usage=Usage(), stop_reason=stop)
 
 
-def _ledger() -> EvidenceLedger:
-    ledger = EvidenceLedger()
-    ledger.record("query_edgedata", {"result_id": "r1"}, {"E12": {"time_loss": 12.0}})
-    return ledger
-
-
-def _write(run: AgentRun, notes: InMemoryNoteRepository | None = None):  # noqa: ANN202
-    use_case = WriteNote(notes if notes is not None else InMemoryNoteRepository())
-    return use_case.execute(run, _ledger(), TASK, STUDY)
+def _promote(run: AgentRun) -> tuple[ExpertNote, ...]:
+    return NotePromoter().promote(run, NoteContext(task=TASK, study_id=STUDY))
 
 
 def test_a_note_about_a_simulated_scenario_is_simulation_provenance() -> None:
-    notes = InMemoryNoteRepository()
-    (note,) = _write(_run(_draft()), notes)
+    (note,) = _promote(_run(_draft()))
     assert note.provenance is Provenance.SIMULATION
     assert note.scenario_id == "s-base"
     assert note.status is NoteStatus.UNVERIFIED
-    assert notes.search("saturates", NETWORK, {})[0][0].note_id == note.note_id
+    assert note.study_id == STUDY
 
 
 def test_a_prediction_is_opinion_and_keeps_its_predicted_scenario() -> None:
     claim = Quantity(measure=Measure.MEAN_DELAY, value=95.0)
-    (note,) = _write(_run(_draft(basis=Basis.EXTRAPOLATED, scenario_ref="s-pred", values=(claim,))))
+    (note,) = _promote(
+        _run(_draft(basis=Basis.EXTRAPOLATED, scenario_ref="s-pred", values=(claim,)))
+    )
     assert note.provenance is Provenance.OPINION
     assert note.scenario_id == "s-pred"
     assert note.values == (claim,)
 
 
 def test_a_note_about_the_network_in_general_is_opinion_without_a_scenario() -> None:
-    (note,) = _write(_run(_draft(basis=Basis.INFERRED, scenario_ref=None)))
+    (note,) = _promote(_run(_draft(basis=Basis.INFERRED, scenario_ref=None)))
     assert note.provenance is Provenance.OPINION
     assert note.scenario_id is None
 
 
-def test_several_notes_are_stored_each_with_a_fresh_id() -> None:
-    notes = InMemoryNoteRepository()
-    written = _write(_run(_draft(), _draft(basis=Basis.EXTRAPOLATED, scenario_ref="s-pred")), notes)
+def test_several_notes_each_get_a_fresh_id() -> None:
+    written = _promote(_run(_draft(), _draft(basis=Basis.EXTRAPOLATED, scenario_ref="s-pred")))
     assert len({n.note_id for n in written}) == 2
-    assert {n.note_id for n, _ in notes.search("saturates", NETWORK, {})} == {
-        n.note_id for n in written
-    }
 
 
 def test_zero_notes_is_a_valid_outcome() -> None:
-    assert _write(_run()) == ()
+    assert _promote(_run()) == ()
 
 
 def test_at_most_three_notes_per_study() -> None:
@@ -131,32 +129,48 @@ def test_at_most_three_notes_per_study() -> None:
 
 def test_a_scenario_ref_outside_the_allow_list_is_rejected() -> None:
     with pytest.raises(DraftRejected, match="s-invented"):
-        _write(_run(_draft(scenario_ref="s-invented")))
+        _promote(_run(_draft(scenario_ref="s-invented")))
 
 
 def test_a_note_about_an_unsimulated_scenario_cannot_be_observed() -> None:
     with pytest.raises(DraftRejected, match="not simulated"):
-        _write(_run(_draft(scenario_ref="s-pred")))
+        _promote(_run(_draft(scenario_ref="s-pred")))
 
 
-def test_one_bad_draft_rejects_the_run_and_stores_nothing() -> None:
-    notes = InMemoryNoteRepository()
+def test_one_bad_draft_rejects_the_whole_run() -> None:
     with pytest.raises(DraftRejected):
-        _write(_run(_draft(), _draft(ref="q9")), notes)
-    assert notes.search("saturates", NETWORK, {}) == []
+        _promote(_run(_draft(), _draft(ref="q9")))
 
 
 def test_a_run_that_stopped_without_drafts_fails() -> None:
     with pytest.raises(RunWithoutDraft):
-        _write(_run(stop=StopReason.BUDGET))
+        _promote(_run(stop=StopReason.BUDGET))
 
 
-def test_a_query_ref_not_in_the_ledger_is_rejected() -> None:
+def test_a_query_ref_the_final_answer_does_not_hold_is_rejected() -> None:
     with pytest.raises(DraftRejected, match="q9"):
-        _write(_run(_draft(ref="q9")))
+        _promote(_run(_draft(ref="q9")))
 
 
-def test_an_artifact_ref_not_returned_by_a_result_call_is_rejected() -> None:
+def test_a_tool_call_of_the_final_round_that_the_answer_did_not_cite_is_rejected() -> None:
+    # "q2" is a tool call the Expert made in its final round (it is in the round's ledger), but the
+    # answer does not cite it: the note writer never saw it, so no note may cite it (ADR-0042 §10).
+    with pytest.raises(DraftRejected, match="q2"):
+        _promote(_run(_draft(ref="q2")))
+
+
+def test_an_artifact_the_final_answer_cites_is_accepted() -> None:
+    draft = ExpertNoteDraft(
+        text="the closure reroutes traffic onto B2C2",
+        basis=Basis.OBSERVED,
+        evidence=(Evidence(kind=EvidenceKind.ARTIFACT, ref="/runs/r1/edgedata.xml"),),
+        scenario_ref="s-base",
+    )
+    (note,) = _promote(_run(draft))
+    assert note.provenance is Provenance.SIMULATION
+
+
+def test_an_artifact_ref_the_final_answer_does_not_hold_is_rejected() -> None:
     draft = ExpertNoteDraft(
         text="the closure reroutes traffic onto B2C2",
         basis=Basis.OBSERVED,
@@ -164,23 +178,21 @@ def test_an_artifact_ref_not_returned_by_a_result_call_is_rejected() -> None:
         scenario_ref="s-base",
     )
     with pytest.raises(DraftRejected, match="missing.xml"):
-        _write(_run(draft))
+        _promote(_run(draft))
 
 
 def test_a_note_takes_the_network_of_its_scenario() -> None:
-    notes = InMemoryNoteRepository()
-    (note,) = _write(_run(_draft(scenario_ref="s-derived")), notes)
+    (note,) = _promote(_run(_draft(scenario_ref="s-derived")))
     assert note.network_id == "derived-1"
-    assert notes.search("saturates", "derived-1", {})[0][0].note_id == note.note_id
 
 
 def test_a_note_without_a_scenario_takes_the_base_network() -> None:
-    (note,) = _write(_run(_draft(basis=Basis.INFERRED, scenario_ref=None)))
+    (note,) = _promote(_run(_draft(basis=Basis.INFERRED, scenario_ref=None)))
     assert note.network_id == NETWORK
 
 
 def test_a_prediction_takes_the_network_its_allow_list_entry_names() -> None:
-    (note,) = _write(_run(_draft(basis=Basis.EXTRAPOLATED, scenario_ref="s-pred")))
+    (note,) = _promote(_run(_draft(basis=Basis.EXTRAPOLATED, scenario_ref="s-pred")))
     assert note.network_id == NETWORK
 
 

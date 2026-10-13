@@ -153,7 +153,8 @@ Implemented in `eval/expert_benchmark/` (`bank.py`, `runner.py`). For each quest
    (`deepseek/deepseek-v4.1-flash`) and the default budget (`RESTO_LLM_MAX_STEPS` = 6,
    `RESTO_LLM_MAX_OUTPUT_TOKENS` = 2048, 300 s), over `eval/scenario_matrix/matrix.db` and
    `dev-net.net.xml`, read-only.
-3. Promote with `AskExpert` using the same `EvidenceLedger`; record acceptance or the rejection reason.
+3. Promote with `ExpertAnswerPromoter` using the same `EvidenceLedger`; record acceptance or the rejection
+   reason.
 4. Store the raw run as one JSON line: `EXPERT_VERSION`, answer, tool calls (with result summaries), the
    per-step trace (tools requested, text length, finish reason, tokens), full ledger, stop reason,
    promotion outcome, tokens, estimated cost, elapsed time.
@@ -257,8 +258,8 @@ expected one (e.g. supporting quantities) are ignored.
 
 ### 4.5 Cross-cutting metrics
 
-- **Evidence resolvability** (DoD: 100 %). Enforced by `AskExpert` (ADR-0018): every `query` ref must be a
-  call in the run's ledger, every `artifact` ref an artifact a result call returned. Reported as
+- **Evidence resolvability** (DoD: 100 %). Enforced by `ExpertAnswerPromoter` (ADR-0018): every `query` ref
+  must be a call in the run's ledger, every `artifact` ref an artifact a result call returned. Reported as
   `accepted_share`, the share of runs accepted by promotion; a run without an answer counts as not accepted.
 - **Calibration** (DoD: Brier ≤ 0.25). Over every run that produced an answer (including answers rejected
   at promotion, which score incorrect): `(confidence − correct)²` with `correct ∈ {0, 1}` from §4.4; Brier
@@ -344,7 +345,7 @@ two halves are measured differently:
 pass** (`eval/hygiene_probes/reports/hygiene-v1.md`). 18 of 20 answered, all `extrapolated`, confidence
 0.05–0.30; 14 of them cited the seeded note, always as `extrapolated`. The 2 without an answer count as
 passes, not as evidence of hygiene: `S01-diag` hit the step budget (same pattern as the diagnostic budget
-stops in §4.7), and `S03-cf-dir` returned `needs_simulation` in forced mode, which `AskExpert` rejected.
+stops in §4.7), and `S03-cf-dir` returned `needs_simulation` in forced mode, which the promotion rejected.
 That second one is a forced-mode compliance slip, not a hygiene failure; it belongs with E4.5/E4.7.
 
 Limitation: a probe only catches citations of the note through `search_notes`. An answer that restates
