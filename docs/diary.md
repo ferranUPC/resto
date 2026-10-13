@@ -2,6 +2,10 @@
 
 A short summary of what happened on each working day. The most recent entry comes first, and days with no activity have no entry. `daily-review` and `weekly-review` add the new entries.
 
+## 12.10.2026
+
+E9.1 (the golden-path framework with GP-1 to GP-5 and GP-9) was merged into `master` and reverted a minute later, so `master` has no `golden/` directory. The same 11 commits are open again as PR #34. Nothing else changed in the code.
+
 ## 08.10.2026
 
 Work plan r19 names the optional packages. M51 is the old MUI (the user interface, wave 6, target 22 Jan) and M52 holds the work without a date: E12.2 to E12.5, E3.13, E3.14 and E11.10. Section 5 cuts M52 first, then M51. No points move (1071). The progress site draws the original plan and a plan with M51 and M52 as separate lines.
