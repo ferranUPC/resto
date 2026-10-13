@@ -56,6 +56,92 @@ class _Pending:
     parse = author = obtain = compose = __call__
 
 
+def build_agents(
+    *,
+    db: SqliteDatabase,
+    agent: ToolAgent,
+    budget: Budget,
+    network_query_loader: StoredNetworkQueryLoader,
+    out_dir: Path,
+) -> StudyAgents:
+    """The agent ports; `out_dir` is the root of the Builder's scratch (`builder/`)."""
+    builder_dir = out_dir / "builder"
+    return StudyAgents(
+        parser=InputParserPort(agent=agent, budget=budget),
+        network_author=_Pending("Network Author", "E6.1"),
+        demand_generator=_Pending("Demand Generator", "E7.1"),
+        scenario_builder=ScenarioBuilderPort(
+            agent=agent,
+            budget=budget,
+            collaborators=BuilderCollaborators(
+                networks=db.networks,
+                demands=db.demands,
+                network_query_loader=network_query_loader,
+                rerouter_writer=RerouterWriter(),
+                vss_writer=VssWriter(),
+                tls_program_writer=TlsProgramWriter(),
+                sumocfg_writer=SumocfgFileWriter(),
+                scale_demand=ScaleDemand(
+                    scaler=SumoDemandScaler(),
+                    duarouter=SumoDemandTools(),
+                    demands=db.demands,
+                    out_dir=builder_dir,
+                ),
+                out_dir=builder_dir,
+            ),
+        ),
+        expert=ExpertPort(
+            agent=agent,
+            budget=budget,
+            collaborators=ExpertCollaborators(
+                network_query_loader=network_query_loader,
+                results=db.results,
+                scenarios=db.scenarios,
+                notes=db.notes,
+            ),
+        ),
+        note_writer=NoteWriterPort(agent=agent, budget=budget),
+        composer=ComposerPort(agent=agent, budget=budget, results=db.results),
+    )
+
+
+def build_promotions() -> StudyPromotions:
+    """The promotions of the drafts, all pending."""
+    return StudyPromotions(
+        network=_Pending("network promotion", "E6.1"),
+        demand=_Pending("demand promotion", "E7.1"),
+        reroute=_Pending("reroute_demand", "E7.1"),
+    )
+
+
+def build_run_simulation(
+    *, db: SqliteDatabase, runner: SubprocessSumoRunner, out_dir: Path
+) -> RunSimulation:
+    return RunSimulation(
+        runner=runner,
+        results=db.results,
+        run_dirs=FilesystemRunDirectories(),
+        out_dir=out_dir / "results",
+    )
+
+
+def build_build_scenario(
+    *,
+    db: SqliteDatabase,
+    runner: SubprocessSumoRunner,
+    network_query_loader: StoredNetworkQueryLoader,
+    out_dir: Path,
+) -> BuildScenario:
+    return BuildScenario(
+        networks=db.networks,
+        demands=db.demands,
+        scenarios=db.scenarios,
+        network_query_loader=network_query_loader,
+        runner=runner,
+        out_dir=out_dir / "scenarios",
+    )
+
+
 def build_deps(
     *, db: SqliteDatabase, agent: ToolAgent, budget: Budget, tracer: Tracer, out_dir: Path
 ) -> StudyDeps:
@@ -66,73 +152,28 @@ def build_deps(
     other settings are `StudySettings`.
     """
     network_query_loader = StoredNetworkQueryLoader(db.networks)
-    studies = InMemoryStudyRepository()
     runner = SubprocessSumoRunner()
     return StudyDeps(
-        agents=StudyAgents(
-            parser=InputParserPort(agent=agent, budget=budget),
-            network_author=_Pending("Network Author", "E6.1"),
-            demand_generator=_Pending("Demand Generator", "E7.1"),
-            scenario_builder=ScenarioBuilderPort(
-                agent=agent,
-                budget=budget,
-                collaborators=BuilderCollaborators(
-                    networks=db.networks,
-                    demands=db.demands,
-                    network_query_loader=network_query_loader,
-                    rerouter_writer=RerouterWriter(),
-                    vss_writer=VssWriter(),
-                    tls_program_writer=TlsProgramWriter(),
-                    sumocfg_writer=SumocfgFileWriter(),
-                    scale_demand=ScaleDemand(
-                        scaler=SumoDemandScaler(),
-                        duarouter=SumoDemandTools(),
-                        demands=db.demands,
-                        out_dir=out_dir / "builder",
-                    ),
-                    out_dir=out_dir / "builder",
-                ),
-            ),
-            expert=ExpertPort(
-                agent=agent,
-                budget=budget,
-                collaborators=ExpertCollaborators(
-                    network_query_loader=network_query_loader,
-                    results=db.results,
-                    scenarios=db.scenarios,
-                    notes=db.notes,
-                ),
-            ),
-            note_writer=NoteWriterPort(agent=agent, budget=budget),
-            composer=ComposerPort(agent=agent, budget=budget, results=db.results),
+        agents=build_agents(
+            db=db,
+            agent=agent,
+            budget=budget,
+            network_query_loader=network_query_loader,
+            out_dir=out_dir,
         ),
-        promotions=StudyPromotions(
-            network=_Pending("network promotion", "E6.1"),
-            demand=_Pending("demand promotion", "E7.1"),
-            reroute=_Pending("reroute_demand", "E7.1"),
-        ),
+        promotions=build_promotions(),
         networks=db.networks,
         demands=db.demands,
         scenarios=db.scenarios,
         results=db.results,
         notes=db.notes,
-        studies=studies,
-        run_simulation=RunSimulation(
-            runner=runner,
-            results=db.results,
-            run_dirs=FilesystemRunDirectories(),
-            out_dir=out_dir / "results",
-        ),
+        studies=InMemoryStudyRepository(),
+        run_simulation=build_run_simulation(db=db, runner=runner, out_dir=out_dir),
         tracer=tracer,
         planner=plan_study,
         ask_expert=AskExpert(loader=network_query_loader),
-        build_scenario=BuildScenario(
-            networks=db.networks,
-            demands=db.demands,
-            scenarios=db.scenarios,
-            network_query_loader=network_query_loader,
-            runner=runner,
-            out_dir=out_dir / "scenarios",
+        build_scenario=build_build_scenario(
+            db=db, runner=runner, network_query_loader=network_query_loader, out_dir=out_dir
         ),
         compose_report=ComposeReport(),
         update_note_status=UpdateNoteStatus(db.notes),
