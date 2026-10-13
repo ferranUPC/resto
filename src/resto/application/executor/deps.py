@@ -1,8 +1,9 @@
 """What the composition root (`interface/dependencies.py`) builds to run a `Study`: the agents, the
-planner, the repositories, the tracer, the promotions not implemented yet (E6.1, E7.1) and the
-use-case instances the Executor calls (`RunSimulation`, `AskExpert`, `BuildScenario`,
-`ComposeReport`, `UpdateNoteStatus`, `WriteNote`), each already holding its own collaborators. The
-per-run values that are not collaborators are `StudySettings`."""
+planner, the repositories, the event bus with its subscribers already wired, the tracer for
+telemetry, the promotions not implemented yet (E6.1, E7.1) and the use-case instances the Executor
+calls (`RunSimulation`, `AskExpert`, `BuildScenario`, `ComposeReport`, `WriteNote`), each already
+holding its own collaborators. The per-run values that are not collaborators are
+`StudySettings`."""
 
 from __future__ import annotations
 
@@ -10,6 +11,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from resto.application.event_bus import EventBus
 from resto.application.ports.agents.composer import ComposerAgent
 from resto.application.ports.agents.demand_generator import DemandGeneratorAgent
 from resto.application.ports.agents.expert import ExpertAgent
@@ -21,7 +23,6 @@ from resto.application.ports.llm import AgentRun
 from resto.application.ports.repositories import (
     DemandRepository,
     NetworkRepository,
-    NoteRepository,
     ResultRepository,
     ScenarioRepository,
     StudyRepository,
@@ -31,7 +32,6 @@ from resto.application.use_cases.ask_expert import AskExpert
 from resto.application.use_cases.build_scenario import BuildScenario
 from resto.application.use_cases.compose_report import ComposeReport
 from resto.application.use_cases.run_simulation import RunSimulation
-from resto.application.use_cases.update_note_status import UpdateNoteStatus
 from resto.application.use_cases.write_note import WriteNote
 from resto.domain.constants import (
     DEFAULT_STUDY_MAX_AGENT_CALLS,
@@ -112,13 +112,14 @@ class StudyDeps:
     demands: DemandRepository
     scenarios: ScenarioRepository
     results: ResultRepository
-    notes: NoteRepository
     studies: StudyRepository
     run_simulation: RunSimulation
+    events: EventBus
+    """Where the `StudyRecorder` publishes the study's domain events."""
     tracer: Tracer
+    """The telemetry (`ModelCall`, `NoteWriterFailed`): emitted straight, not through `events`."""
     planner: Planner
     ask_expert: AskExpert
     build_scenario: BuildScenario
     compose_report: ComposeReport
-    update_note_status: UpdateNoteStatus
     write_note: WriteNote

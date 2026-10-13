@@ -8,6 +8,7 @@ from resto.adapters.persistence.memory import (
     InMemoryNoteRepository,
     InMemoryScenarioRepository,
 )
+from resto.application.event_bus import EventBus
 from resto.application.executor.closing import write_notes
 from resto.application.executor.deps import StudyBudget
 from resto.application.executor.recorder import StudyRecorder
@@ -31,9 +32,9 @@ def test_a_study_without_a_stored_base_network_traces_the_failure_and_changes_no
     recorder = StudyRecorder(
         Study.open("s1", DESCRIBE, Usage(), max_rounds=3),
         studies=RecordingStudies(),
-        tracer=tracer,
+        events=EventBus(tracer),
     )
-    spend = StudySpend(StudyBudget(), Usage(), recorder.model_call)
+    spend = StudySpend(StudyBudget(), Usage(), lambda usage: None)
     note_writer = FakeNoteWriter()
     notes = InMemoryNoteRepository()
     before = recorder.study
@@ -47,6 +48,7 @@ def test_a_study_without_a_stored_base_network_traces_the_failure_and_changes_no
         InMemoryScenarioRepository(),
         note_writer,
         WriteNote(notes),
+        tracer,
     )
 
     assert note_writer.calls == []

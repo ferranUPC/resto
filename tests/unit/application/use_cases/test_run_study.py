@@ -12,7 +12,7 @@ from resto.application.executor import (
 )
 from resto.application.ports.llm import StopReason
 from resto.application.ports.network_query import NetworkNotStored
-from resto.application.ports.tracing import ModelCall, NoteWriterFailed
+from resto.application.ports.tracing import HandlerFailed, ModelCall, NoteWriterFailed
 from resto.application.use_cases.ask_expert import AskExpert
 from resto.application.use_cases.run_study import ParserFailed
 from resto.domain.constants import DEFAULT_SEEDS
@@ -657,6 +657,45 @@ def test_a_new_result_settles_the_unverified_notes_of_its_scenario(tmp_path: Pat
     ((hit, _),) = world.notes.search("", NET, {"scenario_id": BASE_SID})
     assert hit.status is NoteStatus.CONFIRMED
     assert any(isinstance(e, NoteStatusChanged) for e in world.tracer.events)
+
+
+def test_notes_are_verified_once_the_run_step_is_recorded(tmp_path: Path) -> None:
+    """ADR-0041 §11: after every seed of the step ran, so the run step is traced first; the
+    first new result in seed order settles the note, and the later ones find nothing to settle."""
+    world = World(tmp_path, plans=(BASELINE_PLAN,), expert=(answers(),))
+    note = unverified_note(BASE_SID, KPIS.mean_delay)
+    world.notes.store(note)
+
+    world.run()
+
+    events = world.tracer.events
+    settled = [i for i, e in enumerate(events) if isinstance(e, NoteStatusChanged)]
+    assert len(settled) == 1
+    before = events[settled[0] - 1]
+    assert isinstance(before, StepTraced) and before.tool == "run_simulation"
+    first = result_id_for(BASE_SID, DEFAULT_SEEDS[0], RunMode.BATCH.value)
+    assert events[settled[0]] == NoteStatusChanged(note.note_id, first, NoteStatus.CONFIRMED)
+
+
+def test_a_failing_note_verification_is_traced_and_the_study_still_completes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    world = World(tmp_path, plans=(BASELINE_PLAN,), expert=(answers(),))
+    world.notes.store(unverified_note(BASE_SID, KPIS.mean_delay))
+
+    def read_only(note_id: str, status: NoteStatus) -> None:
+        raise RuntimeError("the notes are read-only")
+
+    monkeypatch.setattr(world.notes, "update_status", read_only)
+
+    study = world.run()
+
+    assert study.resolution is StudyResolution.COMPLETED
+    failure = HandlerFailed(
+        "note_verification", "SimulationsRecorded", "RuntimeError: the notes are read-only"
+    )
+    assert failure in world.tracer.events
+    assert not any(isinstance(e, NoteStatusChanged) for e in world.tracer.events)
 
 
 def test_only_missing_seeds_are_run(tmp_path: Path) -> None:
