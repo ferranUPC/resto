@@ -5,7 +5,7 @@ bound to the scenario's network — the same port NetworkMCP wraps, ADR-0009); `
 `write_vss`/`write_tls_program` wrap the deterministic writers of `adapters/sumo/writers/`
 (ADR-0007) — `write_rerouter` now also handles `edge_closure` (E2.3): the writer dispatches on
 the intervention's target type, the tool wrapper does not need to know which. `scale_demand`
-(E2.3) wraps `use_cases/scale_demand.py` the same way, for the network-wide `demand_scale` case.
+(E2.3) wraps the `ScaleDemand` use case the same way, for the network-wide `demand_scale` case.
 Each tool is declared once with `tool` (ADR-0033); the ones that write files take a
 `BuilderRun` as `ctx`. `write_taz` and the script tools (`write_traci_script`, `lint_script`,
 `dry_run`) arrive with E2.6. Each function is the one implementation, offered in-process to the
@@ -24,10 +24,9 @@ from pydantic import Field
 from resto.application.ports.llm import Tool
 from resto.application.ports.network_query import NetworkQuery, NetworkQueryLoader
 from resto.application.ports.repositories import DemandRepository, NetworkRepository
-from resto.application.ports.sumo import DemandScaler, DemandTools
 from resto.application.ports.writers import AdditionalFileWriter, SimulationSettings, SumocfgWriter
 from resto.application.tools.declaration import tool
-from resto.application.use_cases.scale_demand import scale_demand as scale_demand_use_case
+from resto.application.use_cases.scale_demand import ScaleDemand
 from resto.domain.entities.demand import Demand
 from resto.domain.entities.network import Network
 from resto.domain.services.ids import scenario_id_for
@@ -48,8 +47,7 @@ class BuilderCollaborators:
     vss_writer: AdditionalFileWriter
     tls_program_writer: AdditionalFileWriter
     sumocfg_writer: SumocfgWriter
-    demand_scaler: DemandScaler
-    duarouter: DemandTools
+    scale_demand: ScaleDemand
     out_dir: Path
 
 
@@ -242,7 +240,7 @@ def scale_demand(ctx: BuilderRun, intervention_index: _DemandScaleIndex) -> Mapp
     """Regenerates the demand at the intervention's `scale` times its current volume, routed over
     the network.
 
-    No LLM involved — deterministic resample + `duarouter` (`use_cases/scale_demand.py`); this
+    No LLM involved — deterministic resample + `duarouter` (`ScaleDemand`); this
     is the Builder tool that flattens the result to a JSON-shaped dict, same pattern as
     `write_rerouter`/`write_vss`/`write_tls_program`.
 
@@ -254,17 +252,8 @@ def scale_demand(ctx: BuilderRun, intervention_index: _DemandScaleIndex) -> Mapp
         ValueError: the scale is not positive, or the demand and network do not match.
     """
     request = ctx.request
-    collaborators = ctx.collaborators
     factor = float(request.interventions[intervention_index].params["scale"])
-    derived = scale_demand_use_case(
-        request.demand,
-        request.network,
-        factor,
-        scaler=collaborators.demand_scaler,
-        duarouter=collaborators.duarouter,
-        demands=collaborators.demands,
-        out_dir=request.out_dir,
-    )
+    derived = ctx.collaborators.scale_demand.execute(request.demand, request.network, factor)
     ctx.scaled_routes[:] = [derived.routes.path]
     return {"demand_id": derived.demand_id, "routes_path": str(derived.routes.path)}
 

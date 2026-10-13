@@ -30,6 +30,7 @@ from resto.application.ports.llm import Budget, ToolAgent
 from resto.application.ports.tracing import Tracer
 from resto.application.tools.expert import ExpertCollaborators
 from resto.application.tools.scenario_builder import BuilderCollaborators
+from resto.application.use_cases.scale_demand import ScaleDemand
 from resto.domain.services.planner import plan_study
 
 AGENT_SECONDS = 300.0
@@ -73,8 +74,12 @@ def build_deps(
                     vss_writer=VssWriter(),
                     tls_program_writer=TlsProgramWriter(),
                     sumocfg_writer=SumocfgFileWriter(),
-                    demand_scaler=SumoDemandScaler(),
-                    duarouter=SumoDemandTools(),
+                    scale_demand=ScaleDemand(
+                        scaler=SumoDemandScaler(),
+                        duarouter=SumoDemandTools(),
+                        demands=db.demands,
+                        out_dir=out_dir / "builder",
+                    ),
                     out_dir=out_dir / "builder",
                 ),
             ),

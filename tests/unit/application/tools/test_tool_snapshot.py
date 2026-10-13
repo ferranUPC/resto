@@ -28,6 +28,7 @@ from resto.application.tools.scenario_builder import (
     BuilderRequest,
     build_scenario_builder_tools,
 )
+from resto.application.use_cases.scale_demand import ScaleDemand
 from resto.domain.value_objects.intervention import Intervention, InterventionType
 from resto.domain.value_objects.intervention_target import LaneTarget
 from resto.domain.value_objects.question import Mode
@@ -89,8 +90,12 @@ def _builder(query: SumolibNetworkQuery) -> tuple[Tool, ...]:
         vss_writer=RecordingAdditionalFileWriter(),
         tls_program_writer=RecordingAdditionalFileWriter(),
         sumocfg_writer=RecordingWriter(),
-        demand_scaler=RecordingDemandScaler(),
-        duarouter=RecordingDuarouter(),
+        scale_demand=ScaleDemand(
+            scaler=RecordingDemandScaler(),
+            duarouter=RecordingDuarouter(),
+            demands=RecordingDemandRepository(),
+            out_dir=Path("out"),
+        ),
         out_dir=Path("out"),
     )
     request = BuilderRequest(

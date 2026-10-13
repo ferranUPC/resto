@@ -54,7 +54,7 @@ from resto.adapters.sumo.writers.tls_program import TlsProgramWriter
 from resto.adapters.sumo.writers.vss import VssWriter
 from resto.application.ports.repositories import DemandRepository
 from resto.application.ports.writers import SimulationSettings
-from resto.application.use_cases.scale_demand import scale_demand
+from resto.application.use_cases.scale_demand import ScaleDemand
 from resto.domain.entities.demand import Demand
 from resto.domain.entities.network import Network
 from resto.domain.value_objects.artifact_ref import ArtifactRef
@@ -333,15 +333,12 @@ def build_draft(
 
     if row.mechanism == "demand_scale":
         assert row.factor is not None
-        derived = scale_demand(
-            demand,
-            network,
-            row.factor,
+        derived = ScaleDemand(
             scaler=SumoDemandScaler(),
             duarouter=SumoDemandTools(),
             demands=demands,
             out_dir=row_dir,
-        )
+        ).execute(demand, network, row.factor)
         intervention = Intervention(
             type=InterventionType.DEMAND_SCALE,
             target=None,
