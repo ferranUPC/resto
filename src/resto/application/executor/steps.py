@@ -23,7 +23,6 @@ from resto.application.executor.spend import StudySpend
 from resto.application.ports.llm import AgentRun
 from resto.application.use_cases.build_scenario import build_scenario
 from resto.application.use_cases.run_simulation import attempt_dir, run_simulation
-from resto.application.use_cases.update_note_status import update_note_status
 from resto.domain.constants import DEFAULT_SEEDS, NOTE_VERIFY_LIMIT
 from resto.domain.entities.expert_note import NoteStatus
 from resto.domain.entities.scenario import Scenario
@@ -379,6 +378,6 @@ def _verify_notes(
         limit=NOTE_VERIFY_LIMIT,
     )
     for note, _ in hits:
-        status = update_note_status(note, result, notes=deps.notes)
+        status = deps.update_note_status.execute(note, result)
         if status is not None:
             recorder.note_status_changed(note.note_id, result.result_id, status)

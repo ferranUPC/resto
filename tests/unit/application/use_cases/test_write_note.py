@@ -10,7 +10,7 @@ from resto.adapters.persistence.memory import InMemoryNoteRepository
 from resto.application.ports.llm import AgentRun, StopReason
 from resto.application.promotion import DraftRejected, RunWithoutDraft
 from resto.application.tools.expert import EvidenceLedger
-from resto.application.use_cases.write_note import write_note
+from resto.application.use_cases.write_note import WriteNote
 from resto.domain.entities.expert_note import NoteStatus, Provenance
 from resto.domain.value_objects.answer_value import Measure, Quantity
 from resto.domain.value_objects.drafts import ExpertNoteDraft, ExpertNoteDrafts
@@ -84,13 +84,8 @@ def _ledger() -> EvidenceLedger:
 
 
 def _write(run: AgentRun, notes: InMemoryNoteRepository | None = None):  # noqa: ANN202
-    return write_note(
-        run,
-        _ledger(),
-        TASK,
-        study_id=STUDY,
-        notes=notes if notes is not None else InMemoryNoteRepository(),
-    )
+    use_case = WriteNote(notes if notes is not None else InMemoryNoteRepository())
+    return use_case.execute(run, _ledger(), TASK, STUDY)
 
 
 def test_a_note_about_a_simulated_scenario_is_simulation_provenance() -> None:
