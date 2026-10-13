@@ -29,6 +29,8 @@ from resto.application.ports.llm import AgentRun, StopReason
 from resto.application.ports.sumo import RunOutput
 from resto.application.ports.tracing import TraceEvent
 from resto.application.tools.expert import EvidenceLedger
+from resto.application.use_cases.ask_expert import AskExpert
+from resto.application.use_cases.compose_report import ComposeReport
 from resto.application.use_cases.run_simulation import RunSimulation
 from resto.application.use_cases.run_study import run_study
 from resto.application.use_cases.update_note_status import UpdateNoteStatus
@@ -347,6 +349,7 @@ class World:
         self.tracer = RecordingTracer()
         self.promoted_networks: list[Any] = []
         self.query_loads: list[Path] = []
+        loader = StoredNetworkQueryLoader(self.networks, self._load_query)
         self.deps = StudyDeps(
             agents=StudyAgents(
                 parser=self.parser,
@@ -372,9 +375,11 @@ class World:
             run_simulation=RunSimulation(
                 self.runner, self.results, FilesystemRunDirectories(), tmp_path / "results"
             ),
-            network_query_loader=StoredNetworkQueryLoader(self.networks, self._load_query),
+            network_query_loader=loader,
             tracer=self.tracer,
             planner=self.planner,
+            ask_expert=AskExpert(loader=loader),
+            compose_report=ComposeReport(),
             update_note_status=UpdateNoteStatus(self.notes),
             write_note=WriteNote(self.notes),
         )

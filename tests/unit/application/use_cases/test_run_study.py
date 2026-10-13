@@ -23,6 +23,7 @@ from resto.application.ports.tracing import (
     StepTraced,
     StudyCreated,
 )
+from resto.application.use_cases.ask_expert import AskExpert
 from resto.application.use_cases.run_study import ParserFailed
 from resto.domain.constants import DEFAULT_SEEDS
 from resto.domain.entities.expert_note import ExpertNote, NoteStatus, Provenance
@@ -537,7 +538,11 @@ def test_an_expert_round_on_a_network_that_is_not_stored_is_infrastructure(tmp_p
         gone = True
         return answers()(task, ledger)
 
-    world.deps = replace(world.deps, network_query_loader=VanishingLoader())
+    world.deps = replace(
+        world.deps,
+        network_query_loader=VanishingLoader(),
+        ask_expert=AskExpert(loader=VanishingLoader()),
+    )
     world.expert.items.append(answer_after_the_network_vanishes)
 
     study = world.run()

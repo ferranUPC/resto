@@ -20,6 +20,8 @@ Attaching the round to a `Study` and persisting it is the Executor's job (E5,
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from resto.application.ports.llm import AgentRun
 from resto.application.ports.network_query import NetworkQueryLoader
 from resto.application.promotion import DraftRejected, require_draft
@@ -30,19 +32,21 @@ from resto.domain.value_objects.question import Mode
 from resto.domain.value_objects.tasks import ExpertTask
 
 
-def ask_expert(
-    task: ExpertTask,
-    run: AgentRun[ExpertAnswer],
-    ledger: EvidenceLedger,
-    *,
-    loader: NetworkQueryLoader,
-) -> ExpertRound:
-    answer = require_draft(run, "expert")
-    _check_mode(task, answer)
-    ledger.ensure_cited(answer.evidence)
-    _check_values(task, answer, loader)
-    _check_proposed_experiment(task, answer)
-    return ExpertRound(question=task.question, answer=answer)
+@dataclass(frozen=True, slots=True)
+class AskExpert:
+    """Promotes the Expert's run. `loader` resolves the networks of the task's scope."""
+
+    loader: NetworkQueryLoader
+
+    def execute(
+        self, task: ExpertTask, run: AgentRun[ExpertAnswer], ledger: EvidenceLedger
+    ) -> ExpertRound:
+        answer = require_draft(run, "expert")
+        _check_mode(task, answer)
+        ledger.ensure_cited(answer.evidence)
+        _check_values(task, answer, self.loader)
+        _check_proposed_experiment(task, answer)
+        return ExpertRound(question=task.question, answer=answer)
 
 
 def _check_mode(task: ExpertTask, answer: ExpertAnswer) -> None:
