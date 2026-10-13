@@ -84,7 +84,7 @@ def build_agents(
                 scale_demand=ScaleDemand(
                     scaler=SumoDemandScaler(),
                     duarouter=SumoDemandTools(),
-                    demands=db.demands,
+                    demand_repository=db.demands,
                     out_dir=builder_dir,
                 ),
                 out_dir=builder_dir,

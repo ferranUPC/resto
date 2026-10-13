@@ -32,7 +32,7 @@ class ScaleDemand:
 
     scaler: DemandScaler
     duarouter: DemandTools
-    demands: DemandRepository
+    demand_repository: DemandRepository
     out_dir: Path
 
     def execute(self, demand: Demand, network: Network, factor: float) -> Demand:
@@ -47,7 +47,7 @@ class ScaleDemand:
         work_dir = self.out_dir / f"scale-{demand.demand_id}-{factor}"
         new_trips = self.scaler.scale(demand.trips, factor, work_dir)
         demand_id = new_trips.content_hash
-        existing = self.demands.get(demand_id)
+        existing = self.demand_repository.get(demand_id)
         if existing is not None:
             return existing
 
@@ -64,5 +64,5 @@ class ScaleDemand:
             labels=demand.labels,
             derived_from=demand.demand_id,
         )
-        self.demands.store(derived)
+        self.demand_repository.store(derived)
         return derived

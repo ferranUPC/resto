@@ -55,7 +55,9 @@ def routed(digest: str = "routed1") -> ArtifactRef:
 def use_case(
     scaler: FakeScaler, duarouter: FakeDuarouter, demands: InMemoryDemandRepository, out_dir: Path
 ) -> ScaleDemand:
-    return ScaleDemand(scaler=scaler, duarouter=duarouter, demands=demands, out_dir=out_dir)
+    return ScaleDemand(
+        scaler=scaler, duarouter=duarouter, demand_repository=demands, out_dir=out_dir
+    )
 
 
 def test_scales_and_routes_a_new_demand(tmp_path: Path) -> None:

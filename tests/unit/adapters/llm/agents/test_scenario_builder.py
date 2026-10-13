@@ -72,7 +72,7 @@ def collaborators(tmp_path: Path, **overrides: object) -> BuilderCollaborators:
         "scale_demand": ScaleDemand(
             scaler=RecordingDemandScaler(),
             duarouter=RecordingDuarouter(),
-            demands=demands,
+            demand_repository=demands,
             out_dir=tmp_path,
         ),
         "out_dir": tmp_path,

@@ -93,7 +93,7 @@ def _builder(query: SumolibNetworkQuery) -> tuple[Tool, ...]:
         scale_demand=ScaleDemand(
             scaler=RecordingDemandScaler(),
             duarouter=RecordingDuarouter(),
-            demands=RecordingDemandRepository(),
+            demand_repository=RecordingDemandRepository(),
             out_dir=Path("out"),
         ),
         out_dir=Path("out"),

@@ -336,7 +336,7 @@ def build_draft(
         derived = ScaleDemand(
             scaler=SumoDemandScaler(),
             duarouter=SumoDemandTools(),
-            demands=demands,
+            demand_repository=demands,
             out_dir=row_dir,
         ).execute(demand, network, row.factor)
         intervention = Intervention(

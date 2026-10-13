@@ -89,7 +89,7 @@ def _run(  # noqa: ANN202
         scale_demand=ScaleDemand(
             scaler=demand_scaler or RecordingDemandScaler(),
             duarouter=duarouter or RecordingDuarouter(),
-            demands=demands,
+            demand_repository=demands,
             out_dir=tmp_path,
         ),
         out_dir=tmp_path,
