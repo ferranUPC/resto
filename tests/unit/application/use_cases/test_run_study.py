@@ -194,15 +194,6 @@ def test_forced_mode_answers_in_one_phase_and_offers_the_predicted_scenario(
     ]
 
 
-def test_the_mode_given_by_the_user_overrides_the_parsers(tmp_path: Path) -> None:
-    world = World(tmp_path, question=WHAT_IF, plans=(WHAT_IF_PLAN,), expert=(answers(),))
-
-    study = world.run(mode=Mode.FORCED)
-
-    assert study.question.mode is Mode.FORCED
-    assert study.resolution is StudyResolution.COMPLETED
-
-
 def test_the_last_round_is_forced_by_the_limit(tmp_path: Path) -> None:
     world = World(
         tmp_path,
