@@ -1,25 +1,22 @@
 """Network Expert note-writing promotion: an already-run `AgentRun[ExpertNoteDrafts]` -> the study's
-`ExpertNote`s (DoD §2.2, §2.4; ADR-0001, ADR-0011, ADR-0026).
+`ExpertNote`s (DoD §2.2, §2.4; ADR-0001, ADR-0011, ADR-0026, ADR-0042 §5, §10).
 
-Like `AskExpert`/`BuildScenario`, this takes the agent's run as a finished fact: writing the notes
-is `adapters/llm/agents/expert.py::run_expert_note`, which must be given the SAME `EvidenceLedger`
-the final round was promoted with — the note-writing call makes no tool calls of its own, so every
-evidence ref it cites must already be there.
+Writing the notes is `adapters/llm/agents/expert.py::run_expert_note`. That call has no tools and
+sees only the final round's answer, so a note may cite only evidence of that answer.
 
-Promotion order (ADR-0001), all drafts checked before any is stored:
+Promotion order (ADR-0001), all drafts checked before any note is built:
   1. syntactic - the run stopped with `ExpertNoteDrafts` (0 to MAX_NOTES_PER_STUDY; each draft's
                  own invariants already ran: text required, an observed note has evidence).
-  2. semantic  - every evidence ref resolves to a tool call in the ledger (query) or to an artifact
-                 a result tool call returned (artifact); every `scenario_ref` is in the task's
-                 allow-list; a note about a scenario that was not simulated is not `observed`.
+  2. semantic  - every evidence ref is a ref of the final answer's evidence
+                 (`task.round.answer.evidence`); every `scenario_ref` is in the task's allow-list;
+                 a note about a scenario that was not simulated is not `observed`.
   3. construct - `note_id` (UUID, ADR-0002), `scenario_id = scenario_ref`, `network_id` = the
                  scenario's network (the base scenario's for a prediction) or, with no scenario,
                  the study's base network (ADR-0032), `provenance`
                  (`SIMULATION` only when that scenario has ok results in the study, `OPINION`
-                 otherwise — a prediction keeps its predicted `scenario_id`), `status = UNVERIFIED`.
-  4. persist   - `notes.store(note)` for each.
-Attaching the notes to a `Study` is the Executor's job (E5.10,
-`application/executor/`), not this module's.
+                 otherwise; a prediction keeps its predicted `scenario_id`), `status = UNVERIFIED`.
+Storing the notes and attaching their ids to the `Study` is the study flow's job
+(`application/executor/`).
 """
 
 from __future__ import annotations
@@ -27,9 +24,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from resto.application.ports.llm import AgentRun
-from resto.application.ports.repositories import NoteRepository
 from resto.application.promotion import DraftRejected, require_draft
-from resto.application.tools.expert import EvidenceLedger
 from resto.domain.entities.expert_note import ExpertNote, Provenance
 from resto.domain.services.ids import new_id
 from resto.domain.value_objects.drafts import ExpertNoteDraft, ExpertNoteDrafts
@@ -38,24 +33,33 @@ from resto.domain.value_objects.tasks import NoteTask
 
 
 @dataclass(frozen=True, slots=True)
-class WriteNote:
-    notes: NoteRepository
+class NoteContext:
+    """What the note writer was given (`task`) and the study its notes belong to."""
 
-    def execute(
-        self,
-        run: AgentRun[ExpertNoteDrafts],
-        ledger: EvidenceLedger,
-        task: NoteTask,
-        study_id: str,
+    task: NoteTask
+    study_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class NotePromoter:
+    def promote(
+        self, run: AgentRun[ExpertNoteDrafts], context: NoteContext
     ) -> tuple[ExpertNote, ...]:
+        task = context.task
         drafts = require_draft(run, "note_writer").notes
+        cited = {e.ref for e in task.round.answer.evidence}
         for draft in drafts:
-            ledger.ensure_cited(draft.evidence)
+            _check_evidence(draft, cited)
             _check_scenario(draft, task)
-        written = tuple(_construct(d, task, study_id=study_id) for d in drafts)
-        for note in written:
-            self.notes.store(note)
-        return written
+        return tuple(_construct(d, task, study_id=context.study_id) for d in drafts)
+
+
+def _check_evidence(draft: ExpertNoteDraft, cited: set[str]) -> None:
+    for item in draft.evidence:
+        if item.ref not in cited:
+            raise DraftRejected(
+                f"evidence ref {item.ref!r} is not evidence of the final Expert answer"
+            )
 
 
 def _construct(draft: ExpertNoteDraft, task: NoteTask, *, study_id: str) -> ExpertNote:

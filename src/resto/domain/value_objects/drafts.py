@@ -186,7 +186,7 @@ class ExpertNoteDrafts:
 @dataclass(frozen=True, slots=True)
 class ClaimDraft:
     """A claim as the Composer writes it. Unlike `Claim` it may arrive without evidence: the
-    promotion (`ComposeReport`) rejects that, so the rejection shows in the trace as an agent
+    promotion (`ReportPromoter`) rejects that, so the rejection shows in the trace as an agent
     failure instead of as a parse error."""
 
     text: str
@@ -196,7 +196,7 @@ class ClaimDraft:
 
 @dataclass(frozen=True, slots=True)
 class ReportDraft:
-    """Output Composer output: only what the model writes. `ComposeReport` takes `basis` from the
+    """Output Composer output: only what the model writes. `ReportPromoter` takes `basis` from the
     last Expert round, `mode` from that round (forced by the limit) or from the question (forced
     mode), and adds the limitation line when the limit forced the round, so the model cannot
     declare a basis the Expert did not, or omit the line (E5.4; departs from the §2.4 table, which

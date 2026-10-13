@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from enum import StrEnum
 from itertools import pairwise
 from typing import assert_never
 
 from resto.domain.constants import DEFAULT_MAX_ROUNDS
+from resto.domain.entities.network import Network
+from resto.domain.entities.scenario import Scenario
 from resto.domain.events import (
     ExpertRoundHeld,
     NetworksAdded,
@@ -18,7 +21,9 @@ from resto.domain.events import (
     StudyCreated,
     StudyEvent,
 )
-from resto.domain.value_objects.experiment import Experiment
+from resto.domain.services.ids import scenario_id_for
+from resto.domain.value_objects.arm import BASE_ARM
+from resto.domain.value_objects.experiment import Experiment, ExperimentRole
 from resto.domain.value_objects.expert_round import ExpertRound
 from resto.domain.value_objects.outcomes import NeedsUser
 from resto.domain.value_objects.question import Mode, Question
@@ -36,6 +41,7 @@ from resto.domain.value_objects.study_action import (
     StudyAction,
 )
 from resto.domain.value_objects.study_plan import PlanStep, Produces, StudyPlan
+from resto.domain.value_objects.tasks import NoteScenario, NoteTask
 
 
 class StudyStage(StrEnum):
@@ -328,6 +334,77 @@ class Study:
         """The arms the phases before the current one realised, in order: they are not planned
         again."""
         return tuple(e.arm for p in self.phases[:-1] for e in p.experiments)
+
+    @property
+    def scenario_ids(self) -> tuple[str, ...]:
+        """The scenario of every experiment of the study, in order, without repeats."""
+        return tuple(dict.fromkeys(e.scenario_id for p in self.phases for e in p.experiments))
+
+    def note_task(
+        self,
+        final: ExpertRound,
+        *,
+        scenarios: Mapping[str, Scenario],
+        networks: Mapping[str, Network],
+    ) -> NoteTask:
+        """The note writer's task about the `final` round (ADR-0026). `scenarios` and `networks`
+        are the study's own, as the caller loaded them by `scenario_ids` and `network_ids`: an id
+        missing from them is not stored."""
+        base_network_id = self._base_network_id(networks)
+        return NoteTask(final, base_network_id, self._allow_list(scenarios))
+
+    def _allow_list(self, scenarios: Mapping[str, Scenario]) -> tuple[NoteScenario, ...]:
+        """Every scenario of the study, plus the predicted id of each arm of the original question
+        that was not realised and keeps the topology (ADR-0026)."""
+        entries: dict[str, NoteScenario] = {}
+        experiments = [e for p in self.phases for e in p.experiments]
+        for e in experiments:
+            scenario = scenarios.get(e.scenario_id)
+            if scenario is None:
+                raise ValueError(f"scenario {e.scenario_id!r} of the study is not stored")
+            entries.setdefault(
+                e.scenario_id,
+                NoteScenario(
+                    e.scenario_id, e.arm, e.role, e.purpose, bool(e.result_ids), scenario.network_id
+                ),
+            )
+        base = next((e for e in experiments if e.arm == BASE_ARM), None)
+        if base is None:
+            return tuple(entries.values())
+        base_scenario = scenarios[base.scenario_id]
+        realised = {e.arm for e in experiments}
+        question = self.question
+        for arm in question.effective_arms:
+            if arm.label in realised or arm.topology_changes:
+                continue
+            predicted = scenario_id_for(
+                base_scenario.network_id,
+                base_scenario.demand_id,
+                arm.interventions,
+                question.context_tags,
+            )
+            entries.setdefault(
+                predicted,
+                NoteScenario(
+                    predicted,
+                    arm.label,
+                    ExperimentRole.TREATMENT,
+                    f"arm {arm.label!r} as asked, not simulated in this study",
+                    simulated=False,
+                    network_id=base_scenario.network_id,
+                ),
+            )
+        return tuple(entries.values())
+
+    def _base_network_id(self, networks: Mapping[str, Network]) -> str:
+        """The study's own network: the one of its networks that was not derived from another.
+        `network_ids` is in the order the study met its networks, so a derived network can come
+        first: the position cannot say which one is the base."""
+        for network_id in self.network_ids:
+            network = networks.get(network_id)
+            if network is not None and network.derived_from is None:
+                return network_id
+        raise ValueError("none of the study's networks is stored as a base network")
 
     def next_action(self) -> StudyAction:
         """What the study needs next (ADR-0041 §5), from its stage and its last phase. A resolved

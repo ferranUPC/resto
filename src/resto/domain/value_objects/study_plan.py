@@ -300,8 +300,8 @@ PlanStep = (
     | BuildScenarioStep
     | RunSimulationStep
 )
-"""One variant per use case a plan may call. `AskExpert` and `ComposeReport` are not plan
-steps: the Executor always runs them (ADR-0023 §2). Each variant declares the ids it names
+"""One variant per use case a plan may call. Asking the Expert and composing the report are not
+plan steps: the Executor always runs them (ADR-0023 §2). Each variant declares the ids it names
 directly (`refs`) and its effect on its phase once recorded (`apply`), so neither the plan
 validator nor `Study.record_step` matches on step types (ADR-0042 §6)."""
 
