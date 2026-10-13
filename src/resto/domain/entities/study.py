@@ -253,7 +253,7 @@ class Study:
                 raise ValueError("a study at planning has not accepted the plan of its last phase")
             return
         if not last.planned:
-            raise ValueError(f"a study at {stage} has an accepted plan in its last phase")
+            raise ValueError(f"a study at {stage} has no accepted plan in its last phase")
         asks = last.round is not None and last.round.answer.needs_simulation
         if stage is StudyStage.RUNNING and last.round is not None:
             raise ValueError("a running study has not consulted the Expert in its last phase")
