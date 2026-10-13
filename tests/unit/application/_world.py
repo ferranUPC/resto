@@ -1,5 +1,5 @@
 """Shared test world for the Executor tests, the CLI tests and the golden paths: scripted agent
-ports, fake promotions, in-memory repositories, a fake SUMO runner and sample plans. No network."""
+ports, fake promoters, in-memory repositories, a fake SUMO runner and sample plans. No network."""
 
 from __future__ import annotations
 

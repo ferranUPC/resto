@@ -321,13 +321,14 @@ def study() -> Study:
                 ),
                 experiments=(
                     Experiment(
-                        "s0", "base", ExperimentRole.BASELINE, "reference", ("res0",), reused=True
+                        "s0", "base", ExperimentRole.BASELINE, "reference", 1, ("res0",), True
                     ),
                     Experiment(
                         scenario_id="s1",
                         arm="treatment",
                         role=ExperimentRole.TREATMENT,
                         purpose="measure the closure",
+                        step_index=2,
                         result_ids=("res1",),
                     ),
                 ),
@@ -417,7 +418,7 @@ SAMPLES: dict[type, Callable[[], object]] = {
     Usage: lambda: Usage(input_tokens=120, output_tokens=45, simulations=1),
     PlanningContext: lambda: PlanningContext(phase=1, network_id="n1", realised=("base",)),
     Experiment: lambda: Experiment(
-        scenario_id="s1", arm="base", role=ExperimentRole.BASELINE, purpose="ref"
+        scenario_id="s1", arm="base", role=ExperimentRole.BASELINE, purpose="ref", step_index=1
     ),
     ExpertRound: lambda: ExpertRound(question="why?", answer=expert_answer(), forced_by_limit=True),
     ExpertAnswer: expert_answer,

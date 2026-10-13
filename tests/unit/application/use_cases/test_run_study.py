@@ -19,6 +19,7 @@ from resto.domain.entities.simulation_result import RunMode
 from resto.domain.entities.study import Study, StudyResolution, StudyStage
 from resto.domain.events import (
     ExpertRoundHeld,
+    NetworksAdded,
     NoteStatusChanged,
     PhaseStarted,
     PlanMade,
@@ -101,7 +102,7 @@ def test_gp1_a_stored_baseline_is_answered_from_its_results(tmp_path: Path) -> N
         ("compose_report", StepStatus.OK),
     ]
     assert study.phases[0].experiments == (
-        Experiment(sid, BASE_ARM, ExperimentRole.BASELINE, "arm base", ids, reused=True),
+        Experiment(sid, BASE_ARM, ExperimentRole.BASELINE, "arm base", 1, ids, reused=True),
     )
     assert world.runner.calls == [] and world.builder.calls == []
     task = world.expert.calls[0][0]
@@ -126,7 +127,7 @@ def test_gp2_builds_and_runs_the_baseline_with_the_default_seeds(tmp_path: Path)
     (experiment,) = study.phases[0].experiments
     expected = tuple(result_id_for(BASE_SID, s, RunMode.BATCH.value) for s in DEFAULT_SEEDS)
     assert experiment == Experiment(
-        BASE_SID, BASE_ARM, ExperimentRole.BASELINE, "arm base", expected
+        BASE_SID, BASE_ARM, ExperimentRole.BASELINE, "arm base", 1, expected
     )
     assert [seed for _, seed, _ in world.runner.calls] == [0, *DEFAULT_SEEDS]  # load check + runs
     assert study.phases[0].steps[3].usage == Usage(simulations=3)
@@ -253,6 +254,30 @@ def _derive_plan() -> Any:
         build_step("edge", network=derived, demand=rerouted, depends_on=(0, 1)),
         run_step(4),
     )
+
+
+def test_each_network_is_traced_before_the_step_that_obtained_it(tmp_path: Path) -> None:
+    world = World(tmp_path, question=_edge_question(), plans=(_derive_plan(),), expert=(answers(),))
+
+    world.run()
+
+    flow = [
+        ("networks", e.network_ids) if isinstance(e, NetworksAdded) else ("step", e.tool)
+        for e in world.tracer.events
+        if isinstance(e, NetworksAdded | StepTraced)
+    ]
+    assert flow[:6] == [
+        ("step", "parse"),
+        ("networks", (NET,)),
+        ("step", "obtain_network"),
+        ("networks", ("derived-1",)),
+        ("step", "derive_network"),
+        ("step", "reroute_demand"),
+    ]
+    assert [f for f in flow if f[0] == "networks"] == [
+        ("networks", (NET,)),
+        ("networks", ("derived-1",)),
+    ]
 
 
 def _edge_question() -> Question:

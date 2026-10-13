@@ -7,12 +7,16 @@ such id widened to `str | FromStep`.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Literal
+from dataclasses import dataclass, replace
+from typing import TYPE_CHECKING, Literal
 
-from resto.domain.value_objects.experiment import ExperimentRole
+from resto.domain.value_objects.experiment import Experiment, ExperimentRole
 from resto.domain.value_objects.intervention import Intervention
+from resto.domain.value_objects.step_record import StepRecord
 from resto.domain.value_objects.topology_modification import TopologyModification
+
+if TYPE_CHECKING:  # the phase holds its plan: `Phase` is imported for the annotations only
+    from resto.domain.entities.study import Phase
 
 Produces = Literal["network", "demand", "scenario", "result"]
 
@@ -29,10 +33,16 @@ class FromStep:
 
 
 StepInput = tuple[FromStep, Produces]
+StepRef = tuple[Produces, str]
+"""An id a step names directly, not through `FromStep`, and its kind."""
 
 
 def _step_inputs(*ids: tuple[Produces, str | FromStep]) -> tuple[StepInput, ...]:
     return tuple((ref, kind) for kind, ref in ids if isinstance(ref, FromStep))
+
+
+def _refs(*ids: tuple[Produces, str | FromStep]) -> tuple[StepRef, ...]:
+    return tuple((kind, ref) for kind, ref in ids if isinstance(ref, str))
 
 
 def _check_depends_on(inputs: tuple[StepInput, ...], depends_on: tuple[int, ...]) -> None:
@@ -41,6 +51,14 @@ def _check_depends_on(inputs: tuple[StepInput, ...], depends_on: tuple[int, ...]
     missing = sorted({ref.step for ref, _ in inputs} - set(depends_on))
     if missing:
         raise ValueError(f"FromStep {missing} must also be listed in depends_on")
+
+
+def _unchanged(phase: Phase, reused: tuple[str, ...]) -> Phase:
+    """The effect of a step that builds no scenario and runs nothing: none. Only those two reuse
+    stored results."""
+    if reused:
+        raise ValueError("only build_scenario and run_simulation steps reuse results")
+    return phase
 
 
 @dataclass(frozen=True, slots=True)
@@ -62,6 +80,10 @@ class ObtainNetworkStep:
             raise ValueError("an obtain_network step requires the network reference")
         _check_depends_on(self.inputs, self.depends_on)
 
+    def refs(self) -> tuple[StepRef, ...]:
+        """None: `network_ref` is the Parser's text, not an id."""
+        return ()
+
     @property
     def inputs(self) -> tuple[StepInput, ...]:
         return ()
@@ -69,6 +91,9 @@ class ObtainNetworkStep:
     @property
     def produces(self) -> Produces:
         return "network"
+
+    def apply(self, phase: Phase, record: StepRecord, reused: tuple[str, ...]) -> Phase:
+        return _unchanged(phase, reused)
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,6 +113,9 @@ class DeriveNetworkStep:
             raise ValueError("deriving a network requires at least one modification")
         _check_depends_on(self.inputs, self.depends_on)
 
+    def refs(self) -> tuple[StepRef, ...]:
+        return _refs(("network", self.base_network_id))
+
     @property
     def inputs(self) -> tuple[StepInput, ...]:
         return _step_inputs(("network", self.base_network_id))
@@ -95,6 +123,9 @@ class DeriveNetworkStep:
     @property
     def produces(self) -> Produces:
         return "network"
+
+    def apply(self, phase: Phase, record: StepRecord, reused: tuple[str, ...]) -> Phase:
+        return _unchanged(phase, reused)
 
 
 @dataclass(frozen=True, slots=True)
@@ -119,6 +150,9 @@ class ObtainDemandStep:
             raise ValueError("demand_ref, when given, must not be blank")
         _check_depends_on(self.inputs, self.depends_on)
 
+    def refs(self) -> tuple[StepRef, ...]:
+        return _refs(("network", self.network_id))
+
     @property
     def inputs(self) -> tuple[StepInput, ...]:
         return _step_inputs(("network", self.network_id))
@@ -126,6 +160,9 @@ class ObtainDemandStep:
     @property
     def produces(self) -> Produces:
         return "demand"
+
+    def apply(self, phase: Phase, record: StepRecord, reused: tuple[str, ...]) -> Phase:
+        return _unchanged(phase, reused)
 
 
 @dataclass(frozen=True, slots=True)
@@ -140,6 +177,9 @@ class RerouteDemandStep:
     def __post_init__(self) -> None:
         _check_depends_on(self.inputs, self.depends_on)
 
+    def refs(self) -> tuple[StepRef, ...]:
+        return _refs(("demand", self.demand_id), ("network", self.network_id))
+
     @property
     def inputs(self) -> tuple[StepInput, ...]:
         return _step_inputs(("demand", self.demand_id), ("network", self.network_id))
@@ -147,6 +187,9 @@ class RerouteDemandStep:
     @property
     def produces(self) -> Produces:
         return "demand"
+
+    def apply(self, phase: Phase, record: StepRecord, reused: tuple[str, ...]) -> Phase:
+        return _unchanged(phase, reused)
 
 
 @dataclass(frozen=True, slots=True)
@@ -171,6 +214,9 @@ class BuildScenarioStep:
             raise ValueError("a build_scenario step requires a purpose")
         _check_depends_on(self.inputs, self.depends_on)
 
+    def refs(self) -> tuple[StepRef, ...]:
+        return _refs(("network", self.network_id), ("demand", self.demand_id))
+
     @property
     def inputs(self) -> tuple[StepInput, ...]:
         return _step_inputs(("network", self.network_id), ("demand", self.demand_id))
@@ -178,6 +224,22 @@ class BuildScenarioStep:
     @property
     def produces(self) -> Produces:
         return "scenario"
+
+    def apply(self, phase: Phase, record: StepRecord, reused: tuple[str, ...]) -> Phase:
+        """The scenario `record` produced becomes the `Experiment` of this step's arm, with the
+        stored results it reused (a scenario found by the hash of its request)."""
+        if len(record.produced_ids) != 1:
+            raise ValueError("a build_scenario step produces one scenario")
+        experiment = Experiment(
+            record.produced_ids[0],
+            self.arm,
+            self.role,
+            self.purpose,
+            phase.next_plan_index,
+            result_ids=reused,
+            reused=bool(reused),
+        )
+        return replace(phase, experiments=(*phase.experiments, experiment))
 
 
 @dataclass(frozen=True, slots=True)
@@ -199,6 +261,9 @@ class RunSimulationStep:
                 raise ValueError("seeds must be >= 0")
         _check_depends_on(self.inputs, self.depends_on)
 
+    def refs(self) -> tuple[StepRef, ...]:
+        return _refs(("scenario", self.scenario_id))
+
     @property
     def inputs(self) -> tuple[StepInput, ...]:
         return _step_inputs(("scenario", self.scenario_id))
@@ -206,6 +271,25 @@ class RunSimulationStep:
     @property
     def produces(self) -> Produces:
         return "result"
+
+    def apply(self, phase: Phase, record: StepRecord, reused: tuple[str, ...]) -> Phase:
+        """The run's results join, without repeats, the experiment of the build step its scenario
+        comes from. A run on a stored scenario (an id in the plan) joins none. `reused` are the
+        results of the seeds the run did not run again."""
+        if not set(reused) <= set(record.produced_ids):
+            raise ValueError("a run can reuse only results it holds")
+        if not isinstance(self.scenario_id, FromStep):
+            return phase
+        built = self.scenario_id.step
+        if not any(e.step_index == built for e in phase.experiments):
+            raise ValueError(f"step {built} built no experiment of this phase")
+        experiments = tuple(
+            replace(e, result_ids=tuple(dict.fromkeys((*e.result_ids, *record.produced_ids))))
+            if e.step_index == built
+            else e
+            for e in phase.experiments
+        )
+        return replace(phase, experiments=experiments)
 
 
 PlanStep = (
@@ -217,7 +301,9 @@ PlanStep = (
     | RunSimulationStep
 )
 """One variant per use case a plan may call. Asking the Expert and composing the report are not
-plan steps: the Executor always runs them (ADR-0023 §2)."""
+plan steps: the Executor always runs them (ADR-0023 §2). Each variant declares the ids it names
+directly (`refs`) and its effect on its phase once recorded (`apply`), so neither the plan
+validator nor `Study.record_step` matches on step types (ADR-0042 §6)."""
 
 
 @dataclass(frozen=True, slots=True)

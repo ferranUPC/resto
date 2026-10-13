@@ -40,13 +40,7 @@ from resto.domain.value_objects.study_action import (
     RunPlan,
     StudyAction,
 )
-from resto.domain.value_objects.study_plan import (
-    BuildScenarioStep,
-    FromStep,
-    PlanStep,
-    RunSimulationStep,
-    StudyPlan,
-)
+from resto.domain.value_objects.study_plan import PlanStep, Produces, StudyPlan
 from resto.domain.value_objects.tasks import NoteScenario, NoteTask
 
 
@@ -109,12 +103,26 @@ class Phase:
         return next((s for s in self.steps if s.status is StepStatus.FAILED), None)
 
     @property
+    def next_plan_index(self) -> int:
+        """The index in the plan of the first step not recorded yet. The planning is the phase's
+        first step, so plan step `i` is recorded as step `i + 1`."""
+        return max(len(self.steps) - 1, 0)
+
+    @property
     def pending_steps(self) -> tuple[PlanStep, ...]:
-        """The steps of the plan not recorded yet. The planning is the phase's first step, so
-        plan step `i` is recorded as step `i + 1`."""
+        """The steps of the plan not recorded yet."""
         if self.plan is None:
             return ()
-        return self.plan.steps[max(len(self.steps) - 1, 0) :]
+        return self.plan.steps[self.next_plan_index :]
+
+    def named_ids(self, step: PlanStep, kind: Produces) -> tuple[str, ...]:
+        """The ids of `kind` that `step` names: directly, or through a `FromStep` to a step this
+        phase recorded (the last id that step produced, as the Executor resolves it)."""
+        direct = tuple(ref for k, ref in step.refs() if k == kind)
+        built = tuple(
+            self.steps[ref.step + 1].produced_ids[-1] for ref, k in step.inputs if k == kind
+        )
+        return direct + built
 
     @property
     def planned(self) -> bool:
@@ -470,43 +478,29 @@ class Study:
 
         `reused_result_ids` are results stored before the step: a `build_scenario` step that found
         its scenario stored with ok results reuses them, and a `run_simulation` step reuses the
-        results of the seeds it did not run again. A built scenario becomes an `Experiment` of its
-        arm; a run's results join the experiment of the step that built its scenario (none when
-        the plan names a stored scenario) and produce `SimulationsRecorded`."""
+        results of the seeds it did not run again. The step applies its own effect on the phase
+        (`apply`). A step that produces networks adds those the study does not have yet
+        (`NetworksAdded`, before the step's trace); one that produces results records the runs of
+        the scenario it names (`SimulationsRecorded`)."""
         self._require(StudyStage.RUNNING)
         step = self._next_plan_step(record)
         reused = reused_result_ids
-        phase = self.current_phase
-        events: list[StudyEvent] = [self._traced(record)]
-        match step:
-            case BuildScenarioStep():
-                if len(record.produced_ids) != 1:
-                    raise ValueError("a build_scenario step produces one scenario")
-                experiment = Experiment(
-                    record.produced_ids[0],
-                    step.arm,
-                    step.role,
-                    step.purpose,
-                    result_ids=reused,
-                    reused=bool(reused),
-                )
-                phase = replace(phase, experiments=(*phase.experiments, experiment))
-            case RunSimulationStep():
-                if not set(reused) <= set(record.produced_ids):
-                    raise ValueError("a run can reuse only results it holds")
-                phase, scenario_id = _join_run(phase, step, record.produced_ids)
-                events.append(
-                    SimulationsRecorded(
-                        self.phase_index,
-                        scenario_id,
-                        new_result_ids=tuple(r for r in record.produced_ids if r not in reused),
-                        reused_result_ids=tuple(r for r in record.produced_ids if r in reused),
-                    )
-                )
-            case _ if reused:
-                raise ValueError("only build_scenario and run_simulation steps reuse results")
+        phase = step.apply(self.current_phase, record, reused)
         phase = replace(phase, steps=(*phase.steps, record))
-        return self._with_phase(phase), tuple(events)
+        networks = record.produced_ids if step.produces == "network" else ()
+        study, events = self._with_phase(phase)._with_networks(networks)
+        events.append(self._traced(record))
+        if step.produces == "result":
+            (scenario_id,) = self.current_phase.named_ids(step, "scenario")
+            events.append(
+                SimulationsRecorded(
+                    self.phase_index,
+                    scenario_id,
+                    new_result_ids=tuple(r for r in record.produced_ids if r not in reused),
+                    reused_result_ids=tuple(r for r in record.produced_ids if r in reused),
+                )
+            )
+        return study, tuple(events)
 
     def record_needs_user(self, record: StepRecord, needs_user: NeedsUser) -> Transition:
         """The step that needed the user, the steps of the plan left unrun skipped and the study
@@ -521,16 +515,6 @@ class Study:
         )
         study = self._with_phase(phase, resolution=StudyResolution.AWAITING_USER)
         return study, (self._traced(record),)
-
-    def add_networks(self, *network_ids: str) -> Transition:
-        """The networks among `network_ids` the study has not used yet, added in order; no change
-        and no event when none is new."""
-        self._require()
-        merged = tuple(dict.fromkeys((*self.network_ids, *network_ids)))
-        if merged == self.network_ids:
-            return self, ()
-        added = merged[len(self.network_ids) :]
-        return replace(self, network_ids=merged), (NetworksAdded(added),)
 
     def consult_expert(self) -> Transition:
         """Every step of the plan is recorded: the study is about to ask the Expert."""
@@ -616,6 +600,15 @@ class Study:
             resolution=resolution or self.resolution,
         )
 
+    def _with_networks(self, network_ids: tuple[str, ...]) -> tuple[Study, list[StudyEvent]]:
+        """This study with the networks among `network_ids` it has not used yet, added in order,
+        and their `NetworksAdded`; no event when none is new."""
+        merged = tuple(dict.fromkeys((*self.network_ids, *network_ids)))
+        added = merged[len(self.network_ids) :]
+        if not added:
+            return self, []
+        return replace(self, network_ids=merged), [NetworksAdded(added)]
+
     def _next_plan_step(self, record: StepRecord) -> PlanStep:
         """The step of the plan `record` is the outcome of: the first one not recorded yet."""
         pending = self.current_phase.pending_steps
@@ -651,24 +644,6 @@ def _pending_skipped(phase: Phase) -> tuple[StepRecord, ...]:
     return tuple(
         StepRecord(s.kind, StepStatus.SKIPPED) for s in phase.plan.steps[len(phase.steps) :]
     )
-
-
-def _join_run(
-    phase: Phase, step: RunSimulationStep, result_ids: tuple[str, ...]
-) -> tuple[Phase, str]:
-    """`phase` with the run's results joined, without repeats, to the experiment of the build
-    step its scenario comes from, and that scenario's id. Each build step adds one experiment, so
-    build step `j` made the experiment after those of the build steps before it. A run on a
-    stored scenario (an id in the plan) joins no experiment."""
-    if not isinstance(step.scenario_id, FromStep):
-        return phase, step.scenario_id
-    assert phase.plan is not None  # a phase that ran a step has a plan
-    built = phase.plan.steps[: step.scenario_id.step]
-    j = sum(isinstance(s, BuildScenarioStep) for s in built)
-    target = phase.experiments[j]
-    target = replace(target, result_ids=tuple(dict.fromkeys((*target.result_ids, *result_ids))))
-    experiments = (*phase.experiments[:j], target, *phase.experiments[j + 1 :])
-    return replace(phase, experiments=experiments), target.scenario_id
 
 
 Transition = tuple[Study, tuple[StudyEvent, ...]]

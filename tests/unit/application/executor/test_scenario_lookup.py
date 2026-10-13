@@ -28,7 +28,7 @@ def test_a_scenario_with_ok_results_is_reused_without_calling_the_builder(tmp_pa
     assert study.resolution is StudyResolution.COMPLETED
     assert world.builder.calls == [] and world.runner.calls == []
     assert study.phases[0].experiments == (
-        Experiment(BASE_SID, "base", ExperimentRole.BASELINE, "arm base", ids, reused=True),
+        Experiment(BASE_SID, "base", ExperimentRole.BASELINE, "arm base", 1, ids, reused=True),
     )
 
 

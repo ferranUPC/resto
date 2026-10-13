@@ -58,8 +58,8 @@ def test_a_study_without_a_stored_base_network_has_no_note_task() -> None:
         study.note_task(final, scenarios={}, networks={"derived-1": _derived("derived-1")})
 
 
-BASE = Experiment("s-base", BASE_ARM, ExperimentRole.BASELINE, "reference", ("r1",))
-EDGE = Experiment("s-edge", "edge", ExperimentRole.TREATMENT, "the new edge")
+BASE = Experiment("s-base", BASE_ARM, ExperimentRole.BASELINE, "reference", 1, ("r1",))
+EDGE = Experiment("s-edge", "edge", ExperimentRole.TREATMENT, "the new edge", 2)
 
 
 def _scenario(scenario_id: str, network_id: str = NET) -> Scenario:
@@ -131,7 +131,7 @@ def test_an_arm_not_realised_that_keeps_the_topology_is_cited_by_its_predicted_i
 
 
 def test_a_realised_arm_is_cited_by_its_scenario_not_by_a_prediction() -> None:
-    closure = Experiment("s-closure", "closure", ExperimentRole.TREATMENT, "the closure")
+    closure = Experiment("s-closure", "closure", ExperimentRole.TREATMENT, "the closure", 3)
     study = study_with_rounds(question=_arms_question(), experiments=((BASE, closure),))
 
     task = _task(study, {"s-base": _scenario("s-base"), "s-closure": _scenario("s-closure")})

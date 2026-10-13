@@ -66,7 +66,7 @@ def failed(kind: StepErrorKind, *details: str) -> Study:
                 ),
                 experiments=(
                     Experiment(
-                        "s-base", "base", ExperimentRole.BASELINE, "stored", ("r1", "r2"), True
+                        "s-base", "base", ExperimentRole.BASELINE, "stored", 1, ("r1", "r2"), True
                     ),
                 ),
             ),
@@ -120,7 +120,7 @@ def _completed(*, forced: bool = False, run_now: bool = True, two_phases: bool =
     base = completed_study()
     assert base.report is not None
     first = tuple(replace(e, reused=e.reused or reused) for e in base.phases[0].experiments)
-    extra = Experiment("s2", "extra", ExperimentRole.TREATMENT, "second look", ("res2",), reused)
+    extra = Experiment("s2", "extra", ExperimentRole.TREATMENT, "second look", 1, ("res2",), reused)
     report = replace(
         base.report,
         limitations=("single seed", FORCED_LIMITATION) if forced else ("single seed",),
