@@ -31,6 +31,8 @@ from resto.application.ports.tracing import TraceEvent
 from resto.application.tools.expert import EvidenceLedger
 from resto.application.use_cases.build_scenario import BuildScenario
 from resto.application.use_cases.run_study import run_study
+from resto.application.use_cases.update_note_status import UpdateNoteStatus
+from resto.application.use_cases.write_note import WriteNote
 from resto.domain.constants import DEFAULT_SEEDS
 from resto.domain.entities.demand import Demand
 from resto.domain.entities.network import Network
@@ -380,6 +382,8 @@ class World:
                 runner=self.runner,
                 out_dir=tmp_path / "scenarios",
             ),
+            update_note_status=UpdateNoteStatus(self.notes),
+            write_note=WriteNote(self.notes),
         )
         self.settings = StudySettings(
             out_dir=tmp_path,
