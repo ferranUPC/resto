@@ -24,9 +24,9 @@ from resto.application.ports.repositories import (
     ScenarioRepository,
     StudyRepository,
 )
-from resto.application.ports.run_directories import RunDirectories
 from resto.application.ports.sumo import SumoRunner
 from resto.application.ports.tracing import Tracer
+from resto.application.use_cases.run_simulation import RunSimulation
 from resto.application.use_cases.update_note_status import UpdateNoteStatus
 from resto.application.use_cases.write_note import WriteNote
 from resto.domain.constants import (
@@ -109,7 +109,7 @@ class StudyDeps:
     notes: NoteRepository
     studies: StudyRepository
     runner: SumoRunner
-    run_dirs: RunDirectories
+    run_simulation: RunSimulation
     network_query_loader: NetworkQueryLoader
     tracer: Tracer
     planner: Planner
