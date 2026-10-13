@@ -1,6 +1,6 @@
 """The phase-1 case set (r13 ticket 07): the 57 counterfactual questions of the Expert benchmark,
 each as the experiment the Expert asks for once phase 0 realised the base arm. The planner and the
-Executor (`run_study` on the fake world, with the real `plan_study`) must pass every case.
+Executor (`RunStudy` on the fake world, with the real `plan_study`) must pass every case.
 No database, no LLM, no network.
 
 The expected plan is stated here from the stored question, never taken from the planner."""
@@ -144,7 +144,6 @@ def _executor_case(tmp_path: Path, case: Phase1Case) -> World:
     world.deps = replace(
         world.deps,
         planner=plan_study,
-        network_query_loader=loader,
         ask_expert=AskExpert(loader=loader),
         build_scenario=replace(world.deps.build_scenario, network_query_loader=loader),
     )

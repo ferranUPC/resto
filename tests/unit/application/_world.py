@@ -33,7 +33,7 @@ from resto.application.use_cases.ask_expert import AskExpert
 from resto.application.use_cases.build_scenario import BuildScenario
 from resto.application.use_cases.compose_report import ComposeReport
 from resto.application.use_cases.run_simulation import RunSimulation
-from resto.application.use_cases.run_study import run_study
+from resto.application.use_cases.run_study import RunStudy
 from resto.application.use_cases.update_note_status import UpdateNoteStatus
 from resto.application.use_cases.write_note import WriteNote
 from resto.domain.constants import DEFAULT_SEEDS
@@ -300,7 +300,7 @@ class Simulations:
 
 
 class World:
-    """Everything `run_study` needs, with the scripted agents reachable for assertions."""
+    """Everything `RunStudy` needs, with the scripted agents reachable for assertions."""
 
     def __init__(
         self,
@@ -372,11 +372,9 @@ class World:
             results=self.results,
             notes=self.notes,
             studies=self.studies,
-            runner=self.runner,
             run_simulation=RunSimulation(
                 self.runner, self.results, FilesystemRunDirectories(), tmp_path / "results"
             ),
-            network_query_loader=loader,
             tracer=self.tracer,
             planner=self.planner,
             ask_expert=AskExpert(loader=loader),
@@ -454,7 +452,7 @@ class World:
         return Simulations(tuple(load_checks), tuple(study_runs))
 
     def run(self, **kwargs: Any) -> Study:
-        return run_study("the user's text", self.deps, self.settings, **kwargs)
+        return RunStudy(self.deps, self.settings).execute("the user's text", **kwargs)
 
     def store_scenario(
         self, interventions: tuple[Intervention, ...] = (), seeds: tuple[int, ...] = DEFAULT_SEEDS

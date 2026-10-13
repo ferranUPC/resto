@@ -15,7 +15,6 @@ from resto.application.ports.agents.network_author import NetworkAuthorAgent
 from resto.application.ports.agents.note_writer import NoteWriterAgent
 from resto.application.ports.agents.scenario_builder import ScenarioBuilderAgent
 from resto.application.ports.llm import AgentRun
-from resto.application.ports.network_query import NetworkQueryLoader
 from resto.application.ports.repositories import (
     DemandRepository,
     NetworkRepository,
@@ -24,7 +23,6 @@ from resto.application.ports.repositories import (
     ScenarioRepository,
     StudyRepository,
 )
-from resto.application.ports.sumo import SumoRunner
 from resto.application.ports.tracing import Tracer
 from resto.application.use_cases.ask_expert import AskExpert
 from resto.application.use_cases.build_scenario import BuildScenario
@@ -111,9 +109,7 @@ class StudyDeps:
     results: ResultRepository
     notes: NoteRepository
     studies: StudyRepository
-    runner: SumoRunner
     run_simulation: RunSimulation
-    network_query_loader: NetworkQueryLoader
     tracer: Tracer
     planner: Planner
     ask_expert: AskExpert

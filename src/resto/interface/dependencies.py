@@ -25,7 +25,7 @@ from resto.adapters.sumo.writers.rerouter import RerouterWriter
 from resto.adapters.sumo.writers.sumocfg import SumocfgFileWriter
 from resto.adapters.sumo.writers.tls_program import TlsProgramWriter
 from resto.adapters.sumo.writers.vss import VssWriter
-from resto.application.executor import StudyAgents, StudyDeps, StudyPromotions
+from resto.application.executor import StudyAgents, StudyDeps, StudyPromotions, StudySettings
 from resto.application.ports.llm import Budget, ToolAgent
 from resto.application.ports.tracing import Tracer
 from resto.application.tools.expert import ExpertCollaborators
@@ -34,6 +34,7 @@ from resto.application.use_cases.ask_expert import AskExpert
 from resto.application.use_cases.build_scenario import BuildScenario
 from resto.application.use_cases.compose_report import ComposeReport
 from resto.application.use_cases.run_simulation import RunSimulation
+from resto.application.use_cases.run_study import RunStudy
 from resto.application.use_cases.scale_demand import ScaleDemand
 from resto.application.use_cases.update_note_status import UpdateNoteStatus
 from resto.application.use_cases.write_note import WriteNote
@@ -114,11 +115,9 @@ def build_deps(
         results=db.results,
         notes=db.notes,
         studies=studies,
-        runner=runner,
         run_simulation=RunSimulation(
             runner, db.results, FilesystemRunDirectories(), out_dir / "results"
         ),
-        network_query_loader=network_query_loader,
         tracer=tracer,
         planner=plan_study,
         ask_expert=AskExpert(loader=network_query_loader),
@@ -134,3 +133,17 @@ def build_deps(
         update_note_status=UpdateNoteStatus(db.notes),
         write_note=WriteNote(db.notes),
     )
+
+
+def build_run_study(
+    *,
+    db: SqliteDatabase,
+    agent: ToolAgent,
+    budget: Budget,
+    tracer: Tracer,
+    settings: StudySettings,
+) -> RunStudy:
+    """The ready `RunStudy`: the object graph of `build_deps` plus the study's settings, whose
+    `out_dir` is also where the Builder and the simulations write."""
+    deps = build_deps(db=db, agent=agent, budget=budget, tracer=tracer, out_dir=settings.out_dir)
+    return RunStudy(deps, settings)

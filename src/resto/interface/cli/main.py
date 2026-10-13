@@ -14,12 +14,12 @@ from pathlib import Path
 
 from resto.adapters.persistence.sqlite.repositories import SqliteDatabase
 from resto.adapters.tracing.jsonl import JsonlTracer
-from resto.application.executor import StudyDeps, StudySettings
+from resto.application.executor import StudySettings
 from resto.application.ports.llm import Budget
-from resto.application.use_cases.run_study import ParserFailed, run_study
+from resto.application.use_cases.run_study import ParserFailed, RunStudy
 from resto.domain.entities.study import Study, StudyStatus
 from resto.domain.value_objects.question import Mode
-from resto.interface.dependencies import AGENT_SECONDS, build_deps
+from resto.interface.dependencies import AGENT_SECONDS, build_run_study
 from resto.interface.render import render_study, render_study_text
 
 
@@ -39,10 +39,9 @@ def _save_report(study: Study, out_dir: Path) -> None:
 def main(
     argv: Sequence[str] | None = None,
     *,
-    deps: StudyDeps | None = None,
-    settings: StudySettings | None = None,
+    run_study: RunStudy | None = None,
 ) -> int:
-    """`deps` and `settings` replace the real wiring (tests)."""
+    """`run_study` replaces the real wiring (tests)."""
     parser = argparse.ArgumentParser(prog="resto", description="Run one RESTO study.")
     parser.add_argument("text", help="the question, in natural language")
     parser.add_argument("--mode", choices=[m.value for m in Mode], default=None)
@@ -58,9 +57,13 @@ def main(
     mode = Mode(args.mode) if args.mode else None
 
     db: SqliteDatabase | None = None
-    if deps is None:
+    if run_study is None:
         from resto.adapters.llm.anthropic_client import OpenRouterToolAgent
-        from resto.adapters.llm.config import MissingApiKeyError, load_llm_config
+        from resto.adapters.llm.config import (
+            MissingApiKeyError,
+            load_llm_config,
+            load_rounds_config,
+        )
 
         try:
             config = load_llm_config()
@@ -71,18 +74,17 @@ def main(
         budget = Budget(config.max_steps, config.max_output_tokens, AGENT_SECONDS)
         tracer = JsonlTracer(args.out / "traces")
         agent = OpenRouterToolAgent(config)
-        deps = build_deps(db=db, agent=agent, budget=budget, tracer=tracer, out_dir=args.out)
-    if settings is None:
-        from resto.adapters.llm.config import load_rounds_config
-
         rounds = load_rounds_config()
         settings = StudySettings(
             out_dir=args.out,
             network_max_rounds=rounds.network_max_rounds,
             calibration_max_rounds=rounds.calibration_max_rounds,
         )
+        run_study = build_run_study(
+            db=db, agent=agent, budget=budget, tracer=tracer, settings=settings
+        )
     try:
-        study = run_study(args.text, deps, settings, mode=mode)
+        study = run_study.execute(args.text, mode=mode)
     except ParserFailed as e:
         print(f"error: no study was created: {e}", file=sys.stderr)
         return 1
