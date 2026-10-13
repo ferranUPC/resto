@@ -4,7 +4,7 @@ import dataclasses
 from pathlib import Path
 from typing import Any
 
-from resto.domain.entities.study import Phase, Study, StudyStatus
+from resto.domain.entities.study import Phase, Study, StudyResolution, StudyStage
 from resto.domain.value_objects.answer_value import Edges
 from resto.domain.value_objects.arm import BASE_ARM
 from resto.domain.value_objects.artifact_ref import ArtifactRef
@@ -248,7 +248,7 @@ def study_with_rounds(
     """A study of `rounds` Expert rounds: every round but the last asks for a simulation, the last
     answers with `answer` (default: `basis` and `ANSWER_EVIDENCE`) and is forced by the limit when
     `last_forced`. `experiments` are those of each phase in order; with a `report` the study is
-    completed, otherwise running."""
+    completed, otherwise open at closing."""
     last = answer or ExpertAnswer(
         answer="E12",
         basis=basis,
@@ -279,7 +279,8 @@ def study_with_rounds(
     )
     return Study(
         study_id=study_id,
-        status=StudyStatus.COMPLETED if report else StudyStatus.RUNNING,
+        stage=StudyStage.CLOSING,
+        resolution=StudyResolution.COMPLETED if report else None,
         phases=phases,
         report=report,
         max_rounds=rounds if last_forced else max(rounds, 3),

@@ -11,7 +11,7 @@ from resto.application.executor.planning import plan_phase
 from resto.application.executor.recorder import StudyRecorder
 from resto.application.executor.spend import StudySpend
 from resto.application.executor.steps import execute_plan
-from resto.domain.entities.study import Study, StudyStatus
+from resto.domain.entities.study import Study, StudyResolution
 from resto.domain.value_objects.question import Question
 from resto.domain.value_objects.step_record import Usage
 
@@ -24,13 +24,14 @@ def execute_study(
     *,
     max_rounds: int,
 ) -> Study:
-    """Runs a parsed `Question` to a closed `Study` (`completed`, `failed` or `awaiting_user`)
-    and returns it. `parse_usage` is what the Input Parser spent: its call is the study's first."""
+    """Runs a parsed `Question` until the `Study` has a resolution (`completed`, `failed` or
+    `awaiting_user`) and returns it. `parse_usage` is what the Input Parser spent: its call is
+    the study's first."""
     recorder = StudyRecorder(
         question, parse_usage, max_rounds=max_rounds, studies=deps.studies, tracer=deps.tracer
     )
     spend = StudySpend(settings.budget, parse_usage, recorder.model_call)
-    if recorder.study.status is StudyStatus.AWAITING_USER:
+    if recorder.study.resolution is StudyResolution.AWAITING_USER:
         return recorder.study
     network_id: str | None = None
     while True:
@@ -40,6 +41,7 @@ def execute_study(
         network_id = execute_plan(plan, recorder, spend, deps, settings)
         if network_id is None:
             return recorder.study
+        recorder.consulting_expert()
         answered = ask_expert_round(recorder, spend, deps, max_rounds=max_rounds)
         if answered is None:
             return recorder.study

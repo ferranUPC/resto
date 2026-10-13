@@ -19,7 +19,7 @@ from resto.adapters.tracing.jsonl import JsonlTracer
 from resto.application.executor import StudySettings
 from resto.application.ports.llm import Budget
 from resto.application.use_cases.run_study import ParserFailed, RunStudy
-from resto.domain.entities.study import Study, StudyStatus
+from resto.domain.entities.study import Study, StudyResolution
 from resto.domain.value_objects.question import Mode
 from resto.interface.dependencies import AGENT_SECONDS, build_run_study
 from resto.interface.render import render_study, render_study_text
@@ -96,7 +96,7 @@ def main(
     as_text = args.format == "text" or (args.format == "auto" and sys.stdout.isatty())
     print(render_study_text(study) if as_text else render_study(study), end="")
     _save_report(study, args.out)
-    return 0 if study.status is StudyStatus.COMPLETED else 1
+    return 0 if study.resolution is StudyResolution.COMPLETED else 1
 
 
 if __name__ == "__main__":

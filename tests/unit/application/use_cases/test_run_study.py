@@ -27,7 +27,7 @@ from resto.application.use_cases.run_study import ParserFailed
 from resto.domain.constants import DEFAULT_SEEDS
 from resto.domain.entities.expert_note import ExpertNote, NoteStatus, Provenance
 from resto.domain.entities.simulation_result import RunMode
-from resto.domain.entities.study import Study, StudyStatus
+from resto.domain.entities.study import Study, StudyResolution, StudyStage
 from resto.domain.events import NoteStatusChanged
 from resto.domain.services.ids import result_id_for
 from resto.domain.services.planner import PlanningContext, PlanningError
@@ -93,7 +93,7 @@ def test_gp1_a_stored_baseline_is_answered_from_its_results(tmp_path: Path) -> N
 
     study = world.run()
 
-    assert study.status is StudyStatus.COMPLETED
+    assert study.resolution is StudyResolution.COMPLETED
     assert study.report is not None
     assert tools(study) == [
         ("plan", StepStatus.OK),
@@ -117,7 +117,7 @@ def test_gp2_builds_and_runs_the_baseline_with_the_default_seeds(tmp_path: Path)
 
     study = world.run()
 
-    assert study.status is StudyStatus.COMPLETED
+    assert study.resolution is StudyResolution.COMPLETED
     assert [t for t, _ in tools(study)] == [
         "plan",
         "obtain_network",
@@ -141,7 +141,7 @@ def test_gp3_a_question_that_names_a_change_plans_both_sides_in_phase_0(tmp_path
 
     study = world.run()
 
-    assert study.status is StudyStatus.COMPLETED
+    assert study.resolution is StudyResolution.COMPLETED
     assert len(study.phases) == 1
     assert [e.arm for e in study.phases[0].experiments] == [BASE_ARM, "treatment"]
     (call,) = world.expert.calls
@@ -160,7 +160,7 @@ def test_the_expert_may_still_ask_for_an_arm_the_plan_did_not_need(tmp_path: Pat
 
     study = world.run()
 
-    assert study.status is StudyStatus.COMPLETED
+    assert study.resolution is StudyResolution.COMPLETED
     assert len(study.phases) == 2
     assert study.phases[1].question == PROPOSED
     assert [e.arm for p in study.phases for e in p.experiments] == [BASE_ARM, "treatment"]
@@ -186,7 +186,7 @@ def test_forced_mode_answers_in_one_phase_and_offers_the_predicted_scenario(
 
     study = world.run()
 
-    assert study.status is StudyStatus.COMPLETED and len(study.phases) == 1
+    assert study.resolution is StudyResolution.COMPLETED and len(study.phases) == 1
     assert world.expert.calls[0][0].mode is Mode.FORCED
     assert study.rounds[0].forced_by_limit is False
     (task,) = (call[0] for call in world.note_writer.calls)
@@ -202,7 +202,7 @@ def test_the_mode_given_by_the_user_overrides_the_parsers(tmp_path: Path) -> Non
     study = world.run(mode=Mode.FORCED)
 
     assert study.question.mode is Mode.FORCED
-    assert study.status is StudyStatus.COMPLETED
+    assert study.resolution is StudyResolution.COMPLETED
 
 
 def test_the_last_round_is_forced_by_the_limit(tmp_path: Path) -> None:
@@ -217,7 +217,7 @@ def test_the_last_round_is_forced_by_the_limit(tmp_path: Path) -> None:
 
     assert [call[0].mode for call in world.expert.calls] == [Mode.FREE, Mode.FORCED]
     assert [r.forced_by_limit for r in study.rounds] == [False, True]
-    assert study.status is StudyStatus.COMPLETED
+    assert study.resolution is StudyResolution.COMPLETED
 
 
 def test_combined_topology_and_intervention_arms_share_one_derivation(tmp_path: Path) -> None:
@@ -244,7 +244,7 @@ def test_combined_topology_and_intervention_arms_share_one_derivation(tmp_path: 
 
     study = world.run()
 
-    assert study.status is StudyStatus.COMPLETED
+    assert study.resolution is StudyResolution.COMPLETED
     assert len(world.promoted_networks) == 1  # the derivation; obtain_network found NET
     assert world.promoted_networks[0].base_network_id == NET
     experiments = study.phases[0].experiments
@@ -283,7 +283,7 @@ def test_an_answer_about_an_edge_only_the_derived_network_has_is_accepted(tmp_pa
 
     study = world.run()
 
-    assert study.status is StudyStatus.COMPLETED
+    assert study.resolution is StudyResolution.COMPLETED
     assert study.rounds[0].answer.values == (Edges(edge_ids=("J7J9",), network_id="derived-1"),)
 
 
@@ -318,7 +318,7 @@ def test_a_proposed_experiment_may_name_the_derived_network_but_not_a_stranger(
         expert=(on_derived, answers()),
     )
     accepted = world.run()
-    assert accepted.status is StudyStatus.COMPLETED and len(accepted.phases) == 2
+    assert accepted.resolution is StudyResolution.COMPLETED and len(accepted.phases) == 2
 
     on_stranger = abstains(replace(PROPOSED, network_ref="never-derived"))
     rejecting = World(
@@ -349,7 +349,7 @@ def test_a_network_derived_after_the_first_round_is_in_the_scope_of_the_second(
 
     study = world.run()
 
-    assert study.status is StudyStatus.COMPLETED
+    assert study.resolution is StudyResolution.COMPLETED
     first, second = (call[0] for call in world.expert.calls)
     assert first.network_ids == (NET,)
     assert set(second.network_ids) == {NET, "derived-1"}
@@ -360,7 +360,8 @@ def test_an_ambiguous_question_awaits_the_user_without_planning(tmp_path: Path) 
 
     study = world.run()
 
-    assert study.status is StudyStatus.AWAITING_USER
+    assert study.resolution is StudyResolution.AWAITING_USER
+    assert study.stage is StudyStage.PARSING
     assert world.planner.calls == []
     assert len(world.studies.states) == 1
 
@@ -371,7 +372,8 @@ def test_a_question_the_planner_cannot_plan_fails_the_plan_step(tmp_path: Path) 
 
     study = world.run()
 
-    assert study.status is StudyStatus.FAILED
+    assert study.resolution is StudyResolution.FAILED
+    assert study.stage is StudyStage.PLANNING
     assert tools(study) == [("plan", StepStatus.FAILED)]
     assert failed_kind(study) is StepErrorKind.PLANNING
     error = study.phases[0].failed_step.error  # type: ignore[union-attr]
@@ -390,7 +392,8 @@ def test_a_planning_failure_in_a_later_phase_fails_the_study(tmp_path: Path) -> 
 
     study = world.run()
 
-    assert study.status is StudyStatus.FAILED
+    assert study.resolution is StudyResolution.FAILED
+    assert study.stage is StudyStage.PLANNING
     assert tools(study, 1) == [("plan", StepStatus.FAILED)]
     assert failed_kind(study) is StepErrorKind.PLANNING
 
@@ -408,7 +411,7 @@ def test_a_proposal_that_adds_no_arm_fails_the_plan_step_with_its_cause(tmp_path
 
     study = world.run()
 
-    assert study.status is StudyStatus.FAILED
+    assert study.resolution is StudyResolution.FAILED
     assert tools(study, 1) == [("plan", StepStatus.FAILED)]
     assert failed_kind(study) is StepErrorKind.PLANNING
     assert world.planner.calls[1][1].realised == (BASE_ARM,)
@@ -432,10 +435,18 @@ def test_no_study_exists_when_the_parser_fails(tmp_path: Path, parsed: Any) -> N
 # -- failures, one per kind -----------------------------------------------------------------------
 
 
+_STAGE_OF_TOOL = {
+    "plan": StudyStage.PLANNING,
+    "ask_expert": StudyStage.CONSULTING_EXPERT,
+    "compose_report": StudyStage.CLOSING,
+}
+
+
 def assert_failed_at(study: Study, tool: str, kind: StepErrorKind, skipped: int) -> None:
     steps = study.phases[-1].steps
     failed = next(i for i, s in enumerate(steps) if s.status is StepStatus.FAILED)
-    assert study.status is StudyStatus.FAILED
+    assert study.resolution is StudyResolution.FAILED
+    assert study.stage is _STAGE_OF_TOOL.get(tool, StudyStage.RUNNING)
     assert steps[failed].tool == tool
     assert failed_kind(study) is kind
     assert [s.status for s in steps[failed + 1 :]] == [StepStatus.SKIPPED] * skipped
@@ -630,7 +641,7 @@ def test_stored_results_are_not_rerun_and_verify_no_note(tmp_path: Path) -> None
 
     study = world.run()
 
-    assert study.status is StudyStatus.COMPLETED
+    assert study.resolution is StudyResolution.COMPLETED
     assert world.builder.calls == [] and world.runner.calls == []
     assert study.phases[0].steps[1].usage == Usage()
     assert study.phases[0].steps[2].usage == Usage(simulations=0)
@@ -679,7 +690,7 @@ def test_notes_are_written_after_the_final_round_with_its_ledger(tmp_path: Path)
 
     study = world.run()
 
-    assert study.status is StudyStatus.COMPLETED
+    assert study.resolution is StudyResolution.COMPLETED
     (note_id,) = study.note_ids
     ((hit, _),) = world.notes.search("", NET, {"scenario_id": BASE_SID})
     assert hit.note_id == note_id and hit.provenance is Provenance.SIMULATION
@@ -812,7 +823,7 @@ def test_a_prediction_keeps_the_base_network_when_a_derived_network_exists(
 
     study = world.run()
 
-    assert study.status is StudyStatus.COMPLETED, study.phases[0].steps[-1]
+    assert study.resolution is StudyResolution.COMPLETED, study.phases[0].steps[-1]
     assert "derived-1" in study.network_ids
     ((hit, _),) = world.notes.search("", NET, {"scenario_id": CLOSURE_SID})
     assert hit.network_id == NET
@@ -829,7 +840,7 @@ def test_a_failing_note_writer_is_traced_and_the_study_completes(tmp_path: Path)
 
     study = world.run()
 
-    assert study.status is StudyStatus.COMPLETED
+    assert study.resolution is StudyResolution.COMPLETED
     assert study.note_ids == ()
     assert any(isinstance(e, NoteWriterFailed) for e in world.tracer.events)
     assert "note_writer" not in [s.tool for s in study.phases[0].steps]
@@ -844,7 +855,7 @@ def test_the_model_calls_of_a_study_sum_to_its_steps_and_the_parsers_tokens(
 
     calls = [e for e in world.tracer.events if isinstance(e, ModelCall)]
     steps = [s for p in study.phases for s in p.steps]
-    assert study.status is StudyStatus.COMPLETED
+    assert study.resolution is StudyResolution.COMPLETED
     assert sum(c.usage.input_tokens for c in calls) == 50 + sum(s.usage.input_tokens for s in steps)
     agent_steps = [s for s in steps if s.tool not in ("plan", "run_simulation")]
     assert len(calls) == 1 + len(agent_steps) + 1  # the Parser, the steps, the note writer
@@ -860,7 +871,7 @@ def test_a_failed_agent_call_still_emits_its_model_call(tmp_path: Path) -> None:
     study = world.run()
 
     calls = [e for e in world.tracer.events if isinstance(e, ModelCall)]
-    assert study.status is StudyStatus.FAILED
+    assert study.resolution is StudyResolution.FAILED
     assert calls[-1].usage.input_tokens == 7
 
 
@@ -894,7 +905,7 @@ def test_a_multi_phase_study_traces_phases_plans_steps_rounds_and_the_report(
     study = world.run()
 
     flow = _flow(world)
-    assert study.status is StudyStatus.COMPLETED
+    assert study.resolution is StudyResolution.COMPLETED
     assert flow[:4] == [
         ("phase", 0),
         ("plan", 0),
@@ -912,6 +923,40 @@ def test_a_multi_phase_study_traces_phases_plans_steps_rounds_and_the_report(
     plan_event = next(e for e in world.tracer.events if isinstance(e, PlanMade))
     assert plan_event.plan == study.phases[0].plan
     assert isinstance(world.tracer.events[0], StudyCreated)
+
+
+def _stages(world: World) -> list[tuple[int, StudyStage]]:
+    """The stages the stored study went through, with the phase of each, repeats collapsed."""
+    seen: list[tuple[int, StudyStage]] = []
+    for state in world.studies.states:
+        current = (len(state.phases) - 1, state.stage)
+        if not seen or seen[-1] != current:
+            seen.append(current)
+    return seen
+
+
+def test_every_phase_is_stored_at_planning_until_its_plan_is_accepted(tmp_path: Path) -> None:
+    world = World(
+        tmp_path,
+        question=DESCRIBE_CHANGE,
+        plans=(BASELINE_PLAN, TREATMENT_PLAN),
+        expert=(abstains(PROPOSED), answers()),
+    )
+
+    study = world.run()
+
+    assert _stages(world) == [
+        (0, StudyStage.PLANNING),
+        (0, StudyStage.RUNNING),
+        (0, StudyStage.CONSULTING_EXPERT),
+        (1, StudyStage.PLANNING),
+        (1, StudyStage.RUNNING),
+        (1, StudyStage.CONSULTING_EXPERT),
+        (1, StudyStage.CLOSING),
+    ]
+    opened = next(s for s in world.studies.states if len(s.phases) == 2)
+    assert opened.stage is StudyStage.PLANNING and opened.phases[1].plan is None
+    assert study.resolution is StudyResolution.COMPLETED
 
 
 def test_a_failed_plan_traces_no_plan(tmp_path: Path) -> None:

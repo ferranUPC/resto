@@ -12,7 +12,7 @@ from typing import Any
 from resto.adapters.persistence.sqlite.repositories import SqliteDatabase
 from resto.application.executor import StudySettings
 from resto.application.ports.llm import AgentRun, AgentTask, Budget, StopReason, Tool
-from resto.domain.entities.study import StudyStatus
+from resto.domain.entities.study import StudyResolution
 from resto.domain.value_objects.answer_value import Measure, Quantity
 from resto.domain.value_objects.drafts import (
     ClaimDraft,
@@ -102,6 +102,6 @@ def test_the_real_graph_runs_one_scripted_study(tmp_path: Path) -> None:
     study = replace(run_study, deps=deps).execute("how many lanes does the network have?")
 
     db.close()
-    assert study.status is StudyStatus.COMPLETED
+    assert study.resolution is StudyResolution.COMPLETED
     assert study.report is not None and study.report.summary == "The network was read."
     assert agent.asked[0] is Question and agent.asked[-1] is ReportDraft

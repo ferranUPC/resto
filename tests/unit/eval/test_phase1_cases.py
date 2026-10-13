@@ -17,7 +17,7 @@ from eval.plan_bank.phase1 import Phase1Case, load_phase1
 from resto.adapters.sumo.network_query_loader import StoredNetworkQueryLoader
 from resto.application.ports.llm import AgentRun
 from resto.application.use_cases.ask_expert import AskExpert
-from resto.domain.entities.study import StudyStatus
+from resto.domain.entities.study import StudyResolution
 from resto.domain.services.planner import PlanningContext, plan_study
 from resto.domain.value_objects.arm import BASE_ARM
 from resto.domain.value_objects.drafts import ScenarioDraft
@@ -157,7 +157,7 @@ def test_the_executor_runs_each_case_through_both_phases(tmp_path: Path, case_id
 
     study = world.run()
 
-    assert study.status is StudyStatus.COMPLETED
+    assert study.resolution is StudyResolution.COMPLETED
     assert [e.arm for p in study.phases for e in p.experiments] == [BASE_ARM, "treatment"]
     assert study.phases[1].question == case.question
     assert [s.status for s in study.phases[1].steps] == [StepStatus.OK] * len(study.phases[1].steps)

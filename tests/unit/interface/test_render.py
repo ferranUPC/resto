@@ -8,7 +8,7 @@ from typing import Any
 
 import pytest
 
-from resto.domain.entities.study import Phase, Study, StudyStatus
+from resto.domain.entities.study import Phase, Study, StudyResolution, StudyStage
 from resto.domain.value_objects.experiment import Experiment, ExperimentRole
 from resto.domain.value_objects.question import Intent, Question
 from resto.domain.value_objects.report import Claim, ReportSection
@@ -47,7 +47,8 @@ PLAN = StudyPlan(
 def failed(kind: StepErrorKind, *details: str) -> Study:
     return Study(
         study_id="st-9",
-        status=StudyStatus.FAILED,
+        stage=StudyStage.RUNNING,
+        resolution=StudyResolution.FAILED,
         phases=(
             Phase(
                 question=QUESTION,
@@ -98,7 +99,8 @@ def test_every_failure_kind_has_advice() -> None:
 def test_an_ambiguous_question_lists_its_ambiguities() -> None:
     study = Study(
         study_id="st-a",
-        status=StudyStatus.AWAITING_USER,
+        stage=StudyStage.PARSING,
+        resolution=StudyResolution.AWAITING_USER,
         phases=(Phase(question=Question("close it", Intent.RUN, ambiguities=("which edge?",))),),
     )
 
@@ -439,7 +441,8 @@ def test_a_failed_study_renders_the_three_blocks_in_plain_text(kind: StepErrorKi
 def test_an_awaiting_user_study_renders_the_three_blocks_in_plain_text() -> None:
     study = Study(
         study_id="st-a",
-        status=StudyStatus.AWAITING_USER,
+        stage=StudyStage.PARSING,
+        resolution=StudyResolution.AWAITING_USER,
         phases=(Phase(question=Question("close it", Intent.RUN, ambiguities=("which edge?",))),),
     )
 
@@ -452,8 +455,8 @@ def test_an_awaiting_user_study_renders_the_three_blocks_in_plain_text() -> None
     assert not any(c in text for c in _FORBIDDEN)
 
 
-def test_a_study_still_running_has_no_plain_text() -> None:
-    study = replace(_completed(), status=StudyStatus.RUNNING, report=None)
+def test_an_open_study_has_no_plain_text() -> None:
+    study = replace(_completed(), resolution=None, report=None)
 
     with pytest.raises(ValueError):
         render_study_text(study)
