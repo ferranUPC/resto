@@ -127,11 +127,19 @@ def test_a_budget_stop_reason_is_never_promoted() -> None:
         BuildScenario(**env()).execute(TASK, agent_run(output=None, stop_reason=StopReason.BUDGET))
 
 
-def test_an_unknown_demand_is_the_drafts_fault_even_when_the_network_cannot_load() -> None:
+def test_unknown_network_is_rejected() -> None:
+    with pytest.raises(DraftRejected):
+        BuildScenario(**env(networks=InMemoryNetworkRepository())).execute(
+            TASK, agent_run(output=draft())
+        )
+
+
+def test_a_query_that_cannot_load_fails_before_promotion() -> None:
+    """Not a rejected draft, even with an unknown demand: a study records `infrastructure`."""
     kwargs = env(demands=InMemoryDemandRepository())
     kwargs["network_query_loader"] = UnloadableQueries()
 
-    with pytest.raises(DraftRejected, match="unknown demand_id"):
+    with pytest.raises(NetworkNotStored):
         BuildScenario(**kwargs).execute(TASK, agent_run(output=draft()))
 
 

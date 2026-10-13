@@ -1,7 +1,7 @@
 """`ScenarioPromoter` (E2.2, E2.3; ADR-0001, ADR-0042 §5): a Scenario Builder draft is accepted
 only if the demand belongs to the network, a derived demand of a `demand_scale` intervention does
-too, and every intervention target exists on the network. The context carries the loaded network
-and demands and a call for the network query, so no test needs a repository or a runner."""
+too, and every intervention target exists on the network. The context carries the loaded network,
+demands and network query, so no test needs a repository or a runner."""
 
 from __future__ import annotations
 
@@ -84,7 +84,7 @@ def promote(
         task=TASK,
         network=sample_network(),
         demands={d.demand_id: d for d in demands},
-        query=lambda: query,
+        query=query,
     )
     return ScenarioPromoter().promote(run(output, stop_reason), context)
 
@@ -113,12 +113,6 @@ def test_a_missing_output_on_a_reported_output_stop_reason_is_never_promoted() -
         promote(None)
 
 
-def test_an_unknown_network_is_rejected() -> None:
-    context = ScenarioContext(task=TASK, network=None, demands={}, query=lambda: LANE_QUERY)
-    with pytest.raises(DraftRejected, match="unknown network_id 'abc123'"):
-        ScenarioPromoter().promote(run(draft()), context)
-
-
 def test_an_unknown_demand_is_rejected() -> None:
     with pytest.raises(DraftRejected, match="unknown demand_id 't1'"):
         promote(draft(), demands=())
@@ -136,13 +130,9 @@ def test_an_intervention_target_unknown_to_the_network_is_rejected_on_the_users_
     assert rejected.value.blame is Blame.USER
 
 
-def test_a_demand_rejection_comes_before_the_query_is_loaded() -> None:
-    def unloadable() -> NetworkQuery:
-        raise AssertionError("the query is loaded after the demand checks")
-
-    context = ScenarioContext(task=TASK, network=sample_network(), demands={}, query=unloadable)
+def test_a_demand_rejection_comes_before_a_target_rejection() -> None:
     with pytest.raises(DraftRejected, match="unknown demand_id") as rejected:
-        ScenarioPromoter().promote(run(draft()), context)
+        promote(draft(), demands=(), query=StubNetworkQuery())
 
     assert rejected.value.blame is Blame.AGENT
 
@@ -182,5 +172,5 @@ def test_a_context_whose_network_is_not_the_tasks_is_refused() -> None:
             task=replace(TASK, network_id="other"),
             network=sample_network(),
             demands={},
-            query=lambda: LANE_QUERY,
+            query=LANE_QUERY,
         )
