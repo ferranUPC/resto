@@ -1940,7 +1940,7 @@
       "type": "object"
     }
   },
-  "description": "Root of one user request, stored in phases: the questions, the plans, every step taken, the\nexperiments run, the Expert rounds and the final report. Framework run-time state, stored\nthrough StudyRepository (not part of the DatabaseMCP contract).\n\n`stage` and `resolution` are stored (ADR-0041 \u00a73) and checked against the phases: `resolution`\nis `None` while the study is open, and a failed study keeps the stage it failed in.",
+  "description": "Root of one user request, stored in phases: the questions, the plans, every step taken, the\nexperiments run, the Expert rounds and the final report. Framework run-time state, stored\nthrough StudyRepository (not part of the DatabaseMCP contract).\n\n`stage` and `resolution` are stored (ADR-0041 \u00a73) and checked against the phases: `resolution`\nis `None` while the study is open, and a failed study keeps the stage it failed in.\n\nEvery state after the first is made by a transition (ADR-0041 \u00a74), from `open` on: each returns\nthe next study and the domain events it produced (`Transition`), and only an open study takes\none.",
   "properties": {
     "max_rounds": {
       "default": 3,

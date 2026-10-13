@@ -3,8 +3,6 @@
 
 from __future__ import annotations
 
-from dataclasses import replace
-
 from resto.application.executor.deps import StudyDeps
 from resto.application.executor.failures import StepFailed
 from resto.application.executor.plan_validation import plan_problems
@@ -20,9 +18,10 @@ def plan_phase(
     """The valid plan of the current phase, recorded as its `plan` step; or nothing, once the
     planner could not plan it or the plan did not validate (both a failed `plan` step of kind
     `planning`)."""
-    k = recorder.phase_index
-    phase = recorder.phase
-    realised = _realised(recorder)
+    study = recorder.study
+    k = study.phase_index
+    phase = study.current_phase
+    realised = study.realised_arms
     task = {"phase": k, "question": data(phase.question)}
     try:
         plan = deps.planner(
@@ -30,7 +29,7 @@ def plan_phase(
         )
     except PlanningError as e:
         error = StepError(StepErrorKind.PLANNING, f"the question cannot be planned: {e}")
-        recorder.record_failure("plan", task, StepFailed(error))
+        recorder.apply(study.record_failure(StepFailed(error).record("plan", task)))
         return None
     problems = plan_problems(
         plan,
@@ -46,14 +45,7 @@ def plan_phase(
         error = StepError(
             StepErrorKind.PLANNING, f"the plan of phase {k} is invalid", tuple(problems)
         )
-        recorder.record_failure(
-            "plan", task, StepFailed(error), phase=replace(phase, plan=plan), pending=plan.steps
-        )
+        recorder.apply(study.reject_plan(plan, StepFailed(error).record("plan", task)))
         return None
-    recorder.plan_made(plan, StepRecord("plan", StepStatus.OK, task))
+    recorder.apply(study.accept_plan(plan, StepRecord("plan", StepStatus.OK, task)))
     return plan
-
-
-def _realised(recorder: StudyRecorder) -> tuple[str, ...]:
-    """The arms the phases before the current one realised, in order."""
-    return tuple(e.arm for p in recorder.study.phases[:-1] for e in p.experiments)

@@ -19,7 +19,18 @@ from resto.domain.entities.network import Network
 from resto.domain.entities.scenario import Scenario
 from resto.domain.entities.simulation_result import RunMode, RunStatus, SimulationResult
 from resto.domain.entities.study import Phase, Study, StudyResolution, StudyStage
-from resto.domain.events import NoteStatusChanged
+from resto.domain.events import (
+    ExpertRoundHeld,
+    NetworksAdded,
+    NoteStatusChanged,
+    NotesWritten,
+    PhaseStarted,
+    PlanMade,
+    ReportComposed,
+    SimulationsRecorded,
+    StepTraced,
+    StudyCreated,
+)
 from resto.domain.services.note_ranking import ScoredNote
 from resto.domain.services.planner import PlanningContext
 from resto.domain.value_objects.answer_value import (
@@ -521,6 +532,22 @@ SAMPLES: dict[type, Callable[[], object]] = {
     ),
     # domain events
     NoteStatusChanged: lambda: NoteStatusChanged("note1", "res1", NoteStatus.CONFIRMED),
+    StudyCreated: lambda: StudyCreated(question(), Usage(input_tokens=50)),
+    PhaseStarted: lambda: PhaseStarted(1),
+    PlanMade: lambda: PlanMade(0, study_plan()),
+    StepTraced: lambda: StepTraced(
+        phase=0,
+        tool="build_scenario",
+        status=StepStatus.FAILED,
+        produced_ids=(),
+        usage=Usage(input_tokens=10),
+        error=StepError(StepErrorKind.USER_INPUT, "unknown edge", ("E99",)),
+    ),
+    SimulationsRecorded: lambda: SimulationsRecorded(0, "scen1", ("res2",), ("res1",)),
+    NetworksAdded: lambda: NetworksAdded(("abc123",)),
+    ExpertRoundHeld: lambda: ExpertRoundHeld(0, 1),
+    NotesWritten: lambda: NotesWritten(("note1",)),
+    ReportComposed: ReportComposed,
 }
 
 

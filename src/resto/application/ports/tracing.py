@@ -1,8 +1,10 @@
 """Append-only study trace (E0.7): the typed events a study emits and the port that stores them.
 
 Only `StudyRecorder` calls `Tracer.emit`. The event set is a closed union, so an emitter that leaves
-out a field fails `mypy`. Domain events (`resto.domain.events`) join the union as they are; the
-others are defined here. The stored format is internal, not a public contract.
+out a field fails `mypy`. Domain events (`resto.domain.events`) join the union as they are, except
+`SimulationsRecorded`, which is for note verification and not traced; the telemetry events
+(`ModelCall`, `NoteWriterFailed`) are defined here. The stored format is internal, not a public
+contract.
 """
 
 from __future__ import annotations
@@ -10,36 +12,18 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol
 
-from resto.domain.events import NoteStatusChanged
-from resto.domain.value_objects.question import Question
-from resto.domain.value_objects.step_record import StepError, StepStatus, Usage
-from resto.domain.value_objects.study_plan import StudyPlan
-
-
-@dataclass(frozen=True, slots=True)
-class StudyCreated:
-    question: Question
-    parse_usage: Usage
-
-
-@dataclass(frozen=True, slots=True)
-class StepTraced:
-    phase: int
-    tool: str
-    status: StepStatus
-    produced_ids: tuple[str, ...]
-    usage: Usage
-    error: StepError | None
-
-
-@dataclass(frozen=True, slots=True)
-class NetworksAdded:
-    network_ids: tuple[str, ...]
-
-
-@dataclass(frozen=True, slots=True)
-class NotesWritten:
-    note_ids: tuple[str, ...]
+from resto.domain.events import (
+    ExpertRoundHeld,
+    NetworksAdded,
+    NoteStatusChanged,
+    NotesWritten,
+    PhaseStarted,
+    PlanMade,
+    ReportComposed,
+    StepTraced,
+    StudyCreated,
+)
+from resto.domain.value_objects.step_record import Usage
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,30 +36,6 @@ class ModelCall:
     """One agent call, its usage summed over the provider requests it made."""
 
     usage: Usage
-
-
-@dataclass(frozen=True, slots=True)
-class PhaseStarted:
-    phase: int
-
-
-@dataclass(frozen=True, slots=True)
-class PlanMade:
-    """The valid plan of a phase. A failed plan is not emitted."""
-
-    phase: int
-    plan: StudyPlan
-
-
-@dataclass(frozen=True, slots=True)
-class ExpertRoundHeld:
-    phase: int
-    round: int
-
-
-@dataclass(frozen=True, slots=True)
-class ReportComposed:
-    pass
 
 
 TraceEvent = (
