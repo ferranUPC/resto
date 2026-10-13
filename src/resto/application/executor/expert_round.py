@@ -10,7 +10,6 @@ from resto.application.executor.failures import StepFailed, crash, draft_of, pro
 from resto.application.executor.recorder import StudyRecorder, data
 from resto.application.executor.spend import StudySpend
 from resto.application.tools.expert import EvidenceLedger
-from resto.application.use_cases.ask_expert import ask_expert
 from resto.domain.services.experiment_design import mode_for
 from resto.domain.value_objects.expert_round import ExpertRound
 from resto.domain.value_objects.question import Mode
@@ -40,9 +39,7 @@ def ask_expert_round(
     try:
         run = spend.agent_call(lambda: deps.agents.expert.answer(task, ledger))
         draft_of(run, "expert")
-        round_ = promote(
-            lambda: ask_expert(task, run, ledger, loader=deps.network_query_loader), run.usage
-        )
+        round_ = promote(lambda: deps.ask_expert.execute(task, run, ledger), run.usage)
     except StepFailed as failed:
         recorder.record_failure("ask_expert", data(task), failed)
         return None

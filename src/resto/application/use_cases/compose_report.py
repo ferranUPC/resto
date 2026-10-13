@@ -13,6 +13,8 @@ Promotion order (ADR-0001):
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from resto.application.ports.llm import AgentRun
 from resto.application.promotion import DraftRejected, require_draft
 from resto.domain.entities.study import Study
@@ -27,39 +29,43 @@ FORCED_LIMITATION = (
 """Added by code, never by the model, when the last round has `forced_by_limit` (ADR-0025 §4)."""
 
 
-def compose_report(study: Study, run: AgentRun[ReportDraft]) -> Report:
-    """Promotes the Composer's draft to the `Report` of `study`.
+@dataclass(frozen=True, slots=True)
+class ComposeReport:
+    """No collaborators today; the empty constructor keeps callers unchanged when one is added."""
 
-    `mode` is `Mode.FORCED` when the last round was forced by the round limit or the question
-    itself asked for forced mode: either way the Expert could not request another simulation. It
-    says nothing about `basis` (observed, inferred or extrapolated), which comes from the last
-    answer's data coverage. Only the limit adds `FORCED_LIMITATION`.
+    def execute(self, study: Study, run: AgentRun[ReportDraft]) -> Report:
+        """Promotes the Composer's draft to the `Report` of `study`.
 
-    Raises:
-        DraftRejected: a claim has no evidence, or cites a ref the last answer does not hold.
-        ValueError: the study has no Expert round.
-    """
-    draft = require_draft(run, "composer")
-    rounds = study.rounds
-    if not rounds:
-        raise ValueError("a report needs an Expert round to report on")
-    last = rounds[-1]
-    known = {e.ref for e in last.answer.evidence}
-    for claim in draft.claims:
-        if not claim.evidence_refs:
-            raise DraftRejected(f"claim {claim.text!r} has no evidence")
-        for ref in claim.evidence_refs:
-            if ref not in known:
-                raise DraftRejected(
-                    f"claim {claim.text!r} cites {ref!r}, which is not evidence of the last "
-                    "Expert answer"
-                )
-    forced = last.forced_by_limit or study.question.mode is Mode.FORCED
-    return Report(
-        summary=draft.summary,
-        mode=Mode.FORCED if forced else Mode.FREE,
-        basis=last.answer.basis,
-        sections=draft.sections,
-        claims=tuple(Claim(c.text, c.evidence_refs, c.value) for c in draft.claims),
-        limitations=(FORCED_LIMITATION,) if last.forced_by_limit else (),
-    )
+        `mode` is `Mode.FORCED` when the last round was forced by the round limit or the question
+        itself asked for forced mode: either way the Expert could not request another simulation. It
+        says nothing about `basis` (observed, inferred or extrapolated), which comes from the last
+        answer's data coverage. Only the limit adds `FORCED_LIMITATION`.
+
+        Raises:
+            DraftRejected: a claim has no evidence, or cites a ref the last answer does not hold.
+            ValueError: the study has no Expert round.
+        """
+        draft = require_draft(run, "composer")
+        rounds = study.rounds
+        if not rounds:
+            raise ValueError("a report needs an Expert round to report on")
+        last = rounds[-1]
+        known = {e.ref for e in last.answer.evidence}
+        for claim in draft.claims:
+            if not claim.evidence_refs:
+                raise DraftRejected(f"claim {claim.text!r} has no evidence")
+            for ref in claim.evidence_refs:
+                if ref not in known:
+                    raise DraftRejected(
+                        f"claim {claim.text!r} cites {ref!r}, which is not evidence of the last "
+                        "Expert answer"
+                    )
+        forced = last.forced_by_limit or study.question.mode is Mode.FORCED
+        return Report(
+            summary=draft.summary,
+            mode=Mode.FORCED if forced else Mode.FREE,
+            basis=last.answer.basis,
+            sections=draft.sections,
+            claims=tuple(Claim(c.text, c.evidence_refs, c.value) for c in draft.claims),
+            limitations=(FORCED_LIMITATION,) if last.forced_by_limit else (),
+        )

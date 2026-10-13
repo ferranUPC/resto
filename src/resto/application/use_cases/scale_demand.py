@@ -1,19 +1,19 @@
 """`demand_scale` regeneration (work-plan E2.3; architecture §2.2, §2.4): deterministic code, no
 agent — the Scenario Builder agent only decides *that* a `demand_scale` intervention needs this
 mechanism (`adapters/llm/agents/scenario_builder.py`'s system prompt), the actual resampling and
-re-routing is plain code, the same split as `run_simulation`'s Simulation Runner (CLAUDE.md
+re-routing is plain code, the same split as `RunSimulation`'s Simulation Runner (CLAUDE.md
 "Agents share one port").
 
 `demand_id = trips.content_hash` (the `Demand` entity's own invariant) makes this idempotent for
 free: an existing derived demand for the same (trips, factor) pair is returned unrun, without a
-second `duarouter` call — the same "zero redundant work" shape as `run_simulation`, just keyed on
+second `duarouter` call — the same "zero redundant work" shape as `RunSimulation`, just keyed on
 content rather than a request hash because `Demand` is a content-hashed aggregate (architecture
 §1's identity policy).
 """
 
 from __future__ import annotations
 
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from resto.application.ports.repositories import DemandRepository
@@ -23,40 +23,46 @@ from resto.domain.entities.network import Network
 from resto.domain.services.ownership import ensure_demand_on_network
 
 
-def scale_demand(
-    demand: Demand,
-    network: Network,
-    factor: float,
-    *,
-    scaler: DemandScaler,
-    duarouter: DemandTools,
-    demands: DemandRepository,
-    out_dir: Path,
-) -> Demand:
-    """Resamples `demand`'s trips by `factor` and re-routes them over `network`. The derived
-    demand keeps the parent's labels and its description with the factor appended (ADR-0035).
+@dataclass(frozen=True, slots=True)
+class ScaleDemand:
+    """Resamples a demand's trips by a factor and re-routes them over the network. The files of
+    each (demand, factor) pair go to their own directory under `out_dir`, because the adapters
+    write fixed file names and a shared directory would overwrite the routes of an earlier
+    derived demand."""
 
-    Raises:
-        ValueError: `factor` is not positive, or `demand.network_id != network.network_id`.
-    """
-    ensure_demand_on_network(demand, network.network_id)
+    scaler: DemandScaler
+    duarouter: DemandTools
+    demand_repository: DemandRepository
+    out_dir: Path
 
-    new_trips = scaler.scale(demand.trips, factor, out_dir)
-    demand_id = new_trips.content_hash
-    existing = demands.get(demand_id)
-    if existing is not None:
-        return existing
+    def execute(self, demand: Demand, network: Network, factor: float) -> Demand:
+        """The derived demand keeps the parent's labels and its description with the factor
+        appended (ADR-0035).
 
-    new_routes = duarouter.duarouter(network.net_xml, new_trips, demand.spec.seed, out_dir)
-    derived = Demand(
-        demand_id=demand_id,
-        network_id=network.network_id,
-        spec=replace(demand.spec, scale=demand.spec.scale * factor),
-        trips=new_trips,
-        routes=new_routes,
-        description=f"{demand.description} Scaled by ×{factor}.",
-        labels=demand.labels,
-        derived_from=demand.demand_id,
-    )
-    demands.store(derived)
-    return derived
+        Raises:
+            ValueError: `factor` is not positive, or `demand.network_id != network.network_id`.
+        """
+        ensure_demand_on_network(demand, network.network_id)
+
+        work_dir = self.out_dir / f"scale-{demand.demand_id}-{factor}"
+        new_trips = self.scaler.scale(demand.trips, factor, work_dir)
+        demand_id = new_trips.content_hash
+        existing = self.demand_repository.get(demand_id)
+        if existing is not None:
+            return existing
+
+        new_routes = self.duarouter.duarouter(
+            network.net_xml, new_trips, demand.spec.seed, work_dir
+        )
+        derived = Demand(
+            demand_id=demand_id,
+            network_id=network.network_id,
+            spec=replace(demand.spec, scale=demand.spec.scale * factor),
+            trips=new_trips,
+            routes=new_routes,
+            description=f"{demand.description} Scaled by ×{factor}.",
+            labels=demand.labels,
+            derived_from=demand.demand_id,
+        )
+        self.demand_repository.store(derived)
+        return derived

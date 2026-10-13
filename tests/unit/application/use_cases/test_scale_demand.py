@@ -1,4 +1,4 @@
-"""`scale_demand` (E2.3): deterministic regeneration of a `demand_scale`-derived `Demand`, no
+"""`ScaleDemand` (E2.3): deterministic regeneration of a `demand_scale`-derived `Demand`, no
 agent involved — same "zero redundant work" shape as `run_simulation`, keyed on the derived
 trips' own content hash."""
 
@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 from resto.adapters.persistence.memory import InMemoryDemandRepository
-from resto.application.use_cases.scale_demand import scale_demand
+from resto.application.use_cases.scale_demand import ScaleDemand
 from resto.domain.value_objects.artifact_ref import ArtifactRef
 from tests.unit.domain._samples import demand as sample_demand
 from tests.unit.domain._samples import network as sample_network
@@ -52,6 +52,14 @@ def routed(digest: str = "routed1") -> ArtifactRef:
     return ArtifactRef(path=Path("scaled.rou.xml"), content_hash=digest, kind="routes")
 
 
+def use_case(
+    scaler: FakeScaler, duarouter: FakeDuarouter, demands: InMemoryDemandRepository, out_dir: Path
+) -> ScaleDemand:
+    return ScaleDemand(
+        scaler=scaler, duarouter=duarouter, demand_repository=demands, out_dir=out_dir
+    )
+
+
 def test_scales_and_routes_a_new_demand(tmp_path: Path) -> None:
     demand = sample_demand()
     network = sample_network()
@@ -59,9 +67,7 @@ def test_scales_and_routes_a_new_demand(tmp_path: Path) -> None:
     duarouter = FakeDuarouter(routed())
     demands = InMemoryDemandRepository()
 
-    derived = scale_demand(
-        demand, network, 1.2, scaler=scaler, duarouter=duarouter, demands=demands, out_dir=tmp_path
-    )
+    derived = use_case(scaler, duarouter, demands, tmp_path).execute(demand, network, 1.2)
 
     assert derived.demand_id == "scaled1"
     assert derived.network_id == network.network_id
@@ -71,8 +77,9 @@ def test_scales_and_routes_a_new_demand(tmp_path: Path) -> None:
     assert derived.routes == routed()
     assert derived.description == demand.description + " Scaled by ×1.2."
     assert derived.labels == demand.labels
-    assert scaler.calls == [(demand.trips, 1.2, tmp_path)]
-    assert duarouter.calls == [(network.net_xml, scaled_trips(), demand.spec.seed, tmp_path)]
+    work_dir = tmp_path / f"scale-{demand.demand_id}-1.2"
+    assert scaler.calls == [(demand.trips, 1.2, work_dir)]
+    assert duarouter.calls == [(network.net_xml, scaled_trips(), demand.spec.seed, work_dir)]
     assert demands.get("scaled1") == derived
 
 
@@ -85,12 +92,8 @@ def test_an_existing_derived_demand_is_returned_without_calling_duarouter_again(
     duarouter = FakeDuarouter(routed())
     demands = InMemoryDemandRepository()
 
-    first = scale_demand(
-        demand, network, 1.2, scaler=scaler, duarouter=duarouter, demands=demands, out_dir=tmp_path
-    )
-    second = scale_demand(
-        demand, network, 1.2, scaler=scaler, duarouter=duarouter, demands=demands, out_dir=tmp_path
-    )
+    first = use_case(scaler, duarouter, demands, tmp_path).execute(demand, network, 1.2)
+    second = use_case(scaler, duarouter, demands, tmp_path).execute(demand, network, 1.2)
 
     assert second == first
     assert len(duarouter.calls) == 1
@@ -101,12 +104,20 @@ def test_a_network_mismatch_is_rejected(tmp_path: Path) -> None:
     network = sample_network()
 
     with pytest.raises(ValueError):
-        scale_demand(
-            demand,
-            network,
-            1.2,
-            scaler=FakeScaler(scaled_trips()),
-            duarouter=FakeDuarouter(routed()),
-            demands=InMemoryDemandRepository(),
-            out_dir=tmp_path,
-        )
+        use_case(
+            FakeScaler(scaled_trips()),
+            FakeDuarouter(routed()),
+            InMemoryDemandRepository(),
+            tmp_path,
+        ).execute(demand, network, 1.2)
+
+
+def test_two_factors_write_to_different_directories(tmp_path: Path) -> None:
+    demand = sample_demand()
+    scaler = FakeScaler(scaled_trips())
+    uc = use_case(scaler, FakeDuarouter(routed()), InMemoryDemandRepository(), tmp_path)
+
+    uc.execute(demand, sample_network(), 1.2)
+    uc.execute(demand, sample_network(), 0.8)
+
+    assert scaler.calls[0][2] != scaler.calls[1][2]

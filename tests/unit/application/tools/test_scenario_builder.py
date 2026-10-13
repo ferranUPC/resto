@@ -27,6 +27,7 @@ from resto.application.tools.scenario_builder import (
     write_tls_program,
     write_vss,
 )
+from resto.application.use_cases.scale_demand import ScaleDemand
 from resto.domain.value_objects.intervention import Intervention, InterventionType
 from resto.domain.value_objects.intervention_target import LaneTarget
 from resto.domain.value_objects.time_window import TimeWindow
@@ -76,16 +77,21 @@ def _run(  # noqa: ANN202
     demand=None,  # noqa: ANN001
     route_files=(Path("routes.rou.xml"),),  # noqa: ANN001
 ):
+    demands = demands or RecordingDemandRepository()
     collaborators = BuilderCollaborators(
         networks=InMemoryNetworkRepository(),
-        demands=demands or RecordingDemandRepository(),
+        demands=demands,
         network_query_loader=FixedNetworkQueryLoader(query),
         rerouter_writer=rerouter_writer or RecordingAdditionalFileWriter(),
         vss_writer=vss_writer or RecordingAdditionalFileWriter(),
         tls_program_writer=tls_program_writer or RecordingAdditionalFileWriter(),
         sumocfg_writer=sumocfg_writer or RecordingWriter(),
-        demand_scaler=demand_scaler or RecordingDemandScaler(),
-        duarouter=duarouter or RecordingDuarouter(),
+        scale_demand=ScaleDemand(
+            scaler=demand_scaler or RecordingDemandScaler(),
+            duarouter=duarouter or RecordingDuarouter(),
+            demand_repository=demands,
+            out_dir=tmp_path,
+        ),
         out_dir=tmp_path,
     )
     request = BuilderRequest(
@@ -176,8 +182,9 @@ def test_scale_demand_delegates_through_the_use_case(tmp_path: Path) -> None:
 
     result = scale_demand(run, 0)
 
-    assert scaler.calls == [(demand.trips, 1.2, tmp_path)]
-    assert duarouter.calls == [(network.net_xml, scaler._result, demand.spec.seed, tmp_path)]
+    work_dir = tmp_path / f"scale-{demand.demand_id}-1.2"
+    assert scaler.calls == [(demand.trips, 1.2, work_dir)]
+    assert duarouter.calls == [(network.net_xml, scaler._result, demand.spec.seed, work_dir)]
     assert result == {"demand_id": "scaled1", "routes_path": str(Path("scaled.rou.xml"))}
     assert demands.stored[0].demand_id == "scaled1"
 
@@ -284,7 +291,8 @@ def test_bound_scale_demand_looks_up_the_intervention_and_applies_its_scale(
 
     result = tools["scale_demand"].fn(intervention_index=0)
 
-    assert scaler.calls == [(sample_demand().trips, 1.5, tmp_path)]
+    work_dir = tmp_path / f"scale-{sample_demand().demand_id}-1.5"
+    assert scaler.calls == [(sample_demand().trips, 1.5, work_dir)]
     assert result["demand_id"] == "scaled1"
 
 

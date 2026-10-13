@@ -17,6 +17,7 @@ from resto.adapters.persistence.memory import InMemoryDemandRepository, InMemory
 from resto.adapters.sumo.netxml import SumolibNetworkQuery
 from resto.application.ports.llm import Budget, StopReason
 from resto.application.tools.scenario_builder import BuilderCollaborators
+from resto.application.use_cases.scale_demand import ScaleDemand
 from resto.domain.services.ids import scenario_id_for
 from resto.domain.value_objects.drafts import ScenarioDraft
 from resto.domain.value_objects.intervention import Intervention, InterventionType
@@ -68,8 +69,12 @@ def collaborators(tmp_path: Path, **overrides: object) -> BuilderCollaborators:
         "vss_writer": RecordingAdditionalFileWriter(),
         "tls_program_writer": RecordingAdditionalFileWriter(),
         "sumocfg_writer": RecordingWriter(),
-        "demand_scaler": RecordingDemandScaler(),
-        "duarouter": RecordingDuarouter(),
+        "scale_demand": ScaleDemand(
+            scaler=RecordingDemandScaler(),
+            duarouter=RecordingDuarouter(),
+            demand_repository=demands,
+            out_dir=tmp_path,
+        ),
         "out_dir": tmp_path,
     }
     fields.update(overrides)

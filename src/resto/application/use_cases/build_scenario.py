@@ -8,7 +8,7 @@ to call: `application/` never imports `adapters/`, and running the Builder (asse
 `AgentTask`/tools and calling `ToolAgent.run`, `adapters/llm/agents/scenario_builder.py`) is an
 adapter-layer concern. Whatever wires the two together (today: a script or a test; later: the
 Executor's `build_scenario` step, work-plan E5.2) calls `run_scenario_builder` first and hands
-its result here.
+its result to `BuildScenario.execute`.
 
 Promotion order (ADR-0001):
   1. syntactic  - the agent actually returned a `ScenarioDraft` (its dataclass invariants already
@@ -27,11 +27,12 @@ Promotion order (ADR-0001):
                   steps 2b/3/4 ("zero redundant simulations", architecture §1). This cannot dedupe
                   before the agent ran (the id depends on which interventions it accepted), so a
                   repeated request still costs one agent call even when the result turns out to
-                  already exist — unlike `run_simulation`, which dedupes before spending compute.
+                  already exist — unlike `RunSimulation`, which dedupes before spending compute.
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 
 from resto.application.ports.llm import AgentRun
@@ -53,54 +54,60 @@ from resto.domain.value_objects.mechanism import RegenerateDemandMechanism
 from resto.domain.value_objects.tasks import ScenarioTask
 
 
-def build_scenario(
-    task: ScenarioTask,
-    run: AgentRun[ScenarioDraft],
-    *,
-    networks: NetworkRepository,
-    demands: DemandRepository,
-    scenarios: ScenarioRepository,
-    network_query_loader: NetworkQueryLoader,
-    runner: SumoRunner,
-    out_dir: Path,
-) -> Scenario:
-    draft = require_draft(run, "scenario_builder")
+@dataclass(frozen=True, slots=True)
+class BuildScenario:
+    """Promotes the Scenario Builder's run into a stored `Scenario`. `out_dir` is where the SUMO
+    load check of each scenario writes (`<out_dir>/<scenario_id>/load_check`)."""
 
-    network = networks.get(task.network_id)
-    if network is None:
-        raise DraftRejected(f"unknown network_id {task.network_id!r}")
-    _check_demand_on_network(demands, task.demand_id, task.network_id, "demand")
-    effective_demand_id = _effective_demand_id(draft, task.demand_id)
-    if effective_demand_id != task.demand_id:
-        _check_demand_on_network(demands, effective_demand_id, task.network_id, "derived demand")
+    networks: NetworkRepository
+    demands: DemandRepository
+    scenarios: ScenarioRepository
+    network_query_loader: NetworkQueryLoader
+    runner: SumoRunner
+    out_dir: Path
 
-    _check_targets_exist(draft, network_query_loader.load(task.network_id))
+    def execute(self, task: ScenarioTask, run: AgentRun[ScenarioDraft]) -> Scenario:
+        draft = require_draft(run, "scenario_builder")
 
-    scenario_id = scenario_id_for(
-        task.network_id, task.demand_id, draft.interventions, task.context_tags
-    )
-    existing = scenarios.get(scenario_id)
-    if existing is not None:
-        return existing
+        network = self.networks.get(task.network_id)
+        if network is None:
+            raise DraftRejected(f"unknown network_id {task.network_id!r}")
+        _check_demand_on_network(self.demands, task.demand_id, task.network_id, "demand")
+        effective_demand_id = _effective_demand_id(draft, task.demand_id)
+        if effective_demand_id != task.demand_id:
+            _check_demand_on_network(
+                self.demands, effective_demand_id, task.network_id, "derived demand"
+            )
 
-    output = runner.run_batch(draft.sumocfg, seed=0, out_dir=out_dir / scenario_id / "load_check")
-    if not output.ok:
-        raise DraftRejected(f"SUMO rejected the scenario cfg: {output.error}")
+        _check_targets_exist(draft, self.network_query_loader.load(task.network_id))
 
-    scenario = Scenario(
-        scenario_id=scenario_id,
-        network_id=task.network_id,
-        demand_id=effective_demand_id,
-        interventions=draft.interventions,
-        mechanisms=draft.mechanisms,
-        sumocfg=draft.sumocfg,
-        content_hash=_content_hash(draft),
-        additional_files=draft.additional_files,
-        context_tags=task.context_tags,
-        traci_script=draft.script,
-    )
-    scenarios.store(scenario)
-    return scenario
+        scenario_id = scenario_id_for(
+            task.network_id, task.demand_id, draft.interventions, task.context_tags
+        )
+        existing = self.scenarios.get(scenario_id)
+        if existing is not None:
+            return existing
+
+        output = self.runner.run_batch(
+            draft.sumocfg, seed=0, out_dir=self.out_dir / scenario_id / "load_check"
+        )
+        if not output.ok:
+            raise DraftRejected(f"SUMO rejected the scenario cfg: {output.error}")
+
+        scenario = Scenario(
+            scenario_id=scenario_id,
+            network_id=task.network_id,
+            demand_id=effective_demand_id,
+            interventions=draft.interventions,
+            mechanisms=draft.mechanisms,
+            sumocfg=draft.sumocfg,
+            content_hash=_content_hash(draft),
+            additional_files=draft.additional_files,
+            context_tags=task.context_tags,
+            traci_script=draft.script,
+        )
+        self.scenarios.store(scenario)
+        return scenario
 
 
 def _check_demand_on_network(

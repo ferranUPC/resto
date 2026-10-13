@@ -1,5 +1,8 @@
-"""What the composition root builds to run a `Study`: the agents, the planner, the promotions not
-implemented yet, and the repositories and adapters. The study's settings are `StudySettings`."""
+"""What the composition root (`interface/dependencies.py`) builds to run a `Study`: the agents, the
+planner, the repositories, the tracer, the promotions not implemented yet (E6.1, E7.1) and the
+use-case instances the Executor calls (`RunSimulation`, `AskExpert`, `BuildScenario`,
+`ComposeReport`, `UpdateNoteStatus`, `WriteNote`), each already holding its own collaborators. The
+per-run values that are not collaborators are `StudySettings`."""
 
 from __future__ import annotations
 
@@ -15,7 +18,6 @@ from resto.application.ports.agents.network_author import NetworkAuthorAgent
 from resto.application.ports.agents.note_writer import NoteWriterAgent
 from resto.application.ports.agents.scenario_builder import ScenarioBuilderAgent
 from resto.application.ports.llm import AgentRun
-from resto.application.ports.network_query import NetworkQueryLoader
 from resto.application.ports.repositories import (
     DemandRepository,
     NetworkRepository,
@@ -24,9 +26,13 @@ from resto.application.ports.repositories import (
     ScenarioRepository,
     StudyRepository,
 )
-from resto.application.ports.run_directories import RunDirectories
-from resto.application.ports.sumo import SumoRunner
 from resto.application.ports.tracing import Tracer
+from resto.application.use_cases.ask_expert import AskExpert
+from resto.application.use_cases.build_scenario import BuildScenario
+from resto.application.use_cases.compose_report import ComposeReport
+from resto.application.use_cases.run_simulation import RunSimulation
+from resto.application.use_cases.update_note_status import UpdateNoteStatus
+from resto.application.use_cases.write_note import WriteNote
 from resto.domain.constants import (
     DEFAULT_STUDY_MAX_AGENT_CALLS,
     DEFAULT_STUDY_MAX_SIMULATIONS,
@@ -56,6 +62,8 @@ class StudySettings:
     """What varies per study run and is not a collaborator (ADR-0030 follow-up)."""
 
     out_dir: Path
+    """Root of what the study writes. Only the composition root (`build_run_study`) reads it, to
+    build the use cases; the Executor does not."""
     network_max_rounds: int
     """Network Author rounds for a step that sets none (`RESTO_NETWORK_MAX_ROUNDS`)."""
     calibration_max_rounds: int
@@ -83,7 +91,7 @@ class StudyPromotions:
     derived network (the task says which: a `base_network_id`, or an `ObtainNetworkTask`).
 
     A temporary seam, not a port to extend: it goes away with E6.1 / E7.1, when the
-    Executor calls those use cases directly, as it already does with `build_scenario`."""
+    Executor calls those use cases directly, as it already does with `BuildScenario`."""
 
     network: Callable[[NetworkTask | ObtainNetworkTask, AgentRun[NetworkDraft]], Network]
     demand: Callable[[ObtainDemandTask, AgentRun[DemandDraft]], Demand]
@@ -106,8 +114,11 @@ class StudyDeps:
     results: ResultRepository
     notes: NoteRepository
     studies: StudyRepository
-    runner: SumoRunner
-    run_dirs: RunDirectories
-    network_query_loader: NetworkQueryLoader
+    run_simulation: RunSimulation
     tracer: Tracer
     planner: Planner
+    ask_expert: AskExpert
+    build_scenario: BuildScenario
+    compose_report: ComposeReport
+    update_note_status: UpdateNoteStatus
+    write_note: WriteNote

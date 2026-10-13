@@ -12,12 +12,14 @@ import pytest
 from resto.adapters.llm.agents.composer import ComposerPort
 from resto.adapters.persistence.sqlite.repositories import SqliteDatabase
 from resto.adapters.tracing.jsonl import JsonlTracer, read_run
-from resto.application.executor.deps import StudyDeps, StudySettings
+from resto.application.executor.deps import StudySettings
 from resto.application.ports.llm import Budget
 from resto.application.ports.tracing import ModelCall, TraceEvent
+from resto.application.use_cases.run_study import RunStudy
 from resto.domain.value_objects.drafts import ClaimDraft, ReportDraft
 from resto.domain.value_objects.step_record import Usage
-from resto.interface.cli.main import build_deps, main
+from resto.interface.cli.main import main
+from resto.interface.dependencies import build_run_study
 from tests.unit.adapters.llm._fakes import FakeToolAgent
 from tests.unit.application._world import DESCRIBE
 
@@ -32,16 +34,17 @@ def test_without_a_question_no_study_is_created(
 ) -> None:
     db = SqliteDatabase(tmp_path / "resto.sqlite")
     agent = FakeToolAgent(output=None)
-    deps = build_deps(
+    run_study = build_run_study(
         db=db,
         agent=agent,
         budget=Budget(max_steps=1, max_tokens=1, max_seconds=1.0),
         tracer=NullTracer(),
-        out_dir=tmp_path,
+        settings=_settings(tmp_path),
     )
 
     code = main(
-        ["how congested is the peak?", "--mode", "forced", "--out", str(tmp_path)], deps=deps
+        ["how congested is the peak?", "--mode", "forced", "--out", str(tmp_path)],
+        run_study=run_study,
     )
 
     db.close()
@@ -57,8 +60,7 @@ def test_a_failed_study_is_rendered(tmp_path: Path, capsys: pytest.CaptureFixtur
 
     code = main(
         ["how congested is the peak?", "--out", str(tmp_path)],
-        deps=world.deps,
-        settings=world.settings,
+        run_study=RunStudy(world.deps, world.settings),
     )
 
     out = capsys.readouterr().out
@@ -66,7 +68,11 @@ def test_a_failed_study_is_rendered(tmp_path: Path, capsys: pytest.CaptureFixtur
     assert "Step `ask_expert` of phase 0 (the question as asked) failed (infrastructure)" in out
 
 
-def _completed_deps(tmp_path: Path) -> tuple[StudyDeps, StudySettings]:
+def _settings(tmp_path: Path) -> StudySettings:
+    return StudySettings(out_dir=tmp_path, network_max_rounds=1, calibration_max_rounds=1)
+
+
+def _completed_run_study(tmp_path: Path) -> RunStudy:
     from tests.unit.application._world import BASELINE_PLAN, World, answers
 
     world = World(tmp_path, plans=(BASELINE_PLAN,), expert=(answers(),))
@@ -80,15 +86,15 @@ def _completed_deps(tmp_path: Path) -> tuple[StudyDeps, StudySettings]:
         results=world.results,
     )
     agents = replace(world.deps.agents, composer=composer)
-    return replace(world.deps, agents=agents), world.settings
+    return RunStudy(replace(world.deps, agents=agents), world.settings)
 
 
 def _run(tmp_path: Path, *args: str, tty: bool, monkeypatch: pytest.MonkeyPatch) -> int:
     """The CLI on a completed study, with `stdout.isatty()` faked."""
-    deps, settings = _completed_deps(tmp_path)
+    run_study = _completed_run_study(tmp_path)
     monkeypatch.setattr(sys.stdout, "isatty", lambda: tty)
     argv = ["how congested is the peak?", "--out", str(tmp_path), *args]
-    return main(argv, deps=deps, settings=settings)
+    return main(argv, run_study=run_study)
 
 
 def test_a_completed_study_prints_the_report_the_composer_wrote(
@@ -167,8 +173,7 @@ def test_a_failed_study_is_saved_as_markdown_too(
 
     code = main(
         ["how congested is the peak?", "--out", str(tmp_path)],
-        deps=world.deps,
-        settings=world.settings,
+        run_study=RunStudy(world.deps, world.settings),
     )
 
     captured = capsys.readouterr()
@@ -183,15 +188,15 @@ def test_the_parsers_model_call_reaches_the_jsonl_trace(tmp_path: Path) -> None:
     usage = Usage(input_tokens=12, output_tokens=3, cost_usd=0.001)
     agent = FakeToolAgent(output=DESCRIBE, usage=usage)
     traces = tmp_path / "traces"
-    deps = build_deps(
+    run_study = build_run_study(
         db=db,
         agent=agent,
         budget=Budget(max_steps=1, max_tokens=1, max_seconds=1.0),
         tracer=JsonlTracer(traces),
-        out_dir=tmp_path,
+        settings=_settings(tmp_path),
     )
 
-    main(["how congested is the peak?", "--out", str(tmp_path)], deps=deps)
+    main(["how congested is the peak?", "--out", str(tmp_path)], run_study=run_study)
 
     db.close()
     (trace,) = traces.glob("*.jsonl")

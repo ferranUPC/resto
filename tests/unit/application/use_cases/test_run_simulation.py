@@ -1,4 +1,4 @@
-"""`run_simulation` / `run_ephemeral` (E2.1, ADR-0017; ADR-0031) with a fake runner: identity,
+"""`RunSimulation` / `run_ephemeral` (E2.1, ADR-0017; ADR-0031) with a fake runner: identity,
 dedupe on ok results only, a failed run returned but never stored, ephemeral runs unable to
 store."""
 
@@ -12,9 +12,9 @@ from resto.adapters.persistence.memory import InMemoryResultRepository
 from resto.adapters.sumo.run_directories import FilesystemRunDirectories
 from resto.application.ports.sumo import RunOutput
 from resto.application.use_cases.run_simulation import (
+    RunSimulation,
     attempt_dir,
     run_ephemeral,
-    run_simulation,
 )
 from resto.domain.constants import SUMO_VERSION
 from resto.domain.entities.scenario import Scenario
@@ -71,15 +71,9 @@ def test_result_id_is_the_request_hash_and_the_run_goes_to_its_own_directory(
     runner = FakeRunner([ok_output()])
     results = InMemoryResultRepository()
 
-    result = run_simulation(
-        batch_scenario(),
-        7,
-        runner=runner,
-        results=results,
-        run_dirs=RUN_DIRS,
-        out_dir=tmp_path,
-        attempt="study-1",
-    )
+    result = RunSimulation(
+        runner=runner, results=results, run_dirs=RUN_DIRS, out_dir=tmp_path
+    ).execute(batch_scenario(), 7, "study-1")
 
     expected_id = result_id_for("s-batch", 7, RunMode.BATCH.value, SUMO_VERSION)
     assert result.result_id == expected_id
@@ -97,25 +91,13 @@ def test_result_id_is_the_request_hash_and_the_run_goes_to_its_own_directory(
 def test_an_existing_ok_result_is_returned_without_running_sumo(tmp_path: Path) -> None:
     runner = FakeRunner([ok_output()])
     results = InMemoryResultRepository()
-    first = run_simulation(
-        batch_scenario(),
-        7,
-        runner=runner,
-        results=results,
-        run_dirs=RUN_DIRS,
-        out_dir=tmp_path,
-        attempt="study-1",
-    )
+    first = RunSimulation(
+        runner=runner, results=results, run_dirs=RUN_DIRS, out_dir=tmp_path
+    ).execute(batch_scenario(), 7, "study-1")
 
-    second = run_simulation(
-        batch_scenario(),
-        7,
-        runner=runner,
-        results=results,
-        run_dirs=RUN_DIRS,
-        out_dir=tmp_path,
-        attempt="study-2",
-    )
+    second = RunSimulation(
+        runner=runner, results=results, run_dirs=RUN_DIRS, out_dir=tmp_path
+    ).execute(batch_scenario(), 7, "study-2")
 
     assert second == first
     assert len(runner.calls) == 1
@@ -127,29 +109,17 @@ def test_a_failed_run_is_returned_but_not_stored_and_the_retry_stores_the_ok_one
     runner = FakeRunner([failed_output(), ok_output()])
     results = InMemoryResultRepository()
 
-    failed = run_simulation(
-        batch_scenario(),
-        7,
-        runner=runner,
-        results=results,
-        run_dirs=RUN_DIRS,
-        out_dir=tmp_path,
-        attempt="study-1",
-    )
+    failed = RunSimulation(
+        runner=runner, results=results, run_dirs=RUN_DIRS, out_dir=tmp_path
+    ).execute(batch_scenario(), 7, "study-1")
     assert failed.status is RunStatus.FAILED
     assert failed.error is not None and "NOPE" in failed.error
     assert failed.kpis is None
     assert results.get(failed.result_id) is None  # a failed run is never stored (ADR-0031)
 
-    retried = run_simulation(
-        batch_scenario(),
-        7,
-        runner=runner,
-        results=results,
-        run_dirs=RUN_DIRS,
-        out_dir=tmp_path,
-        attempt="study-2",
-    )
+    retried = RunSimulation(
+        runner=runner, results=results, run_dirs=RUN_DIRS, out_dir=tmp_path
+    ).execute(batch_scenario(), 7, "study-2")
 
     assert retried.status is RunStatus.OK
     assert retried.result_id == failed.result_id
@@ -163,15 +133,12 @@ def test_a_failed_run_is_returned_but_not_stored_and_the_retry_stores_the_ok_one
 
 def test_online_scenarios_are_refused_until_e2_5(tmp_path: Path) -> None:
     with pytest.raises(NotImplementedError):
-        run_simulation(
-            online_scenario(),
-            1,
+        RunSimulation(
             runner=FakeRunner([]),
             results=InMemoryResultRepository(),
             run_dirs=RUN_DIRS,
             out_dir=tmp_path,
-            attempt="study-1",
-        )
+        ).execute(online_scenario(), 1, "study-1")
 
 
 def test_ephemeral_runs_return_the_raw_output_and_take_no_repository(tmp_path: Path) -> None:
@@ -195,15 +162,9 @@ def test_the_result_id_with_the_pinned_version_is_the_one_computed_before(tmp_pa
     runner = FakeRunner([ok_output()], version=SUMO_VERSION)
     results = InMemoryResultRepository()
 
-    result = run_simulation(
-        batch_scenario(),
-        7,
-        runner=runner,
-        results=results,
-        run_dirs=RUN_DIRS,
-        out_dir=tmp_path,
-        attempt="a",
-    )
+    result = RunSimulation(
+        runner=runner, results=results, run_dirs=RUN_DIRS, out_dir=tmp_path
+    ).execute(batch_scenario(), 7, "a")
 
     assert result.result_id == result_id_for("s-batch", 7, "batch", SUMO_VERSION)  # as before
     assert result.sumo_version == SUMO_VERSION
@@ -214,14 +175,8 @@ def test_a_runner_on_another_sumo_version_never_produces_a_stored_result(tmp_pat
     results = InMemoryResultRepository()
 
     with pytest.raises(ValueError, match="results must come from SUMO"):
-        run_simulation(
-            batch_scenario(),
-            7,
-            runner=runner,
-            results=results,
-            run_dirs=RUN_DIRS,
-            out_dir=tmp_path,
-            attempt="a",
+        RunSimulation(runner=runner, results=results, run_dirs=RUN_DIRS, out_dir=tmp_path).execute(
+            batch_scenario(), 7, "a"
         )
 
     assert results.get(result_id_for("s-batch", 7, "batch", "1.20.0")) is None

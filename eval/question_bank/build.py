@@ -8,7 +8,7 @@ Run from the repo root inside the `resto` conda env (`SUMO_HOME` unset):
 
 Reuses `eval.scenario_matrix.rows.ROWS`/`build_draft` and `eval.scenario_matrix.build`'s own
 network/demand/context helpers to re-derive every row's `Scenario`/`SimulationResult`s against the
-already-built `eval/scenario_matrix/matrix.db`: `build_scenario`/`run_simulation` dedupe on
+already-built `eval/scenario_matrix/matrix.db`: `BuildScenario`/`RunSimulation` dedupe on
 content/request hashes (see that module's own docstring), so this touches no SUMO process, it just
 reads back what E3.1 already stored. Gold answers come from `db.results.query_edgedata` (edge-level
 measures) and `SimulationResult.kpis.mean_delay` (network-wide), averaged over each row's 3 seeds.
@@ -51,8 +51,8 @@ from resto.adapters.sumo.run_directories import FilesystemRunDirectories
 from resto.adapters.sumo.runner import SubprocessSumoRunner
 from resto.application.ports.llm import AgentRun, StopReason
 from resto.application.schemas import adapter_for
-from resto.application.use_cases.build_scenario import build_scenario
-from resto.application.use_cases.run_simulation import run_simulation
+from resto.application.use_cases.build_scenario import BuildScenario
+from resto.application.use_cases.run_simulation import RunSimulation
 from resto.domain.entities.demand import Demand
 from resto.domain.entities.network import Network
 from resto.domain.entities.scenario import Scenario
@@ -128,27 +128,23 @@ def _rebuild_row(
     task = ScenarioTask(
         network_id=network.network_id, demand_id=demand.demand_id, context_tags=CONTEXT_TAGS
     )
-    scenario = build_scenario(
-        task,
-        run,
+    scenario = BuildScenario(
         networks=db.networks,
         demands=db.demands,
         scenarios=db.scenarios,
         network_query_loader=StoredNetworkQueryLoader(db.networks),
         runner=runner,
         out_dir=REBUILD_DIR / row.id / "load_check",
+    ).execute(task, run)
+    run_simulation = RunSimulation(
+        runner=runner,
+        results=db.results,
+        run_dirs=FilesystemRunDirectories(),
+        out_dir=REBUILD_DIR / row.id / "runs",
     )
     results: dict[int, SimulationResult] = {}
     for seed in SEEDS:
-        result = run_simulation(
-            scenario,
-            seed,
-            runner=runner,
-            results=db.results,
-            run_dirs=FilesystemRunDirectories(),
-            out_dir=REBUILD_DIR / row.id / "runs",
-            attempt=row.id,
-        )
+        result = run_simulation.execute(scenario, seed, row.id)
         if result.status is not RunStatus.OK:
             raise QuestionBankBuildError(f"{row.id} seed {seed} is not OK in matrix.db")
         results[seed] = result

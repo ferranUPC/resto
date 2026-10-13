@@ -1,4 +1,4 @@
-"""`run_study` (E5.10; ADR-0023, ADR-0025, ADR-0026, ADR-0027): golden-path shapes, one failure per
+"""`RunStudy` (E5.10; ADR-0023, ADR-0025, ADR-0026, ADR-0027): golden-path shapes, one failure per
 `StepError.kind`, dedup, notes, and a Study persisted after every step. No network."""
 
 from dataclasses import replace
@@ -23,6 +23,7 @@ from resto.application.ports.tracing import (
     StepTraced,
     StudyCreated,
 )
+from resto.application.use_cases.ask_expert import AskExpert
 from resto.application.use_cases.run_study import ParserFailed
 from resto.domain.constants import DEFAULT_SEEDS
 from resto.domain.entities.expert_note import ExpertNote, NoteStatus, Provenance
@@ -523,7 +524,7 @@ def test_an_online_scenario_is_infrastructure_until_e2_5(tmp_path: Path) -> None
 
 def test_an_expert_round_on_a_network_that_is_not_stored_is_infrastructure(tmp_path: Path) -> None:
     world = World(tmp_path, plans=(BASELINE_PLAN,))
-    loader = world.deps.network_query_loader
+    loader = world.deps.ask_expert.loader
     gone = False
 
     class VanishingLoader:
@@ -537,7 +538,10 @@ def test_an_expert_round_on_a_network_that_is_not_stored_is_infrastructure(tmp_p
         gone = True
         return answers()(task, ledger)
 
-    world.deps = replace(world.deps, network_query_loader=VanishingLoader())
+    world.deps = replace(
+        world.deps,
+        ask_expert=AskExpert(loader=VanishingLoader()),
+    )
     world.expert.items.append(answer_after_the_network_vanishes)
 
     study = world.run()

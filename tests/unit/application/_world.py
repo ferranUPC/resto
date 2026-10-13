@@ -29,7 +29,13 @@ from resto.application.ports.llm import AgentRun, StopReason
 from resto.application.ports.sumo import RunOutput
 from resto.application.ports.tracing import TraceEvent
 from resto.application.tools.expert import EvidenceLedger
-from resto.application.use_cases.run_study import run_study
+from resto.application.use_cases.ask_expert import AskExpert
+from resto.application.use_cases.build_scenario import BuildScenario
+from resto.application.use_cases.compose_report import ComposeReport
+from resto.application.use_cases.run_simulation import RunSimulation
+from resto.application.use_cases.run_study import RunStudy
+from resto.application.use_cases.update_note_status import UpdateNoteStatus
+from resto.application.use_cases.write_note import WriteNote
 from resto.domain.constants import DEFAULT_SEEDS
 from resto.domain.entities.demand import Demand
 from resto.domain.entities.network import Network
@@ -294,7 +300,7 @@ class Simulations:
 
 
 class World:
-    """Everything `run_study` needs, with the scripted agents reachable for assertions."""
+    """Everything `RunStudy` needs, with the scripted agents reachable for assertions."""
 
     def __init__(
         self,
@@ -344,6 +350,7 @@ class World:
         self.tracer = RecordingTracer()
         self.promoted_networks: list[Any] = []
         self.query_loads: list[Path] = []
+        loader = StoredNetworkQueryLoader(self.networks, self._load_query)
         self.deps = StudyDeps(
             agents=StudyAgents(
                 parser=self.parser,
@@ -365,11 +372,26 @@ class World:
             results=self.results,
             notes=self.notes,
             studies=self.studies,
-            runner=self.runner,
-            run_dirs=FilesystemRunDirectories(),
-            network_query_loader=StoredNetworkQueryLoader(self.networks, self._load_query),
+            run_simulation=RunSimulation(
+                runner=self.runner,
+                results=self.results,
+                run_dirs=FilesystemRunDirectories(),
+                out_dir=tmp_path / "results",
+            ),
             tracer=self.tracer,
             planner=self.planner,
+            ask_expert=AskExpert(loader=loader),
+            build_scenario=BuildScenario(
+                networks=self.networks,
+                demands=self.demands,
+                scenarios=self.scenarios,
+                network_query_loader=loader,
+                runner=self.runner,
+                out_dir=tmp_path / "scenarios",
+            ),
+            compose_report=ComposeReport(),
+            update_note_status=UpdateNoteStatus(self.notes),
+            write_note=WriteNote(self.notes),
         )
         self.settings = StudySettings(
             out_dir=tmp_path,
@@ -433,7 +455,7 @@ class World:
         return Simulations(tuple(load_checks), tuple(study_runs))
 
     def run(self, **kwargs: Any) -> Study:
-        return run_study("the user's text", self.deps, self.settings, **kwargs)
+        return RunStudy(self.deps, self.settings).execute("the user's text", **kwargs)
 
     def store_scenario(
         self, interventions: tuple[Intervention, ...] = (), seeds: tuple[int, ...] = DEFAULT_SEEDS

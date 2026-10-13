@@ -24,11 +24,11 @@ from resto.adapters.persistence.sqlite.repositories import SqliteDatabase
 from resto.adapters.tracing.jsonl import JsonlTracer
 from resto.application.executor import StudyBudget, StudySettings
 from resto.application.ports.llm import AgentRun, Budget, StopReason
-from resto.application.use_cases.run_study import ParserFailed, run_study
+from resto.application.use_cases.run_study import ParserFailed, RunStudy
 from resto.domain.value_objects.demand_spec import DemandProfile
 from resto.domain.value_objects.outcomes import Found
 from resto.domain.value_objects.step_record import Usage
-from resto.interface.cli.main import AGENT_SECONDS, build_deps
+from resto.interface.dependencies import AGENT_SECONDS, build_deps
 from resto.interface.render import render_study, render_study_text
 
 
@@ -82,7 +82,7 @@ def main() -> int:
         budget=study_budget,
     )
     try:
-        study = run_study(args.text, deps, settings)
+        study = RunStudy(deps, settings).execute(args.text)
     except ParserFailed as e:
         print(f"parser failed: {e}", file=sys.stderr)
         return 1

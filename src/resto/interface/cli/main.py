@@ -1,10 +1,8 @@
-"""CLI entrypoint and composition root (ADR-0025 §6): the one place where the Executor's agent
-ports meet their implementations and the infrastructure is bound.
-
-Agents that do not exist yet — Network Author (E6.1), Demand Generator (E7.1) — and the
-promotions of their drafts are placeholders that raise `NotImplementedError`. A request the
-Input Parser cannot turn into a `Question` ends in `ParserFailed`, and the CLI reports it without
-creating a Study.
+"""CLI entrypoint. `main` loads the LLM config, opens the database, builds a `RunStudy` with
+`resto.interface.dependencies.build_run_study`, calls `RunStudy.execute`, closes the database,
+prints the study and saves its Markdown report. A request the Input Parser cannot turn into a
+`Question` raises `ParserFailed`, and the CLI reports it without creating a Study. Tests pass their
+own `RunStudy` through the `run_study` keyword, which skips the config, the database and the wiring.
 
     python -m resto.interface.cli.main "how congested is the peak?" [--mode forced]
 """
@@ -15,111 +13,16 @@ import argparse
 import sys
 from collections.abc import Sequence
 from pathlib import Path
-from typing import NoReturn
 
-from resto.adapters.llm.agents.composer import ComposerPort
-from resto.adapters.llm.agents.expert import ExpertPort, NoteWriterPort
-from resto.adapters.llm.agents.input_parser import InputParserPort
-from resto.adapters.llm.agents.scenario_builder import ScenarioBuilderPort
-from resto.adapters.persistence.memory import InMemoryStudyRepository
 from resto.adapters.persistence.sqlite.repositories import SqliteDatabase
-from resto.adapters.sumo.demand import SumoDemandTools
-from resto.adapters.sumo.demand_scaling import SumoDemandScaler
-from resto.adapters.sumo.network_query_loader import StoredNetworkQueryLoader
-from resto.adapters.sumo.run_directories import FilesystemRunDirectories
-from resto.adapters.sumo.runner import SubprocessSumoRunner
-from resto.adapters.sumo.writers.rerouter import RerouterWriter
-from resto.adapters.sumo.writers.sumocfg import SumocfgFileWriter
-from resto.adapters.sumo.writers.tls_program import TlsProgramWriter
-from resto.adapters.sumo.writers.vss import VssWriter
 from resto.adapters.tracing.jsonl import JsonlTracer
-from resto.application.executor import StudyAgents, StudyDeps, StudyPromotions, StudySettings
-from resto.application.ports.llm import Budget, ToolAgent
-from resto.application.ports.tracing import Tracer
-from resto.application.tools.expert import ExpertCollaborators
-from resto.application.tools.scenario_builder import BuilderCollaborators
-from resto.application.use_cases.run_study import ParserFailed, run_study
+from resto.application.executor import StudySettings
+from resto.application.ports.llm import Budget
+from resto.application.use_cases.run_study import ParserFailed, RunStudy
 from resto.domain.entities.study import Study, StudyStatus
-from resto.domain.services.planner import plan_study
 from resto.domain.value_objects.question import Mode
+from resto.interface.dependencies import AGENT_SECONDS, build_run_study
 from resto.interface.render import render_study, render_study_text
-
-AGENT_SECONDS = 300.0
-
-
-class _Pending:
-    """An agent port, or a promotion, whose implementation is a later task."""
-
-    def __init__(self, what: str, task_id: str) -> None:
-        self._what = what
-        self._task_id = task_id
-
-    def __call__(self, *args: object) -> NoReturn:
-        raise NotImplementedError(f"the {self._what} is not implemented yet ({self._task_id})")
-
-    parse = author = obtain = compose = __call__
-
-
-def build_deps(
-    *, db: SqliteDatabase, agent: ToolAgent, budget: Budget, tracer: Tracer, out_dir: Path
-) -> StudyDeps:
-    """Studies are kept in memory: there is no persistent `StudyRepository` yet, and the SQLite
-    database is the DatabaseMCP reference backend, which does not hold them (ADR-0002).
-    `out_dir` here is only the Builder's; the study's own settings are `StudySettings`.
-    """
-    network_query_loader = StoredNetworkQueryLoader(db.networks)
-    studies = InMemoryStudyRepository()
-    return StudyDeps(
-        agents=StudyAgents(
-            parser=InputParserPort(agent=agent, budget=budget),
-            network_author=_Pending("Network Author", "E6.1"),
-            demand_generator=_Pending("Demand Generator", "E7.1"),
-            scenario_builder=ScenarioBuilderPort(
-                agent=agent,
-                budget=budget,
-                collaborators=BuilderCollaborators(
-                    networks=db.networks,
-                    demands=db.demands,
-                    network_query_loader=network_query_loader,
-                    rerouter_writer=RerouterWriter(),
-                    vss_writer=VssWriter(),
-                    tls_program_writer=TlsProgramWriter(),
-                    sumocfg_writer=SumocfgFileWriter(),
-                    demand_scaler=SumoDemandScaler(),
-                    duarouter=SumoDemandTools(),
-                    out_dir=out_dir / "builder",
-                ),
-            ),
-            expert=ExpertPort(
-                agent=agent,
-                budget=budget,
-                collaborators=ExpertCollaborators(
-                    network_query_loader=network_query_loader,
-                    results=db.results,
-                    scenarios=db.scenarios,
-                    notes=db.notes,
-                ),
-            ),
-            note_writer=NoteWriterPort(agent=agent, budget=budget),
-            composer=ComposerPort(agent=agent, budget=budget, results=db.results),
-        ),
-        promotions=StudyPromotions(
-            network=_Pending("network promotion", "E6.1"),
-            demand=_Pending("demand promotion", "E7.1"),
-            reroute=_Pending("reroute_demand", "E7.1"),
-        ),
-        networks=db.networks,
-        demands=db.demands,
-        scenarios=db.scenarios,
-        results=db.results,
-        notes=db.notes,
-        studies=studies,
-        runner=SubprocessSumoRunner(),
-        run_dirs=FilesystemRunDirectories(),
-        network_query_loader=network_query_loader,
-        tracer=tracer,
-        planner=plan_study,
-    )
 
 
 def _save_report(study: Study, out_dir: Path) -> None:
@@ -138,10 +41,9 @@ def _save_report(study: Study, out_dir: Path) -> None:
 def main(
     argv: Sequence[str] | None = None,
     *,
-    deps: StudyDeps | None = None,
-    settings: StudySettings | None = None,
+    run_study: RunStudy | None = None,
 ) -> int:
-    """`deps` and `settings` replace the real wiring (tests)."""
+    """`run_study` replaces the real wiring (tests)."""
     parser = argparse.ArgumentParser(prog="resto", description="Run one RESTO study.")
     parser.add_argument("text", help="the question, in natural language")
     parser.add_argument("--mode", choices=[m.value for m in Mode], default=None)
@@ -157,9 +59,13 @@ def main(
     mode = Mode(args.mode) if args.mode else None
 
     db: SqliteDatabase | None = None
-    if deps is None:
+    if run_study is None:
         from resto.adapters.llm.anthropic_client import OpenRouterToolAgent
-        from resto.adapters.llm.config import MissingApiKeyError, load_llm_config
+        from resto.adapters.llm.config import (
+            MissingApiKeyError,
+            load_llm_config,
+            load_rounds_config,
+        )
 
         try:
             config = load_llm_config()
@@ -170,18 +76,17 @@ def main(
         budget = Budget(config.max_steps, config.max_output_tokens, AGENT_SECONDS)
         tracer = JsonlTracer(args.out / "traces")
         agent = OpenRouterToolAgent(config)
-        deps = build_deps(db=db, agent=agent, budget=budget, tracer=tracer, out_dir=args.out)
-    if settings is None:
-        from resto.adapters.llm.config import load_rounds_config
-
         rounds = load_rounds_config()
         settings = StudySettings(
             out_dir=args.out,
             network_max_rounds=rounds.network_max_rounds,
             calibration_max_rounds=rounds.calibration_max_rounds,
         )
+        run_study = build_run_study(
+            db=db, agent=agent, budget=budget, tracer=tracer, settings=settings
+        )
     try:
-        study = run_study(args.text, deps, settings, mode=mode)
+        study = run_study.execute(args.text, mode=mode)
     except ParserFailed as e:
         print(f"error: no study was created: {e}", file=sys.stderr)
         return 1
