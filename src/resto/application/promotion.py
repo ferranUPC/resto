@@ -1,7 +1,8 @@
 """How a promotion refuses an agent run (ADR-0001), the same for every agent.
 
-A promotion (`BuildScenario`, `AskExpert`, `WriteNote`) takes a finished `AgentRun` and either
-returns the promoted entity or raises one of two errors:
+A promotion (`BuildScenario`, and the promoters of `application/promoters/`: `ExpertAnswerPromoter`,
+`NotePromoter`, `ReportPromoter`) takes a finished `AgentRun` and either returns the promoted
+object or raises one of two errors:
 
 - `RunWithoutDraft`: the run ended without a draft, so there is nothing to validate;
 - `DraftRejected`: the draft exists but breaks a semantic rule. `blame` says whose fault it is,

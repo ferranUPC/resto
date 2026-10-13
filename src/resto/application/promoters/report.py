@@ -1,5 +1,5 @@
 """Output Composer promotion: an already-run `AgentRun[ReportDraft]` -> the `Report` (DoD §4.8;
-ADR-0001, ADR-0025 §4).
+ADR-0001, ADR-0025 §4, ADR-0042 §5). The context is the `Study` the Composer was given.
 
 Promotion order (ADR-0001):
   1. syntactic - the run stopped with a draft.
@@ -30,10 +30,8 @@ FORCED_LIMITATION = (
 
 
 @dataclass(frozen=True, slots=True)
-class ComposeReport:
-    """No collaborators today; the empty constructor keeps callers unchanged when one is added."""
-
-    def execute(self, study: Study, run: AgentRun[ReportDraft]) -> Report:
+class ReportPromoter:
+    def promote(self, run: AgentRun[ReportDraft], study: Study) -> Report:
         """Promotes the Composer's draft to the `Report` of `study`.
 
         `mode` is `Mode.FORCED` when the last round was forced by the round limit or the question

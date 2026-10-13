@@ -16,7 +16,6 @@ from eval.plan_bank.phase1 import Phase1Case, load_phase1
 
 from resto.adapters.sumo.network_query_loader import StoredNetworkQueryLoader
 from resto.application.ports.llm import AgentRun
-from resto.application.use_cases.ask_expert import AskExpert
 from resto.domain.entities.study import StudyResolution
 from resto.domain.services.planner import PlanningContext, plan_study
 from resto.domain.value_objects.arm import BASE_ARM
@@ -144,7 +143,7 @@ def _executor_case(tmp_path: Path, case: Phase1Case) -> World:
     world.deps = replace(
         world.deps,
         planner=plan_study,
-        ask_expert=AskExpert(loader=loader),
+        network_queries=loader,
         build_scenario=replace(world.deps.build_scenario, network_query_loader=loader),
     )
     return world

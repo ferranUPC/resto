@@ -1,9 +1,9 @@
 """What the composition root (`interface/dependencies.py`) builds to run a `Study`: the agents, the
-planner, the repositories, the event bus with its subscribers already wired, the tracer for
-telemetry, the promotions not implemented yet (E6.1, E7.1) and the use-case instances the Executor
-calls (`RunSimulation`, `AskExpert`, `BuildScenario`, `ComposeReport`, `WriteNote`), each already
-holding its own collaborators. The per-run values that are not collaborators are
-`StudySettings`."""
+planner, the repositories, the network query loader, the event bus with its subscribers already
+wired, the tracer for telemetry, the promotions not implemented yet (E6.1, E7.1), the promoters of
+the Expert answer, the notes and the report, and the use-case instances the Executor calls
+(`RunSimulation`, `BuildScenario`), each already holding its own collaborators. The per-run values
+that are not collaborators are `StudySettings`."""
 
 from __future__ import annotations
 
@@ -20,19 +20,21 @@ from resto.application.ports.agents.network_author import NetworkAuthorAgent
 from resto.application.ports.agents.note_writer import NoteWriterAgent
 from resto.application.ports.agents.scenario_builder import ScenarioBuilderAgent
 from resto.application.ports.llm import AgentRun
+from resto.application.ports.network_query import NetworkQueryLoader
 from resto.application.ports.repositories import (
     DemandRepository,
     NetworkRepository,
+    NoteRepository,
     ResultRepository,
     ScenarioRepository,
     StudyRepository,
 )
 from resto.application.ports.tracing import Tracer
-from resto.application.use_cases.ask_expert import AskExpert
+from resto.application.promoters.expert_answer import ExpertAnswerPromoter
+from resto.application.promoters.notes import NotePromoter
+from resto.application.promoters.report import ReportPromoter
 from resto.application.use_cases.build_scenario import BuildScenario
-from resto.application.use_cases.compose_report import ComposeReport
 from resto.application.use_cases.run_simulation import RunSimulation
-from resto.application.use_cases.write_note import WriteNote
 from resto.domain.constants import (
     DEFAULT_STUDY_MAX_AGENT_CALLS,
     DEFAULT_STUDY_MAX_SIMULATIONS,
@@ -112,14 +114,18 @@ class StudyDeps:
     demands: DemandRepository
     scenarios: ScenarioRepository
     results: ResultRepository
+    notes: NoteRepository
+    """Where the notes stage stores what `note_promoter` returns."""
     studies: StudyRepository
+    network_queries: NetworkQueryLoader
+    """Loads the networks of the Expert's scope for `expert_answer_promoter`."""
     run_simulation: RunSimulation
     events: EventBus
     """Where the `StudyRecorder` publishes the study's domain events."""
     tracer: Tracer
     """The telemetry (`ModelCall`, `NoteWriterFailed`): emitted straight, not through `events`."""
     planner: Planner
-    ask_expert: AskExpert
     build_scenario: BuildScenario
-    compose_report: ComposeReport
-    write_note: WriteNote
+    expert_answer_promoter: ExpertAnswerPromoter
+    note_promoter: NotePromoter
+    report_promoter: ReportPromoter

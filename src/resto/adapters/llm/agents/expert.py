@@ -4,7 +4,7 @@
 No logic of its own: the loop lives in the `ToolAgent` implementation, tool behaviour and the
 evidence ledger in `application/tools/expert.py`, and checking the answer (evidence refs resolve,
 edges in typed values exist, forced mode never abstains) in
-`application/use_cases/ask_expert.py`. This module assembles the
+`application/promoters/expert_answer.py`. This module assembles the
 `AgentTask`/tools for one `ExpertTask` and calls the agent.
 """
 
@@ -154,14 +154,15 @@ def run_expert(
     ledger: EvidenceLedger,
 ) -> AgentRun[ExpertAnswer]:
     """Runs the Expert on `task`; every tool call lands in `ledger`. The returned answer is
-    unchecked - hand the run and the same ledger to `AskExpert.execute` to promote it."""
+    unchecked - hand the run and the same ledger to `ExpertAnswerPromoter.promote` to promote
+    it."""
     tools = build_expert_tools(context, ledger)
     return agent.run(build_task(task), tools, ExpertAnswer, budget)
 
 
 # The note-writing call reuses the final round's own question/answer/evidence as context instead of
 # new tool calls (E4.6): no extra API cost beyond this one call per study (ADR-0026), and every
-# evidence ref it cites must already be in the ledger `WriteNote.execute` promotes it with.
+# evidence ref it cites must already be evidence of the final answer (`NotePromoter`, ADR-0042 §10).
 NOTE_SYSTEM_PROMPT = f"""\
 You just answered a question about a SUMO road network as the Network Expert. Write the persistent
 notes worth remembering about this network, for future questions on it to retrieve: from 0 to
@@ -214,8 +215,8 @@ def build_note_task(task: NoteTask) -> AgentTask:
 
 def run_expert_note(task: NoteTask, agent: ToolAgent, budget: Budget) -> AgentRun[ExpertNoteDrafts]:
     """Runs the Expert on writing the study's notes. No tools: the notes can only cite evidence
-    already in `task.round.answer.evidence` — hand the run to `WriteNote.execute` with the SAME
-    `EvidenceLedger` that round was promoted with, and the same `task`."""
+    already in `task.round.answer.evidence` — hand the run to `NotePromoter.promote` with the same
+    `task`."""
     return agent.run(build_note_task(task), (), ExpertNoteDrafts, budget)
 
 

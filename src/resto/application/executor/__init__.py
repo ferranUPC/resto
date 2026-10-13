@@ -1,5 +1,5 @@
 """Executor (ADR-0023, ADR-0025, ADR-0026, ADR-0027): user text -> a closed `Study`, by
-deterministic code. It decides nothing about the domain: agents decide, promotion use cases
+deterministic code. It decides nothing about the domain: agents decide, promoters
 certify, the `Study` makes its own transitions, this module chains them.
 
     Study (at the request) -> parse -> [plan -> validate -> execute steps -> ask the Expert]*

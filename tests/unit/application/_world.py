@@ -28,13 +28,13 @@ from resto.application.executor import (
 from resto.application.ports.llm import AgentRun, StopReason
 from resto.application.ports.sumo import RunOutput
 from resto.application.ports.tracing import TraceEvent
+from resto.application.promoters.expert_answer import ExpertAnswerPromoter
+from resto.application.promoters.notes import NotePromoter
+from resto.application.promoters.report import ReportPromoter
 from resto.application.tools.expert import EvidenceLedger
-from resto.application.use_cases.ask_expert import AskExpert
 from resto.application.use_cases.build_scenario import BuildScenario
-from resto.application.use_cases.compose_report import ComposeReport
 from resto.application.use_cases.run_simulation import RunSimulation
 from resto.application.use_cases.run_study import RunStudy
-from resto.application.use_cases.write_note import WriteNote
 from resto.domain.constants import DEFAULT_SEEDS
 from resto.domain.entities.demand import Demand
 from resto.domain.entities.network import Network
@@ -370,7 +370,9 @@ class World:
             demands=self.demands,
             scenarios=self.scenarios,
             results=self.results,
+            notes=self.notes,
             studies=self.studies,
+            network_queries=loader,
             run_simulation=RunSimulation(
                 runner=self.runner,
                 results=self.results,
@@ -385,7 +387,6 @@ class World:
             ),
             tracer=self.tracer,
             planner=self.planner,
-            ask_expert=AskExpert(loader=loader),
             build_scenario=BuildScenario(
                 networks=self.networks,
                 demands=self.demands,
@@ -394,8 +395,9 @@ class World:
                 runner=self.runner,
                 out_dir=tmp_path / "scenarios",
             ),
-            compose_report=ComposeReport(),
-            write_note=WriteNote(self.notes),
+            expert_answer_promoter=ExpertAnswerPromoter(),
+            note_promoter=NotePromoter(),
+            report_promoter=ReportPromoter(),
         )
         self.settings = StudySettings(
             out_dir=tmp_path,

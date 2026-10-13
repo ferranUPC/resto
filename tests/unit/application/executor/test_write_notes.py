@@ -1,4 +1,4 @@
-"""`write_notes` needs only the repositories, the note writer and `WriteNote`, not the whole
+"""`write_notes` needs only the repositories, the note writer and `NotePromoter`, not the whole
 `StudyDeps`; a failure is traced and leaves the study as it was (ADR-0026)."""
 
 from __future__ import annotations
@@ -13,8 +13,7 @@ from resto.application.executor.closing import write_notes
 from resto.application.executor.deps import StudyBudget
 from resto.application.executor.recorder import StudyRecorder
 from resto.application.executor.spend import StudySpend
-from resto.application.tools.expert import EvidenceLedger
-from resto.application.use_cases.write_note import WriteNote
+from resto.application.promoters.notes import NotePromoter
 from resto.domain.entities.study import Study
 from resto.domain.value_objects.expert_round import ExpertRound
 from tests.unit.application._world import (
@@ -40,13 +39,13 @@ def test_a_study_without_a_stored_base_network_traces_the_failure_and_changes_no
 
     write_notes(
         ExpertRound(question="q", answer=expert_answer()),
-        EvidenceLedger(),
         recorder,
         spend,
         InMemoryNetworkRepository(),
         InMemoryScenarioRepository(),
+        notes,
         note_writer,
-        WriteNote(notes),
+        NotePromoter(),
         tracer,
     )
 

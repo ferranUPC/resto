@@ -1,7 +1,7 @@
 """The study flow (ADR-0023, ADR-0030, ADR-0041 §5): a loop that asks the study what comes next,
 performs it and applies the outcome. It holds no rule about the study's state: the study answers
 `next_action` and every phase is a function of its own module; the loop owns the study's network id
-and the last evidence ledger and hands them to the phases that read them."""
+and hands it to the planning phase."""
 
 from __future__ import annotations
 
@@ -16,7 +16,6 @@ from resto.application.executor.recorder import StudyRecorder
 from resto.application.executor.spend import StudySpend
 from resto.application.executor.steps import execute_plan
 from resto.application.ports.tracing import ModelCall
-from resto.application.tools.expert import EvidenceLedger
 from resto.domain.entities.study import Study
 from resto.domain.services.ids import new_id
 from resto.domain.value_objects.question import Mode
@@ -56,7 +55,6 @@ def execute_study(
 
     spend = StudySpend(settings.budget, model_call)
     network_id: str | None = None
-    ledger = EvidenceLedger()
     while True:
         match recorder.study.next_action():
             case Finished():
@@ -70,10 +68,10 @@ def execute_study(
             case ConsultExpert():
                 recorder.apply(recorder.study.consult_expert())
             case AskExpert():
-                ledger = ask_expert_round(recorder, spend, deps)
+                ask_expert_round(recorder, spend, deps)
             case OpenPhase():
                 recorder.apply(recorder.study.open_phase())
             case Close(final):
-                close(final, ledger, recorder, spend, deps)
+                close(final, recorder, spend, deps)
             case action:
                 assert_never(action)

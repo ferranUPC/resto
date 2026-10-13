@@ -216,8 +216,8 @@ PlanStep = (
     | BuildScenarioStep
     | RunSimulationStep
 )
-"""One variant per use case a plan may call. `AskExpert` and `ComposeReport` are not plan
-steps: the Executor always runs them (ADR-0023 §2)."""
+"""One variant per use case a plan may call. Asking the Expert and composing the report are not
+plan steps: the Executor always runs them (ADR-0023 §2)."""
 
 
 @dataclass(frozen=True, slots=True)
