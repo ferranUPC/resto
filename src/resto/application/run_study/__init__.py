@@ -7,8 +7,9 @@ by deterministic code. It decides nothing about the domain: agents decide, promo
 
 - **Stages** (`stages/`): parse, plan, Expert round, notes and compose, each with its
   collaborators in the constructor and one `execute(study, spend)` that returns the study's
-  `Transition`. Only the notes stage stores: the notes are an aggregate of their own.
-- **Step executors** (`steps/`): one per plan step type, registered by type in `steps`.
+  `Transition`. Of the stages, only notes stores: the notes are an aggregate of their own.
+- **Step executors** (`steps/`): one per plan step type, registered by type in `steps`. The
+  executors that obtain, derive or reroute store the network or demand their promoter returns.
 - **Agents** are reached through their ports (`application/ports/agents/`), their drafts promoted
   by the promoters (`application/promoters/`; network, demand and reroute pending until E6.1 and
   E7.1); both are bound in the composition root (`interface/dependencies.py`).
@@ -42,7 +43,7 @@ from typing import Any, assert_never
 from resto.application.event_bus import EventBus
 from resto.application.ports.repositories import StudyRepository
 from resto.application.ports.tracing import Tracer
-from resto.application.run_study.failures import StepFailed, StepNeedsUser, crash
+from resto.application.run_study.failures import attempt
 from resto.application.run_study.spend import StudyBudget, StudySpend
 from resto.application.run_study.stages.closing import ComposeStage, NotesStage
 from resto.application.run_study.stages.expert_round import ExpertRoundStage
@@ -112,17 +113,12 @@ class RunStudy:
             study = self._record(study, transition)
 
     def _run(self, step: PlanStep, study: Study, spend: StudySpend) -> Transition:
-        """Runs `step` with its executor. The first failure stops the study (ADR-0025): the step
-        failed (`failed`) or needing the user (`awaiting_user`), with the pending steps skipped."""
-        task = data(step)
-        try:
+        """Runs `step` with its executor; its failure is recorded (`failures.attempt`)."""
+
+        def run() -> Transition:
             return self.steps[type(step)].execute(step, StepContext(study, spend))
-        except StepFailed as failed:
-            return study.record_failure(failed.record(step.kind, task))
-        except StepNeedsUser as needs:
-            return study.record_needs_user(needs.record(step.kind, task), needs.needs_user)
-        except Exception as e:
-            return study.record_failure(crash(e).record(step.kind, task))
+
+        return attempt(study, step.kind, data(step), run)
 
     def _record(self, previous: Study | None, transition: Transition) -> Study:
         """Stores the next study when the transition changed it, then publishes its events."""

@@ -9,7 +9,7 @@ from resto.application.ports.agents.expert import ExpertAgent
 from resto.application.ports.llm import AgentRun
 from resto.application.ports.network_query import NetworkQueryLoader
 from resto.application.promoters.expert_answer import ExpertAnswerContext, ExpertAnswerPromoter
-from resto.application.run_study.failures import StepFailed, crash, draft_of, promote
+from resto.application.run_study.failures import attempt, promote
 from resto.application.run_study.spend import StudySpend
 from resto.application.run_study.step_data import data
 from resto.application.tools.expert import EvidenceLedger
@@ -40,16 +40,14 @@ class ExpertRoundStage:
             result_ids=study.result_ids,
         )
         ledger = EvidenceLedger()
-        try:
+
+        def ask() -> Transition:
             run = spend.agent_call(lambda: self.expert.answer(task, ledger))
-            draft_of(run, "expert")
             round_ = promote(lambda: self._promote(run, task, ledger), run.usage)
-        except StepFailed as failed:
-            return study.record_failure(failed.record("ask_expert", data(task)))
-        except Exception as e:
-            return study.record_failure(crash(e).record("ask_expert", data(task)))
-        record = StepRecord("ask_expert", StepStatus.OK, data(task), usage=run.usage)
-        return study.record_expert_round(record, round_)
+            record = StepRecord("ask_expert", StepStatus.OK, data(task), usage=run.usage)
+            return study.record_expert_round(record, round_)
+
+        return attempt(study, "ask_expert", data(task), ask)
 
     def _promote(
         self, run: AgentRun[ExpertAnswer], task: ExpertTask, ledger: EvidenceLedger

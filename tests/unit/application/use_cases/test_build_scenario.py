@@ -15,6 +15,7 @@ from resto.adapters.persistence.memory import (
     InMemoryScenarioRepository,
 )
 from resto.application.ports.llm import AgentRun, StopReason
+from resto.application.ports.network_query import NetworkNotStored, NetworkQuery
 from resto.application.ports.sumo import RunOutput
 from resto.application.promoters.scenario import ScenarioPromoter
 from resto.application.promotion import DraftRejected, RunWithoutDraft
@@ -126,11 +127,17 @@ def test_a_budget_stop_reason_is_never_promoted() -> None:
         BuildScenario(**env()).execute(TASK, agent_run(output=None, stop_reason=StopReason.BUDGET))
 
 
-def test_unknown_network_is_rejected() -> None:
-    with pytest.raises(DraftRejected):
-        BuildScenario(**env(networks=InMemoryNetworkRepository())).execute(
-            TASK, agent_run(output=draft())
-        )
+def test_an_unknown_demand_is_the_drafts_fault_even_when_the_network_cannot_load() -> None:
+    kwargs = env(demands=InMemoryDemandRepository())
+    kwargs["network_query_loader"] = UnloadableQueries()
+
+    with pytest.raises(DraftRejected, match="unknown demand_id"):
+        BuildScenario(**kwargs).execute(TASK, agent_run(output=draft()))
+
+
+class UnloadableQueries:
+    def load(self, network_id: str) -> NetworkQuery:
+        raise NetworkNotStored(f"network {network_id!r} cannot be loaded")
 
 
 def test_a_draft_the_promoter_rejects_never_reaches_sumo() -> None:

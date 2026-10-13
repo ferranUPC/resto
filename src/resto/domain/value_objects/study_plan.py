@@ -8,7 +8,7 @@ typed task of the use case it calls, with every such id widened to `str | FromSt
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, ClassVar, Literal
 
 from resto.domain.value_objects.experiment import Experiment, ExperimentRole
 from resto.domain.value_objects.intervention import Intervention
@@ -35,14 +35,24 @@ class FromStep:
 StepInput = tuple[FromStep, Produces]
 StepRef = tuple[Produces, str]
 """An id a step names directly, not through `FromStep`, and its kind."""
+StepId = tuple[Produces, str | FromStep]
 
 
-def _step_inputs(*ids: tuple[Produces, str | FromStep]) -> tuple[StepInput, ...]:
-    return tuple((ref, kind) for kind, ref in ids if isinstance(ref, FromStep))
+class _Step:
+    """`refs()` and `inputs` of a variant, from the ids it names (`ids`)."""
 
+    __slots__ = ()
 
-def _refs(*ids: tuple[Produces, str | FromStep]) -> tuple[StepRef, ...]:
-    return tuple((kind, ref) for kind, ref in ids if isinstance(ref, str))
+    @property
+    def ids(self) -> tuple[StepId, ...]:
+        raise NotImplementedError
+
+    def refs(self) -> tuple[StepRef, ...]:
+        return tuple((kind, ref) for kind, ref in self.ids if isinstance(ref, str))
+
+    @property
+    def inputs(self) -> tuple[StepInput, ...]:
+        return tuple((ref, kind) for kind, ref in self.ids if isinstance(ref, FromStep))
 
 
 def _check_depends_on(inputs: tuple[StepInput, ...], depends_on: tuple[int, ...]) -> None:
@@ -62,7 +72,7 @@ def _unchanged(phase: Phase, reused: tuple[str, ...]) -> Phase:
 
 
 @dataclass(frozen=True, slots=True)
-class ObtainNetworkStep:
+class ObtainNetworkStep(_Step):
     """The Network Author resolves the network the Parser named: it finds a stored one or has one
     promoted from its draft (ADR-0037 §2). `network_ref` is the Parser's text, verbatim."""
 
@@ -74,30 +84,26 @@ class ObtainNetworkStep:
     """Rounds the Network Author may take; none means the configured limit (`.env`)."""
     depends_on: tuple[int, ...] = ()
     kind: Literal["obtain_network"] = "obtain_network"
+    produces: ClassVar[Literal["network"]] = "network"
+    modifications: ClassVar[tuple[()]] = ()
+    """An obtained network derives from none (the plan validator reads it like a derived one's)."""
 
     def __post_init__(self) -> None:
         if not self.network_ref.strip():
             raise ValueError("an obtain_network step requires the network reference")
         _check_depends_on(self.inputs, self.depends_on)
 
-    def refs(self) -> tuple[StepRef, ...]:
+    @property
+    def ids(self) -> tuple[StepId, ...]:
         """None: `network_ref` is the Parser's text, not an id."""
         return ()
-
-    @property
-    def inputs(self) -> tuple[StepInput, ...]:
-        return ()
-
-    @property
-    def produces(self) -> Produces:
-        return "network"
 
     def apply(self, phase: Phase, record: StepRecord, reused: tuple[str, ...]) -> Phase:
         return _unchanged(phase, reused)
 
 
 @dataclass(frozen=True, slots=True)
-class DeriveNetworkStep:
+class DeriveNetworkStep(_Step):
     base_network_id: str | FromStep
     modifications: tuple[TopologyModification, ...]
     goals: tuple[str, ...] = ()
@@ -107,29 +113,23 @@ class DeriveNetworkStep:
     """Rounds the Network Author may take; none means the configured limit (`.env`)."""
     depends_on: tuple[int, ...] = ()
     kind: Literal["derive_network"] = "derive_network"
+    produces: ClassVar[Literal["network"]] = "network"
 
     def __post_init__(self) -> None:
         if not self.modifications:
             raise ValueError("deriving a network requires at least one modification")
         _check_depends_on(self.inputs, self.depends_on)
 
-    def refs(self) -> tuple[StepRef, ...]:
-        return _refs(("network", self.base_network_id))
-
     @property
-    def inputs(self) -> tuple[StepInput, ...]:
-        return _step_inputs(("network", self.base_network_id))
-
-    @property
-    def produces(self) -> Produces:
-        return "network"
+    def ids(self) -> tuple[StepId, ...]:
+        return (("network", self.base_network_id),)
 
     def apply(self, phase: Phase, record: StepRecord, reused: tuple[str, ...]) -> Phase:
         return _unchanged(phase, reused)
 
 
 @dataclass(frozen=True, slots=True)
-class ObtainDemandStep:
+class ObtainDemandStep(_Step):
     """The Demand Generator resolves the demand for a network an earlier step produced:
     `network_id` is a `FromStep` to that step, never an id or the reference (ADR-0037 §3).
     `StudyPlan` enforces it; the resolved copy of the step the study hands to run holds the
@@ -144,56 +144,44 @@ class ObtainDemandStep:
     """Calibration rounds the Demand Generator may take; none means the configured limit."""
     depends_on: tuple[int, ...] = ()
     kind: Literal["obtain_demand"] = "obtain_demand"
+    produces: ClassVar[Literal["demand"]] = "demand"
 
     def __post_init__(self) -> None:
         if self.demand_ref is not None and not self.demand_ref.strip():
             raise ValueError("demand_ref, when given, must not be blank")
         _check_depends_on(self.inputs, self.depends_on)
 
-    def refs(self) -> tuple[StepRef, ...]:
-        return _refs(("network", self.network_id))
-
     @property
-    def inputs(self) -> tuple[StepInput, ...]:
-        return _step_inputs(("network", self.network_id))
-
-    @property
-    def produces(self) -> Produces:
-        return "demand"
+    def ids(self) -> tuple[StepId, ...]:
+        return (("network", self.network_id),)
 
     def apply(self, phase: Phase, record: StepRecord, reused: tuple[str, ...]) -> Phase:
         return _unchanged(phase, reused)
 
 
 @dataclass(frozen=True, slots=True)
-class RerouteDemandStep:
+class RerouteDemandStep(_Step):
     """The same trips re-routed on another network (deterministic, no agent)."""
 
     demand_id: str | FromStep
     network_id: str | FromStep
     depends_on: tuple[int, ...] = ()
     kind: Literal["reroute_demand"] = "reroute_demand"
+    produces: ClassVar[Literal["demand"]] = "demand"
 
     def __post_init__(self) -> None:
         _check_depends_on(self.inputs, self.depends_on)
 
-    def refs(self) -> tuple[StepRef, ...]:
-        return _refs(("demand", self.demand_id), ("network", self.network_id))
-
     @property
-    def inputs(self) -> tuple[StepInput, ...]:
-        return _step_inputs(("demand", self.demand_id), ("network", self.network_id))
-
-    @property
-    def produces(self) -> Produces:
-        return "demand"
+    def ids(self) -> tuple[StepId, ...]:
+        return (("demand", self.demand_id), ("network", self.network_id))
 
     def apply(self, phase: Phase, record: StepRecord, reused: tuple[str, ...]) -> Phase:
         return _unchanged(phase, reused)
 
 
 @dataclass(frozen=True, slots=True)
-class BuildScenarioStep:
+class BuildScenarioStep(_Step):
     """`arm`, `role` and `purpose` are the planner's: the Executor copies them into the
     `Experiment` this scenario and its runs become (ADR-0025 §5, ADR-0027 §3)."""
 
@@ -206,6 +194,7 @@ class BuildScenarioStep:
     context_tags: frozenset[str] = frozenset()
     depends_on: tuple[int, ...] = ()
     kind: Literal["build_scenario"] = "build_scenario"
+    produces: ClassVar[Literal["scenario"]] = "scenario"
 
     def __post_init__(self) -> None:
         if not self.arm.strip():
@@ -214,16 +203,9 @@ class BuildScenarioStep:
             raise ValueError("a build_scenario step requires a purpose")
         _check_depends_on(self.inputs, self.depends_on)
 
-    def refs(self) -> tuple[StepRef, ...]:
-        return _refs(("network", self.network_id), ("demand", self.demand_id))
-
     @property
-    def inputs(self) -> tuple[StepInput, ...]:
-        return _step_inputs(("network", self.network_id), ("demand", self.demand_id))
-
-    @property
-    def produces(self) -> Produces:
-        return "scenario"
+    def ids(self) -> tuple[StepId, ...]:
+        return (("network", self.network_id), ("demand", self.demand_id))
 
     def apply(self, phase: Phase, record: StepRecord, reused: tuple[str, ...]) -> Phase:
         """The scenario `record` produced becomes the `Experiment` of this step's arm, with the
@@ -243,13 +225,14 @@ class BuildScenarioStep:
 
 
 @dataclass(frozen=True, slots=True)
-class RunSimulationStep:
+class RunSimulationStep(_Step):
     """`seeds=None` means the Executor's `DEFAULT_SEEDS`; one result per seed."""
 
     scenario_id: str | FromStep
     seeds: tuple[int, ...] | None = None
     depends_on: tuple[int, ...] = ()
     kind: Literal["run_simulation"] = "run_simulation"
+    produces: ClassVar[Literal["result"]] = "result"
 
     def __post_init__(self) -> None:
         if self.seeds is not None:
@@ -261,16 +244,9 @@ class RunSimulationStep:
                 raise ValueError("seeds must be >= 0")
         _check_depends_on(self.inputs, self.depends_on)
 
-    def refs(self) -> tuple[StepRef, ...]:
-        return _refs(("scenario", self.scenario_id))
-
     @property
-    def inputs(self) -> tuple[StepInput, ...]:
-        return _step_inputs(("scenario", self.scenario_id))
-
-    @property
-    def produces(self) -> Produces:
-        return "result"
+    def ids(self) -> tuple[StepId, ...]:
+        return (("scenario", self.scenario_id),)
 
     def apply(self, phase: Phase, record: StepRecord, reused: tuple[str, ...]) -> Phase:
         """The run's results join, without repeats, the experiment of the build step its scenario
@@ -302,8 +278,9 @@ PlanStep = (
 )
 """One variant per use case a plan may call. Asking the Expert and composing the report are not
 plan steps: the Executor always runs them (ADR-0023 §2). Each variant declares the ids it names
-directly (`refs`) and its effect on its phase once recorded (`apply`), so neither the plan
-validator nor `Study.record_step` matches on step types (ADR-0042 §6)."""
+(`ids`, which give `refs` and `inputs`), what it produces (`produces`) and its effect on its
+phase once recorded (`apply`), so neither the plan validator nor `Study.record_step` matches on
+step types (ADR-0042 §6)."""
 
 
 @dataclass(frozen=True, slots=True)

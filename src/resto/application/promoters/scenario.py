@@ -6,8 +6,8 @@ draft gets produced.
 Promotion order (ADR-0001):
   1. syntactic - the agent returned a `ScenarioDraft` (its dataclass invariants already ran at
                  construction; there is nothing further to re-validate here).
-  2. semantic  - the demand belongs to the network and every intervention target the draft claims
-                 to have implemented still exists on the network. A `demand_scale` intervention
+  2. semantic  - the network is stored, the demand belongs to it and every intervention target
+                 the draft claims to have implemented exists on it. A `demand_scale` intervention
                  (E2.3) is also re-checked against its own derived `Demand`
                  (`effective_demand_id`), which becomes the promoted `Scenario`'s `demand_id`: what
                  was simulated, not necessarily the task's own demand.
@@ -21,7 +21,7 @@ Promotion order (ADR-0001):
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 
 from resto.application.ports.llm import AgentRun
@@ -41,16 +41,18 @@ from resto.domain.value_objects.tasks import ScenarioTask
 
 @dataclass(frozen=True, slots=True)
 class ScenarioContext:
-    """What the Scenario Builder was given (`task`), loaded: its network, the demands the draft
-    names that are stored (by id; a missing one is rejected) and the network's query."""
+    """What the Scenario Builder was given (`task`), loaded: its network (none when it is not
+    stored), the demands the draft names that are stored (by id; a missing one is rejected) and
+    a call that loads the network's query. The promoter loads the query after every other
+    check, so a draft rejected for its demands is the agent's even when the query cannot load."""
 
     task: ScenarioTask
-    network: Network
+    network: Network | None
     demands: Mapping[str, Demand]
-    query: NetworkQuery
+    query: Callable[[], NetworkQuery]
 
     def __post_init__(self) -> None:
-        if self.network.network_id != self.task.network_id:
+        if self.network is not None and self.network.network_id != self.task.network_id:
             raise ValueError(
                 f"network {self.network.network_id!r} is not the task's {self.task.network_id!r}"
             )
@@ -61,11 +63,13 @@ class ScenarioPromoter:
     def promote(self, run: AgentRun[ScenarioDraft], context: ScenarioContext) -> Scenario:
         task = context.task
         draft = require_draft(run, "scenario_builder")
+        if context.network is None:
+            raise DraftRejected(f"unknown network_id {task.network_id!r}")
         _check_demand_on_network(context.demands, task.demand_id, task.network_id, "demand")
         demand_id = effective_demand_id(draft, task.demand_id)
         if demand_id != task.demand_id:
             _check_demand_on_network(context.demands, demand_id, task.network_id, "derived demand")
-        _check_targets_exist(draft, context.query)
+        _check_targets_exist(draft, context.query())
         return Scenario(
             scenario_id=scenario_id_for(
                 task.network_id, task.demand_id, draft.interventions, task.context_tags

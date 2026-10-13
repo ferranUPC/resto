@@ -6,21 +6,12 @@ from __future__ import annotations
 
 from collections.abc import Callable, Collection
 
-from resto.application.ports.repositories import (
-    DemandRepository,
-    NetworkRepository,
-)
+from resto.application.ports.repositories import DemandRepository, NetworkRepository
 from resto.domain.services.experiment_design import needed_arms
 from resto.domain.value_objects.arm import Arm
 from resto.domain.value_objects.intervention import Intervention
 from resto.domain.value_objects.question import Question
-from resto.domain.value_objects.study_plan import (
-    BuildScenarioStep,
-    DeriveNetworkStep,
-    FromStep,
-    Produces,
-    StudyPlan,
-)
+from resto.domain.value_objects.study_plan import FromStep, Produces, StudyPlan
 from resto.domain.value_objects.topology_modification import TopologyModification
 
 
@@ -61,7 +52,7 @@ def plan_problems(
         run_targets.update(ref.step for ref, kind in step.inputs if kind == "scenario")
     arms = {a.label: a for a in question.effective_arms}
     for i, step in enumerate(plan.steps):
-        if isinstance(step, BuildScenarioStep):
+        if step.produces == "scenario":
             if i not in run_targets:
                 problems.append(f"step {i}: arm {step.arm!r} is built but never run")
             problems += _arm_problems(
@@ -78,10 +69,11 @@ def plan_problems(
 def _derivation(
     plan: StudyPlan, network_ref: str | FromStep
 ) -> tuple[TopologyModification, ...] | None:
+    """The modifications that derived the network `network_ref` points to, if it was derived."""
     if isinstance(network_ref, FromStep):
         step = plan.steps[network_ref.step]
-        if isinstance(step, DeriveNetworkStep):
-            return step.modifications
+        if step.produces == "network":  # always: StudyPlan checked what a network ref points to
+            return step.modifications or None
     return None
 
 

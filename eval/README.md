@@ -330,7 +330,7 @@ two halves are measured differently:
   note from a later `SimulationResult`, and the note verification handler stores it (ADR-0042 §11).
   "100 % of cases" means 100 % of *applicable* cases: notes with a network-wide `Quantity` claim.
   Covered by `tests/unit/domain/test_expert_note.py` and the note verification cases of
-  `tests/unit/application/use_cases/test_run_study.py`.
+  `tests/unit/application/run_study/test_run_study.py`.
 - **Citation probes — real model, `eval/hygiene_probes/`.** 20 questions from the bank, spread round-robin
   across families. Each runs in forced mode with `notes_allowed = true`, `result_ids = ()` (no simulated
   data), and one seeded note: `opinion`, `extrapolated`, `unverified`, worded to echo the question so the

@@ -38,24 +38,20 @@ def _derived(network_id: str, base: str = NET) -> Network:
 def test_the_base_network_is_the_one_not_derived_from_another_wherever_it_comes() -> None:
     """`network_ids` keeps the order the study met its networks: a derived one can come first."""
     study = replace(study_with_rounds(), network_ids=("derived-1", NET))
-    final = study.current_phase.round
-    assert final is not None
 
     task = study.note_task(
-        final, scenarios={}, networks={"derived-1": _derived("derived-1"), NET: network()}
+        scenarios={}, networks={"derived-1": _derived("derived-1"), NET: network()}
     )
 
-    assert task.round == final
+    assert task.round == study.current_phase.round
     assert task.base_network_id == NET
 
 
 def test_a_study_without_a_stored_base_network_has_no_note_task() -> None:
     study = replace(study_with_rounds(), network_ids=("derived-1", "ghost"))
-    final = study.current_phase.round
-    assert final is not None
 
     with pytest.raises(ValueError, match="none of the study's networks is stored as a base"):
-        study.note_task(final, scenarios={}, networks={"derived-1": _derived("derived-1")})
+        study.note_task(scenarios={}, networks={"derived-1": _derived("derived-1")})
 
 
 BASE = Experiment("s-base", BASE_ARM, ExperimentRole.BASELINE, "reference", 1, ("r1",))
@@ -68,10 +64,8 @@ def _scenario(scenario_id: str, network_id: str = NET) -> Scenario:
 
 def _task(study: Study, scenarios: dict[str, Scenario]) -> NoteTask:
     study = replace(study, network_ids=(NET, "derived-1"))
-    final = study.current_phase.round
-    assert final is not None
     networks = {NET: network(), "derived-1": _derived("derived-1")}
-    return study.note_task(final, scenarios=scenarios, networks=networks)
+    return study.note_task(scenarios=scenarios, networks=networks)
 
 
 def test_the_study_names_the_scenarios_to_load_in_order_without_repeats() -> None:

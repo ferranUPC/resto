@@ -8,9 +8,9 @@ together (the Executor's `build_scenario` step, `eval/`) calls the Builder first
 result to `BuildScenario.execute`.
 
 Order:
-  1. load    - the network (an unknown one is rejected), the demands the draft names and the
-               network's query, for the `ScenarioPromoter`, which checks the draft and builds the
-               `Scenario` (`resto.application.promoters.scenario`).
+  1. load    - the network, the demands the draft names and the network's query (loaded only
+               once the draft passed every other check), for the `ScenarioPromoter`, which checks
+               the draft and builds the `Scenario` (`resto.application.promoters.scenario`).
   2. dedupe  - an existing scenario for that id is returned as-is, skipping steps 3 and 4 ("zero
                redundant simulations", architecture §1). This cannot dedupe before the agent ran
                (the id depends on which interventions it accepted), so a repeated request still
@@ -38,7 +38,7 @@ from resto.application.promoters.scenario import (
     ScenarioPromoter,
     effective_demand_id,
 )
-from resto.application.promotion import DraftRejected, require_draft
+from resto.application.promotion import DraftRejected
 from resto.domain.entities.demand import Demand
 from resto.domain.entities.scenario import Scenario
 from resto.domain.value_objects.drafts import ScenarioDraft
@@ -59,16 +59,13 @@ class BuildScenario:
     out_dir: Path
 
     def execute(self, task: ScenarioTask, run: AgentRun[ScenarioDraft]) -> Scenario:
-        # The draft names the derived demand to load, so a run without one stops here, first.
-        draft = require_draft(run, "scenario_builder")
-        network = self.networks.get(task.network_id)
-        if network is None:
-            raise DraftRejected(f"unknown network_id {task.network_id!r}")
+        # the draft names the derived demand to load; the promoter rejects a run without a draft
+        derived = () if run.output is None else (effective_demand_id(run.output, task.demand_id),)
         context = ScenarioContext(
             task=task,
-            network=network,
-            demands=self._load_demands(task.demand_id, effective_demand_id(draft, task.demand_id)),
-            query=self.network_query_loader.load(task.network_id),
+            network=self.networks.get(task.network_id),
+            demands=self._load_demands(task.demand_id, *derived),
+            query=lambda: self.network_query_loader.load(task.network_id),
         )
         scenario = self.promoter.promote(run, context)
 
@@ -77,7 +74,7 @@ class BuildScenario:
             return existing
 
         output = self.runner.run_batch(
-            draft.sumocfg, seed=0, out_dir=self.out_dir / scenario.scenario_id / "load_check"
+            scenario.sumocfg, seed=0, out_dir=self.out_dir / scenario.scenario_id / "load_check"
         )
         if not output.ok:
             raise DraftRejected(f"SUMO rejected the scenario cfg: {output.error}")

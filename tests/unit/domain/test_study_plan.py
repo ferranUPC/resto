@@ -301,7 +301,7 @@ def test_a_run_on_a_stored_scenario_joins_no_experiment() -> None:
     assert RunSimulationStep(scenario_id="scen-stored").apply(phase, RAN, ()) == phase
 
 
-def test_every_plan_step_variant_declares_its_refs_and_its_effect() -> None:
+def test_every_plan_step_variant_declares_its_ids_and_its_effect() -> None:
     for variant in get_args(PlanStep):
-        assert "refs" in vars(variant), f"{variant.__name__} declares no refs()"
+        assert "ids" in vars(variant), f"{variant.__name__} declares no ids"
         assert "apply" in vars(variant), f"{variant.__name__} declares no apply()"

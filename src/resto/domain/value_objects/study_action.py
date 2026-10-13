@@ -5,7 +5,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from resto.domain.value_objects.expert_round import ExpertRound
 from resto.domain.value_objects.study_plan import PlanStep
 
 
@@ -46,10 +45,8 @@ class OpenPhase:
 
 @dataclass(frozen=True, slots=True)
 class Close:
-    """The Expert answered without a simulation: write the notes about `final`, then compose the
-    report."""
-
-    final: ExpertRound
+    """The Expert answered without a simulation: write the notes about its answer, then compose
+    the report."""
 
 
 @dataclass(frozen=True, slots=True)

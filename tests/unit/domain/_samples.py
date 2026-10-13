@@ -569,7 +569,7 @@ SAMPLES: dict[type, Callable[[], object]] = {
     ConsultExpert: ConsultExpert,
     AskExpert: AskExpert,
     OpenPhase: OpenPhase,
-    Close: lambda: Close(ExpertRound(question="why?", answer=expert_answer())),
+    Close: Close,
     Finished: Finished,
 }
 

@@ -3,6 +3,6 @@
 The study flow (`application/run_study/`) reaches every agent through these, never through
 `ToolAgent` directly: `application/` cannot import `adapters/`, and each agent's infrastructure
 (writers, paths, repositories, its per-call `Budget`) is bound by the implementation in the
-composition root (`interface/cli`). The returned run is still a draft; promotion is the matching use
-case's job.
+composition root (`interface/cli`). The returned run is still a draft; its promoter
+(`application/promoters/`) promotes it (ADR-0042 §5).
 """

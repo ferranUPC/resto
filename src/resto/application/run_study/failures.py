@@ -3,11 +3,11 @@
 A step fails by raising `StepFailed`, which carries the `StepError` and what the step spent. The
 table it implements:
 
-- a run cut by its own budget -> `budget`; any other run without a draft -> `agent` (`draft_of`);
-- a promotion that raises (`promote`): a `DraftRejected` blaming the user -> `user_input` (a target
+- a promotion that raises (`promote`): a run cut by its own budget -> `budget`, any other run
+  without a draft -> `agent`, a `DraftRejected` blaming the user -> `user_input` (a target
   the network lacks was named by the user), `NotImplementedError` -> `infrastructure`, any other
   `ValueError` (a rejected draft) -> `agent`, anything else -> `infrastructure`;
-- an exception nothing classified -> `infrastructure` (`crash`).
+- an exception nothing classified -> `infrastructure` (`attempt`, which records the failure).
 """
 
 from __future__ import annotations
@@ -17,6 +17,7 @@ from typing import Any, NoReturn, TypeVar
 
 from resto.application.ports.llm import AgentRun, StopReason
 from resto.application.promotion import Blame, DraftRejected, RunWithoutDraft, require_draft
+from resto.domain.entities.study import Study, Transition
 from resto.domain.value_objects.outcomes import NeedsUser
 from resto.domain.value_objects.step_record import (
     StepError,
@@ -60,23 +61,22 @@ def fail(kind: StepErrorKind, message: str, *details: str, usage: Usage | None =
 
 
 def draft_of(run: AgentRun[T], agent: str) -> T:
-    """The draft of a finished run, classified before any promotion sees it: a run cut by its
-    budget is `budget`, any other run without a draft is `agent`."""
-    try:
-        return require_draft(run, agent)
-    except RunWithoutDraft as e:
-        if e.stop_reason is StopReason.BUDGET:
-            fail(StepErrorKind.BUDGET, f"{agent} ran out of its budget", usage=run.usage)
-        fail(StepErrorKind.AGENT, str(e), usage=run.usage)
+    """The draft of a finished run, for a step that reads it before any promotion."""
+    return promote(lambda: require_draft(run, agent), run.usage)
 
 
 def promote(call: Callable[[], T], usage: Usage) -> T:
-    """Runs a promotion: a draft rejected on the user's account (a target the network lacks) is
+    """Runs a promotion: a run cut by its budget is `budget`, any other run without a draft
+    `agent`; a draft rejected on the user's account (a target the network lacks) is
     `user_input`, any other rejected draft the agent's (`agent`), anything else `infrastructure`."""
     try:
         return call()
     except StepFailed:
         raise
+    except RunWithoutDraft as e:
+        if e.stop_reason is StopReason.BUDGET:
+            fail(StepErrorKind.BUDGET, f"{e.agent} ran out of its budget", usage=usage)
+        fail(StepErrorKind.AGENT, str(e), usage=usage)
     except DraftRejected as e:
         kind = StepErrorKind.USER_INPUT if e.blame is Blame.USER else StepErrorKind.AGENT
         fail(kind, str(e), usage=usage)
@@ -88,9 +88,21 @@ def promote(call: Callable[[], T], usage: Usage) -> T:
         fail(StepErrorKind.INFRASTRUCTURE, describe(e), usage=usage)
 
 
-def crash(e: BaseException) -> StepFailed:
-    """An exception nothing classified: the environment's fault (logs in the trace)."""
-    return StepFailed(StepError(StepErrorKind.INFRASTRUCTURE, describe(e)))
+def attempt(
+    study: Study, kind: str, task: Mapping[str, Any], call: Callable[[], Transition]
+) -> Transition:
+    """Runs `call`, the `kind` step of `study` on `task`. The first failure stops the study
+    (ADR-0025): the step failed (`failed`) or needing the user (`awaiting_user`), with the
+    pending steps skipped; an exception nothing classified is `infrastructure`."""
+    try:
+        return call()
+    except StepFailed as failed:
+        return study.record_failure(failed.record(kind, task))
+    except StepNeedsUser as needs:
+        return study.record_needs_user(needs.record(kind, task), needs.needs_user)
+    except Exception as e:
+        error = StepError(StepErrorKind.INFRASTRUCTURE, describe(e))
+        return study.record_failure(StepFailed(error).record(kind, task))
 
 
 def describe(e: BaseException) -> str:

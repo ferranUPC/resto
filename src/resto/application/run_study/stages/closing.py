@@ -16,7 +16,7 @@ from resto.application.ports.repositories import (
 from resto.application.ports.tracing import NoteWriterFailed, Tracer
 from resto.application.promoters.notes import NoteContext, NotePromoter
 from resto.application.promoters.report import ReportPromoter
-from resto.application.run_study.failures import StepFailed, crash, describe, draft_of, promote
+from resto.application.run_study.failures import attempt, describe, promote
 from resto.application.run_study.spend import StudySpend
 from resto.domain.entities.study import Study, Transition
 from resto.domain.value_objects.step_record import StepRecord, StepStatus
@@ -37,11 +37,8 @@ class NotesStage:
         """Asks the note writer about the final round, stores the notes the promoter returns and
         records their ids; a failure is traced (`NoteWriterFailed`) and leaves the study as it
         was. The promoter checks every draft before any note is stored."""
-        final = study.current_phase.round
-        assert final is not None  # a closing study ends on an Expert answer
         try:
             task = study.note_task(
-                final,
                 scenarios={
                     i: s for i in study.scenario_ids if (s := self.scenarios.get(i)) is not None
                 },
@@ -68,13 +65,11 @@ class ComposeStage:
         """Asks the Output Composer for the report and closes the study as `completed`, or
         records the failure."""
         task = {"study_id": study.study_id}
-        try:
+
+        def compose() -> Transition:
             run = spend.agent_call(lambda: self.composer.compose(study))
-            draft_of(run, "composer")
             report = promote(lambda: self.promoter.promote(run, study), run.usage)
-        except StepFailed as failed:
-            return study.record_failure(failed.record("compose_report", task))
-        except Exception as e:
-            return study.record_failure(crash(e).record("compose_report", task))
-        record = StepRecord("compose_report", StepStatus.OK, task, usage=run.usage)
-        return study.complete(record, report)
+            record = StepRecord("compose_report", StepStatus.OK, task, usage=run.usage)
+            return study.complete(record, report)
+
+        return attempt(study, "compose_report", task, compose)

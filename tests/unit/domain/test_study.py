@@ -1,3 +1,4 @@
+from dataclasses import replace
 from typing import Any
 
 import pytest
@@ -683,6 +684,14 @@ def test_a_network_step_adds_the_network_it_produced_before_its_trace() -> None:
     assert events == (NetworksAdded(("net1",)), _traced(NETWORK))
 
 
+def test_a_planned_network_joins_the_study_only_through_the_step_that_produced_it() -> None:
+    """Pinned: accepting a plan adds none of its networks, even one it names by id (r24)."""
+    planned = _running(plan=replace(FULL_PLAN, network_id="net1"))
+
+    assert planned.network_ids == ()
+    assert planned.record_step(NETWORK)[0].network_ids == ("net1",)
+
+
 def test_a_network_the_study_already_has_is_not_added_again() -> None:
     study, _ = _second_phase(_question()).accept_plan(PLAN, PLANNED)
 
@@ -990,7 +999,7 @@ def test_an_expert_who_answers_closes_the_study() -> None:
     final = _round(_answer())
     closing, _ = consulting.record_expert_round(EXPERT_OK, final)
 
-    assert closing.next_action() == Close(final)
+    assert closing.next_action() == Close()
 
 
 def test_a_resolved_study_needs_nothing() -> None:

@@ -378,17 +378,15 @@ class Study:
         return tuple(dict.fromkeys(e.scenario_id for p in self.phases for e in p.experiments))
 
     def note_task(
-        self,
-        final: ExpertRound,
-        *,
-        scenarios: Mapping[str, Scenario],
-        networks: Mapping[str, Network],
+        self, *, scenarios: Mapping[str, Scenario], networks: Mapping[str, Network]
     ) -> NoteTask:
-        """The note writer's task about the `final` round (ADR-0026). `scenarios` and `networks`
-        are the study's own, as the caller loaded them by `scenario_ids` and `network_ids`: an id
-        missing from them is not stored."""
-        base_network_id = self._base_network_id(networks)
-        return NoteTask(final, base_network_id, self._allow_list(scenarios))
+        """The note writer's task about the final Expert round, at closing (ADR-0026).
+        `scenarios` and `networks` are the study's own, as the caller loaded them by
+        `scenario_ids` and `network_ids`: an id missing from them is not stored."""
+        self._require(StudyStage.CLOSING)
+        final = self.current_phase.round
+        assert final is not None  # a closing study ends on an Expert answer
+        return NoteTask(final, self._base_network_id(networks), self._allow_list(scenarios))
 
     def _allow_list(self, scenarios: Mapping[str, Scenario]) -> tuple[NoteScenario, ...]:
         """Every scenario of the study, plus the predicted id of each arm of the original question
@@ -460,8 +458,7 @@ class Study:
             case StudyStage.CONSULTING_EXPERT:
                 return OpenPhase() if last.round is not None else AskExpert()
             case StudyStage.CLOSING:
-                assert last.round is not None  # a closing study ends on an Expert answer
-                return Close(last.round)
+                return Close()
             case _:
                 assert_never(self.stage)
 
