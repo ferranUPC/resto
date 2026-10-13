@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from enum import StrEnum
 from itertools import pairwise
+from typing import assert_never
 
 from resto.domain.constants import DEFAULT_MAX_ROUNDS
 from resto.domain.events import (
@@ -23,6 +24,16 @@ from resto.domain.value_objects.outcomes import NeedsUser
 from resto.domain.value_objects.question import Mode, Question
 from resto.domain.value_objects.report import Report
 from resto.domain.value_objects.step_record import StepRecord, StepStatus, Usage
+from resto.domain.value_objects.study_action import (
+    AskExpert,
+    Close,
+    ConsultExpert,
+    Finished,
+    OpenPhase,
+    PlanPhase,
+    RunPlan,
+    StudyAction,
+)
 from resto.domain.value_objects.study_plan import (
     BuildScenarioStep,
     FromStep,
@@ -258,6 +269,28 @@ class Study:
         """The arms the phases before the current one realised, in order: they are not planned
         again."""
         return tuple(e.arm for p in self.phases[:-1] for e in p.experiments)
+
+    def next_action(self) -> StudyAction:
+        """What the study needs next (ADR-0041 §5), from its stage and its last phase. A resolved
+        study needs nothing. The caller performs the action and applies its outcome."""
+        last = self.current_phase
+        if self.resolution is not None:
+            return Finished()
+        match self.stage:
+            case StudyStage.PARSING:
+                raise ValueError("an open study at parsing waits for the Input Parser (ADR-0041)")
+            case StudyStage.PLANNING:
+                return PlanPhase()
+            case StudyStage.RUNNING:
+                assert last.plan is not None  # a running study accepted its phase's plan
+                return RunPlan(last.plan) if last.pending_steps else ConsultExpert()
+            case StudyStage.CONSULTING_EXPERT:
+                return OpenPhase() if last.round is not None else AskExpert()
+            case StudyStage.CLOSING:
+                assert last.round is not None  # a closing study ends on an Expert answer
+                return Close(last.round)
+            case _:
+                assert_never(self.stage)
 
     # -- transitions (ADR-0041 §4): each returns the next study and the events it produced ------
 

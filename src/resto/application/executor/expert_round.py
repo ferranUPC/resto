@@ -9,7 +9,6 @@ from resto.application.executor.recorder import StudyRecorder, data
 from resto.application.executor.spend import StudySpend
 from resto.application.tools.expert import EvidenceLedger
 from resto.domain.services.experiment_design import mode_for
-from resto.domain.value_objects.expert_round import ExpertRound
 from resto.domain.value_objects.step_record import StepRecord, StepStatus
 from resto.domain.value_objects.tasks import ExpertTask
 
@@ -18,9 +17,9 @@ def ask_expert_round(
     recorder: StudyRecorder,
     spend: StudySpend,
     deps: StudyDeps,
-) -> tuple[ExpertRound, EvidenceLedger] | None:
-    """The round recorded in the current phase and the evidence ledger the Expert filled; or
-    nothing, once the failure was recorded and the study is `failed`."""
+) -> EvidenceLedger:
+    """Asks the Expert and records its round in the current phase, or the failure that leaves the
+    study `failed`. Returns the evidence ledger the Expert filled."""
     study = recorder.study
     question = study.question
     # the scope as it stands now: a network derived in an earlier phase is in it (ADR-0032)
@@ -37,10 +36,10 @@ def ask_expert_round(
         round_ = promote(lambda: deps.ask_expert.execute(task, run, ledger), run.usage)
     except StepFailed as failed:
         recorder.apply(study.record_failure(failed.record("ask_expert", data(task))))
-        return None
+        return ledger
     except Exception as e:
         recorder.apply(study.record_failure(crash(e).record("ask_expert", data(task))))
-        return None
+        return ledger
     record = StepRecord("ask_expert", StepStatus.OK, data(task), usage=run.usage)
     recorder.apply(study.record_expert_round(record, round_))
-    return recorder.study.rounds[-1], ledger
+    return ledger

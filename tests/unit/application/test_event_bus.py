@@ -4,7 +4,6 @@ fixed order for events a handler publishes while the bus is delivering."""
 from __future__ import annotations
 
 from resto.application.event_bus import EventBus
-
 from resto.application.ports.tracing import HandlerFailed
 from resto.domain.events import DomainEvent, NetworksAdded, PhaseStarted, ReportComposed
 from tests.unit.application._world import RecordingTracer

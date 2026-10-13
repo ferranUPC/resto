@@ -1,10 +1,13 @@
-"""The study flow (ADR-0023, ADR-0030): the phase loop and nothing else. Every phase is a
-function of its own module; the loop owns the study's network id and the last evidence ledger and
-hands them to the phases that read them."""
+"""The study flow (ADR-0023, ADR-0030, ADR-0041 §5): a loop that asks the study what comes next,
+performs it and applies the outcome. It holds no rule about the study's state: the study answers
+`next_action` and every phase is a function of its own module; the loop owns the study's network id
+and the last evidence ledger and hands them to the phases that read them."""
 
 from __future__ import annotations
 
-from resto.application.executor.closing import compose, write_notes
+from typing import assert_never
+
+from resto.application.executor.closing import close
 from resto.application.executor.deps import StudyDeps, StudySettings
 from resto.application.executor.expert_round import ask_expert_round
 from resto.application.executor.planning import plan_phase
@@ -12,10 +15,20 @@ from resto.application.executor.recorder import StudyRecorder
 from resto.application.executor.spend import StudySpend
 from resto.application.executor.steps import execute_plan
 from resto.application.ports.tracing import ModelCall
-from resto.domain.entities.study import Study, StudyResolution
+from resto.application.tools.expert import EvidenceLedger
+from resto.domain.entities.study import Study
 from resto.domain.services.ids import new_id
 from resto.domain.value_objects.question import Question
 from resto.domain.value_objects.step_record import Usage
+from resto.domain.value_objects.study_action import (
+    AskExpert,
+    Close,
+    ConsultExpert,
+    Finished,
+    OpenPhase,
+    PlanPhase,
+    RunPlan,
+)
 
 
 def execute_study(
@@ -41,34 +54,23 @@ def execute_study(
 
     model_call(parse_usage)
     spend = StudySpend(settings.budget, parse_usage, model_call)
-    if recorder.study.resolution is StudyResolution.AWAITING_USER:
-        return recorder.study
     network_id: str | None = None
+    ledger = EvidenceLedger()
     while True:
-        plan = plan_phase(recorder, deps, network_id)
-        if plan is None:
-            return recorder.study
-        network_id = execute_plan(plan, recorder, spend, deps, settings)
-        if network_id is None:
-            return recorder.study
-        recorder.apply(recorder.study.consult_expert())
-        answered = ask_expert_round(recorder, spend, deps)
-        if answered is None:
-            return recorder.study
-        final, ledger = answered
-        if final.answer.needs_simulation:
-            recorder.apply(recorder.study.open_phase())
-            continue
-        write_notes(
-            final,
-            ledger,
-            recorder,
-            spend,
-            deps.networks,
-            deps.scenarios,
-            deps.agents.note_writer,
-            deps.write_note,
-            deps.tracer,
-        )
-        compose(recorder, spend, deps)
-        return recorder.study
+        match recorder.study.next_action():
+            case Finished():
+                return recorder.study
+            case PlanPhase():
+                plan_phase(recorder, deps, network_id)
+            case RunPlan(plan):
+                network_id = execute_plan(plan, recorder, spend, deps, settings)
+            case ConsultExpert():
+                recorder.apply(recorder.study.consult_expert())
+            case AskExpert():
+                ledger = ask_expert_round(recorder, spend, deps)
+            case OpenPhase():
+                recorder.apply(recorder.study.open_phase())
+            case Close(final):
+                close(final, ledger, recorder, spend, deps)
+            case action:
+                assert_never(action)

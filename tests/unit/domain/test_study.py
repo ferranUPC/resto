@@ -27,6 +27,15 @@ from resto.domain.value_objects.step_record import (
     StepStatus,
     Usage,
 )
+from resto.domain.value_objects.study_action import (
+    AskExpert,
+    Close,
+    ConsultExpert,
+    Finished,
+    OpenPhase,
+    PlanPhase,
+    RunPlan,
+)
 from resto.domain.value_objects.study_plan import (
     BuildScenarioStep,
     FromStep,
@@ -802,3 +811,73 @@ def test_the_report_completes_the_study() -> None:
 def test_a_failed_report_fails_the_study_at_closing() -> None:
     study, _ = _closing().record_failure(COMPOSE_FAILED)
     assert (study.stage, study.resolution) == (S.CLOSING, R.FAILED)
+
+
+# --- Study: next_action (ADR-0041 §5) -------------------------------------------------------
+
+
+def test_a_new_study_plans_its_first_phase() -> None:
+    assert _opened().next_action() == PlanPhase()
+
+
+def test_a_running_study_runs_the_plan_it_accepted() -> None:
+    assert _running().next_action() == RunPlan(FULL_PLAN)
+    assert _running(NETWORK, DEMAND).next_action() == RunPlan(FULL_PLAN)
+
+
+def test_a_study_that_recorded_every_step_consults_the_expert() -> None:
+    done = _running(NETWORK, DEMAND, BUILT_BASE, RAN_BASE, BUILT_CLOSED, RAN_CLOSED)
+
+    assert done.next_action() == ConsultExpert()
+
+
+def test_a_study_consulting_the_expert_asks_it() -> None:
+    done = _running(NETWORK, DEMAND, BUILT_BASE, RAN_BASE, BUILT_CLOSED, RAN_CLOSED)
+    consulting, _ = done.consult_expert()
+
+    assert consulting.next_action() == AskExpert()
+
+
+def test_an_expert_who_asks_for_a_simulation_opens_a_phase() -> None:
+    done = _running(NETWORK, DEMAND, BUILT_BASE, RAN_BASE, BUILT_CLOSED, RAN_CLOSED)
+    consulting, _ = done.consult_expert()
+    asked, _ = consulting.record_expert_round(EXPERT_OK, _round(_abstain()))
+
+    assert asked.stage is S.CONSULTING_EXPERT
+    assert asked.next_action() == OpenPhase()
+    reopened, _ = asked.open_phase()
+    assert reopened.next_action() == PlanPhase()
+
+
+def test_an_expert_who_answers_closes_the_study() -> None:
+    done = _running(NETWORK, DEMAND, BUILT_BASE, RAN_BASE, BUILT_CLOSED, RAN_CLOSED)
+    consulting, _ = done.consult_expert()
+    final = _round(_answer())
+    closing, _ = consulting.record_expert_round(EXPERT_OK, final)
+
+    assert closing.next_action() == Close(final)
+
+
+def test_a_resolved_study_needs_nothing() -> None:
+    failed, _ = _opened().record_failure(PLAN_FAILED)
+    waiting = _opened(_question(ambiguities=("which network?",)))
+    done = _running(NETWORK, DEMAND, BUILT_BASE, RAN_BASE, BUILT_CLOSED, RAN_CLOSED)
+    closing, _ = done.consult_expert()[0].record_expert_round(EXPERT_OK, _round(_answer()))
+    completed, _ = closing.complete(StepRecord("compose_report", StepStatus.OK), report())
+
+    for study in (failed, waiting, completed):
+        assert study.next_action() == Finished()
+    assert (failed.resolution, waiting.resolution, completed.resolution) == (
+        R.FAILED,
+        R.AWAITING_USER,
+        R.COMPLETED,
+    )
+
+
+def test_a_study_that_needed_the_user_needs_nothing() -> None:
+    waiting, _ = _running().record_needs_user(
+        StepRecord("obtain_network", StepStatus.NEEDS_USER), NEEDS
+    )
+
+    assert (waiting.stage, waiting.resolution) == (S.RUNNING, R.AWAITING_USER)
+    assert waiting.next_action() == Finished()

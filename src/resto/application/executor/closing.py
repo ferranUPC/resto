@@ -22,6 +22,28 @@ from resto.domain.value_objects.step_record import StepRecord, StepStatus
 from resto.domain.value_objects.tasks import NoteScenario, NoteTask
 
 
+def close(
+    final: ExpertRound,
+    ledger: EvidenceLedger,
+    recorder: StudyRecorder,
+    spend: StudySpend,
+    deps: StudyDeps,
+) -> None:
+    """Closes the study after the Expert's `final` answer: the notes first, then the report."""
+    write_notes(
+        final,
+        ledger,
+        recorder,
+        spend,
+        deps.networks,
+        deps.scenarios,
+        deps.agents.note_writer,
+        deps.write_note,
+        deps.tracer,
+    )
+    compose(recorder, spend, deps)
+
+
 def write_notes(
     final: ExpertRound,
     ledger: EvidenceLedger,

@@ -111,6 +111,15 @@ from resto.domain.value_objects.step_record import (
     StepStatus,
     Usage,
 )
+from resto.domain.value_objects.study_action import (
+    AskExpert,
+    Close,
+    ConsultExpert,
+    Finished,
+    OpenPhase,
+    PlanPhase,
+    RunPlan,
+)
 from resto.domain.value_objects.study_plan import (
     BuildScenarioStep,
     DeriveNetworkStep,
@@ -548,6 +557,14 @@ SAMPLES: dict[type, Callable[[], object]] = {
     ExpertRoundHeld: lambda: ExpertRoundHeld(0, 1),
     NotesWritten: lambda: NotesWritten(("note1",)),
     ReportComposed: ReportComposed,
+    # study actions
+    PlanPhase: PlanPhase,
+    RunPlan: lambda: RunPlan(study_plan()),
+    ConsultExpert: ConsultExpert,
+    AskExpert: AskExpert,
+    OpenPhase: OpenPhase,
+    Close: lambda: Close(ExpertRound(question="why?", answer=expert_answer())),
+    Finished: Finished,
 }
 
 
