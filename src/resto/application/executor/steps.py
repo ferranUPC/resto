@@ -17,7 +17,6 @@ from resto.application.executor.failures import (
     fail,
     promote,
 )
-from resto.application.executor.plan_validation import ok_results
 from resto.application.executor.recorder import StudyRecorder, data
 from resto.application.executor.spend import StudySpend
 from resto.application.ports.llm import AgentRun
@@ -28,6 +27,13 @@ from resto.domain.entities.scenario import Scenario
 from resto.domain.entities.simulation_result import RunMode, RunStatus, SimulationResult
 from resto.domain.services.experiment_design import study_window
 from resto.domain.services.ids import result_id_for, scenario_id_for
+from resto.domain.services.reuse import (
+    accepts_found_demand,
+    accepts_found_network,
+    reused_results,
+    reused_scenario_results,
+    seeds_to_run,
+)
 from resto.domain.value_objects.drafts import DemandDraft, NetworkDraft
 from resto.domain.value_objects.experiment import Experiment
 from resto.domain.value_objects.outcomes import Found, NeedsUser
@@ -169,7 +175,7 @@ def _obtain_network(
     if isinstance(outcome, NeedsUser):
         raise StepNeedsUser(outcome, run.usage)
     if isinstance(outcome, Found):
-        if deps.networks.get(outcome.id) is None:
+        if not accepts_found_network(outcome, deps.networks.get(outcome.id)):
             fail(
                 StepErrorKind.AGENT,
                 f"the Network Author found network {outcome.id!r}, which is not stored",
@@ -229,8 +235,8 @@ def _obtain_demand(
     if isinstance(outcome, NeedsUser):
         raise StepNeedsUser(outcome, run.usage)
     if isinstance(outcome, Found):
-        found = deps.demands.get(outcome.id)
-        if found is None or found.network_id != demand_task.network_id:
+        stored = deps.demands.get(outcome.id)
+        if not accepts_found_demand(outcome, stored, network_id=demand_task.network_id):
             fail(
                 StepErrorKind.AGENT,
                 f"the Demand Generator found demand {outcome.id!r}, which is not stored "
@@ -273,7 +279,9 @@ def _build_scenario(
         scenario_task.interventions,
         scenario_task.context_tags,
     )
-    stored_ids = ok_results(deps.results, requested) if deps.scenarios.get(requested) else ()
+    stored_ids = reused_scenario_results(
+        deps.scenarios.get(requested), deps.results.list(requested)
+    )
     if stored_ids:
         record = StepRecord(step.kind, StepStatus.OK, task, (requested,))
         return record, Experiment(requested, step.arm, step.role, step.purpose, stored_ids, True)
@@ -314,36 +322,36 @@ def _run_simulations(
             scenario.scenario_id,
         )
     seeds = step.seeds or DEFAULT_SEEDS
-    existing = {s: _existing_ok(deps, scenario.scenario_id, s) for s in seeds}
-    new_seeds = [s for s, result in existing.items() if result is None]
-    spend.reserve_simulations(len(new_seeds))
+    stored = _stored_batch_results(deps, scenario.scenario_id, seeds)
+    results = reused_results(seeds, stored)
+    to_run = seeds_to_run(seeds, stored)
+    spend.reserve_simulations(len(to_run))
     attempt = recorder.study.study_id
-    result_ids: list[str] = []
-    ran = 0
-    for seed in seeds:
-        result = existing[seed]
-        if result is None:
-            ran += 1
-            spend.count_simulation()
-            result = deps.run_simulation.execute(scenario, seed, attempt)
-            if result.status is RunStatus.FAILED:
-                fail(
-                    StepErrorKind.INFRASTRUCTURE,
-                    f"SUMO failed on scenario {scenario.scenario_id!r} with seed {seed}",
-                    result.error or "",
-                    f"logs: {attempt_dir(deps.run_simulation.out_dir, result.result_id, attempt)}",
-                    usage=Usage(simulations=ran),
-                )
-            _verify_notes(scenario, result, recorder, deps)
-        result_ids.append(result.result_id)
+    for ran, seed in enumerate(to_run, start=1):
+        spend.count_simulation()
+        result = deps.run_simulation.execute(scenario, seed, attempt)
+        if result.status is RunStatus.FAILED:
+            fail(
+                StepErrorKind.INFRASTRUCTURE,
+                f"SUMO failed on scenario {scenario.scenario_id!r} with seed {seed}",
+                result.error or "",
+                f"logs: {attempt_dir(deps.run_simulation.out_dir, result.result_id, attempt)}",
+                usage=Usage(simulations=ran),
+            )
+        _verify_notes(scenario, result, recorder, deps)
+        results[seed] = result
+    result_ids = tuple(results[s].result_id for s in seeds)
     return StepRecord(
-        step.kind, StepStatus.OK, task, tuple(result_ids), usage=Usage(simulations=ran)
+        step.kind, StepStatus.OK, task, result_ids, usage=Usage(simulations=len(to_run))
     )
 
 
-def _existing_ok(deps: StudyDeps, scenario_id: str, seed: int) -> SimulationResult | None:
-    result = deps.results.get(result_id_for(scenario_id, seed, RunMode.BATCH.value))
-    return result if result is not None and result.status is RunStatus.OK else None
+def _stored_batch_results(
+    deps: StudyDeps, scenario_id: str, seeds: tuple[int, ...]
+) -> list[SimulationResult]:
+    """The results stored for the batch runs of `scenario_id` with `seeds`, ok or failed."""
+    ids = (result_id_for(scenario_id, s, RunMode.BATCH.value) for s in seeds)
+    return [r for rid in ids if (r := deps.results.get(rid)) is not None]
 
 
 def _verify_notes(
