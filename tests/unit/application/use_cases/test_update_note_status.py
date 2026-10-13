@@ -6,7 +6,7 @@ from __future__ import annotations
 import pytest
 
 from resto.adapters.persistence.memory import InMemoryNoteRepository
-from resto.application.use_cases.update_note_status import update_note_status
+from resto.application.use_cases.update_note_status import UpdateNoteStatus
 from resto.domain.entities.expert_note import ExpertNote, NoteStatus, Provenance
 from resto.domain.entities.simulation_result import RunMode, RunStatus, SimulationResult
 from resto.domain.value_objects.answer_value import (
@@ -57,7 +57,7 @@ def _result(*, scenario_id: str = SCENARIO, mean_delay: float = 40.0) -> Simulat
 def test_a_matching_measurement_confirms_the_note() -> None:
     notes = InMemoryNoteRepository()
     notes.store(_note())
-    status = update_note_status(_note(), _result(mean_delay=41.0), notes=notes)
+    status = UpdateNoteStatus(notes).execute(_note(), _result(mean_delay=41.0))
     assert status is NoteStatus.CONFIRMED
     assert notes.search("delay", NETWORK, {})[0][0].status is NoteStatus.CONFIRMED
 
@@ -65,21 +65,19 @@ def test_a_matching_measurement_confirms_the_note() -> None:
 def test_a_contradicting_measurement_refutes_the_note() -> None:
     notes = InMemoryNoteRepository()
     notes.store(_note())
-    status = update_note_status(_note(), _result(mean_delay=90.0), notes=notes)
+    status = UpdateNoteStatus(notes).execute(_note(), _result(mean_delay=90.0))
     assert status is NoteStatus.REFUTED
 
 
 def test_a_result_of_a_different_scenario_is_ignored() -> None:
-    status = update_note_status(
-        _note(), _result(scenario_id="other"), notes=InMemoryNoteRepository()
-    )
+    use_case = UpdateNoteStatus(InMemoryNoteRepository())
+    status = use_case.execute(_note(), _result(scenario_id="other"))
     assert status is None
 
 
 def test_an_already_resolved_note_is_left_alone() -> None:
-    status = update_note_status(
-        _note(status=NoteStatus.CONFIRMED), _result(), notes=InMemoryNoteRepository()
-    )
+    use_case = UpdateNoteStatus(InMemoryNoteRepository())
+    status = use_case.execute(_note(status=NoteStatus.CONFIRMED), _result())
     assert status is None
 
 
@@ -93,13 +91,13 @@ def test_an_already_resolved_note_is_left_alone() -> None:
     ],
 )
 def test_a_note_with_no_checkable_claim_stays_unverified(value: AnswerValue) -> None:
-    status = update_note_status(_note(values=(value,)), _result(), notes=InMemoryNoteRepository())
+    status = UpdateNoteStatus(InMemoryNoteRepository()).execute(_note(values=(value,)), _result())
     assert status is None
 
 
 def test_a_per_edge_quantity_claim_is_not_checked_by_this_first_version() -> None:
     claim = Quantity(measure=Measure.TRAVEL_TIME, value=20.0, edge_id="E12", network_id="abc123")
-    status = update_note_status(_note(values=(claim,)), _result(), notes=InMemoryNoteRepository())
+    status = UpdateNoteStatus(InMemoryNoteRepository()).execute(_note(values=(claim,)), _result())
     assert status is None
 
 
@@ -113,5 +111,5 @@ def test_a_result_without_kpis_is_ignored() -> None:
         content_hash="c2",
         error="sumo crashed",
     )
-    status = update_note_status(_note(), failed, notes=InMemoryNoteRepository())
+    status = UpdateNoteStatus(InMemoryNoteRepository()).execute(_note(), failed)
     assert status is None

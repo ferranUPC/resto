@@ -10,7 +10,6 @@ from resto.application.executor.spend import StudySpend
 from resto.application.ports.repositories import NetworkRepository, ScenarioRepository
 from resto.application.tools.expert import EvidenceLedger
 from resto.application.use_cases.compose_report import compose_report
-from resto.application.use_cases.write_note import write_note
 from resto.domain.entities.scenario import Scenario
 from resto.domain.entities.study import Study, StudyStatus
 from resto.domain.services.ids import scenario_id_for
@@ -38,13 +37,7 @@ def write_notes(
             scenarios=allow_list(study, deps.scenarios),
         )
         run = spend.agent_call(lambda: deps.agents.note_writer.write(task))
-        written = write_note(
-            run,
-            ledger,
-            task,
-            study_id=study.study_id,
-            notes=deps.notes,
-        )
+        written = deps.write_note.execute(run, ledger, task, study.study_id)
     except Exception as e:
         recorder.note_writer_failed(describe(e))
         return

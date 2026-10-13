@@ -30,6 +30,8 @@ from resto.application.ports.llm import Budget, ToolAgent
 from resto.application.ports.tracing import Tracer
 from resto.application.tools.expert import ExpertCollaborators
 from resto.application.tools.scenario_builder import BuilderCollaborators
+from resto.application.use_cases.update_note_status import UpdateNoteStatus
+from resto.application.use_cases.write_note import WriteNote
 from resto.domain.services.planner import plan_study
 
 AGENT_SECONDS = 300.0
@@ -107,4 +109,6 @@ def build_deps(
         network_query_loader=network_query_loader,
         tracer=tracer,
         planner=plan_study,
+        update_note_status=UpdateNoteStatus(db.notes),
+        write_note=WriteNote(db.notes),
     )

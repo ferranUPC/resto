@@ -30,6 +30,8 @@ from resto.application.ports.sumo import RunOutput
 from resto.application.ports.tracing import TraceEvent
 from resto.application.tools.expert import EvidenceLedger
 from resto.application.use_cases.run_study import run_study
+from resto.application.use_cases.update_note_status import UpdateNoteStatus
+from resto.application.use_cases.write_note import WriteNote
 from resto.domain.constants import DEFAULT_SEEDS
 from resto.domain.entities.demand import Demand
 from resto.domain.entities.network import Network
@@ -370,6 +372,8 @@ class World:
             network_query_loader=StoredNetworkQueryLoader(self.networks, self._load_query),
             tracer=self.tracer,
             planner=self.planner,
+            update_note_status=UpdateNoteStatus(self.notes),
+            write_note=WriteNote(self.notes),
         )
         self.settings = StudySettings(
             out_dir=tmp_path,
