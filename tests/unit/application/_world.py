@@ -32,6 +32,8 @@ from resto.application.tools.expert import EvidenceLedger
 from resto.application.use_cases.ask_expert import AskExpert
 from resto.application.use_cases.compose_report import ComposeReport
 from resto.application.use_cases.run_study import run_study
+from resto.application.use_cases.update_note_status import UpdateNoteStatus
+from resto.application.use_cases.write_note import WriteNote
 from resto.domain.constants import DEFAULT_SEEDS
 from resto.domain.entities.demand import Demand
 from resto.domain.entities.network import Network
@@ -375,6 +377,8 @@ class World:
             planner=self.planner,
             ask_expert=AskExpert(loader=loader),
             compose_report=ComposeReport(),
+            update_note_status=UpdateNoteStatus(self.notes),
+            write_note=WriteNote(self.notes),
         )
         self.settings = StudySettings(
             out_dir=tmp_path,

@@ -29,6 +29,8 @@ from resto.application.ports.sumo import SumoRunner
 from resto.application.ports.tracing import Tracer
 from resto.application.use_cases.ask_expert import AskExpert
 from resto.application.use_cases.compose_report import ComposeReport
+from resto.application.use_cases.update_note_status import UpdateNoteStatus
+from resto.application.use_cases.write_note import WriteNote
 from resto.domain.constants import (
     DEFAULT_STUDY_MAX_AGENT_CALLS,
     DEFAULT_STUDY_MAX_SIMULATIONS,
@@ -115,3 +117,5 @@ class StudyDeps:
     planner: Planner
     ask_expert: AskExpert
     compose_report: ComposeReport
+    update_note_status: UpdateNoteStatus
+    write_note: WriteNote
