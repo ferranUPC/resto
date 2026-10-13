@@ -14,6 +14,8 @@ could be widened.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from resto.application.ports.repositories import NoteRepository
 from resto.domain.entities.expert_note import ExpertNote, NoteStatus
 from resto.domain.entities.simulation_result import SimulationResult
@@ -21,24 +23,28 @@ from resto.domain.services.comparison import within_tolerance
 from resto.domain.value_objects.answer_value import Quantity
 
 
-def update_note_status(
-    note: ExpertNote, result: SimulationResult, *, notes: NoteRepository
-) -> NoteStatus | None:
-    """Checks `note` against `result` and stores the new status if it settles anything.
+@dataclass(frozen=True, slots=True)
+class UpdateNoteStatus:
+    notes: NoteRepository
 
-    Returns the new status, or `None` if `note` was already resolved, is about a different
-    scenario, or carries no claim this check can evaluate — left `UNVERIFIED` in every such case.
-    """
-    if note.status is not NoteStatus.UNVERIFIED or note.scenario_id != result.scenario_id:
-        return None
-    if result.kpis is None:
-        return None
-    claims = [v for v in note.values if isinstance(v, Quantity) and v.measure.is_network_wide]
-    if not claims:
-        return None
-    agrees = all(
-        within_tolerance(claim.value, getattr(result.kpis, claim.measure.value)) for claim in claims
-    )
-    status = NoteStatus.CONFIRMED if agrees else NoteStatus.REFUTED
-    notes.update_status(note.note_id, status)
-    return status
+    def execute(self, note: ExpertNote, result: SimulationResult) -> NoteStatus | None:
+        """Checks `note` against `result` and stores the new status if it settles anything.
+
+        Returns the new status, or `None` if `note` was already resolved, is about a different
+        scenario, or carries no claim this check can evaluate — left `UNVERIFIED` in every such
+        case.
+        """
+        if note.status is not NoteStatus.UNVERIFIED or note.scenario_id != result.scenario_id:
+            return None
+        if result.kpis is None:
+            return None
+        claims = [v for v in note.values if isinstance(v, Quantity) and v.measure.is_network_wide]
+        if not claims:
+            return None
+        agrees = all(
+            within_tolerance(claim.value, getattr(result.kpis, claim.measure.value))
+            for claim in claims
+        )
+        status = NoteStatus.CONFIRMED if agrees else NoteStatus.REFUTED
+        self.notes.update_status(note.note_id, status)
+        return status
