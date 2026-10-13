@@ -14,22 +14,17 @@ from resto.adapters.persistence.sqlite.repositories import SqliteDatabase
 from resto.adapters.tracing.jsonl import JsonlTracer, read_run
 from resto.application.executor.deps import StudySettings
 from resto.application.ports.llm import Budget
-from resto.application.ports.tracing import ModelCall, TraceEvent
+from resto.application.ports.tracing import ModelCall
 from resto.application.use_cases.run_study import RunStudy
 from resto.domain.value_objects.drafts import ClaimDraft, ReportDraft
 from resto.domain.value_objects.step_record import Usage
 from resto.interface.cli.main import main
 from resto.interface.dependencies import build_run_study
 from tests.unit.adapters.llm._fakes import FakeToolAgent
-from tests.unit.application._world import DESCRIBE
+from tests.unit.application._world import DESCRIBE, RecordingTracer
 
 
-class NullTracer:
-    def emit(self, study_id: str, event: TraceEvent) -> None:
-        raise AssertionError("no study, no trace")
-
-
-def test_without_a_question_no_study_is_created(
+def test_without_a_question_the_study_fails_at_parsing(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     db = SqliteDatabase(tmp_path / "resto.sqlite")
@@ -38,7 +33,7 @@ def test_without_a_question_no_study_is_created(
         db=db,
         agent=agent,
         budget=Budget(max_steps=1, max_tokens=1, max_seconds=1.0),
-        tracer=NullTracer(),
+        tracer=RecordingTracer(),
         settings=_settings(tmp_path),
     )
 
@@ -48,9 +43,9 @@ def test_without_a_question_no_study_is_created(
     )
 
     db.close()
-    err = capsys.readouterr().err
+    out = capsys.readouterr().out
     assert code == 1
-    assert "no study was created" in err and "without a Question" in err
+    assert "## What happened" in out and "Step `parse` of parsing" in out
 
 
 def test_a_failed_study_is_rendered(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

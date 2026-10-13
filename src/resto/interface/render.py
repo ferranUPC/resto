@@ -16,7 +16,7 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping, Sequence
 
-from resto.domain.entities.study import Phase, Study, StudyStatus
+from resto.domain.entities.study import Phase, Study, StudyResolution
 from resto.domain.value_objects.report import Claim
 from resto.domain.value_objects.step_record import StepErrorKind, StepStatus
 
@@ -45,17 +45,15 @@ def render_study(study: Study) -> str:
     """A `completed`, `failed` or `awaiting_user` study as Markdown.
 
     Raises:
-        ValueError: the study is still planning or running: it has nothing to show yet.
+        ValueError: the study is still open: it has nothing to show yet.
     """
-    if study.status is StudyStatus.COMPLETED:
+    if study.resolution is StudyResolution.COMPLETED:
         return render_completed(study)
-    if study.status is StudyStatus.FAILED:
+    if study.resolution is StudyResolution.FAILED:
         return render_failed(study)
-    if study.status is StudyStatus.AWAITING_USER:
+    if study.resolution is StudyResolution.AWAITING_USER:
         return render_awaiting_user(study)
-    raise ValueError(
-        f"a study is rendered once completed, failed or awaiting_user, not {study.status}"
-    )
+    raise ValueError(_open_study(study))
 
 
 def render_completed(study: Study) -> str:
@@ -70,14 +68,14 @@ def render_completed(study: Study) -> str:
     Raises:
         ValueError: the study is not completed.
     """
-    if study.status is not StudyStatus.COMPLETED:
+    if study.resolution is not StudyResolution.COMPLETED:
         raise ValueError("not a completed study")
     report = study.report
     assert report is not None  # Study invariant: completed <=> a report
     lines = [
         f"# Study {study.study_id}: report",
         "",
-        f"> {_line(study.question.text)}",
+        f"> {_line(study.text)}",
         "",
         "## Summary",
         "",
@@ -183,20 +181,19 @@ def _prose(text: str) -> str:
 
 
 def render_failed(study: Study) -> str:
-    if study.status is not StudyStatus.FAILED:
+    if study.resolution is not StudyResolution.FAILED:
         raise ValueError("not a failed study")
-    k = len(study.phases) - 1
-    step = study.phases[-1].failed_step
+    step = study.failed_step
     assert step is not None and step.error is not None  # Study invariant: failed <=> a failed step
     error = step.error
     lines = [
         f"# Study {study.study_id}: failed",
         "",
-        f"> {study.question.text}",
+        f"> {study.text}",
         "",
         "## What happened",
         "",
-        f"Step `{step.tool}` of {_phase_name(k)} failed ({error.kind}): {error.message}",
+        f"Step `{step.tool}` of {_stopped_at(study)} failed ({error.kind}): {error.message}",
     ]
     lines += [f"- {d}" for d in error.details if d]
     lines += ["", "## What was done", ""]
@@ -211,7 +208,7 @@ def render_failed(study: Study) -> str:
 
 
 def render_awaiting_user(study: Study) -> str:
-    if study.status is not StudyStatus.AWAITING_USER:
+    if study.resolution is not StudyResolution.AWAITING_USER:
         raise ValueError("not a study awaiting the user")
     question = study.question
     lines = [f"# Study {study.study_id}: awaiting your answer", "", f"> {question.text}", ""]
@@ -248,6 +245,13 @@ def _phase_name(k: int) -> str:
     if k == 0:
         return "phase 0 (the question as asked)"
     return f"phase {k} (the experiment proposed in round {k})"
+
+
+def _stopped_at(study: Study) -> str:
+    """Where a failed study stopped: parsing when it has no phase yet, else its last phase."""
+    if not study.phases:
+        return "parsing (the request)"
+    return _phase_name(len(study.phases) - 1)
 
 
 def _done(
@@ -288,27 +292,32 @@ def render_study_text(study: Study) -> str:
     Study and scenario ids are cut to 8 characters, longer only for two that would collide.
 
     Raises:
-        ValueError: the study is still planning or running: it has nothing to show yet.
+        ValueError: the study is still open: it has nothing to show yet.
     """
-    if study.status not in (StudyStatus.COMPLETED, StudyStatus.FAILED, StudyStatus.AWAITING_USER):
-        raise ValueError(
-            f"a study is rendered once completed, failed or awaiting_user, not {study.status}"
-        )
+    if study.resolution is None:
+        raise ValueError(_open_study(study))
     ids = _short_ids(
         [study.study_id, *(e.scenario_id for p in study.phases for e in p.experiments)]
     )
     lines = [
-        f"STUDY {ids[study.study_id]}  ({study.status})",
-        f"Question: {_line(study.question.text)}",
+        f"STUDY {ids[study.study_id]}  ({study.resolution})",
+        f"Question: {_line(study.text)}",
         "",
     ]
-    if study.status is StudyStatus.COMPLETED:
+    if study.resolution is StudyResolution.COMPLETED:
         lines += _text_completed(study, ids)
-    elif study.status is StudyStatus.FAILED:
+    elif study.resolution is StudyResolution.FAILED:
         lines += _text_failed(study, ids)
     else:
         lines += _text_awaiting_user(study, ids)
     return "\n".join(lines) + "\n"
+
+
+def _open_study(study: Study) -> str:
+    return (
+        "a study is rendered once completed, failed or awaiting_user,"
+        f" not while open at {study.stage}"
+    )
 
 
 def _short_ids(ids: list[str]) -> dict[str, str]:
@@ -380,13 +389,12 @@ def _text_done(study: Study, ids: Mapping[str, str]) -> list[str]:
 
 
 def _text_failed(study: Study, ids: Mapping[str, str]) -> list[str]:
-    k = len(study.phases) - 1
-    step = study.phases[-1].failed_step
+    step = study.failed_step
     assert step is not None and step.error is not None  # Study invariant: failed <=> a failed step
     error = step.error
     lines = [
         "WHAT HAPPENED",
-        f"Step {step.tool} of {_phase_name(k)} failed ({error.kind}): {_line(error.message)}",
+        f"Step {step.tool} of {_stopped_at(study)} failed ({error.kind}): {_line(error.message)}",
     ]
     lines += [f"  - {_line(d)}" for d in error.details if d]
     lines += ["", "WHAT WAS DONE"]

@@ -14,11 +14,23 @@ from collections.abc import Callable
 
 import resto.domain
 from resto.domain.entities.demand import Demand
-from resto.domain.entities.expert_note import ExpertNote, Provenance
+from resto.domain.entities.expert_note import ExpertNote, NoteStatus, Provenance
 from resto.domain.entities.network import Network
 from resto.domain.entities.scenario import Scenario
 from resto.domain.entities.simulation_result import RunMode, RunStatus, SimulationResult
-from resto.domain.entities.study import Phase, Study, StudyStatus
+from resto.domain.entities.study import Phase, Study, StudyResolution, StudyStage
+from resto.domain.events import (
+    ExpertRoundHeld,
+    NetworksAdded,
+    NoteStatusChanged,
+    NotesWritten,
+    PhaseStarted,
+    PlanMade,
+    ReportComposed,
+    SimulationsRecorded,
+    StepTraced,
+    StudyCreated,
+)
 from resto.domain.services.note_ranking import ScoredNote
 from resto.domain.services.planner import PlanningContext
 from resto.domain.value_objects.answer_value import (
@@ -99,6 +111,16 @@ from resto.domain.value_objects.step_record import (
     StepStatus,
     Usage,
 )
+from resto.domain.value_objects.study_action import (
+    AskExpert,
+    Close,
+    ConsultExpert,
+    Finished,
+    OpenPhase,
+    ParseRequest,
+    PlanPhase,
+    RunPlan,
+)
 from resto.domain.value_objects.study_plan import (
     BuildScenarioStep,
     DeriveNetworkStep,
@@ -136,6 +158,7 @@ from tests.unit.domain._fixtures import (
     file_recipe,
     good_sanity,
     network_draft,
+    parsed_step,
     probe,
     runnable_script,
     scenario_draft,
@@ -282,7 +305,10 @@ def expert_note() -> ExpertNote:
 def study() -> Study:
     return Study(
         study_id="st-1",
-        status=StudyStatus.COMPLETED,
+        text=question().text,
+        parse=parsed_step(question().text),
+        stage=StudyStage.CLOSING,
+        resolution=StudyResolution.COMPLETED,
         phases=(
             Phase(
                 question=question(),
@@ -517,6 +543,33 @@ SAMPLES: dict[type, Callable[[], object]] = {
         network_ids=("abc123",),
         result_ids=("res1",),
     ),
+    # domain events
+    NoteStatusChanged: lambda: NoteStatusChanged("note1", "res1", NoteStatus.CONFIRMED),
+    StudyCreated: lambda: StudyCreated(question().text, Mode.FORCED),
+    PhaseStarted: lambda: PhaseStarted(1),
+    PlanMade: lambda: PlanMade(0, study_plan()),
+    StepTraced: lambda: StepTraced(
+        phase=0,
+        tool="build_scenario",
+        status=StepStatus.FAILED,
+        produced_ids=(),
+        usage=Usage(input_tokens=10),
+        error=StepError(StepErrorKind.USER_INPUT, "unknown edge", ("E99",)),
+    ),
+    SimulationsRecorded: lambda: SimulationsRecorded(0, "scen1", ("res2",), ("res1",)),
+    NetworksAdded: lambda: NetworksAdded(("abc123",)),
+    ExpertRoundHeld: lambda: ExpertRoundHeld(0, 1),
+    NotesWritten: lambda: NotesWritten(("note1",)),
+    ReportComposed: ReportComposed,
+    # study actions
+    ParseRequest: lambda: ParseRequest("how congested is the peak?"),
+    PlanPhase: PlanPhase,
+    RunPlan: lambda: RunPlan(study_plan()),
+    ConsultExpert: ConsultExpert,
+    AskExpert: AskExpert,
+    OpenPhase: OpenPhase,
+    Close: lambda: Close(ExpertRound(question="why?", answer=expert_answer())),
+    Finished: Finished,
 }
 
 

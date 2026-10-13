@@ -1,11 +1,11 @@
-"""The two specialist steps through `execute_study` with the scripted agents (ADR-0037 §2, §3): a
+"""The two specialist steps through `RunStudy` with the scripted agents (ADR-0037 §2, §3): a
 specialist ends in a found id or in a draft that code promotes."""
 
 from dataclasses import replace
 from pathlib import Path
 
 from resto.application.ports.llm import StopReason
-from resto.domain.entities.study import StudyStatus
+from resto.domain.entities.study import StudyResolution
 from resto.domain.value_objects.experiment import ExperimentRole
 from resto.domain.value_objects.outcomes import Found
 from resto.domain.value_objects.question import Intent, Question
@@ -78,7 +78,7 @@ def test_a_specialist_that_finds_an_id_continues_the_study(tmp_path: Path) -> No
 
     study = world.run()
 
-    assert study.status is StudyStatus.COMPLETED
+    assert study.resolution is StudyResolution.COMPLETED
     assert [t for t, _ in tools(study)][:5] == [
         "plan",
         "obtain_network",
@@ -119,7 +119,7 @@ def test_a_specialist_that_returns_a_draft_has_it_promoted_by_code(tmp_path: Pat
 
     study = world.run()
 
-    assert study.status is StudyStatus.COMPLETED
+    assert study.resolution is StudyResolution.COMPLETED
     assert world.promoted_networks == [
         ObtainNetworkTask(network_ref="RIVERSIDE", max_rounds=NETWORK_ROUNDS)
     ]
@@ -140,7 +140,7 @@ def test_a_network_only_question_runs_as_a_one_step_plan(tmp_path: Path) -> None
 
     study = world.run()
 
-    assert study.status is StudyStatus.COMPLETED
+    assert study.resolution is StudyResolution.COMPLETED
     assert tools(study) == [
         ("plan", StepStatus.OK),
         ("obtain_network", StepStatus.OK),
@@ -157,7 +157,7 @@ def test_a_found_network_that_is_not_stored_fails_the_step(tmp_path: Path) -> No
 
     study = world.run()
 
-    assert study.status is StudyStatus.FAILED
+    assert study.resolution is StudyResolution.FAILED
     assert failed_kind(study) is StepErrorKind.AGENT
     assert study.phases[0].failed_step.tool == "obtain_network"  # type: ignore[union-attr]
     assert world.builder.calls == []
@@ -168,7 +168,7 @@ def test_a_found_demand_must_be_stored_for_the_resolved_network(tmp_path: Path) 
 
     study = world.run()
 
-    assert study.status is StudyStatus.FAILED
+    assert study.resolution is StudyResolution.FAILED
     assert failed_kind(study) is StepErrorKind.AGENT
     assert study.phases[0].failed_step.tool == "obtain_demand"  # type: ignore[union-attr]
     assert world.builder.calls == []
@@ -179,7 +179,7 @@ def test_a_specialist_cut_by_its_budget_fails_the_step_as_budget(tmp_path: Path)
 
     study = world.run()
 
-    assert study.status is StudyStatus.FAILED
+    assert study.resolution is StudyResolution.FAILED
     assert failed_kind(study) is StepErrorKind.BUDGET
     assert study.phases[0].failed_step.tool == "obtain_network"  # type: ignore[union-attr]
 

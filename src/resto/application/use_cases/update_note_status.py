@@ -1,15 +1,8 @@
-"""A later `SimulationResult` confirms or refutes an `ExpertNote` — deterministic, no LLM call
-(ADR-0011: "status that changes only because of a later SimulationResult, never because the agent
-revises its own opinion"; DATABASE_MCP_CONTRACT.md: "only code decides that").
+"""A later `SimulationResult` confirms or refutes an `ExpertNote`, deterministically and without an
+LLM (ADR-0011; DATABASE_MCP_CONTRACT.md: "only code decides that").
 
-First version, deliberately narrow: only network-wide `Quantity` claims (`mean_delay`,
-`mean_travel_time`, `teleports`, `departed`, `arrived`) can be checked against a single
-`SimulationResult`'s `Kpis` — a direct, single-result comparison with no room for ambiguity.
-Per-edge `Quantity`, `Edges`, `Change` and `BottleneckCauses` claims have no comparison target this
-simple a check can derive from one result alone (a `Change` claim needs its own baseline result,
-which nothing here is given); a note carrying only those stays `UNVERIFIED` rather than getting a
-guessed verdict. See eval/README.md §4.8 and ADR-0024 for the reasoning and where this
-could be widened.
+The note decides (`ExpertNote.verify`, ADR-0041 §9); this use case delegates, stores the settled
+note and returns its events.
 """
 
 from __future__ import annotations
@@ -17,34 +10,21 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from resto.application.ports.repositories import NoteRepository
-from resto.domain.entities.expert_note import ExpertNote, NoteStatus
+from resto.domain.entities.expert_note import ExpertNote
 from resto.domain.entities.simulation_result import SimulationResult
-from resto.domain.services.comparison import within_tolerance
-from resto.domain.value_objects.answer_value import Quantity
+from resto.domain.events import NoteStatusChanged
 
 
 @dataclass(frozen=True, slots=True)
 class UpdateNoteStatus:
     notes: NoteRepository
 
-    def execute(self, note: ExpertNote, result: SimulationResult) -> NoteStatus | None:
-        """Checks `note` against `result` and stores the new status if it settles anything.
+    def execute(self, note: ExpertNote, result: SimulationResult) -> tuple[NoteStatusChanged, ...]:
+        """Verifies `note` against `result` and stores it if its status changed.
 
-        Returns the new status, or `None` if `note` was already resolved, is about a different
-        scenario, or carries no claim this check can evaluate — left `UNVERIFIED` in every such
-        case.
+        Returns the status-change events, empty when `result` settles nothing.
         """
-        if note.status is not NoteStatus.UNVERIFIED or note.scenario_id != result.scenario_id:
-            return None
-        if result.kpis is None:
-            return None
-        claims = [v for v in note.values if isinstance(v, Quantity) and v.measure.is_network_wide]
-        if not claims:
-            return None
-        agrees = all(
-            within_tolerance(claim.value, getattr(result.kpis, claim.measure.value))
-            for claim in claims
-        )
-        status = NoteStatus.CONFIRMED if agrees else NoteStatus.REFUTED
-        self.notes.update_status(note.note_id, status)
-        return status
+        verified, events = note.verify(result)
+        if events:
+            self.notes.update_status(verified.note_id, verified.status)
+        return events

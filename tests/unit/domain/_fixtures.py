@@ -4,7 +4,7 @@ import dataclasses
 from pathlib import Path
 from typing import Any
 
-from resto.domain.entities.study import Phase, Study, StudyStatus
+from resto.domain.entities.study import Phase, Study, StudyResolution, StudyStage
 from resto.domain.value_objects.answer_value import Edges
 from resto.domain.value_objects.arm import BASE_ARM
 from resto.domain.value_objects.artifact_ref import ArtifactRef
@@ -29,6 +29,7 @@ from resto.domain.value_objects.probe_report import ProbeReport
 from resto.domain.value_objects.question import Intent, Question
 from resto.domain.value_objects.report import Report
 from resto.domain.value_objects.sanity_report import SanityReport
+from resto.domain.value_objects.step_record import StepRecord, StepStatus, Usage
 from resto.domain.value_objects.study_plan import (
     BuildScenarioStep,
     FromStep,
@@ -43,6 +44,11 @@ from resto.domain.value_objects.traci_script import DeclaredRule, TraciScript
 LANE = LaneTarget(edge_id="E12", lane_index=1)
 NET = "abc123"  # the sample network's id (`_samples.network`)
 DEMAND = "t1"  # the sample demand's id (`_samples.demand`)
+
+
+def parsed_step(text: str) -> StepRecord:
+    """The ok `parse` step of a study whose request was `text`."""
+    return StepRecord("parse", StepStatus.OK, {"text": text}, usage=Usage(input_tokens=50))
 
 
 def artifact(name: str, digest: str = "deadbeef", kind: str = "file") -> ArtifactRef:
@@ -248,7 +254,7 @@ def study_with_rounds(
     """A study of `rounds` Expert rounds: every round but the last asks for a simulation, the last
     answers with `answer` (default: `basis` and `ANSWER_EVIDENCE`) and is forced by the limit when
     `last_forced`. `experiments` are those of each phase in order; with a `report` the study is
-    completed, otherwise running."""
+    completed, otherwise open at closing."""
     last = answer or ExpertAnswer(
         answer="E12",
         basis=basis,
@@ -279,7 +285,10 @@ def study_with_rounds(
     )
     return Study(
         study_id=study_id,
-        status=StudyStatus.COMPLETED if report else StudyStatus.RUNNING,
+        text=question.text,
+        parse=parsed_step(question.text),
+        stage=StudyStage.CLOSING,
+        resolution=StudyResolution.COMPLETED if report else None,
         phases=phases,
         report=report,
         max_rounds=rounds if last_forced else max(rounds, 3),

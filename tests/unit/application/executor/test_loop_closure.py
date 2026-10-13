@@ -10,7 +10,7 @@ from pathlib import Path
 
 from resto.domain.constants import DEFAULT_SEEDS
 from resto.domain.entities.simulation_result import RunMode, RunStatus
-from resto.domain.entities.study import StudyStatus
+from resto.domain.entities.study import StudyResolution
 from resto.domain.services.ids import result_id_for
 from resto.domain.value_objects.arm import Arm
 from resto.domain.value_objects.experiment import ExperimentRole
@@ -59,7 +59,7 @@ def test_results_stored_before_the_study_are_never_simulated_again(tmp_path: Pat
     study = world.run()
 
     simulations = world.simulations()
-    assert study.status is StudyStatus.COMPLETED
+    assert study.resolution is StudyResolution.COMPLETED
     assert len(simulations.study_runs) == len(DEFAULT_SEEDS)
     assert set(simulations.study_runs) == _pairs(CLOSURE_SID)
     _assert_no_repeats(simulations.study_runs)
@@ -90,7 +90,7 @@ def test_an_arm_realised_in_phase_0_is_reused_when_phase_1_touches_it_again(
     study = world.run()
 
     simulations = world.simulations()
-    assert study.status is StudyStatus.COMPLETED and len(study.phases) == 2
+    assert study.resolution is StudyResolution.COMPLETED and len(study.phases) == 2
     assert len(simulations.study_runs) == 2 * len(DEFAULT_SEEDS)
     assert set(simulations.study_runs) == _pairs(BASE_SID) | _pairs(CLOSURE_SID)
     _assert_no_repeats(simulations.study_runs)
@@ -121,7 +121,8 @@ def test_an_experiment_whose_scenario_is_already_stored_runs_nothing(tmp_path: P
 
     study = world.run()
 
-    assert study.status is StudyStatus.COMPLETED and len(study.phases) == 2  # phase 1 is planned
+    # phase 1 is planned
+    assert study.resolution is StudyResolution.COMPLETED and len(study.phases) == 2
     (treatment,) = study.phases[1].experiments
     assert treatment.reused is True and treatment.result_ids == closure_ids
     simulations = world.simulations()
@@ -147,7 +148,7 @@ def test_forced_mode_only_forbids_abstaining_so_the_treatment_is_predicted_not_s
 
     study = world.run()
 
-    assert study.status is StudyStatus.COMPLETED and len(study.phases) == 1
+    assert study.resolution is StudyResolution.COMPLETED and len(study.phases) == 1
     assert tools(study) == _ok(
         "plan", "obtain_network", "build_scenario", "run_simulation", "ask_expert", "compose_report"
     )
@@ -171,7 +172,7 @@ def test_a_question_whose_two_arms_are_stored_costs_no_simulation(tmp_path: Path
 
     study = world.run()
 
-    assert study.status is StudyStatus.COMPLETED and len(study.phases) == 1
+    assert study.resolution is StudyResolution.COMPLETED and len(study.phases) == 1
     # The steps are still recorded; each build and run finds its result stored and does no work.
     assert tools(study) == _ok(
         "plan",
@@ -208,14 +209,14 @@ def test_a_failed_run_is_simulated_again_by_the_next_study(tmp_path: Path) -> No
     world.parser.items.append(run_of(WHAT_IF, tokens=50))  # the second study parses again
     first = world.run()
 
-    assert first.status is StudyStatus.FAILED
+    assert first.resolution is StudyResolution.FAILED
     failed_seed = DEFAULT_SEEDS[0]  # the first study run of the base; seed 0 is the load check
     failed_rid = result_id_for(BASE_SID, failed_seed, RunMode.BATCH.value)
     assert world.results.get(failed_rid) is None  # a failed run is never stored
 
     second = world.run()
 
-    assert second.status is StudyStatus.COMPLETED
+    assert second.resolution is StudyResolution.COMPLETED
     base_runs = [
         seed
         for _, seed, out_dir in runner.calls

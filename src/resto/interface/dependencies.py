@@ -25,8 +25,15 @@ from resto.adapters.sumo.writers.rerouter import RerouterWriter
 from resto.adapters.sumo.writers.sumocfg import SumocfgFileWriter
 from resto.adapters.sumo.writers.tls_program import TlsProgramWriter
 from resto.adapters.sumo.writers.vss import VssWriter
+from resto.application.event_bus import EventBus, TraceDomainEvents
 from resto.application.executor import StudyAgents, StudyDeps, StudyPromotions, StudySettings
+from resto.application.executor.note_verification import VerifyNotes
 from resto.application.ports.llm import Budget, ToolAgent
+from resto.application.ports.repositories import (
+    NoteRepository,
+    ResultRepository,
+    ScenarioRepository,
+)
 from resto.application.ports.tracing import Tracer
 from resto.application.tools.expert import ExpertCollaborators
 from resto.application.tools.scenario_builder import BuilderCollaborators
@@ -166,9 +173,11 @@ def build_deps(
         demands=db.demands,
         scenarios=db.scenarios,
         results=db.results,
-        notes=db.notes,
         studies=InMemoryStudyRepository(),
         run_simulation=build_run_simulation(db=db, runner=runner, out_dir=out_dir),
+        events=build_event_bus(
+            notes=db.notes, scenarios=db.scenarios, results=db.results, tracer=tracer
+        ),
         tracer=tracer,
         planner=plan_study,
         ask_expert=AskExpert(loader=network_query_loader),
@@ -176,9 +185,33 @@ def build_deps(
             db=db, runner=runner, network_query_loader=network_query_loader, out_dir=out_dir
         ),
         compose_report=ComposeReport(),
-        update_note_status=UpdateNoteStatus(db.notes),
         write_note=WriteNote(db.notes),
     )
+
+
+def build_event_bus(
+    *,
+    notes: NoteRepository,
+    scenarios: ScenarioRepository,
+    results: ResultRepository,
+    tracer: Tracer,
+) -> EventBus:
+    """The bus of the study's domain events (ADR-0041 §11): the trace first, then note
+    verification. The bus queues what a handler publishes, so this order does not change the
+    trace."""
+    bus = EventBus(tracer)
+    bus.subscribe("trace", TraceDomainEvents(tracer))
+    bus.subscribe(
+        "note_verification",
+        VerifyNotes(
+            notes=notes,
+            scenarios=scenarios,
+            results=results,
+            update_note_status=UpdateNoteStatus(notes),
+            publish=bus.publish,
+        ),
+    )
+    return bus
 
 
 def build_run_study(

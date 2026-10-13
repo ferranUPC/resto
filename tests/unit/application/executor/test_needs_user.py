@@ -1,4 +1,4 @@
-"""A specialist that returns `NeedsUser` through `execute_study` with the scripted agents (ADR-0037
+"""A specialist that returns `NeedsUser` through `RunStudy` with the scripted agents (ADR-0037
 §4): the study ends in `awaiting_user` at that step, never in `failed`, and never goes back to the
 planner."""
 
@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from resto.domain.entities.study import StudyStatus
+from resto.domain.entities.study import StudyResolution
 from resto.domain.value_objects.outcomes import (
     DemandNotNamed,
     DemandNotObtainable,
@@ -49,7 +49,7 @@ def test_the_network_author_needing_the_user_stops_the_study(
 
     study = world.run()
 
-    assert study.status is StudyStatus.AWAITING_USER
+    assert study.resolution is StudyResolution.AWAITING_USER
     phase = study.phases[0]
     assert phase.needs_user == needs
     assert tools(study) == [
@@ -73,7 +73,7 @@ def test_the_demand_generator_needing_the_user_keeps_what_was_found(
 
     study = world.run()
 
-    assert study.status is StudyStatus.AWAITING_USER
+    assert study.resolution is StudyResolution.AWAITING_USER
     phase = study.phases[0]
     assert phase.needs_user == needs
     assert phase.needs_user.candidates == candidates  # type: ignore[union-attr]
@@ -114,9 +114,9 @@ def test_a_rerun_after_awaiting_user_reuses_what_was_promoted(tmp_path: Path) ->
     world.parser.items.append(run_of(DESCRIBE, tokens=50))
     second = world.run()
 
-    assert first.status is StudyStatus.AWAITING_USER
+    assert first.resolution is StudyResolution.AWAITING_USER
     assert len(world.promoted_networks) == 1  # promoted once, the rerun found it
-    assert second.status is StudyStatus.COMPLETED
+    assert second.resolution is StudyResolution.COMPLETED
     assert second.phases[0].steps[1].produced_ids == ("obtained-1",)
 
 

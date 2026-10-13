@@ -9,16 +9,39 @@ from resto.application.executor.recorder import StudyRecorder
 from resto.application.executor.spend import StudySpend
 from resto.application.ports.agents.note_writer import NoteWriterAgent
 from resto.application.ports.repositories import NetworkRepository, ScenarioRepository
+from resto.application.ports.tracing import NoteWriterFailed, Tracer
 from resto.application.tools.expert import EvidenceLedger
 from resto.application.use_cases.write_note import WriteNote
 from resto.domain.entities.scenario import Scenario
-from resto.domain.entities.study import Study, StudyStatus
+from resto.domain.entities.study import Study
 from resto.domain.services.ids import scenario_id_for
 from resto.domain.value_objects.arm import BASE_ARM
 from resto.domain.value_objects.experiment import ExperimentRole
 from resto.domain.value_objects.expert_round import ExpertRound
 from resto.domain.value_objects.step_record import StepRecord, StepStatus
 from resto.domain.value_objects.tasks import NoteScenario, NoteTask
+
+
+def close(
+    final: ExpertRound,
+    ledger: EvidenceLedger,
+    recorder: StudyRecorder,
+    spend: StudySpend,
+    deps: StudyDeps,
+) -> None:
+    """Closes the study after the Expert's `final` answer: the notes first, then the report."""
+    write_notes(
+        final,
+        ledger,
+        recorder,
+        spend,
+        deps.networks,
+        deps.scenarios,
+        deps.agents.note_writer,
+        deps.write_note,
+        deps.tracer,
+    )
+    compose(recorder, spend, deps)
 
 
 def write_notes(
@@ -30,9 +53,10 @@ def write_notes(
     scenarios: ScenarioRepository,
     note_writer: NoteWriterAgent,
     write_note: WriteNote,
+    tracer: Tracer,
 ) -> None:
     """Asks the note writer about the final round and stores the notes' ids on the study; a
-    failure is traced and leaves the study as it was."""
+    failure is traced (`NoteWriterFailed`, telemetry) and leaves the study as it was."""
     try:
         study = recorder.study
         task = NoteTask(
@@ -43,9 +67,9 @@ def write_notes(
         run = spend.agent_call(lambda: note_writer.write(task))
         written = write_note.execute(run, ledger, task, study.study_id)
     except Exception as e:
-        recorder.note_writer_failed(describe(e))
+        tracer.emit(recorder.study.study_id, NoteWriterFailed(describe(e)))
         return
-    recorder.set_note_ids(tuple(n.note_id for n in written))
+    recorder.apply(recorder.study.record_notes(tuple(n.note_id for n in written)))
 
 
 def base_network_id(study: Study, networks: NetworkRepository) -> str:
@@ -118,11 +142,10 @@ def compose(recorder: StudyRecorder, spend: StudySpend, deps: StudyDeps) -> None
         draft_of(run, "composer")
         report = promote(lambda: deps.compose_report.execute(study, run), run.usage)
     except StepFailed as failed:
-        recorder.record_failure("compose_report", task, failed)
+        recorder.apply(study.record_failure(failed.record("compose_report", task)))
         return
     except Exception as e:
-        recorder.record_failure("compose_report", task, crash(e))
+        recorder.apply(study.record_failure(crash(e).record("compose_report", task)))
         return
     record = StepRecord("compose_report", StepStatus.OK, task, usage=run.usage)
-    recorder.record(record, status=StudyStatus.COMPLETED, report=report)
-    recorder.report_composed()
+    recorder.apply(study.complete(record, report))

@@ -1,8 +1,9 @@
 """CLI entrypoint. `main` loads the LLM config, opens the database, builds a `RunStudy` with
 `resto.interface.dependencies.build_run_study`, calls `RunStudy.execute`, closes the database,
 prints the study and saves its Markdown report. A request the Input Parser cannot turn into a
-`Question` raises `ParserFailed`, and the CLI reports it without creating a Study. Tests pass their
-own `RunStudy` through the `run_study` keyword, which skips the config, the database and the wiring.
+`Question` is a study failed at `parsing`: the CLI prints it like any failed study (exit code 1).
+Tests pass their own `RunStudy` through the `run_study` keyword, which skips the config, the
+database and the wiring.
 
     python -m resto.interface.cli.main "how congested is the peak?" [--mode forced]
 """
@@ -18,8 +19,8 @@ from resto.adapters.persistence.sqlite.repositories import SqliteDatabase
 from resto.adapters.tracing.jsonl import JsonlTracer
 from resto.application.executor import StudySettings
 from resto.application.ports.llm import Budget
-from resto.application.use_cases.run_study import ParserFailed, RunStudy
-from resto.domain.entities.study import Study, StudyStatus
+from resto.application.use_cases.run_study import RunStudy
+from resto.domain.entities.study import Study, StudyResolution
 from resto.domain.value_objects.question import Mode
 from resto.interface.dependencies import AGENT_SECONDS, build_run_study
 from resto.interface.render import render_study, render_study_text
@@ -87,16 +88,13 @@ def main(
         )
     try:
         study = run_study.execute(args.text, mode=mode)
-    except ParserFailed as e:
-        print(f"error: no study was created: {e}", file=sys.stderr)
-        return 1
     finally:
         if db is not None:
             db.close()
     as_text = args.format == "text" or (args.format == "auto" and sys.stdout.isatty())
     print(render_study_text(study) if as_text else render_study(study), end="")
     _save_report(study, args.out)
-    return 0 if study.status is StudyStatus.COMPLETED else 1
+    return 0 if study.resolution is StudyResolution.COMPLETED else 1
 
 
 if __name__ == "__main__":

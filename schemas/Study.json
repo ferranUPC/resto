@@ -1186,7 +1186,7 @@
       "type": "string"
     },
     "Phase": {
-      "description": "One question planned and executed, then put to the Expert (ADR-0023 \u00a74). `phases[0]` holds\nthe Input Parser's question; each later phase the previous round's `proposed_experiment`.\n\nA phase without a plan ran nothing: its only possible step is the failed planning itself.\n\n`needs_user` is a specialist asking the user to act (ADR-0037 \u00a74): the step that returned it\nhas status `needs_user` and the rest of the plan is skipped, as after a failure.",
+      "description": "One question planned and executed, then put to the Expert (ADR-0023 \u00a74). `phases[0]` holds\nthe Input Parser's question; each later phase the previous round's `proposed_experiment`.\n\nA phase without a plan ran nothing: its only possible step is the failed planning itself. The\nplanning is always the phase's first step: a plan whose first step failed was rejected.\n\n`needs_user` is a specialist asking the user to act (ADR-0037 \u00a74): the step that returned it\nhas status `needs_user` and the rest of the plan is skipped, as after a failure.",
       "properties": {
         "experiments": {
           "default": [],
@@ -1813,15 +1813,26 @@
       "title": "StudyPlan",
       "type": "object"
     },
-    "StudyStatus": {
+    "StudyResolution": {
+      "description": "How a study ended; a study without one is open. A failed study keeps its stage.",
       "enum": [
+        "completed",
+        "failed",
+        "awaiting_user"
+      ],
+      "title": "StudyResolution",
+      "type": "string"
+    },
+    "StudyStage": {
+      "description": "Where a study is in its lifecycle, or where it stopped (ADR-0041 \u00a73). Planning, running and\nconsulting the Expert repeat once per phase; closing writes the notes and the report.",
+      "enum": [
+        "parsing",
         "planning",
         "running",
-        "awaiting_user",
-        "completed",
-        "failed"
+        "consulting_expert",
+        "closing"
       ],
-      "title": "StudyStatus",
+      "title": "StudyStage",
       "type": "string"
     },
     "TazTarget": {
@@ -1929,12 +1940,23 @@
       "type": "object"
     }
   },
-  "description": "Root of one user request, stored in phases: the questions, the plans, every step taken, the\nexperiments run, the Expert rounds and the final report. Framework run-time state, stored\nthrough StudyRepository (not part of the DatabaseMCP contract).",
+  "description": "Root of one user request, stored in phases: the questions, the plans, every step taken, the\nexperiments run, the Expert rounds and the final report. Framework run-time state, stored\nthrough StudyRepository (not part of the DatabaseMCP contract).\n\n`stage` and `resolution` are stored (ADR-0041 \u00a73) and checked against the phases: `resolution`\nis `None` while the study is open, and a failed study keeps the stage it failed in.\n\nEvery state after the first is made by a transition (ADR-0041 \u00a74), from `open` on: each returns\nthe next study and the domain events it produced (`Transition`), and only an open study takes\none.\n\nA study starts at the request (ADR-0041 \u00a72): `text` and, when the user chose one, `mode`, with\nno phases at `parsing`. The Input Parser's call is the `parse` step, kept outside the phases:\nok once its `Question` opened phase 0 (which is also the study's state when the question is\nambiguous), failed when the study failed at `parsing`, and absent while the study waits for\nthe Parser.",
   "properties": {
     "max_rounds": {
       "default": 3,
       "title": "Max Rounds",
       "type": "integer"
+    },
+    "mode": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Mode"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     },
     "network_ids": {
       "default": [],
@@ -1951,6 +1973,17 @@
       },
       "title": "Note Ids",
       "type": "array"
+    },
+    "parse": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/StepRecord"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     },
     "phases": {
       "items": {
@@ -1970,18 +2003,34 @@
       ],
       "default": null
     },
-    "status": {
-      "$ref": "#/$defs/StudyStatus"
+    "resolution": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/StudyResolution"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "stage": {
+      "$ref": "#/$defs/StudyStage"
     },
     "study_id": {
       "title": "Study Id",
+      "type": "string"
+    },
+    "text": {
+      "title": "Text",
       "type": "string"
     }
   },
   "required": [
     "study_id",
-    "status",
-    "phases"
+    "stage",
+    "phases",
+    "text"
   ],
   "title": "Study",
   "type": "object"
