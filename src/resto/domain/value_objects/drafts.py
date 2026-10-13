@@ -152,7 +152,7 @@ class ExpertNoteDraft:
     `scenario_ref` is the scenario the note is about, picked from the allow-list of its `NoteTask`
     (a scenario of the study, or the predicted id of one not simulated), or None for the network in
     general (ADR-0026). `provenance`, `status`, `note_id` and the network/study references are
-    written by `WriteNote`.
+    written by `write_note`.
     """
 
     text: str
