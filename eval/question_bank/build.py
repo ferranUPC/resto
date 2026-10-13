@@ -52,7 +52,7 @@ from resto.adapters.sumo.runner import SubprocessSumoRunner
 from resto.application.ports.llm import AgentRun, StopReason
 from resto.application.schemas import adapter_for
 from resto.application.use_cases.build_scenario import build_scenario
-from resto.application.use_cases.run_simulation import run_simulation
+from resto.application.use_cases.run_simulation import RunSimulation
 from resto.domain.entities.demand import Demand
 from resto.domain.entities.network import Network
 from resto.domain.entities.scenario import Scenario
@@ -140,15 +140,9 @@ def _rebuild_row(
     )
     results: dict[int, SimulationResult] = {}
     for seed in SEEDS:
-        result = run_simulation(
-            scenario,
-            seed,
-            runner=runner,
-            results=db.results,
-            run_dirs=FilesystemRunDirectories(),
-            out_dir=REBUILD_DIR / row.id / "runs",
-            attempt=row.id,
-        )
+        result = RunSimulation(
+            runner, db.results, FilesystemRunDirectories(), REBUILD_DIR / row.id / "runs"
+        ).execute(scenario, seed, row.id)
         if result.status is not RunStatus.OK:
             raise QuestionBankBuildError(f"{row.id} seed {seed} is not OK in matrix.db")
         results[seed] = result

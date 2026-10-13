@@ -22,7 +22,7 @@ from resto.application.executor.recorder import StudyRecorder, data
 from resto.application.executor.spend import StudySpend
 from resto.application.ports.llm import AgentRun
 from resto.application.use_cases.build_scenario import build_scenario
-from resto.application.use_cases.run_simulation import attempt_dir, run_simulation
+from resto.application.use_cases.run_simulation import attempt_dir
 from resto.application.use_cases.update_note_status import update_note_status
 from resto.domain.constants import DEFAULT_SEEDS, NOTE_VERIFY_LIMIT
 from resto.domain.entities.expert_note import NoteStatus
@@ -146,7 +146,7 @@ def _run_step(
         case BuildScenarioStep():
             return _build_scenario(step, task, spend, deps, settings)
         case RunSimulationStep():
-            return _run_simulations(step, task, recorder, spend, deps, settings), None
+            return _run_simulations(step, task, recorder, spend, deps), None
         case _:
             assert_never(step)
 
@@ -315,7 +315,6 @@ def _run_simulations(
     recorder: StudyRecorder,
     spend: StudySpend,
     deps: StudyDeps,
-    settings: StudySettings,
 ) -> StepRecord:
     scenario = deps.scenarios.get(_id(step.scenario_id))
     if scenario is None:
@@ -330,7 +329,6 @@ def _run_simulations(
     existing = {s: _existing_ok(deps, scenario.scenario_id, s) for s in seeds}
     new_seeds = [s for s, result in existing.items() if result is None]
     spend.reserve_simulations(len(new_seeds))
-    results_dir = settings.out_dir / "results"
     attempt = recorder.study.study_id
     result_ids: list[str] = []
     ran = 0
@@ -339,21 +337,13 @@ def _run_simulations(
         if result is None:
             ran += 1
             spend.count_simulation()
-            result = run_simulation(
-                scenario,
-                seed,
-                runner=deps.runner,
-                results=deps.results,
-                run_dirs=deps.run_dirs,
-                out_dir=results_dir,
-                attempt=attempt,
-            )
+            result = deps.run_simulation.execute(scenario, seed, attempt)
             if result.status is RunStatus.FAILED:
                 fail(
                     StepErrorKind.INFRASTRUCTURE,
                     f"SUMO failed on scenario {scenario.scenario_id!r} with seed {seed}",
                     result.error or "",
-                    f"logs: {attempt_dir(results_dir, result.result_id, attempt)}",
+                    f"logs: {attempt_dir(deps.run_simulation.out_dir, result.result_id, attempt)}",
                     usage=Usage(simulations=ran),
                 )
             _verify_notes(scenario, result, recorder, deps)

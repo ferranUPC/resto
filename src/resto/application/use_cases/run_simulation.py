@@ -1,7 +1,7 @@
 """Simulation Runner (code): Scenario + seed -> SimulationResult (DoD §2.4, §4.6; ADR-0017;
 ADR-0031).
 
-`run_simulation` is the stored path: it is what the Executor calls. `run_ephemeral` is the
+`RunSimulation` is the stored path: it is what the Executor calls. `run_ephemeral` is the
 tool-shaped path behind `probe_run` / `calibration_run`: same Runner, no `Scenario`, and no
 repository argument at all, so those runs cannot reach the results store.
 
@@ -24,6 +24,7 @@ its `store` left behind.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 
 from resto.application.ports.repositories import ResultRepository
@@ -42,51 +43,53 @@ def attempt_dir(out_dir: Path, result_id: str, attempt: str) -> Path:
     return out_dir / f"{result_id}.{attempt}"
 
 
-def run_simulation(
-    scenario: Scenario,
-    seed: int,
-    *,
-    runner: SumoRunner,
-    results: ResultRepository,
-    run_dirs: RunDirectories,
-    out_dir: Path,
-    attempt: str,
-) -> SimulationResult:
-    """Runs `scenario` with `seed`, returns the `SimulationResult`, and stores it iff it is `ok`.
+@dataclass(frozen=True, slots=True)
+class RunSimulation:
+    """The Simulation Runner as a use case: the collaborators and the results directory are fixed at
+    construction, `execute` takes what changes per seed."""
 
-    Batch only until E2.5.
-    """
-    if scenario.is_online:
-        raise NotImplementedError("online scenarios need the E2.5 runner")
-    mode = RunMode.BATCH
-    sumo_version = runner.sumo_version()
-    result_id = result_id_for(scenario.scenario_id, seed, mode.value, sumo_version)
-    existing = results.get(result_id)
-    if existing is not None and existing.status is RunStatus.OK:
-        return existing
+    runner: SumoRunner
+    results: ResultRepository
+    run_dirs: RunDirectories
+    out_dir: Path
+    """Results live in `<out_dir>/<result_id>/`; an attempt stages in `attempt_dir`."""
 
-    staging_dir = attempt_dir(out_dir, result_id, attempt)
-    run_dirs.prepare(staging_dir)
-    output = runner.run_batch(scenario.sumocfg, seed, staging_dir)
+    def execute(self, scenario: Scenario, seed: int, attempt_id: str) -> SimulationResult:
+        """Runs `scenario` with `seed`, returns the `SimulationResult`; stores it iff it is `ok`.
 
-    if not output.ok:
-        return _build_result(
-            result_id,
-            scenario,
-            seed,
-            mode,
-            RunStatus.FAILED,
-            output,
-            output.artifacts,
-            sumo_version,
+        `attempt_id` labels the staging directory of this attempt. Batch only until E2.5.
+        """
+        if scenario.is_online:
+            raise NotImplementedError("online scenarios need the E2.5 runner")
+        mode = RunMode.BATCH
+        sumo_version = self.runner.sumo_version()
+        result_id = result_id_for(scenario.scenario_id, seed, mode.value, sumo_version)
+        existing = self.results.get(result_id)
+        if existing is not None and existing.status is RunStatus.OK:
+            return existing
+
+        staging_dir = attempt_dir(self.out_dir, result_id, attempt_id)
+        self.run_dirs.prepare(staging_dir)
+        output = self.runner.run_batch(scenario.sumocfg, seed, staging_dir)
+
+        if not output.ok:
+            return _build_result(
+                result_id,
+                scenario,
+                seed,
+                mode,
+                RunStatus.FAILED,
+                output,
+                output.artifacts,
+                sumo_version,
+            )
+
+        artifacts = self.run_dirs.promote(staging_dir, self.out_dir / result_id, output.artifacts)
+        result = _build_result(
+            result_id, scenario, seed, mode, RunStatus.OK, output, artifacts, sumo_version
         )
-
-    artifacts = run_dirs.promote(staging_dir, out_dir / result_id, output.artifacts)
-    result = _build_result(
-        result_id, scenario, seed, mode, RunStatus.OK, output, artifacts, sumo_version
-    )
-    results.store(result)
-    return result
+        self.results.store(result)
+        return result
 
 
 def _build_result(
