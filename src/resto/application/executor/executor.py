@@ -10,6 +10,7 @@ from typing import assert_never
 from resto.application.executor.closing import close
 from resto.application.executor.deps import StudyDeps, StudySettings
 from resto.application.executor.expert_round import ask_expert_round
+from resto.application.executor.parsing import parse_request
 from resto.application.executor.planning import plan_phase
 from resto.application.executor.recorder import StudyRecorder
 from resto.application.executor.spend import StudySpend
@@ -18,7 +19,7 @@ from resto.application.ports.tracing import ModelCall
 from resto.application.tools.expert import EvidenceLedger
 from resto.domain.entities.study import Study
 from resto.domain.services.ids import new_id
-from resto.domain.value_objects.question import Question
+from resto.domain.value_objects.question import Mode
 from resto.domain.value_objects.step_record import Usage
 from resto.domain.value_objects.study_action import (
     AskExpert,
@@ -26,24 +27,25 @@ from resto.domain.value_objects.study_action import (
     ConsultExpert,
     Finished,
     OpenPhase,
+    ParseRequest,
     PlanPhase,
     RunPlan,
 )
 
 
 def execute_study(
-    question: Question,
-    parse_usage: Usage,
+    text: str,
+    mode: Mode | None,
     deps: StudyDeps,
     settings: StudySettings,
     *,
     max_rounds: int,
 ) -> Study:
-    """Runs a parsed `Question` until the `Study` has a resolution (`completed`, `failed` or
-    `awaiting_user`) and returns it. `parse_usage` is what the Input Parser spent: its call is
-    the study's first."""
+    """Runs the user's request until the `Study` has a resolution (`completed`, `failed` or
+    `awaiting_user`) and returns it. The study is created at the request, with parsing as its
+    first stage; `mode`, when given, is the user's choice and overrides the Input Parser's."""
     recorder = StudyRecorder(
-        Study.open(new_id(), question, parse_usage, max_rounds=max_rounds),
+        Study.open(new_id(), text, mode, max_rounds=max_rounds),
         studies=deps.studies,
         events=deps.events,
     )
@@ -52,14 +54,15 @@ def execute_study(
     def model_call(usage: Usage) -> None:
         deps.tracer.emit(study_id, ModelCall(usage))
 
-    model_call(parse_usage)
-    spend = StudySpend(settings.budget, parse_usage, model_call)
+    spend = StudySpend(settings.budget, model_call)
     network_id: str | None = None
     ledger = EvidenceLedger()
     while True:
         match recorder.study.next_action():
             case Finished():
                 return recorder.study
+            case ParseRequest():
+                parse_request(recorder, spend, deps)
             case PlanPhase():
                 plan_phase(recorder, deps, network_id)
             case RunPlan(plan):

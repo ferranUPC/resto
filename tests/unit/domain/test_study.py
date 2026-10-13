@@ -33,6 +33,7 @@ from resto.domain.value_objects.study_action import (
     ConsultExpert,
     Finished,
     OpenPhase,
+    ParseRequest,
     PlanPhase,
     RunPlan,
 )
@@ -151,13 +152,74 @@ S = StudyStage
 R = StudyResolution
 
 
+TEXT = "what happens at peak?"
+PARSED = StepRecord("parse", StepStatus.OK, {"text": TEXT}, usage=Usage(input_tokens=50))
+PARSE_FAILED = StepRecord(
+    "parse",
+    StepStatus.FAILED,
+    {"text": TEXT},
+    error=StepError(StepErrorKind.AGENT, "no question"),
+    usage=Usage(input_tokens=50),
+)
+
+
 def _study(stage: StudyStage, *phases: Phase, **kw: Any) -> Study:
-    return Study("s", stage, phases, **kw)
+    kw.setdefault("parse", PARSED)
+    return Study("s", stage, phases, TEXT, **kw)
 
 
-def test_a_study_has_at_least_one_phase() -> None:
-    with pytest.raises(ValueError):
-        _study(S.PLANNING)
+# --- Study: the parse step (ADR-0041 §2) ------------------------------------------------------
+
+
+def test_a_study_without_phases_is_at_parsing() -> None:
+    with pytest.raises(ValueError, match="at parsing"):
+        _study(S.PLANNING, parse=None)
+    _study(S.PARSING, parse=None)
+
+
+def test_a_study_with_phases_has_an_ok_parse_step() -> None:
+    phase = Phase(question=_question())
+    with pytest.raises(ValueError, match="ok parse"):
+        _study(S.PLANNING, phase, parse=None)
+    with pytest.raises(ValueError, match="ok parse"):
+        _study(S.PLANNING, phase, parse=PARSE_FAILED)
+    with pytest.raises(ValueError, match="Input Parser"):
+        _study(S.PLANNING, phase, parse=PLANNED)
+
+
+def test_a_study_failed_at_parsing_has_a_failed_parse_step_and_no_phases() -> None:
+    study = _study(S.PARSING, resolution=R.FAILED, parse=PARSE_FAILED)
+    assert study.failed_step == PARSE_FAILED
+    with pytest.raises(ValueError, match="failed"):
+        _study(S.PARSING, resolution=R.FAILED, parse=None)
+    with pytest.raises(ValueError, match="failed if and only if"):
+        _study(S.PARSING, resolution=R.FAILED, parse=PARSED)
+    with pytest.raises(ValueError, match="failed if and only if"):
+        _study(S.PARSING, parse=PARSE_FAILED)
+
+
+def test_an_open_study_at_parsing_has_no_parse_step() -> None:
+    with pytest.raises(ValueError, match="no parse step"):
+        _study(S.PARSING, parse=PARSED)
+
+
+def test_a_study_without_phases_is_open_or_failed() -> None:
+    with pytest.raises(ValueError, match="open or failed"):
+        _study(S.PARSING, resolution=R.AWAITING_USER, parse=PARSED)
+    with pytest.raises(ValueError, match="open or failed"):
+        _study(S.PARSING, resolution=R.COMPLETED, parse=PARSED)
+
+
+def test_a_study_requires_the_text_of_the_request() -> None:
+    with pytest.raises(ValueError, match="text"):
+        Study("s", S.PARSING, (), " ")
+
+
+def test_the_question_keeps_the_mode_the_user_chose() -> None:
+    phase = Phase(question=_question(mode=Mode.FREE))
+    with pytest.raises(ValueError, match="mode"):
+        _study(S.PLANNING, phase, mode=Mode.FORCED)
+    _study(S.PLANNING, phase, mode=Mode.FREE)
 
 
 def test_each_phase_asks_the_previous_proposed_experiment() -> None:
@@ -338,10 +400,9 @@ def test_a_failed_planning_of_a_later_phase_fails_the_study_at_planning() -> Non
         _study(S.RUNNING, first, unplanned, resolution=R.FAILED)
 
 
-def test_a_study_cannot_fail_at_parsing_while_the_parser_runs_outside_it() -> None:
-    failed = Phase(question=_question(), steps=(PLAN_FAILED,))
+def test_a_study_with_a_question_is_at_parsing_only_when_it_is_ambiguous() -> None:
     with pytest.raises(ValueError, match="parsing"):
-        _study(S.PARSING, failed, resolution=R.FAILED)
+        _study(S.PARSING, Phase(question=_question()))
 
 
 def test_a_report_is_composed_if_and_only_if_the_study_completed() -> None:
@@ -454,22 +515,78 @@ USAGE = Usage(input_tokens=50)
 BASELINE, TREATMENT = ExperimentRole.BASELINE, ExperimentRole.TREATMENT
 
 
-def test_opening_a_study_starts_phase_0_at_planning() -> None:
-    study, events = Study.open("s1", _question(), USAGE, max_rounds=2)
+def test_opening_a_study_starts_at_the_request_with_no_phases() -> None:
+    study, events = Study.open("s1", TEXT, Mode.FORCED, max_rounds=2)
 
-    assert (study.study_id, study.stage, study.resolution) == ("s1", S.PLANNING, None)
-    assert study.phases == (Phase(question=_question()),)
+    assert (study.study_id, study.stage, study.resolution) == ("s1", S.PARSING, None)
+    assert (study.text, study.mode, study.phases, study.parse) == (TEXT, Mode.FORCED, (), None)
     assert study.max_rounds == 2
-    assert events == (StudyCreated(_question(), USAGE), PhaseStarted(0))
+    assert events == (StudyCreated(TEXT, Mode.FORCED),)
 
 
-def test_opening_a_study_on_an_ambiguous_question_waits_for_the_user_at_parsing() -> None:
+def test_a_new_study_needs_the_input_parser() -> None:
+    study, _ = Study.open("s1", TEXT, max_rounds=2)
+
+    assert study.next_action() == ParseRequest(TEXT)
+
+
+def test_the_question_opens_phase_0_at_planning() -> None:
+    study, _ = Study.open("s1", TEXT, max_rounds=2)
+
+    study, events = study.accept_question(PARSED, _question())
+
+    assert (study.stage, study.resolution) == (S.PLANNING, None)
+    assert study.phases == (Phase(question=_question()),)
+    assert study.parse == PARSED
+    assert events == (_traced(PARSED), PhaseStarted(0))
+
+
+def test_the_users_mode_overrides_the_parsers() -> None:
+    study, _ = Study.open("s1", TEXT, Mode.FORCED, max_rounds=2)
+
+    study, _ = study.accept_question(PARSED, _question(mode=Mode.FREE))
+
+    assert study.question.mode is Mode.FORCED
+
+
+def test_an_ambiguous_question_waits_for_the_user_at_parsing() -> None:
     ambiguous = _question(ambiguities=("which network?",))
+    study, _ = Study.open("s1", TEXT, max_rounds=3)
 
-    study, events = Study.open("s1", ambiguous, USAGE, max_rounds=3)
+    study, events = study.accept_question(PARSED, ambiguous)
 
     assert (study.stage, study.resolution) == (S.PARSING, R.AWAITING_USER)
-    assert events == (StudyCreated(ambiguous, USAGE), PhaseStarted(0))
+    assert study.parse == PARSED
+    assert events == (_traced(PARSED), PhaseStarted(0))
+    assert study.next_action() == Finished()
+
+
+def test_a_failed_parse_fails_the_study_at_parsing_with_no_phases() -> None:
+    study, _ = Study.open("s1", TEXT, max_rounds=3)
+
+    study, events = study.record_failure(PARSE_FAILED)
+
+    assert (study.stage, study.resolution) == (S.PARSING, R.FAILED)
+    assert (study.phases, study.parse) == ((), PARSE_FAILED)
+    assert events == (_traced(PARSE_FAILED),)
+    assert study.next_action() == Finished()
+
+
+def test_the_question_is_accepted_only_at_parsing() -> None:
+    with pytest.raises(ValueError, match="parsing"):
+        _opened().accept_question(PARSED, _question())
+
+
+def test_the_question_comes_with_an_ok_parse_step() -> None:
+    study, _ = Study.open("s1", TEXT, max_rounds=3)
+    with pytest.raises(ValueError, match="ok parse"):
+        study.accept_question(PARSE_FAILED, _question())
+
+
+def test_a_study_has_no_question_before_the_parser_runs() -> None:
+    study, _ = Study.open("s1", TEXT, max_rounds=3)
+    with pytest.raises(ValueError, match="no question"):
+        _ = study.question
 
 
 FULL_PLAN = StudyPlan(
@@ -497,7 +614,9 @@ RAN_CLOSED = StepRecord("run_simulation", StepStatus.OK, produced_ids=("rc1", "r
 
 
 def _opened(question: Question | None = None, *, max_rounds: int = 3) -> Study:
-    return Study.open("s1", question or _question(), USAGE, max_rounds=max_rounds)[0]
+    """A study whose Input Parser produced `question`: phase 0 at planning."""
+    parsing, _ = Study.open("s1", TEXT, max_rounds=max_rounds)
+    return parsing.accept_question(PARSED, question or _question())[0]
 
 
 def _traced(record: StepRecord, phase: int = 0) -> StepTraced:

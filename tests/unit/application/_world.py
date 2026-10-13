@@ -530,6 +530,6 @@ def tools(study: Study, phase: int = 0) -> list[tuple[str, StepStatus]]:
 
 
 def failed_kind(study: Study) -> StepErrorKind:
-    step = study.phases[-1].failed_step
+    step = study.failed_step
     assert step is not None and step.error is not None
     return step.error.kind

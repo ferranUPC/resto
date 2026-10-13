@@ -29,6 +29,7 @@ from resto.domain.value_objects.probe_report import ProbeReport
 from resto.domain.value_objects.question import Intent, Question
 from resto.domain.value_objects.report import Report
 from resto.domain.value_objects.sanity_report import SanityReport
+from resto.domain.value_objects.step_record import StepRecord, StepStatus, Usage
 from resto.domain.value_objects.study_plan import (
     BuildScenarioStep,
     FromStep,
@@ -43,6 +44,11 @@ from resto.domain.value_objects.traci_script import DeclaredRule, TraciScript
 LANE = LaneTarget(edge_id="E12", lane_index=1)
 NET = "abc123"  # the sample network's id (`_samples.network`)
 DEMAND = "t1"  # the sample demand's id (`_samples.demand`)
+
+
+def parsed_step(text: str) -> StepRecord:
+    """The ok `parse` step of a study whose request was `text`."""
+    return StepRecord("parse", StepStatus.OK, {"text": text}, usage=Usage(input_tokens=50))
 
 
 def artifact(name: str, digest: str = "deadbeef", kind: str = "file") -> ArtifactRef:
@@ -279,6 +285,8 @@ def study_with_rounds(
     )
     return Study(
         study_id=study_id,
+        text=question.text,
+        parse=parsed_step(question.text),
         stage=StudyStage.CLOSING,
         resolution=StudyResolution.COMPLETED if report else None,
         phases=phases,

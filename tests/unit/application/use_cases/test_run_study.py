@@ -14,7 +14,6 @@ from resto.application.ports.llm import StopReason
 from resto.application.ports.network_query import NetworkNotStored
 from resto.application.ports.tracing import HandlerFailed, ModelCall, NoteWriterFailed
 from resto.application.use_cases.ask_expert import AskExpert
-from resto.application.use_cases.run_study import ParserFailed
 from resto.domain.constants import DEFAULT_SEEDS
 from resto.domain.entities.expert_note import ExpertNote, NoteStatus, Provenance
 from resto.domain.entities.simulation_result import RunMode
@@ -362,7 +361,7 @@ def test_an_ambiguous_question_awaits_the_user_without_planning(tmp_path: Path) 
     assert study.resolution is StudyResolution.AWAITING_USER
     assert study.stage is StudyStage.PARSING
     assert world.planner.calls == []
-    assert len(world.studies.states) == 1
+    assert [len(s.phases) for s in world.studies.states] == [0, 1]  # the request, then parsed
 
 
 def test_a_question_the_planner_cannot_plan_fails_the_plan_step(tmp_path: Path) -> None:
@@ -422,13 +421,54 @@ def test_a_proposal_that_adds_no_arm_fails_the_plan_step_with_its_cause(tmp_path
     [ConnectionError("down"), run_of(None, StopReason.BUDGET)],
     ids=["exception", "budget"],
 )
-def test_no_study_exists_when_the_parser_fails(tmp_path: Path, parsed: Any) -> None:
+def test_a_failed_parse_is_a_stored_failed_study_at_parsing(tmp_path: Path, parsed: Any) -> None:
     world = World(tmp_path, question=parsed)
 
-    with pytest.raises(ParserFailed):
-        world.run()
+    study = world.run()
 
-    assert world.studies.states == []
+    assert (study.stage, study.resolution) == (StudyStage.PARSING, StudyResolution.FAILED)
+    assert study.phases == () and study.text == "the user's text"
+    assert study.parse is not None and study.parse.tool == "parse"
+    assert study.parse.status is StepStatus.FAILED
+    assert world.studies.get(study.study_id) == study
+    assert world.planner.calls == [] and world.expert.calls == []
+    traced = [e for e in world.tracer.events if isinstance(e, StepTraced)]
+    assert [(e.tool, e.status) for e in traced] == [("parse", StepStatus.FAILED)]
+
+
+def test_a_failed_parse_records_its_error_and_its_usage(tmp_path: Path) -> None:
+    world = World(tmp_path, question=run_of(None, StopReason.BUDGET, tokens=7))
+
+    study = world.run()
+
+    assert failed_kind(study) is StepErrorKind.BUDGET
+    assert study.parse is not None and study.parse.usage == Usage(input_tokens=7)
+    assert [e.usage for e in world.tracer.events if isinstance(e, ModelCall)] == [
+        Usage(input_tokens=7)
+    ]
+
+
+def test_a_parser_that_raises_is_infrastructure(tmp_path: Path) -> None:
+    study = World(tmp_path, question=ConnectionError("down")).run()
+
+    assert failed_kind(study) is StepErrorKind.INFRASTRUCTURE
+
+
+def test_a_parser_without_a_question_is_the_agents_failure(tmp_path: Path) -> None:
+    study = World(tmp_path, question=run_of(None, StopReason.ERROR)).run()
+
+    assert failed_kind(study) is StepErrorKind.AGENT
+
+
+def test_the_request_is_stored_before_the_parser_runs(tmp_path: Path) -> None:
+    world = World(tmp_path, plans=(BASELINE_PLAN,), expert=(answers(),))
+
+    world.run(mode=Mode.FORCED)
+
+    first = world.studies.states[0]
+    assert (first.stage, first.phases, first.parse) == (StudyStage.PARSING, (), None)
+    assert (first.text, first.mode) == ("the user's text", Mode.FORCED)
+    assert world.tracer.events[0] == StudyCreated("the user's text", Mode.FORCED)
 
 
 # -- failures, one per kind -----------------------------------------------------------------------
@@ -892,11 +932,13 @@ def test_the_model_calls_of_a_study_sum_to_its_steps_and_the_parsers_tokens(
     study = world.run()
 
     calls = [e for e in world.tracer.events if isinstance(e, ModelCall)]
-    steps = [s for p in study.phases for s in p.steps]
+    assert study.parse is not None
+    steps = [study.parse, *(s for p in study.phases for s in p.steps)]
     assert study.resolution is StudyResolution.COMPLETED
-    assert sum(c.usage.input_tokens for c in calls) == 50 + sum(s.usage.input_tokens for s in steps)
+    assert study.parse.usage.input_tokens == 50
+    assert sum(c.usage.input_tokens for c in calls) == sum(s.usage.input_tokens for s in steps)
     agent_steps = [s for s in steps if s.tool not in ("plan", "run_simulation")]
-    assert len(calls) == 1 + len(agent_steps) + 1  # the Parser, the steps, the note writer
+    assert len(calls) == len(agent_steps) + 1  # the Parser and the steps, and the note writer
 
 
 def test_a_failed_agent_call_still_emits_its_model_call(tmp_path: Path) -> None:
@@ -944,7 +986,8 @@ def test_a_multi_phase_study_traces_phases_plans_steps_rounds_and_the_report(
 
     flow = _flow(world)
     assert study.resolution is StudyResolution.COMPLETED
-    assert flow[:4] == [
+    assert flow[:5] == [
+        ("step", 0, "parse"),
         ("phase", 0),
         ("plan", 0),
         ("step", 0, "obtain_network"),
@@ -984,6 +1027,7 @@ def test_every_phase_is_stored_at_planning_until_its_plan_is_accepted(tmp_path: 
     study = world.run()
 
     assert _stages(world) == [
+        (-1, StudyStage.PARSING),
         (0, StudyStage.PLANNING),
         (0, StudyStage.RUNNING),
         (0, StudyStage.CONSULTING_EXPERT),
@@ -1031,6 +1075,6 @@ def test_the_study_is_persisted_after_every_step(tmp_path: Path) -> None:
     states = world.studies.states
     assert {s.study_id for s in states} == {study.study_id}
     assert states[-1] == study == world.studies.get(study.study_id)
-    step_counts = [len(s.phases[0].steps) for s in states]
+    step_counts = [len(s.phases[0].steps) for s in states if s.phases]
     assert step_counts == sorted(step_counts)
     assert set(range(len(study.phases[0].steps) + 1)) <= set(step_counts)

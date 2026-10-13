@@ -1,4 +1,4 @@
-"""A specialist that returns `NeedsUser` through `execute_study` with the scripted agents (ADR-0037
+"""A specialist that returns `NeedsUser` through `RunStudy` with the scripted agents (ADR-0037
 §4): the study ends in `awaiting_user` at that step, never in `failed`, and never goes back to the
 planner."""
 

@@ -26,7 +26,7 @@ from resto.domain.value_objects.study_plan import (
     StudyPlan,
 )
 from resto.interface.render import WHAT_TO_DO, render_study, render_study_text
-from tests.unit.domain._fixtures import study_with_rounds
+from tests.unit.domain._fixtures import parsed_step, study_with_rounds
 from tests.unit.domain._samples import study as completed_study
 
 FORCED_LIMITATION = "The Expert was forced to answer at the round limit."
@@ -47,6 +47,8 @@ PLAN = StudyPlan(
 def failed(kind: StepErrorKind, *details: str) -> Study:
     return Study(
         study_id="st-9",
+        text=QUESTION.text,
+        parse=parsed_step(QUESTION.text),
         stage=StudyStage.RUNNING,
         resolution=StudyResolution.FAILED,
         phases=(
@@ -99,6 +101,8 @@ def test_every_failure_kind_has_advice() -> None:
 def test_an_ambiguous_question_lists_its_ambiguities() -> None:
     study = Study(
         study_id="st-a",
+        text="close it",
+        parse=parsed_step("close it"),
         stage=StudyStage.PARSING,
         resolution=StudyResolution.AWAITING_USER,
         phases=(Phase(question=Question("close it", Intent.RUN, ambiguities=("which edge?",))),),
@@ -441,6 +445,8 @@ def test_a_failed_study_renders_the_three_blocks_in_plain_text(kind: StepErrorKi
 def test_an_awaiting_user_study_renders_the_three_blocks_in_plain_text() -> None:
     study = Study(
         study_id="st-a",
+        text="close it",
+        parse=parsed_step("close it"),
         stage=StudyStage.PARSING,
         resolution=StudyResolution.AWAITING_USER,
         phases=(Phase(question=Question("close it", Intent.RUN, ambiguities=("which edge?",))),),

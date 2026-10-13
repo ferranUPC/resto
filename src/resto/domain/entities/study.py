@@ -23,13 +23,14 @@ from resto.domain.value_objects.expert_round import ExpertRound
 from resto.domain.value_objects.outcomes import NeedsUser
 from resto.domain.value_objects.question import Mode, Question
 from resto.domain.value_objects.report import Report
-from resto.domain.value_objects.step_record import StepRecord, StepStatus, Usage
+from resto.domain.value_objects.step_record import StepRecord, StepStatus
 from resto.domain.value_objects.study_action import (
     AskExpert,
     Close,
     ConsultExpert,
     Finished,
     OpenPhase,
+    ParseRequest,
     PlanPhase,
     RunPlan,
     StudyAction,
@@ -128,11 +129,20 @@ class Study:
 
     Every state after the first is made by a transition (ADR-0041 §4), from `open` on: each returns
     the next study and the domain events it produced (`Transition`), and only an open study takes
-    one."""
+    one.
+
+    A study starts at the request (ADR-0041 §2): `text` and, when the user chose one, `mode`, with
+    no phases at `parsing`. The Input Parser's call is the `parse` step, kept outside the phases:
+    ok once its `Question` opened phase 0 (which is also the study's state when the question is
+    ambiguous), failed when the study failed at `parsing`, and absent while the study waits for
+    the Parser."""
 
     study_id: str
     stage: StudyStage
     phases: tuple[Phase, ...]
+    text: str
+    mode: Mode | None = None
+    parse: StepRecord | None = None
     resolution: StudyResolution | None = None
     report: Report | None = None
     network_ids: tuple[str, ...] = ()
@@ -142,11 +152,41 @@ class Study:
     def __post_init__(self) -> None:
         if self.max_rounds < 1:
             raise ValueError("max_rounds must be >= 1")
+        self._check_parse()
         if not self.phases:
-            raise ValueError("a Study starts with the phase of the user's question")
+            return
         self._check_loop()
         self._check_resolution()
         self._check_stage()
+
+    def _check_parse(self) -> None:
+        """The request and the `parse` step against the phases: a study with phases has an ok
+        `parse` step; one failed at `parsing` has a failed one and no phases; an open one at
+        `parsing` has none. A study is failed if and only if a step failed, the `parse` step
+        included."""
+        if not self.text.strip():
+            raise ValueError("a Study requires the text of the request")
+        parse, resolution = self.parse, self.resolution
+        if parse is not None and parse.tool != "parse":
+            raise ValueError("the parse step is the Input Parser's call")
+        if self.phases:
+            if parse is None or parse.status is not StepStatus.OK:
+                raise ValueError("a study with phases has an ok parse step")
+            if self.mode is not None and self.question.mode is not self.mode:
+                raise ValueError("the question keeps the mode the user chose")
+            return
+        if self.stage is not StudyStage.PARSING:
+            raise ValueError("a study without phases is at parsing")
+        if (resolution is StudyResolution.FAILED) != (
+            parse is not None and parse.status is StepStatus.FAILED
+        ):
+            raise ValueError("a study is failed if and only if a step failed")
+        if resolution is None and parse is not None:
+            raise ValueError("an open study at parsing has no parse step")
+        if resolution not in (None, StudyResolution.FAILED):
+            raise ValueError("a study without phases is open or failed at parsing")
+        if resolution is StudyResolution.FAILED and parse is None:
+            raise ValueError("a study failed at parsing has a failed parse step")
 
     def _check_loop(self) -> None:
         for k, (phase, following) in enumerate(pairwise(self.phases)):
@@ -194,8 +234,8 @@ class Study:
             raise ValueError("a report is composed if and only if the study completed")
 
     def _check_stage(self) -> None:
-        """The stage against the resolution and the last phase. Until the Input Parser runs inside
-        the study (ADR-0041 §7), a study is at `parsing` only when the Parser left ambiguities."""
+        """The stage against the resolution and the last phase. A study with phases is at `parsing`
+        only when the Parser left ambiguities."""
         stage, resolution, last = self.stage, self.resolution, self.phases[-1]
         if (stage is StudyStage.PARSING) != self.question.is_ambiguous:
             raise ValueError("a study stops at parsing if and only if its question is ambiguous")
@@ -227,7 +267,18 @@ class Study:
 
     @property
     def question(self) -> Question:
+        """The Input Parser's question, once it is parsed (it is `phases[0].question`)."""
+        if not self.phases:
+            raise ValueError("the study has no question until the Input Parser has run")
         return self.phases[0].question
+
+    @property
+    def failed_step(self) -> StepRecord | None:
+        """The step that failed the study: the `parse` step when it failed at `parsing`, else the
+        failed step of its last phase."""
+        if not self.phases:
+            return self.parse
+        return self.phases[-1].failed_step
 
     @property
     def current_phase(self) -> Phase:
@@ -273,12 +324,12 @@ class Study:
     def next_action(self) -> StudyAction:
         """What the study needs next (ADR-0041 §5), from its stage and its last phase. A resolved
         study needs nothing. The caller performs the action and applies its outcome."""
-        last = self.current_phase
         if self.resolution is not None:
             return Finished()
+        if self.stage is StudyStage.PARSING:  # an open study at parsing has no phase yet
+            return ParseRequest(self.text)
+        last = self.current_phase
         match self.stage:
-            case StudyStage.PARSING:
-                raise ValueError("an open study at parsing waits for the Input Parser (ADR-0041)")
             case StudyStage.PLANNING:
                 return PlanPhase()
             case StudyStage.RUNNING:
@@ -296,19 +347,30 @@ class Study:
 
     @classmethod
     def open(
-        cls, study_id: str, question: Question, parse_usage: Usage, *, max_rounds: int
+        cls, study_id: str, text: str, mode: Mode | None = None, *, max_rounds: int
     ) -> Transition:
-        """The study of the Input Parser's `question`, on phase 0 at `planning`; at `parsing`,
-        awaiting the user, when the question is ambiguous. `parse_usage` is what the Parser spent,
-        told by `StudyCreated` until the Parser runs inside the study (ADR-0041 §7)."""
+        """The study of a request, with no phases, at `parsing`. `mode` is the user's choice, if
+        any: it overrides the Input Parser's."""
+        study = cls(study_id, StudyStage.PARSING, (), text, mode, max_rounds=max_rounds)
+        return study, (StudyCreated(text, mode),)
+
+    def accept_question(self, record: StepRecord, question: Question) -> Transition:
+        """The Input Parser's `question` and its ok `parse` step: the question opens phase 0 and
+        the study moves to `planning`; when the question is ambiguous the study stays at `parsing`,
+        `awaiting_user`. The user's `mode`, when given, replaces the question's."""
+        self._require(StudyStage.PARSING)
+        if record.status is not StepStatus.OK:
+            raise ValueError("a question comes with an ok parse step")
+        if self.mode is not None:
+            question = replace(question, mode=self.mode)
         if question.is_ambiguous:
             stage, resolution = StudyStage.PARSING, StudyResolution.AWAITING_USER
         else:
             stage, resolution = StudyStage.PLANNING, None
-        study = cls(
-            study_id, stage, (Phase(question),), resolution=resolution, max_rounds=max_rounds
+        study = replace(
+            self, phases=(Phase(question),), parse=record, stage=stage, resolution=resolution
         )
-        return study, (StudyCreated(question, parse_usage), PhaseStarted(0))
+        return study, (study._traced(record), PhaseStarted(0))
 
     def accept_plan(self, plan: StudyPlan, record: StepRecord) -> Transition:
         """The valid `plan` of the current phase and its `plan` step: the study starts running."""
@@ -445,8 +507,12 @@ class Study:
 
     def record_failure(self, record: StepRecord) -> Transition:
         """The failed step, the steps of the plan left unrun skipped and the study `failed`, in
-        one state; the study keeps the stage it failed in."""
+        one state; the study keeps the stage it failed in. At `parsing` the failed step is the
+        `parse` step and the study has no phase to hold it."""
         self._require()
+        if not self.phases:
+            study = replace(self, parse=record, resolution=StudyResolution.FAILED)
+            return study, (study._traced(record),)
         return self._fail(self.current_phase, record, _pending_skipped(self.current_phase))
 
     # -- internals ----------------------------------------------------------------------------
@@ -491,7 +557,7 @@ class Study:
 
     def _traced(self, record: StepRecord) -> StepTraced:
         return StepTraced(
-            phase=self.phase_index,
+            phase=max(self.phase_index, 0),
             tool=record.tool,
             status=record.status,
             produced_ids=record.produced_ids,
