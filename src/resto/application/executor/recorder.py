@@ -29,7 +29,7 @@ from resto.application.ports.tracing import (
 )
 from resto.application.schemas import adapter_for
 from resto.domain.entities.expert_note import NoteStatus
-from resto.domain.entities.study import Phase, Study, StudyStatus
+from resto.domain.entities.study import Phase, Study, StudyResolution, StudyStage
 from resto.domain.services.ids import new_id
 from resto.domain.value_objects.experiment import Experiment
 from resto.domain.value_objects.expert_round import ExpertRound
@@ -55,10 +55,16 @@ class StudyRecorder:
         studies: StudyRepository,
         tracer: Tracer,
     ) -> None:
-        """Opens the `Study` on phase 0 (`awaiting_user` if the question is ambiguous), stores it
-        and traces it as `StudyCreated`, then `PhaseStarted` for phase 0."""
-        status = StudyStatus.AWAITING_USER if question.is_ambiguous else StudyStatus.PLANNING
-        self._study = Study(new_id(), status, (Phase(question),), max_rounds=max_rounds)
+        """Opens the `Study` on phase 0 at `planning` (`awaiting_user` at `parsing` if the
+        question is ambiguous), stores it and traces it as `StudyCreated`, then `PhaseStarted`
+        for phase 0."""
+        if question.is_ambiguous:
+            stage, resolution = StudyStage.PARSING, StudyResolution.AWAITING_USER
+        else:
+            stage, resolution = StudyStage.PLANNING, None
+        self._study = Study(
+            new_id(), stage, (Phase(question),), resolution=resolution, max_rounds=max_rounds
+        )
         self._studies = studies
         self._tracer = tracer
         self._studies.store(self._study)
@@ -93,10 +99,11 @@ class StudyRecorder:
         *,
         experiments: tuple[Experiment, ...] | None = None,
         round_: ExpertRound | None = None,
-        status: StudyStatus | None = None,
+        resolution: StudyResolution | None = None,
         report: Report | None = None,
     ) -> None:
-        """Appends a step to the current phase, with what it changed."""
+        """Appends a step to the current phase, with what it changed. An Expert round whose
+        answer needs no simulation moves the study to `closing`, in the same state."""
         phase = self.phase
         phase = replace(
             phase,
@@ -105,7 +112,9 @@ class StudyRecorder:
             round=phase.round if round_ is None else round_,
         )
         self._trace_step(record)
-        self._set_phase(phase, status=status, report=report)
+        answered = round_ is not None and not round_.answer.needs_simulation
+        stage = StudyStage.CLOSING if answered else None
+        self._set_phase(phase, stage=stage, resolution=resolution, report=report)
 
     def record_failure(
         self,
@@ -116,13 +125,15 @@ class StudyRecorder:
         phase: Phase | None = None,
         pending: Sequence[PlanStep] = (),
     ) -> None:
-        """The failed step, the plan steps left unrun and the `failed` status, in one state."""
+        """The failed step, the plan steps left unrun and the `failed` resolution, in one state;
+        the study keeps the stage it failed in."""
         phase = phase or self.phase
         record = StepRecord(tool, StepStatus.FAILED, task, error=failure.error, usage=failure.usage)
         skipped = tuple(StepRecord(s.kind, StepStatus.SKIPPED) for s in pending)
         self._trace_step(record)
         self._set_phase(
-            replace(phase, steps=(*phase.steps, record, *skipped)), status=StudyStatus.FAILED
+            replace(phase, steps=(*phase.steps, record, *skipped)),
+            resolution=StudyResolution.FAILED,
         )
 
     def record_needs_user(
@@ -134,28 +145,29 @@ class StudyRecorder:
         pending: Sequence[PlanStep] = (),
     ) -> None:
         """The step that needed the user, the plan steps left unrun and the `awaiting_user`
-        status, in one state."""
+        resolution, in one state."""
         record = StepRecord(tool, StepStatus.NEEDS_USER, task, usage=needs.usage)
         skipped = tuple(StepRecord(s.kind, StepStatus.SKIPPED) for s in pending)
         self._trace_step(record)
         phase = replace(
             self.phase, steps=(*self.phase.steps, record, *skipped), needs_user=needs.needs_user
         )
-        self._set_phase(phase, status=StudyStatus.AWAITING_USER)
-
-    def replace_phase(self, phase: Phase, *, status: StudyStatus | None = None) -> None:
-        self._set_phase(phase, status=status)
+        self._set_phase(phase, resolution=StudyResolution.AWAITING_USER)
 
     def open_phase(self, question: Question) -> None:
-        """Starts the next phase, on the experiment the Expert proposed."""
-        self._set(phases=(*self._study.phases, Phase(question)))
+        """Starts the next phase, on the experiment the Expert proposed, at `planning`."""
+        self._set(phases=(*self._study.phases, Phase(question)), stage=StudyStage.PLANNING)
         self._emit(PhaseStarted(self.phase_index))
 
     def plan_made(self, plan: StudyPlan, record: StepRecord) -> None:
-        """Stores the valid plan and its `plan` step in the current phase and starts running."""
+        """Stores the valid plan and its `plan` step in the current phase, at `running`."""
         phase = replace(self.phase, plan=plan, steps=(record,))
-        self._set_phase(phase, status=StudyStatus.RUNNING)
+        self._set_phase(phase, stage=StudyStage.RUNNING)
         self._emit(PlanMade(self.phase_index, plan))
+
+    def consulting_expert(self) -> None:
+        """Every step of the current plan ran: the study is about to ask the Expert."""
+        self._set(stage=StudyStage.CONSULTING_EXPERT)
 
     def add_networks(self, *network_ids: str) -> None:
         """Adds the networks the study has not used yet; stores and traces only if one is new."""
@@ -190,11 +202,17 @@ class StudyRecorder:
     # -- internals ----------------------------------------------------------------------------
 
     def _set_phase(
-        self, phase: Phase, *, status: StudyStatus | None = None, report: Report | None = None
+        self,
+        phase: Phase,
+        *,
+        stage: StudyStage | None = None,
+        resolution: StudyResolution | None = None,
+        report: Report | None = None,
     ) -> None:
         self._set(
             phases=(*self._study.phases[:-1], phase),
-            status=status or self._study.status,
+            stage=stage or self._study.stage,
+            resolution=resolution or self._study.resolution,
             report=report if report is not None else self._study.report,
         )
 

@@ -12,7 +12,7 @@ from resto.application.ports.repositories import NetworkRepository, ScenarioRepo
 from resto.application.tools.expert import EvidenceLedger
 from resto.application.use_cases.write_note import WriteNote
 from resto.domain.entities.scenario import Scenario
-from resto.domain.entities.study import Study, StudyStatus
+from resto.domain.entities.study import Study, StudyResolution
 from resto.domain.services.ids import scenario_id_for
 from resto.domain.value_objects.arm import BASE_ARM
 from resto.domain.value_objects.experiment import ExperimentRole
@@ -124,5 +124,5 @@ def compose(recorder: StudyRecorder, spend: StudySpend, deps: StudyDeps) -> None
         recorder.record_failure("compose_report", task, crash(e))
         return
     record = StepRecord("compose_report", StepStatus.OK, task, usage=run.usage)
-    recorder.record(record, status=StudyStatus.COMPLETED, report=report)
+    recorder.record(record, resolution=StudyResolution.COMPLETED, report=report)
     recorder.report_composed()

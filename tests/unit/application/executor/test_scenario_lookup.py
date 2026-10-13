@@ -3,7 +3,7 @@ Builder (ADR-0037 §5): ok results found means `reused` and no LLM call."""
 
 from pathlib import Path
 
-from resto.domain.entities.study import StudyStatus
+from resto.domain.entities.study import StudyResolution
 from resto.domain.value_objects.drafts import ScenarioDraft
 from resto.domain.value_objects.experiment import Experiment, ExperimentRole
 from tests.unit.application._world import (
@@ -25,7 +25,7 @@ def test_a_scenario_with_ok_results_is_reused_without_calling_the_builder(tmp_pa
 
     study = world.run()
 
-    assert study.status is StudyStatus.COMPLETED
+    assert study.resolution is StudyResolution.COMPLETED
     assert world.builder.calls == [] and world.runner.calls == []
     assert study.phases[0].experiments == (
         Experiment(BASE_SID, "base", ExperimentRole.BASELINE, "arm base", ids, reused=True),
@@ -38,7 +38,7 @@ def test_a_scenario_without_ok_results_goes_through_the_builder(tmp_path: Path) 
 
     study = world.run()
 
-    assert study.status is StudyStatus.COMPLETED
+    assert study.resolution is StudyResolution.COMPLETED
     assert len(world.builder.calls) == 1
     (experiment,) = study.phases[0].experiments
     assert experiment.scenario_id == BASE_SID and not experiment.reused

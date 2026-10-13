@@ -91,7 +91,7 @@ def main() -> int:
     print(render_study_text(study))
     print("=" * 60)
     print(render_study(study))
-    print(f"status: {study.status}")
+    print(f"stage: {study.stage}, resolution: {study.resolution}")
     return 0
 
 

@@ -18,7 +18,7 @@ from resto.domain.entities.expert_note import ExpertNote, Provenance
 from resto.domain.entities.network import Network
 from resto.domain.entities.scenario import Scenario
 from resto.domain.entities.simulation_result import RunMode, RunStatus, SimulationResult
-from resto.domain.entities.study import Phase, Study, StudyStatus
+from resto.domain.entities.study import Phase, Study, StudyResolution, StudyStage
 from resto.domain.services.note_ranking import ScoredNote
 from resto.domain.services.planner import PlanningContext
 from resto.domain.value_objects.answer_value import (
@@ -282,7 +282,8 @@ def expert_note() -> ExpertNote:
 def study() -> Study:
     return Study(
         study_id="st-1",
-        status=StudyStatus.COMPLETED,
+        stage=StudyStage.CLOSING,
+        resolution=StudyResolution.COMPLETED,
         phases=(
             Phase(
                 question=question(),
