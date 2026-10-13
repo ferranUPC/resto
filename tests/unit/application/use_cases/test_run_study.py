@@ -15,7 +15,6 @@ from resto.application.ports.network_query import NetworkNotStored
 from resto.application.ports.tracing import (
     ExpertRoundHeld,
     ModelCall,
-    NoteStatusChanged,
     NoteWriterFailed,
     PhaseStarted,
     PlanMade,
@@ -29,6 +28,7 @@ from resto.domain.constants import DEFAULT_SEEDS
 from resto.domain.entities.expert_note import ExpertNote, NoteStatus, Provenance
 from resto.domain.entities.simulation_result import RunMode
 from resto.domain.entities.study import Study, StudyResolution, StudyStage
+from resto.domain.events import NoteStatusChanged
 from resto.domain.services.ids import result_id_for
 from resto.domain.services.planner import PlanningContext, PlanningError
 from resto.domain.value_objects.answer_value import Edges, Measure, Quantity

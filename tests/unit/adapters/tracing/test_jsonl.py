@@ -11,7 +11,6 @@ from resto.adapters.tracing.jsonl import SCHEMA_VERSION, JsonlTracer, read_run
 from resto.application.ports.tracing import (
     ExpertRoundHeld,
     NetworksAdded,
-    NoteStatusChanged,
     NotesWritten,
     NoteWriterFailed,
     PhaseStarted,
@@ -22,6 +21,7 @@ from resto.application.ports.tracing import (
     TraceEvent,
 )
 from resto.domain.entities.expert_note import NoteStatus
+from resto.domain.events import NoteStatusChanged
 from resto.domain.value_objects.question import Intent, Mode, Question
 from resto.domain.value_objects.step_record import (
     StepError,

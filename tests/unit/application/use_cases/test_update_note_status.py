@@ -1,23 +1,14 @@
-"""`update_note_status` (E4.6; ADR-0011): deterministic confirm/refute, no LLM — only network-wide
-`Quantity` claims are checkable against a single `SimulationResult`'s `Kpis` today."""
+"""`UpdateNoteStatus` (E4.6; ADR-0041 §9): the note decides (`tests/unit/domain/test_expert_note.py`
+holds the rule's cases); the use case delegates, stores the settled note and returns its events."""
 
 from __future__ import annotations
-
-import pytest
 
 from resto.adapters.persistence.memory import InMemoryNoteRepository
 from resto.application.use_cases.update_note_status import UpdateNoteStatus
 from resto.domain.entities.expert_note import ExpertNote, NoteStatus, Provenance
 from resto.domain.entities.simulation_result import RunMode, RunStatus, SimulationResult
-from resto.domain.value_objects.answer_value import (
-    AnswerValue,
-    BottleneckCause,
-    BottleneckCauses,
-    EdgeCause,
-    Edges,
-    Measure,
-    Quantity,
-)
+from resto.domain.events import NoteStatusChanged
+from resto.domain.value_objects.answer_value import Measure, Quantity
 from resto.domain.value_objects.expert_answer import Basis
 from resto.domain.value_objects.kpis import Kpis
 
@@ -25,19 +16,17 @@ NETWORK = "abc123"
 SCENARIO = "s1"
 
 
-def _note(**overrides: object) -> ExpertNote:
-    kwargs: dict[str, object] = {
-        "note_id": "n1",
-        "network_id": NETWORK,
-        "study_id": "st1",
-        "text": "closing the lane roughly doubles mean delay",
-        "provenance": Provenance.SIMULATION,
-        "basis": Basis.EXTRAPOLATED,
-        "scenario_id": SCENARIO,
-        "values": (Quantity(measure=Measure.MEAN_DELAY, value=40.0),),
-    }
-    kwargs.update(overrides)
-    return ExpertNote(**kwargs)  # type: ignore[arg-type]
+def _note() -> ExpertNote:
+    return ExpertNote(
+        note_id="n1",
+        network_id=NETWORK,
+        study_id="st1",
+        text="closing the lane roughly doubles mean delay",
+        provenance=Provenance.SIMULATION,
+        basis=Basis.EXTRAPOLATED,
+        scenario_id=SCENARIO,
+        values=(Quantity(measure=Measure.MEAN_DELAY, value=40.0),),
+    )
 
 
 def _result(*, scenario_id: str = SCENARIO, mean_delay: float = 40.0) -> SimulationResult:
@@ -54,62 +43,25 @@ def _result(*, scenario_id: str = SCENARIO, mean_delay: float = 40.0) -> Simulat
     )
 
 
-def test_a_matching_measurement_confirms_the_note() -> None:
+def _stored_status(notes: InMemoryNoteRepository) -> NoteStatus:
+    return notes.search("delay", NETWORK, {})[0][0].status
+
+
+def test_a_settled_note_is_stored_and_its_event_returned() -> None:
     notes = InMemoryNoteRepository()
     notes.store(_note())
-    status = UpdateNoteStatus(notes).execute(_note(), _result(mean_delay=41.0))
-    assert status is NoteStatus.CONFIRMED
-    assert notes.search("delay", NETWORK, {})[0][0].status is NoteStatus.CONFIRMED
+
+    events = UpdateNoteStatus(notes).execute(_note(), _result(mean_delay=90.0))
+
+    assert events == (NoteStatusChanged("n1", "r1", NoteStatus.REFUTED),)
+    assert _stored_status(notes) is NoteStatus.REFUTED
 
 
-def test_a_contradicting_measurement_refutes_the_note() -> None:
+def test_a_note_the_result_does_not_settle_is_not_stored() -> None:
     notes = InMemoryNoteRepository()
     notes.store(_note())
-    status = UpdateNoteStatus(notes).execute(_note(), _result(mean_delay=90.0))
-    assert status is NoteStatus.REFUTED
 
+    events = UpdateNoteStatus(notes).execute(_note(), _result(scenario_id="other"))
 
-def test_a_result_of_a_different_scenario_is_ignored() -> None:
-    use_case = UpdateNoteStatus(InMemoryNoteRepository())
-    status = use_case.execute(_note(), _result(scenario_id="other"))
-    assert status is None
-
-
-def test_an_already_resolved_note_is_left_alone() -> None:
-    use_case = UpdateNoteStatus(InMemoryNoteRepository())
-    status = use_case.execute(_note(status=NoteStatus.CONFIRMED), _result())
-    assert status is None
-
-
-@pytest.mark.parametrize(
-    "value",
-    [
-        Edges(edge_ids=("E12",), network_id="abc123"),
-        BottleneckCauses(
-            causes=(EdgeCause(edge_id="E12", network_id="abc123", cause=BottleneckCause.SIGNAL),)
-        ),
-    ],
-)
-def test_a_note_with_no_checkable_claim_stays_unverified(value: AnswerValue) -> None:
-    status = UpdateNoteStatus(InMemoryNoteRepository()).execute(_note(values=(value,)), _result())
-    assert status is None
-
-
-def test_a_per_edge_quantity_claim_is_not_checked_by_this_first_version() -> None:
-    claim = Quantity(measure=Measure.TRAVEL_TIME, value=20.0, edge_id="E12", network_id="abc123")
-    status = UpdateNoteStatus(InMemoryNoteRepository()).execute(_note(values=(claim,)), _result())
-    assert status is None
-
-
-def test_a_result_without_kpis_is_ignored() -> None:
-    failed = SimulationResult(
-        result_id="r2",
-        scenario_id=SCENARIO,
-        seed=1,
-        mode=RunMode.BATCH,
-        status=RunStatus.FAILED,
-        content_hash="c2",
-        error="sumo crashed",
-    )
-    status = UpdateNoteStatus(InMemoryNoteRepository()).execute(_note(), failed)
-    assert status is None
+    assert events == ()
+    assert _stored_status(notes) is NoteStatus.UNVERIFIED
