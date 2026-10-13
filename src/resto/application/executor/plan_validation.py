@@ -19,11 +19,7 @@ from resto.domain.value_objects.study_plan import (
     BuildScenarioStep,
     DeriveNetworkStep,
     FromStep,
-    ObtainDemandStep,
-    PlanStep,
     Produces,
-    RerouteDemandStep,
-    RunSimulationStep,
     StudyPlan,
 )
 from resto.domain.value_objects.topology_modification import TopologyModification
@@ -53,21 +49,18 @@ def plan_problems(
     lookup: dict[Produces, Callable[[str], object]] = {
         "network": networks.get,
         "demand": demands.get,
-        "scenario": scenarios.get,
     }
     run_targets: set[int] = set()
     for i, step in enumerate(plan.steps):
-        for kind, ref in _str_refs(step):
-            if kind != "scenario" and lookup[kind](ref) is None:
-                problems.append(f"step {i}: unknown {kind} {ref!r}")
-        if isinstance(step, RunSimulationStep):
-            if isinstance(step.scenario_id, FromStep):
-                run_targets.add(step.scenario_id.step)
-            else:
+        for kind, ref in step.refs():
+            if kind == "scenario":
                 problems.append(
-                    f"step {i}: run_simulation must run a scenario built by this plan "
+                    f"step {i}: {step.kind} must run a scenario built by this plan "
                     "(plan a build_scenario step: an existing scenario costs no agent call)"
                 )
+            elif lookup[kind](ref) is None:
+                problems.append(f"step {i}: unknown {kind} {ref!r}")
+        run_targets.update(ref.step for ref, kind in step.inputs if kind == "scenario")
     arms = {a.label: a for a in question.effective_arms}
     for i, step in enumerate(plan.steps):
         if isinstance(step, BuildScenarioStep):
@@ -82,25 +75,6 @@ def plan_problems(
             )
     problems += _coverage_problems(plan, question, phase, realised)
     return problems
-
-
-def _str_refs(step: PlanStep) -> tuple[tuple[Produces, str], ...]:
-    """The ids a step names directly (not through `FromStep`), by kind."""
-    refs: tuple[tuple[Produces, str | FromStep], ...]
-    match step:
-        case DeriveNetworkStep():
-            refs = (("network", step.base_network_id),)
-        case ObtainDemandStep():
-            refs = (("network", step.network_id),)
-        case RerouteDemandStep():
-            refs = (("demand", step.demand_id), ("network", step.network_id))
-        case BuildScenarioStep():
-            refs = (("network", step.network_id), ("demand", step.demand_id))
-        case RunSimulationStep():
-            refs = (("scenario", step.scenario_id),)
-        case _:
-            refs = ()
-    return tuple((kind, ref) for kind, ref in refs if isinstance(ref, str))
 
 
 def _derivation(

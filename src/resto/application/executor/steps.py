@@ -87,7 +87,6 @@ def execute_plan(
     network_id = (
         produced[plan.network_id.step] if isinstance(plan.network_id, FromStep) else plan.network_id
     )
-    recorder.apply(recorder.study.add_networks(network_id))
     return network_id
 
 
@@ -176,7 +175,6 @@ def _obtain_network(
         network_id = promote(
             lambda: deps.promotions.network(network_task, draft_run), run.usage
         ).network_id
-    recorder.apply(recorder.study.add_networks(network_id))
     return StepRecord(step.kind, StepStatus.OK, task, (network_id,), usage=run.usage)
 
 
@@ -199,7 +197,6 @@ def _derive_network(
     run = spend.agent_call(lambda: deps.agents.network_author.author(network_task))
     draft_of(run, "network_author")
     network = promote(lambda: deps.promotions.network(network_task, run), run.usage)
-    recorder.apply(recorder.study.add_networks(network.network_id))
     return StepRecord(step.kind, StepStatus.OK, task, (network.network_id,), usage=run.usage)
 
 
