@@ -1,8 +1,9 @@
 """The composition root (ADR-0025 §6): the one place where the Executor's agent ports meet
 their implementations and the infrastructure is bound.
 
-Agents that do not exist yet (Network Author, E6.1; Demand Generator, E7.1) and the promotions of
-their drafts are `_Pending` placeholders that raise `NotImplementedError`.
+Agents that do not exist yet (Network Author, E6.1; Demand Generator, E7.1) are `_Pending`
+placeholders that raise `NotImplementedError`; so do the promoters of their drafts and of a reroute
+(`NetworkPromoter`, `DemandPromoter`, `ReroutePromoter`) until those tasks build them.
 """
 
 from __future__ import annotations
@@ -28,7 +29,7 @@ from resto.adapters.sumo.writers.vss import VssWriter
 from resto.application.event_bus import EventBus
 from resto.application.event_handlers.note_verification import NoteVerificationHandler
 from resto.application.event_handlers.trace import TRACED_EVENTS, TraceHandler
-from resto.application.executor import StudyAgents, StudyDeps, StudyPromotions, StudySettings
+from resto.application.executor import StudyAgents, StudyDeps, StudySettings
 from resto.application.ports.llm import Budget, ToolAgent
 from resto.application.ports.repositories import (
     NoteRepository,
@@ -36,9 +37,13 @@ from resto.application.ports.repositories import (
     ScenarioRepository,
 )
 from resto.application.ports.tracing import Tracer
+from resto.application.promoters.demand import DemandPromoter
 from resto.application.promoters.expert_answer import ExpertAnswerPromoter
+from resto.application.promoters.network import NetworkPromoter
 from resto.application.promoters.notes import NotePromoter
 from resto.application.promoters.report import ReportPromoter
+from resto.application.promoters.reroute import ReroutePromoter
+from resto.application.promoters.scenario import ScenarioPromoter
 from resto.application.tools.expert import ExpertCollaborators
 from resto.application.tools.scenario_builder import BuilderCollaborators
 from resto.application.use_cases.build_scenario import BuildScenario
@@ -52,7 +57,7 @@ AGENT_SECONDS = 300.0
 
 
 class _Pending:
-    """An agent port, or a promotion, whose implementation is a later task."""
+    """An agent port whose implementation is a later task."""
 
     def __init__(self, what: str, task_id: str) -> None:
         self._what = what
@@ -113,15 +118,6 @@ def build_agents(
     )
 
 
-def build_promotions() -> StudyPromotions:
-    """The promotions of the drafts, all pending."""
-    return StudyPromotions(
-        network=_Pending("network promotion", "E6.1"),
-        demand=_Pending("demand promotion", "E7.1"),
-        reroute=_Pending("reroute_demand", "E7.1"),
-    )
-
-
 def build_run_simulation(
     *, db: SqliteDatabase, runner: SubprocessSumoRunner, out_dir: Path
 ) -> RunSimulation:
@@ -146,6 +142,7 @@ def build_build_scenario(
         scenarios=db.scenarios,
         network_query_loader=network_query_loader,
         runner=runner,
+        promoter=ScenarioPromoter(),
         out_dir=out_dir / "scenarios",
     )
 
@@ -169,7 +166,6 @@ def build_deps(
             network_query_loader=network_query_loader,
             out_dir=out_dir,
         ),
-        promotions=build_promotions(),
         networks=db.networks,
         demands=db.demands,
         scenarios=db.scenarios,
@@ -189,6 +185,9 @@ def build_deps(
         expert_answer_promoter=ExpertAnswerPromoter(),
         note_promoter=NotePromoter(),
         report_promoter=ReportPromoter(),
+        network_promoter=NetworkPromoter(),
+        demand_promoter=DemandPromoter(),
+        reroute_promoter=ReroutePromoter(),
     )
 
 

@@ -5,9 +5,9 @@ certify, the `Study` makes its own transitions, this module chains them.
     Study (at the request) -> parse -> [plan -> validate -> execute steps -> ask the Expert]*
     -> notes -> report
 
-- **Agents** are reached through their ports (`application/ports/agents/`), promotions the Executor
-  cannot call directly yet (network, demand, reroute) through `StudyPromotions`; both are
-  bound in the composition root (`interface/cli`).
+- **Agents** are reached through their ports (`application/ports/agents/`), their drafts promoted
+  by the promoters (`application/promoters/`; network, demand and reroute pending until E6.1 and
+  E7.1); both are bound in the composition root (`interface/dependencies.py`).
 - **Persistence.** Every change (a step, a new phase, a network added, the note ids) is a
   transition of the `Study` (ADR-0041 §4), which returns the next `Study` and the domain events it
   produced, so the domain decides each state and its invariants check every one. `StudyRecorder`
@@ -35,7 +35,6 @@ from resto.application.executor.deps import (
     StudyAgents,
     StudyBudget,
     StudyDeps,
-    StudyPromotions,
     StudySettings,
 )
 from resto.application.executor.executor import execute_study
@@ -44,7 +43,6 @@ __all__ = [
     "StudyAgents",
     "StudyBudget",
     "StudyDeps",
-    "StudyPromotions",
     "StudySettings",
     "execute_study",
 ]
