@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import argparse
 import sys
-from dataclasses import replace
 from pathlib import Path
 
 from eval.scenario_matrix.build import _dev_net_network, dev_net_demand
@@ -23,7 +22,6 @@ from resto.adapters.llm.pricing import estimate_cost_usd
 from resto.adapters.persistence.sqlite.repositories import SqliteDatabase
 from resto.adapters.tracing.jsonl import JsonlTracer
 from resto.application.ports.llm import AgentRun, Budget, StopReason
-from resto.application.run_study.deps import StudySettings
 from resto.application.run_study.spend import StudyBudget
 from resto.domain.value_objects.demand_spec import DemandProfile
 from resto.domain.value_objects.outcomes import Found
@@ -65,21 +63,19 @@ def main() -> int:
     db.demands.store(demand)
     agent = OpenRouterToolAgent(config)
     tracer = JsonlTracer(args.work / "traces")
-    rounds = load_rounds_config()
-    settings = StudySettings(
+    run_study = build_run_study(
+        db=db,
+        agent=agent,
+        budget=budget,
+        tracer=tracer,
         out_dir=args.work,
-        network_max_rounds=rounds.network_max_rounds,
-        calibration_max_rounds=rounds.calibration_max_rounds,
-        budget=study_budget,
-    )
-    run_study = build_run_study(db=db, agent=agent, budget=budget, tracer=tracer, settings=settings)
-    steps = replace(
-        run_study.steps,
+        rounds=load_rounds_config(),
+        study_budget=study_budget,
         network_author=FoundStub(network.network_id),
         demand_generator=FoundStub(demand.demand_id),
     )
     try:
-        study = replace(run_study, steps=steps).execute(args.text)
+        study = run_study.execute(args.text)
     finally:
         db.close()
     print(render_study_text(study))

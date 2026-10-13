@@ -7,8 +7,8 @@ by deterministic code. It decides nothing about the domain: agents decide, promo
 
 - **Stages** (`stages/`): parse, plan, Expert round, notes and compose, each with its
   collaborators in the constructor and one `execute(study, spend)` that returns the study's
-  `Transition`. Only the notes stage stores: the notes are an aggregate of their own. Plan steps
-  run through `steps`.
+  `Transition`. Only the notes stage stores: the notes are an aggregate of their own.
+- **Step executors** (`steps/`): one per plan step type, registered by type in `steps`.
 - **Agents** are reached through their ports (`application/ports/agents/`), their drafts promoted
   by the promoters (`application/promoters/`; network, demand and reroute pending until E6.1 and
   E7.1); both are bound in the composition root (`interface/dependencies.py`).
@@ -35,19 +35,21 @@ by deterministic code. It decides nothing about the domain: agents decide, promo
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import assert_never
+from collections.abc import Mapping
+from dataclasses import dataclass, field
+from typing import Any, assert_never
 
 from resto.application.event_bus import EventBus
 from resto.application.ports.repositories import StudyRepository
 from resto.application.ports.tracing import Tracer
-from resto.application.run_study.deps import StepDeps, StudySettings
-from resto.application.run_study.spend import StudySpend
+from resto.application.run_study.failures import StepFailed, StepNeedsUser, crash
+from resto.application.run_study.spend import StudyBudget, StudySpend
 from resto.application.run_study.stages.closing import ComposeStage, NotesStage
 from resto.application.run_study.stages.expert_round import ExpertRoundStage
 from resto.application.run_study.stages.parse import ParseStage
 from resto.application.run_study.stages.plan import PlanStage
-from resto.application.run_study.steps import execute_step
+from resto.application.run_study.step_data import data
+from resto.application.run_study.steps import StepContext, StepExecutor
 from resto.domain.constants import DEFAULT_MAX_ROUNDS
 from resto.domain.entities.study import Study, Transition
 from resto.domain.services.ids import new_id
@@ -62,6 +64,7 @@ from resto.domain.value_objects.study_action import (
     PlanPhase,
     RunStep,
 )
+from resto.domain.value_objects.study_plan import PlanStep
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,20 +74,20 @@ class RunStudy:
     expert_round: ExpertRoundStage
     notes: NotesStage
     compose: ComposeStage
-    steps: StepDeps
-    settings: StudySettings
+    steps: Mapping[type, StepExecutor[Any]]
+    """The executor of each `PlanStep` variant, by its type."""
     studies: StudyRepository
     events: EventBus
     tracer: Tracer
+    budget: StudyBudget = field(default_factory=StudyBudget)
+    max_rounds: int = DEFAULT_MAX_ROUNDS
 
-    def execute(
-        self, text: str, *, mode: Mode | None = None, max_rounds: int = DEFAULT_MAX_ROUNDS
-    ) -> Study:
+    def execute(self, text: str, *, mode: Mode | None = None) -> Study:
         """Runs the user's request until the `Study` has a resolution (`completed`, `failed` or
         `awaiting_user`) and returns it. The study is created at the request, with parsing as its
         first stage; `mode`, when given, is the user's choice and overrides the Input Parser's."""
-        study = self._record(None, Study.open(new_id(), text, mode, max_rounds=max_rounds))
-        spend = StudySpend(self.settings.budget, self.tracer, study.study_id)
+        study = self._record(None, Study.open(new_id(), text, mode, max_rounds=self.max_rounds))
+        spend = StudySpend(self.budget, self.tracer, study.study_id)
         while True:
             match study.next_action():
                 case Finished():
@@ -94,7 +97,7 @@ class RunStudy:
                 case PlanPhase():
                     transition = self.plan.execute(study, spend)
                 case RunStep(step):
-                    transition = execute_step(step, study, spend, self.steps, self.settings)
+                    transition = self._run(step, study, spend)
                 case ConsultExpert():
                     transition = study.consult_expert()
                 case AskExpert():
@@ -107,6 +110,19 @@ class RunStudy:
                 case action:
                     assert_never(action)
             study = self._record(study, transition)
+
+    def _run(self, step: PlanStep, study: Study, spend: StudySpend) -> Transition:
+        """Runs `step` with its executor. The first failure stops the study (ADR-0025): the step
+        failed (`failed`) or needing the user (`awaiting_user`), with the pending steps skipped."""
+        task = data(step)
+        try:
+            return self.steps[type(step)].execute(step, StepContext(study, spend))
+        except StepFailed as failed:
+            return study.record_failure(failed.record(step.kind, task))
+        except StepNeedsUser as needs:
+            return study.record_needs_user(needs.record(step.kind, task), needs.needs_user)
+        except Exception as e:
+            return study.record_failure(crash(e).record(step.kind, task))
 
     def _record(self, previous: Study | None, transition: Transition) -> Study:
         """Stores the next study when the transition changed it, then publishes its events."""

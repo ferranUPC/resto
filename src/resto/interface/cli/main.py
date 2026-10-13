@@ -19,7 +19,6 @@ from resto.adapters.persistence.sqlite.repositories import SqliteDatabase
 from resto.adapters.tracing.jsonl import JsonlTracer
 from resto.application.ports.llm import Budget
 from resto.application.run_study import RunStudy
-from resto.application.run_study.deps import StudySettings
 from resto.domain.entities.study import Study, StudyResolution
 from resto.domain.value_objects.question import Mode
 from resto.interface.dependencies import AGENT_SECONDS, build_run_study
@@ -77,14 +76,13 @@ def main(
         budget = Budget(config.max_steps, config.max_output_tokens, AGENT_SECONDS)
         tracer = JsonlTracer(args.out / "traces")
         agent = OpenRouterToolAgent(config)
-        rounds = load_rounds_config()
-        settings = StudySettings(
-            out_dir=args.out,
-            network_max_rounds=rounds.network_max_rounds,
-            calibration_max_rounds=rounds.calibration_max_rounds,
-        )
         run_study = build_run_study(
-            db=db, agent=agent, budget=budget, tracer=tracer, settings=settings
+            db=db,
+            agent=agent,
+            budget=budget,
+            tracer=tracer,
+            out_dir=args.out,
+            rounds=load_rounds_config(),
         )
     try:
         study = run_study.execute(args.text, mode=mode)

@@ -30,16 +30,21 @@ from resto.application.promoters.report import ReportPromoter
 from resto.application.promoters.reroute import ReroutePromoter
 from resto.application.promoters.scenario import ScenarioPromoter
 from resto.application.run_study import RunStudy
-from resto.application.run_study.deps import StepDeps, StudySettings
 from resto.application.run_study.spend import StudyBudget
 from resto.application.run_study.stages.closing import ComposeStage, NotesStage
 from resto.application.run_study.stages.expert_round import ExpertRoundStage
 from resto.application.run_study.stages.parse import ParseStage
 from resto.application.run_study.stages.plan import PlanStage
+from resto.application.run_study.steps.build_scenario import BuildScenarioExecutor
+from resto.application.run_study.steps.derive_network import DeriveNetworkExecutor
+from resto.application.run_study.steps.obtain_demand import ObtainDemandExecutor
+from resto.application.run_study.steps.obtain_network import ObtainNetworkExecutor
+from resto.application.run_study.steps.reroute_demand import RerouteDemandExecutor
+from resto.application.run_study.steps.run_simulation import RunSimulationExecutor
 from resto.application.tools.expert import EvidenceLedger
 from resto.application.use_cases.build_scenario import BuildScenario
 from resto.application.use_cases.run_simulation import RunSimulation
-from resto.domain.constants import DEFAULT_SEEDS
+from resto.domain.constants import DEFAULT_MAX_ROUNDS, DEFAULT_SEEDS
 from resto.domain.entities.demand import Demand
 from resto.domain.entities.network import Network
 from resto.domain.entities.scenario import Scenario
@@ -64,6 +69,12 @@ from resto.domain.value_objects.outcomes import Found
 from resto.domain.value_objects.question import Intent, Question
 from resto.domain.value_objects.step_record import StepErrorKind, StepStatus, Usage
 from resto.domain.value_objects.study_plan import (
+    BuildScenarioStep,
+    DeriveNetworkStep,
+    ObtainDemandStep,
+    ObtainNetworkStep,
+    RerouteDemandStep,
+    RunSimulationStep,
     StudyPlan,
 )
 from resto.domain.value_objects.tasks import ExpertTask, NoteTask, ObtainNetworkTask
@@ -195,8 +206,7 @@ class FakeComposer(Scripted):
 
 
 class FakeNetworkPromoter(NetworkPromoter):
-    """Stands in for the E6.1 promoter. `promote(task, run)` is the World's, which also stores the
-    network: the steps do not store what this promoter returns yet."""
+    """Stands in for the E6.1 promoter. `promote(task, run)` is the World's."""
 
     def __init__(self, promote: Callable[[Any, Any], Network]) -> None:
         self._promote = promote
@@ -206,7 +216,7 @@ class FakeNetworkPromoter(NetworkPromoter):
 
 
 class FakeDemandPromoter(DemandPromoter):
-    """Stands in for the E7.1 promoter, storing what it returns like `FakeNetworkPromoter`."""
+    """Stands in for the E7.1 promoter, like `FakeNetworkPromoter`."""
 
     def __init__(self, promote: Callable[[Any, Any], Demand]) -> None:
         self._promote = promote
@@ -216,7 +226,7 @@ class FakeDemandPromoter(DemandPromoter):
 
 
 class FakeReroutePromoter(ReroutePromoter):
-    """Stands in for the E7.1 promoter, storing what it returns like `FakeNetworkPromoter`."""
+    """Stands in for the E7.1 promoter, like `FakeNetworkPromoter`."""
 
     def __init__(self, reroute: Callable[[Demand, Network], Demand]) -> None:
         self._reroute = reroute
@@ -351,7 +361,9 @@ class World:
         composer: tuple[Any, ...] = (),
         runner: FakeRunner | None = None,
         budget: StudyBudget | None = None,
+        max_rounds: int = DEFAULT_MAX_ROUNDS,
     ) -> None:
+        self.max_rounds = max_rounds
         parsed = question if not isinstance(question, Question) else run_of(question, tokens=50)
         self.parser = FakeParser(parsed)
         self.planner = FakePlanner(*plans)
@@ -405,15 +417,11 @@ class World:
             promoter=ScenarioPromoter(),
             out_dir=tmp_path / "scenarios",
         )
-        self.settings = StudySettings(
-            out_dir=tmp_path,
-            network_max_rounds=NETWORK_ROUNDS,
-            calibration_max_rounds=CALIBRATION_ROUNDS,
-            budget=budget or StudyBudget(),
-        )
+        self.budget = budget or StudyBudget()
 
     def run_study(self) -> RunStudy:
         """`RunStudy` over the World's current parts, so a test can swap one before running."""
+        network_promoter = FakeNetworkPromoter(self._promote_network)
         return RunStudy(
             parse=ParseStage(self.parser),
             plan=PlanStage(self.planner, self.networks, self.demands),
@@ -429,24 +437,34 @@ class World:
                 self.tracer,
             ),
             compose=ComposeStage(self.composer, ReportPromoter()),
-            steps=StepDeps(
-                network_author=self.author,
-                demand_generator=self.generator,
-                scenario_builder=self.builder,
-                networks=self.networks,
-                demands=self.demands,
-                scenarios=self.scenarios,
-                results=self.results,
-                run_simulation=self.run_simulation,
-                build_scenario=self.build_scenario,
-                network_promoter=FakeNetworkPromoter(self._promote_network),
-                demand_promoter=FakeDemandPromoter(self._promote_demand),
-                reroute_promoter=FakeReroutePromoter(self._reroute),
-            ),
-            settings=self.settings,
+            steps={
+                ObtainNetworkStep: ObtainNetworkExecutor(
+                    self.author, self.networks, network_promoter, NETWORK_ROUNDS
+                ),
+                DeriveNetworkStep: DeriveNetworkExecutor(
+                    self.author, self.networks, network_promoter, NETWORK_ROUNDS
+                ),
+                ObtainDemandStep: ObtainDemandExecutor(
+                    self.generator,
+                    self.demands,
+                    FakeDemandPromoter(self._promote_demand),
+                    CALIBRATION_ROUNDS,
+                ),
+                RerouteDemandStep: RerouteDemandExecutor(
+                    self.networks, self.demands, FakeReroutePromoter(self._reroute)
+                ),
+                BuildScenarioStep: BuildScenarioExecutor(
+                    self.builder, self.scenarios, self.results, self.build_scenario
+                ),
+                RunSimulationStep: RunSimulationExecutor(
+                    self.scenarios, self.results, self.run_simulation
+                ),
+            },
             studies=self.studies,
             events=self.events,
             tracer=self.tracer,
+            budget=self.budget,
+            max_rounds=self.max_rounds,
         )
 
     def _load_query(self, path: Path) -> StubNetworkQuery:
@@ -460,21 +478,18 @@ class World:
             else derived_network(task, run)
         )
         self.promoted_networks.append(task)
-        self.networks.store(network)
         return network
 
     def _promote_demand(self, task: Any, run: Any) -> Demand:
-        demand = replace(
+        return replace(
             sample_demand(),
             demand_id="obtained-demand",
             network_id=task.network_id,
             trips=artifact("trips3.xml", "obtained-demand", "trips"),
         )
-        self.demands.store(demand)
-        return demand
 
     def _reroute(self, demand: Demand, network: Network) -> Demand:
-        rerouted = Demand(
+        return Demand(
             demand_id=f"{demand.demand_id}-on-{network.network_id}",
             network_id=network.network_id,
             spec=demand.spec,
@@ -484,8 +499,6 @@ class World:
             labels=demand.labels,
             derived_from=demand.demand_id,
         )
-        self.demands.store(rerouted)
-        return rerouted
 
     def simulations(self) -> Simulations:
         """What reached the runner, read off `runner.calls` as (scenario_id, seed) pairs: the load

@@ -2,8 +2,8 @@
 ADR-0001, ADR-0042 §5). Pending until E6.1.
 
 One promoter for a created and a derived network: the context says which (an `ObtainNetworkTask`,
-or a `NetworkTask` with a `base_network_id`). The step that called the Network Author stores what
-it returns once E6.1 builds it.
+or a `NetworkTask` with a `base_network_id`). The step executor that called the Network Author
+stores what it returns.
 """
 
 from __future__ import annotations

@@ -198,9 +198,10 @@ def test_the_last_round_is_forced_by_the_limit(tmp_path: Path) -> None:
         question=DESCRIBE_CHANGE,
         plans=(BASELINE_PLAN, TREATMENT_PLAN),
         expert=(abstains(PROPOSED), answers()),
+        max_rounds=2,
     )
 
-    study = world.run(max_rounds=2)
+    study = world.run()
 
     assert [call[0].mode for call in world.expert.calls] == [Mode.FREE, Mode.FORCED]
     assert [r.forced_by_limit for r in study.rounds] == [False, True]

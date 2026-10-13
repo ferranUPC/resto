@@ -8,12 +8,14 @@ placeholders that raise `NotImplementedError`; so do the promoters of their draf
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import NoReturn
 
 from resto.adapters.llm.agents.composer import ComposerPort
 from resto.adapters.llm.agents.expert import ExpertPort, NoteWriterPort
 from resto.adapters.llm.agents.input_parser import InputParserPort
 from resto.adapters.llm.agents.scenario_builder import ScenarioBuilderPort
+from resto.adapters.llm.config import RoundsConfig
 from resto.adapters.persistence.memory import InMemoryStudyRepository
 from resto.adapters.persistence.sqlite.repositories import SqliteDatabase
 from resto.adapters.sumo.demand import SumoDemandTools
@@ -28,6 +30,8 @@ from resto.adapters.sumo.writers.vss import VssWriter
 from resto.application.event_bus import EventBus
 from resto.application.event_handlers.note_verification import NoteVerificationHandler
 from resto.application.event_handlers.trace import TRACED_EVENTS, TraceHandler
+from resto.application.ports.agents.demand_generator import DemandGeneratorAgent
+from resto.application.ports.agents.network_author import NetworkAuthorAgent
 from resto.application.ports.llm import Budget, ToolAgent
 from resto.application.ports.repositories import (
     NoteRepository,
@@ -43,11 +47,17 @@ from resto.application.promoters.report import ReportPromoter
 from resto.application.promoters.reroute import ReroutePromoter
 from resto.application.promoters.scenario import ScenarioPromoter
 from resto.application.run_study import RunStudy
-from resto.application.run_study.deps import StepDeps, StudySettings
+from resto.application.run_study.spend import StudyBudget
 from resto.application.run_study.stages.closing import ComposeStage, NotesStage
 from resto.application.run_study.stages.expert_round import ExpertRoundStage
 from resto.application.run_study.stages.parse import ParseStage
 from resto.application.run_study.stages.plan import PlanStage
+from resto.application.run_study.steps.build_scenario import BuildScenarioExecutor
+from resto.application.run_study.steps.derive_network import DeriveNetworkExecutor
+from resto.application.run_study.steps.obtain_demand import ObtainDemandExecutor
+from resto.application.run_study.steps.obtain_network import ObtainNetworkExecutor
+from resto.application.run_study.steps.reroute_demand import RerouteDemandExecutor
+from resto.application.run_study.steps.run_simulation import RunSimulationExecutor
 from resto.application.tools.expert import ExpertCollaborators
 from resto.application.tools.scenario_builder import BuilderCollaborators
 from resto.application.use_cases.build_scenario import BuildScenario
@@ -55,6 +65,14 @@ from resto.application.use_cases.run_simulation import RunSimulation
 from resto.application.use_cases.scale_demand import ScaleDemand
 from resto.domain.events import SimulationsRecorded
 from resto.domain.services.planner import plan_study
+from resto.domain.value_objects.study_plan import (
+    BuildScenarioStep,
+    DeriveNetworkStep,
+    ObtainDemandStep,
+    ObtainNetworkStep,
+    RerouteDemandStep,
+    RunSimulationStep,
+)
 
 AGENT_SECONDS = 300.0
 
@@ -98,14 +116,20 @@ def build_run_study(
     agent: ToolAgent,
     budget: Budget,
     tracer: Tracer,
-    settings: StudySettings,
+    out_dir: Path,
+    rounds: RoundsConfig | None = None,
+    study_budget: StudyBudget | None = None,
+    network_author: NetworkAuthorAgent | None = None,
+    demand_generator: DemandGeneratorAgent | None = None,
 ) -> RunStudy:
     """The ready `RunStudy`. Studies are kept in memory: there is no persistent `StudyRepository`
     yet, and the SQLite database is the DatabaseMCP reference backend, which does not hold them
-    (ADR-0002). `settings.out_dir` is the root of everything the study writes: `builder/` (the
-    Builder's scratch and its demand scaling), `results/` (RunSimulation) and `scenarios/`
-    (BuildScenario)."""
-    out_dir = settings.out_dir
+    (ADR-0002). `out_dir` is the root of everything the study writes: `builder/` (the Builder's
+    scratch and its demand scaling), `results/` (RunSimulation) and `scenarios/` (BuildScenario).
+    `network_author` and `demand_generator` replace the pending agents (tests, manual runs)."""
+    rounds = rounds or RoundsConfig()
+    author = network_author or _Pending("Network Author", "E6.1")
+    generator = demand_generator or _Pending("Demand Generator", "E7.1")
     builder_dir = out_dir / "builder"
     loader = StoredNetworkQueryLoader(db.networks)
     runner = SubprocessSumoRunner()
@@ -136,33 +160,6 @@ def build_run_study(
             network_query_loader=loader, results=db.results, scenarios=db.scenarios, notes=db.notes
         ),
     )
-    steps = StepDeps(
-        network_author=_Pending("Network Author", "E6.1"),
-        demand_generator=_Pending("Demand Generator", "E7.1"),
-        scenario_builder=builder,
-        networks=db.networks,
-        demands=db.demands,
-        scenarios=db.scenarios,
-        results=db.results,
-        run_simulation=RunSimulation(
-            runner=runner,
-            results=db.results,
-            run_dirs=FilesystemRunDirectories(),
-            out_dir=out_dir / "results",
-        ),
-        build_scenario=BuildScenario(
-            networks=db.networks,
-            demands=db.demands,
-            scenarios=db.scenarios,
-            network_query_loader=loader,
-            runner=runner,
-            promoter=ScenarioPromoter(),
-            out_dir=out_dir / "scenarios",
-        ),
-        network_promoter=NetworkPromoter(),
-        demand_promoter=DemandPromoter(),
-        reroute_promoter=ReroutePromoter(),
-    )
     return RunStudy(
         parse=ParseStage(InputParserPort(agent=agent, budget=budget)),
         plan=PlanStage(plan_study, networks=db.networks, demands=db.demands),
@@ -178,11 +175,46 @@ def build_run_study(
         compose=ComposeStage(
             ComposerPort(agent=agent, budget=budget, results=db.results), ReportPromoter()
         ),
-        steps=steps,
-        settings=settings,
+        steps={
+            ObtainNetworkStep: ObtainNetworkExecutor(
+                author, db.networks, NetworkPromoter(), rounds.network_max_rounds
+            ),
+            DeriveNetworkStep: DeriveNetworkExecutor(
+                author, db.networks, NetworkPromoter(), rounds.network_max_rounds
+            ),
+            ObtainDemandStep: ObtainDemandExecutor(
+                generator, db.demands, DemandPromoter(), rounds.calibration_max_rounds
+            ),
+            RerouteDemandStep: RerouteDemandExecutor(db.networks, db.demands, ReroutePromoter()),
+            BuildScenarioStep: BuildScenarioExecutor(
+                builder,
+                db.scenarios,
+                db.results,
+                BuildScenario(
+                    networks=db.networks,
+                    demands=db.demands,
+                    scenarios=db.scenarios,
+                    network_query_loader=loader,
+                    runner=runner,
+                    promoter=ScenarioPromoter(),
+                    out_dir=out_dir / "scenarios",
+                ),
+            ),
+            RunSimulationStep: RunSimulationExecutor(
+                db.scenarios,
+                db.results,
+                RunSimulation(
+                    runner=runner,
+                    results=db.results,
+                    run_dirs=FilesystemRunDirectories(),
+                    out_dir=out_dir / "results",
+                ),
+            ),
+        },
         studies=InMemoryStudyRepository(),
         events=build_event_bus(
             notes=db.notes, scenarios=db.scenarios, results=db.results, tracer=tracer
         ),
         tracer=tracer,
+        budget=study_budget or StudyBudget(),
     )

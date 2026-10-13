@@ -7,11 +7,11 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import replace
 from pathlib import Path
-from typing import Any
+from typing import Any, get_args
 
 from resto.adapters.persistence.sqlite.repositories import SqliteDatabase
 from resto.application.ports.llm import AgentRun, AgentTask, Budget, StopReason, Tool
-from resto.application.run_study.deps import StudySettings
+from resto.application.run_study import RunStudy
 from resto.domain.entities.study import StudyResolution
 from resto.domain.value_objects.answer_value import Measure, Quantity
 from resto.domain.value_objects.drafts import (
@@ -24,6 +24,7 @@ from resto.domain.value_objects.expert_answer import Basis, Evidence, EvidenceKi
 from resto.domain.value_objects.outcomes import Found, NetworkOutcome
 from resto.domain.value_objects.question import Intent, Question
 from resto.domain.value_objects.step_record import Usage
+from resto.domain.value_objects.study_plan import PlanStep
 from resto.domain.value_objects.tasks import NetworkTask, ObtainNetworkTask
 from resto.interface.dependencies import build_run_study
 from tests.unit._paths import DEV_NET
@@ -89,17 +90,27 @@ def test_the_real_graph_runs_one_scripted_study(tmp_path: Path) -> None:
         replace(sample_network(), net_xml=replace(sample_network().net_xml, path=DEV_NET))
     )
     agent = ScriptedAgent()
-    settings = StudySettings(out_dir=tmp_path, network_max_rounds=1, calibration_max_rounds=1)
-    budget = Budget(max_steps=1, max_tokens=1, max_seconds=1.0)
-    run_study = build_run_study(
-        db=db, agent=agent, budget=budget, tracer=NullTracer(), settings=settings
-    )
     # The Network Author is a placeholder until E6.1; the rest of the graph is the real one.
-    steps = replace(run_study.steps, network_author=NetworkAuthorStub())
+    run_study = _build(db, agent, tmp_path, network_author=NetworkAuthorStub())
 
-    study = replace(run_study, steps=steps).execute("how many lanes does the network have?")
+    study = run_study.execute("how many lanes does the network have?")
 
     db.close()
     assert study.resolution is StudyResolution.COMPLETED
     assert study.report is not None and study.report.summary == "The network was read."
     assert agent.asked[0] is Question and agent.asked[-1] is ReportDraft
+
+
+def test_every_plan_step_has_an_executor(tmp_path: Path) -> None:
+    db = SqliteDatabase(tmp_path / "resto.sqlite")
+    run_study = _build(db, ScriptedAgent(), tmp_path)
+    db.close()
+
+    assert set(run_study.steps) == set(get_args(PlanStep))
+
+
+def _build(db: SqliteDatabase, agent: ScriptedAgent, tmp_path: Path, **agents: Any) -> RunStudy:
+    budget = Budget(max_steps=1, max_tokens=1, max_seconds=1.0)
+    return build_run_study(
+        db=db, agent=agent, budget=budget, tracer=NullTracer(), out_dir=tmp_path, **agents
+    )

@@ -1,7 +1,7 @@
 """Demand Generator promotion: an already-run `AgentRun[DemandDraft]` -> a `Demand` (DoD §2.2, §2.4;
 ADR-0001, ADR-0035, ADR-0042 §5). Pending until E7.1.
 
-The step that called the Demand Generator stores what it returns once E7.1 builds it.
+The step executor that called the Demand Generator stores what it returns.
 """
 
 from __future__ import annotations

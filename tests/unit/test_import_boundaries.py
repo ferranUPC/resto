@@ -90,7 +90,7 @@ def test_scan_flags_each_violation_kind(tmp_path: Path) -> None:
     )
     (pkg / "application" / "promoters" / "d.py").write_text(
         "from resto.application.ports.repositories import NoteRepository\n"
-        "from resto.application.run_study.deps import StepDeps\n"
+        "from resto.application.run_study.steps import StepContext\n"
         "from resto.application.ports.llm import AgentRun\n"
     )
     found = _violations(tmp_path)
@@ -104,5 +104,5 @@ def test_scan_flags_each_violation_kind(tmp_path: Path) -> None:
     ]
     assert found["promoters"] == [
         "resto/application/promoters/d.py: resto.application.ports.repositories",
-        "resto/application/promoters/d.py: resto.application.run_study.deps",
+        "resto/application/promoters/d.py: resto.application.run_study.steps",
     ]

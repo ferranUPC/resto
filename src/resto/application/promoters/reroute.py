@@ -2,7 +2,7 @@
 with the same trips routed on that network (DoD §2.2, §2.4; ADR-0042 §5). Pending until E7.1.
 
 No agent produces it, so the demand takes the place of the agent run and the network is the
-context. The step that asked for it stores what it returns once E7.1 builds it.
+context. The step executor that asked for it stores what it returns.
 """
 
 from __future__ import annotations
