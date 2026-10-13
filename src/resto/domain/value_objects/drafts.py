@@ -152,7 +152,7 @@ class ExpertNoteDraft:
     `scenario_ref` is the scenario the note is about, picked from the allow-list of its `NoteTask`
     (a scenario of the study, or the predicted id of one not simulated), or None for the network in
     general (ADR-0026). `provenance`, `status`, `note_id` and the network/study references are
-    written by `write_note`.
+    written by `WriteNote`.
     """
 
     text: str
@@ -186,7 +186,7 @@ class ExpertNoteDrafts:
 @dataclass(frozen=True, slots=True)
 class ClaimDraft:
     """A claim as the Composer writes it. Unlike `Claim` it may arrive without evidence: the
-    promotion (`compose_report`) rejects that, so the rejection shows in the trace as an agent
+    promotion (`ComposeReport`) rejects that, so the rejection shows in the trace as an agent
     failure instead of as a parse error."""
 
     text: str
@@ -196,7 +196,7 @@ class ClaimDraft:
 
 @dataclass(frozen=True, slots=True)
 class ReportDraft:
-    """Output Composer output: only what the model writes. `compose_report` takes `basis` from the
+    """Output Composer output: only what the model writes. `ComposeReport` takes `basis` from the
     last Expert round, `mode` from that round (forced by the limit) or from the question (forced
     mode), and adds the limitation line when the limit forced the round, so the model cannot
     declare a basis the Expert did not, or omit the line (E5.4; departs from the §2.4 table, which

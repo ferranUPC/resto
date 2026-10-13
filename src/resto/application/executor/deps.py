@@ -1,5 +1,8 @@
-"""What the composition root builds to run a `Study`: the agents, the planner, the promotions not
-implemented yet, and the repositories and adapters. The study's settings are `StudySettings`."""
+"""What the composition root (`interface/dependencies.py`) builds to run a `Study`: the agents, the
+planner, the repositories, the tracer, the promotions not implemented yet (E6.1, E7.1) and the
+use-case instances the Executor calls (`RunSimulation`, `AskExpert`, `BuildScenario`,
+`ComposeReport`, `UpdateNoteStatus`, `WriteNote`), each already holding its own collaborators. The
+per-run values that are not collaborators are `StudySettings`."""
 
 from __future__ import annotations
 
@@ -86,7 +89,7 @@ class StudyPromotions:
     derived network (the task says which: a `base_network_id`, or an `ObtainNetworkTask`).
 
     A temporary seam, not a port to extend: it goes away with E6.1 / E7.1, when the
-    Executor calls those use cases directly, as it already does with `build_scenario`."""
+    Executor calls those use cases directly, as it already does with `BuildScenario`."""
 
     network: Callable[[NetworkTask | ObtainNetworkTask, AgentRun[NetworkDraft]], Network]
     demand: Callable[[ObtainDemandTask, AgentRun[DemandDraft]], Demand]

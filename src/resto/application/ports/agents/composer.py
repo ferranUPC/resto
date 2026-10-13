@@ -9,6 +9,6 @@ from resto.domain.value_objects.drafts import ReportDraft
 
 class ComposerAgent(Protocol):
     """The Study whose last round answered -> the Composer's prose, as a `ReportDraft`.
-    `compose_report` promotes it to the `Report`."""
+    `ComposeReport` promotes it to the `Report`."""
 
     def compose(self, study: Study) -> AgentRun[ReportDraft]: ...

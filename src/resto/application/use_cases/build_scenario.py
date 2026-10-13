@@ -27,7 +27,7 @@ Promotion order (ADR-0001):
                   steps 2b/3/4 ("zero redundant simulations", architecture §1). This cannot dedupe
                   before the agent ran (the id depends on which interventions it accepted), so a
                   repeated request still costs one agent call even when the result turns out to
-                  already exist — unlike `run_simulation`, which dedupes before spending compute.
+                  already exist — unlike `RunSimulation`, which dedupes before spending compute.
 """
 
 from __future__ import annotations

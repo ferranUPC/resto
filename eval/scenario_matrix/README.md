@@ -12,7 +12,7 @@ conda activate resto
 python -m eval.scenario_matrix.build
 ```
 
-Idempotent: `build_scenario`/`run_simulation`/`scale_demand` all dedupe on content/request
+Idempotent: `BuildScenario`, `RunSimulation` and `ScaleDemand` all dedupe on content/request
 hashes, so a re-run after the first successful one touches no SUMO process again ("zero redundant
 simulations") and finishes in a couple of seconds. Deleting `matrix.db` and `runs/` first forces a
 full rebuild from scratch.

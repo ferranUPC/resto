@@ -4,7 +4,7 @@
 No logic of its own, in the shape of the Expert's: the loop lives in the `ToolAgent`
 implementation, tool behaviour in `application/tools/composer.py`, and checking the draft in
 `application/use_cases/compose_report.py`. The Composer writes prose and claims only; tables, mode,
-basis and limitations are code (`interface/render.py`, `compose_report`).
+basis and limitations are code (`interface/render.py`, `ComposeReport`).
 """
 
 from __future__ import annotations

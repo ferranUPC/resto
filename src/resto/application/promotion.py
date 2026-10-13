@@ -1,6 +1,6 @@
 """How a promotion refuses an agent run (ADR-0001), the same for every agent.
 
-A promotion (`build_scenario`, `ask_expert`, `write_note`) takes a finished `AgentRun` and either
+A promotion (`BuildScenario`, `AskExpert`, `WriteNote`) takes a finished `AgentRun` and either
 returns the promoted entity or raises one of two errors:
 
 - `RunWithoutDraft`: the run ended without a draft, so there is nothing to validate;

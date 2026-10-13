@@ -1,6 +1,8 @@
-"""CLI entrypoint. The wiring lives in `resto.interface.dependencies`; `main` loads the LLM config,
-opens and closes the database, and prints the result. A request the Input Parser cannot turn into
-a `Question` ends in `ParserFailed`, and the CLI reports it without creating a Study.
+"""CLI entrypoint. `main` loads the LLM config, opens the database, builds a `RunStudy` with
+`resto.interface.dependencies.build_run_study`, calls `RunStudy.execute`, closes the database,
+prints the study and saves its Markdown report. A request the Input Parser cannot turn into a
+`Question` raises `ParserFailed`, and the CLI reports it without creating a Study. Tests pass their
+own `RunStudy` through the `run_study` keyword, which skips the config, the database and the wiring.
 
     python -m resto.interface.cli.main "how congested is the peak?" [--mode forced]
 """

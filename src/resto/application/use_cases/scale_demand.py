@@ -1,12 +1,12 @@
 """`demand_scale` regeneration (work-plan E2.3; architecture §2.2, §2.4): deterministic code, no
 agent — the Scenario Builder agent only decides *that* a `demand_scale` intervention needs this
 mechanism (`adapters/llm/agents/scenario_builder.py`'s system prompt), the actual resampling and
-re-routing is plain code, the same split as `run_simulation`'s Simulation Runner (CLAUDE.md
+re-routing is plain code, the same split as `RunSimulation`'s Simulation Runner (CLAUDE.md
 "Agents share one port").
 
 `demand_id = trips.content_hash` (the `Demand` entity's own invariant) makes this idempotent for
 free: an existing derived demand for the same (trips, factor) pair is returned unrun, without a
-second `duarouter` call — the same "zero redundant work" shape as `run_simulation`, just keyed on
+second `duarouter` call — the same "zero redundant work" shape as `RunSimulation`, just keyed on
 content rather than a request hash because `Demand` is a content-hashed aggregate (architecture
 §1's identity policy).
 """

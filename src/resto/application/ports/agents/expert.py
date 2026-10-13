@@ -9,7 +9,7 @@ from resto.domain.value_objects.tasks import ExpertTask
 
 
 class ExpertAgent(Protocol):
-    """Every tool call of the run lands in `ledger`; `ask_expert` promotes the answer against the
+    """Every tool call of the run lands in `ledger`; `AskExpert` promotes the answer against the
     same ledger."""
 
     def answer(self, task: ExpertTask, ledger: EvidenceLedger) -> AgentRun[ExpertAnswer]: ...

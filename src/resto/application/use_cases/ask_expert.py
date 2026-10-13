@@ -1,7 +1,7 @@
 """Network Expert promotion: an already-run `AgentRun[ExpertAnswer]` -> an `ExpertRound`
 (DoD §2.2, §2.4, §4.7; ADR-0001, ADR-0011, ADR-0018, ADR-0019).
 
-Like `build_scenario`, this takes the agent's run as a finished fact: running the Expert is
+Like `BuildScenario`, this takes the agent's run as a finished fact: running the Expert is
 `adapters/llm/agents/expert.py::run_expert`, which must be given the same `EvidenceLedger` passed
 here.
 

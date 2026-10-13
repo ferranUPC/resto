@@ -7,14 +7,14 @@ Run from the repo root inside the `resto` conda env (`SUMO_HOME` unset):
 For each `eval.scenario_matrix.rows.ROWS` row: builds the `ScenarioDraft` (`rows.build_draft`,
 E2.2/E2.3's deterministic writers, no LLM - ADR-0001's promotion split still applies, just with a
 hand-authored draft standing in for what the Builder agent would have produced), promotes it
-through the real `build_scenario` use case, then runs it with the real `SubprocessSumoRunner` at
-seeds 1/2/3 through `run_simulation`. Every store goes through `DatabaseMCP` proper (a real MCP
+through the real `BuildScenario` use case, then runs it with the real `SubprocessSumoRunner` at
+seeds 1/2/3 through `RunSimulation`. Every store goes through `DatabaseMCP` proper (a real MCP
 `ClientSession` over `InMemoryTransport`, `adapters/persistence/mcp_client.py` - the same adapter
 the conformance suite runs through), backed by the `SqliteDatabase` reference implementation
 persisted to `matrix.db` next to this file - not the repository classes called in-process, so this
 script exercises the actual contract, matching the work-plan's own "stored via DatabaseMCP".
 
-Idempotent: `build_scenario`/`run_simulation`/`scale_demand` all dedupe on content/request hashes,
+Idempotent: `BuildScenario`, `RunSimulation` and `ScaleDemand` all dedupe on content/request hashes,
 and `SqliteDatabase`'s `_idempotent_store` no-ops a byte-identical repeat row - re-running this
 script after the first successful run touches no SUMO process again ("zero redundant
 simulations", architecture §1).

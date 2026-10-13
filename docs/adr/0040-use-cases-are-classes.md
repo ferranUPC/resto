@@ -36,8 +36,10 @@ Wiring is spread over `build_deps` in the CLI, the Executor, the Scenario Builde
    interface layer.
 6. **Enforcement.** A test next to `tests/unit/test_import_boundaries.py` fails when a module in
    `application/use_cases/` defines a public top-level function, or a public class without `execute`. The
-   placeholder modules (`derive_network`, `generate_demand`, `generate_network`, `reroute_demand`) are
-   excluded until E6.1 and E7.1 write them as classes.
+   test excludes the placeholder modules (`derive_network`, `generate_demand`, `generate_network`,
+   `reroute_demand`) until E6.1 and E7.1 write them as classes. It also allows `run_ephemeral` (still a
+   module-level function in `run_simulation.py`, which only its test calls), `attempt_dir` (a path helper)
+   and exception classes such as `ParserFailed`.
 
 ## Consequences
 
