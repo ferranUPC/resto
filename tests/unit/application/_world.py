@@ -1,4 +1,4 @@
-"""Shared test world for the Executor tests, the CLI tests and the golden paths: scripted agent
+"""Shared test world for the `RunStudy` tests, the CLI tests and the golden paths: scripted agent
 ports, fake promoters, in-memory repositories, a fake SUMO runner and sample plans. No network."""
 
 from __future__ import annotations
@@ -18,13 +18,8 @@ from resto.adapters.persistence.memory import (
 )
 from resto.adapters.sumo.network_query_loader import StoredNetworkQueryLoader
 from resto.adapters.sumo.run_directories import FilesystemRunDirectories
-from resto.application.executor import (
-    StudyAgents,
-    StudyBudget,
-    StudyDeps,
-    StudySettings,
-)
 from resto.application.ports.llm import AgentRun, StopReason
+from resto.application.ports.network_query import NetworkQueryLoader
 from resto.application.ports.sumo import RunOutput
 from resto.application.ports.tracing import TraceEvent
 from resto.application.promoters.demand import DemandPromoter
@@ -34,10 +29,16 @@ from resto.application.promoters.notes import NotePromoter
 from resto.application.promoters.report import ReportPromoter
 from resto.application.promoters.reroute import ReroutePromoter
 from resto.application.promoters.scenario import ScenarioPromoter
+from resto.application.run_study import RunStudy
+from resto.application.run_study.deps import StepDeps, StudySettings
+from resto.application.run_study.spend import StudyBudget
+from resto.application.run_study.stages.closing import ComposeStage, NotesStage
+from resto.application.run_study.stages.expert_round import ExpertRoundStage
+from resto.application.run_study.stages.parse import ParseStage
+from resto.application.run_study.stages.plan import PlanStage
 from resto.application.tools.expert import EvidenceLedger
 from resto.application.use_cases.build_scenario import BuildScenario
 from resto.application.use_cases.run_simulation import RunSimulation
-from resto.application.use_cases.run_study import RunStudy
 from resto.domain.constants import DEFAULT_SEEDS
 from resto.domain.entities.demand import Demand
 from resto.domain.entities.network import Network
@@ -382,61 +383,70 @@ class World:
         self.studies = RecordingStudies()
         self.runner = runner or FakeRunner([], default=ok_output())
         self.tracer = RecordingTracer()
+        self.events = build_event_bus(
+            notes=self.notes, scenarios=self.scenarios, results=self.results, tracer=self.tracer
+        )
         self.promoted_networks: list[Any] = []
         self.query_loads: list[Path] = []
         loader = StoredNetworkQueryLoader(self.networks, self._load_query)
-        self.deps = StudyDeps(
-            agents=StudyAgents(
-                parser=self.parser,
-                network_author=self.author,
-                demand_generator=self.generator,
-                scenario_builder=self.builder,
-                expert=self.expert,
-                note_writer=self.note_writer,
-                composer=self.composer,
-            ),
+        self.network_queries: NetworkQueryLoader = loader
+        self.run_simulation = RunSimulation(
+            runner=self.runner,
+            results=self.results,
+            run_dirs=FilesystemRunDirectories(),
+            out_dir=tmp_path / "results",
+        )
+        self.build_scenario = BuildScenario(
             networks=self.networks,
             demands=self.demands,
             scenarios=self.scenarios,
-            results=self.results,
-            notes=self.notes,
-            studies=self.studies,
-            network_queries=loader,
-            run_simulation=RunSimulation(
-                runner=self.runner,
-                results=self.results,
-                run_dirs=FilesystemRunDirectories(),
-                out_dir=tmp_path / "results",
-            ),
-            events=build_event_bus(
-                notes=self.notes,
-                scenarios=self.scenarios,
-                results=self.results,
-                tracer=self.tracer,
-            ),
-            tracer=self.tracer,
-            planner=self.planner,
-            build_scenario=BuildScenario(
-                networks=self.networks,
-                demands=self.demands,
-                scenarios=self.scenarios,
-                network_query_loader=loader,
-                runner=self.runner,
-                promoter=ScenarioPromoter(),
-                out_dir=tmp_path / "scenarios",
-            ),
-            expert_answer_promoter=ExpertAnswerPromoter(),
-            note_promoter=NotePromoter(),
-            report_promoter=ReportPromoter(),
-            network_promoter=FakeNetworkPromoter(self._promote_network),
-            demand_promoter=FakeDemandPromoter(self._promote_demand),
-            reroute_promoter=FakeReroutePromoter(self._reroute),
+            network_query_loader=loader,
+            runner=self.runner,
+            promoter=ScenarioPromoter(),
+            out_dir=tmp_path / "scenarios",
         )
         self.settings = StudySettings(
             out_dir=tmp_path,
             network_max_rounds=NETWORK_ROUNDS,
             calibration_max_rounds=CALIBRATION_ROUNDS,
             budget=budget or StudyBudget(),
+        )
+
+    def run_study(self) -> RunStudy:
+        """`RunStudy` over the World's current parts, so a test can swap one before running."""
+        return RunStudy(
+            parse=ParseStage(self.parser),
+            plan=PlanStage(self.planner, self.networks, self.demands),
+            expert_round=ExpertRoundStage(
+                self.expert, self.network_queries, ExpertAnswerPromoter()
+            ),
+            notes=NotesStage(
+                self.note_writer,
+                NotePromoter(),
+                self.networks,
+                self.scenarios,
+                self.notes,
+                self.tracer,
+            ),
+            compose=ComposeStage(self.composer, ReportPromoter()),
+            steps=StepDeps(
+                network_author=self.author,
+                demand_generator=self.generator,
+                scenario_builder=self.builder,
+                networks=self.networks,
+                demands=self.demands,
+                scenarios=self.scenarios,
+                results=self.results,
+                run_simulation=self.run_simulation,
+                build_scenario=self.build_scenario,
+                network_promoter=FakeNetworkPromoter(self._promote_network),
+                demand_promoter=FakeDemandPromoter(self._promote_demand),
+                reroute_promoter=FakeReroutePromoter(self._reroute),
+            ),
+            settings=self.settings,
+            studies=self.studies,
+            events=self.events,
+            tracer=self.tracer,
         )
 
     def _load_query(self, path: Path) -> StubNetworkQuery:
@@ -494,7 +504,7 @@ class World:
         return Simulations(tuple(load_checks), tuple(study_runs))
 
     def run(self, **kwargs: Any) -> Study:
-        return RunStudy(self.deps, self.settings).execute("the user's text", **kwargs)
+        return self.run_study().execute("the user's text", **kwargs)
 
     def store_scenario(
         self, interventions: tuple[Intervention, ...] = (), seeds: tuple[int, ...] = DEFAULT_SEEDS

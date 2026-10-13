@@ -17,9 +17,9 @@ from pathlib import Path
 
 from resto.adapters.persistence.sqlite.repositories import SqliteDatabase
 from resto.adapters.tracing.jsonl import JsonlTracer
-from resto.application.executor import StudySettings
 from resto.application.ports.llm import Budget
-from resto.application.use_cases.run_study import RunStudy
+from resto.application.run_study import RunStudy
+from resto.application.run_study.deps import StudySettings
 from resto.domain.entities.study import Study, StudyResolution
 from resto.domain.value_objects.question import Mode
 from resto.interface.dependencies import AGENT_SECONDS, build_run_study

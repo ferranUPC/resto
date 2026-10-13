@@ -8,8 +8,9 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any, assert_never, cast
 
-from resto.application.executor.deps import StudyDeps, StudySettings
-from resto.application.executor.failures import (
+from resto.application.ports.llm import AgentRun
+from resto.application.run_study.deps import StepDeps, StudySettings
+from resto.application.run_study.failures import (
     StepFailed,
     StepNeedsUser,
     crash,
@@ -17,12 +18,12 @@ from resto.application.executor.failures import (
     fail,
     promote,
 )
-from resto.application.executor.recorder import StudyRecorder, data
-from resto.application.executor.spend import StudySpend
-from resto.application.ports.llm import AgentRun
+from resto.application.run_study.spend import StudySpend
+from resto.application.run_study.step_data import data
 from resto.application.use_cases.run_simulation import attempt_dir
 from resto.domain.constants import DEFAULT_SEEDS
 from resto.domain.entities.simulation_result import RunMode, RunStatus, SimulationResult
+from resto.domain.entities.study import Study, Transition
 from resto.domain.services.experiment_design import study_window
 from resto.domain.services.ids import result_id_for, scenario_id_for
 from resto.domain.services.reuse import (
@@ -56,28 +57,24 @@ from resto.domain.value_objects.tasks import (
 
 def execute_step(
     step: PlanStep,
-    recorder: StudyRecorder,
+    study: Study,
     spend: StudySpend,
-    deps: StudyDeps,
+    deps: StepDeps,
     settings: StudySettings,
-) -> None:
+) -> Transition:
     """Runs the next `step` of the current phase's plan, whose `FromStep` references the study
-    resolved, and records it: ok, failed (the study is `failed`) or needing the user
-    (`awaiting_user`), with the pending steps skipped."""
+    resolved, and returns the study's transition: the step ok, failed (the study is `failed`) or
+    needing the user (`awaiting_user`), with the pending steps skipped."""
     task = data(step)
     try:
-        record, reused = _run_step(step, task, recorder, spend, deps, settings)
+        record, reused = _run_step(step, task, study, spend, deps, settings)
     except StepFailed as failed:
-        recorder.apply(recorder.study.record_failure(failed.record(step.kind, task)))
-        return
+        return study.record_failure(failed.record(step.kind, task))
     except StepNeedsUser as needs:
-        waiting = needs.record(step.kind, task)
-        recorder.apply(recorder.study.record_needs_user(waiting, needs.needs_user))
-        return
+        return study.record_needs_user(needs.record(step.kind, task), needs.needs_user)
     except Exception as e:
-        recorder.apply(recorder.study.record_failure(crash(e).record(step.kind, task)))
-        return
-    recorder.apply(recorder.study.record_step(record, reused_result_ids=reused))
+        return study.record_failure(crash(e).record(step.kind, task))
+    return study.record_step(record, reused_result_ids=reused)
 
 
 def _id(ref: str | FromStep) -> str:
@@ -94,19 +91,19 @@ def _or(step_value: int | None, configured: int) -> int:
 def _run_step(
     step: PlanStep,
     task: Mapping[str, Any],
-    recorder: StudyRecorder,
+    study: Study,
     spend: StudySpend,
-    deps: StudyDeps,
+    deps: StepDeps,
     settings: StudySettings,
 ) -> tuple[StepRecord, tuple[str, ...]]:
     """The ok step and the ids of the stored results it reused (only a found scenario's and the
     seeds a run did not run again)."""
-    question = recorder.study.current_phase.question
+    question = study.current_phase.question
     match step:
         case ObtainNetworkStep():
-            return _obtain_network(step, task, recorder, spend, deps, settings), ()
+            return _obtain_network(step, task, spend, deps, settings), ()
         case DeriveNetworkStep():
-            return _derive_network(step, task, recorder, spend, deps, settings), ()
+            return _derive_network(step, task, spend, deps, settings), ()
         case ObtainDemandStep():
             return _obtain_demand(step, task, spend, deps, settings, question), ()
         case RerouteDemandStep():
@@ -114,7 +111,7 @@ def _run_step(
         case BuildScenarioStep():
             return _build_scenario(step, task, spend, deps)
         case RunSimulationStep():
-            return _run_simulations(step, task, recorder, spend, deps)
+            return _run_simulations(step, task, study.study_id, spend, deps)
         case _:
             assert_never(step)
 
@@ -122,9 +119,8 @@ def _run_step(
 def _obtain_network(
     step: ObtainNetworkStep,
     task: Mapping[str, Any],
-    recorder: StudyRecorder,
     spend: StudySpend,
-    deps: StudyDeps,
+    deps: StepDeps,
     settings: StudySettings,
 ) -> StepRecord:
     network_task = ObtainNetworkTask(
@@ -134,7 +130,7 @@ def _obtain_network(
         probe_teleport_threshold=step.probe_teleport_threshold,
         max_rounds=_or(step.max_rounds, settings.network_max_rounds),
     )
-    run = spend.agent_call(lambda: deps.agents.network_author.obtain(network_task))
+    run = spend.agent_call(lambda: deps.network_author.obtain(network_task))
     outcome = draft_of(run, "network_author")
     if isinstance(outcome, NeedsUser):
         raise StepNeedsUser(outcome, run.usage)
@@ -157,9 +153,8 @@ def _obtain_network(
 def _derive_network(
     step: DeriveNetworkStep,
     task: Mapping[str, Any],
-    recorder: StudyRecorder,
     spend: StudySpend,
-    deps: StudyDeps,
+    deps: StepDeps,
     settings: StudySettings,
 ) -> StepRecord:
     network_task = NetworkTask(
@@ -170,7 +165,7 @@ def _derive_network(
         probe_teleport_threshold=step.probe_teleport_threshold,
         max_rounds=_or(step.max_rounds, settings.network_max_rounds),
     )
-    run = spend.agent_call(lambda: deps.agents.network_author.author(network_task))
+    run = spend.agent_call(lambda: deps.network_author.author(network_task))
     draft_of(run, "network_author")
     network = promote(lambda: deps.network_promoter.promote(run, network_task), run.usage)
     return StepRecord(step.kind, StepStatus.OK, task, (network.network_id,), usage=run.usage)
@@ -180,7 +175,7 @@ def _obtain_demand(
     step: ObtainDemandStep,
     task: Mapping[str, Any],
     spend: StudySpend,
-    deps: StudyDeps,
+    deps: StepDeps,
     settings: StudySettings,
     question: Question,
 ) -> StepRecord:
@@ -192,7 +187,7 @@ def _obtain_demand(
         tolerance=step.tolerance,
         max_calibration_rounds=_or(step.max_calibration_rounds, settings.calibration_max_rounds),
     )
-    run = spend.agent_call(lambda: deps.agents.demand_generator.obtain(demand_task))
+    run = spend.agent_call(lambda: deps.demand_generator.obtain(demand_task))
     outcome = draft_of(run, "demand_generator")
     if isinstance(outcome, NeedsUser):
         raise StepNeedsUser(outcome, run.usage)
@@ -214,7 +209,7 @@ def _obtain_demand(
     return StepRecord(step.kind, StepStatus.OK, task, (demand_id,), usage=run.usage)
 
 
-def _reroute(step: RerouteDemandStep, task: Mapping[str, Any], deps: StudyDeps) -> StepRecord:
+def _reroute(step: RerouteDemandStep, task: Mapping[str, Any], deps: StepDeps) -> StepRecord:
     demand = deps.demands.get(_id(step.demand_id))
     network = deps.networks.get(_id(step.network_id))
     if demand is None or network is None:
@@ -227,7 +222,7 @@ def _build_scenario(
     step: BuildScenarioStep,
     task: Mapping[str, Any],
     spend: StudySpend,
-    deps: StudyDeps,
+    deps: StepDeps,
 ) -> tuple[StepRecord, tuple[str, ...]]:
     scenario_task = ScenarioTask(
         network_id=_id(step.network_id),
@@ -246,7 +241,7 @@ def _build_scenario(
     )
     if stored_ids:
         return StepRecord(step.kind, StepStatus.OK, task, (requested,)), stored_ids
-    builder = deps.agents.scenario_builder
+    builder = deps.scenario_builder
     run = spend.agent_call(lambda: builder.build(scenario_task))
     draft = draft_of(run, "scenario_builder")
     usage = run.usage
@@ -268,9 +263,9 @@ def _build_scenario(
 def _run_simulations(
     step: RunSimulationStep,
     task: Mapping[str, Any],
-    recorder: StudyRecorder,
+    attempt: str,
     spend: StudySpend,
-    deps: StudyDeps,
+    deps: StepDeps,
 ) -> tuple[StepRecord, tuple[str, ...]]:
     scenario = deps.scenarios.get(_id(step.scenario_id))
     if scenario is None:
@@ -286,7 +281,6 @@ def _run_simulations(
     results = reused_results(seeds, stored)
     to_run = seeds_to_run(seeds, stored)
     spend.reserve_simulations(len(to_run))
-    attempt = recorder.study.study_id
     for ran, seed in enumerate(to_run, start=1):
         spend.count_simulation()
         result = deps.run_simulation.execute(scenario, seed, attempt)
@@ -308,7 +302,7 @@ def _run_simulations(
 
 
 def _stored_batch_results(
-    deps: StudyDeps, scenario_id: str, seeds: tuple[int, ...]
+    deps: StepDeps, scenario_id: str, seeds: tuple[int, ...]
 ) -> list[SimulationResult]:
     """The results stored for the batch runs of `scenario_id` with `seeds`, ok or failed."""
     ids = (result_id_for(scenario_id, s, RunMode.BATCH.value) for s in seeds)

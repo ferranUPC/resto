@@ -10,8 +10,8 @@ from pathlib import Path
 from typing import Any
 
 from resto.adapters.persistence.sqlite.repositories import SqliteDatabase
-from resto.application.executor import StudySettings
 from resto.application.ports.llm import AgentRun, AgentTask, Budget, StopReason, Tool
+from resto.application.run_study.deps import StudySettings
 from resto.domain.entities.study import StudyResolution
 from resto.domain.value_objects.answer_value import Measure, Quantity
 from resto.domain.value_objects.drafts import (
@@ -95,11 +95,9 @@ def test_the_real_graph_runs_one_scripted_study(tmp_path: Path) -> None:
         db=db, agent=agent, budget=budget, tracer=NullTracer(), settings=settings
     )
     # The Network Author is a placeholder until E6.1; the rest of the graph is the real one.
-    deps = replace(
-        run_study.deps, agents=replace(run_study.deps.agents, network_author=NetworkAuthorStub())
-    )
+    steps = replace(run_study.steps, network_author=NetworkAuthorStub())
 
-    study = replace(run_study, deps=deps).execute("how many lanes does the network have?")
+    study = replace(run_study, steps=steps).execute("how many lanes does the network have?")
 
     db.close()
     assert study.resolution is StudyResolution.COMPLETED

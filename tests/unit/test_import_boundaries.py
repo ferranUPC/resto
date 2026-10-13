@@ -3,9 +3,9 @@
 Layer direction (CLAUDE.md): `domain` <- `application` <- `adapters` / `interface`; `domain` is
 stdlib only. `eval/` sits outside the hexagon and may import `resto`, never the reverse. A private
 name (`_Foo`) is not imported across modules: if two modules need it, it is not private. An event
-handler never imports the study package, `executor` today and `run_study` once r24 renames it
-(ADR-0042 §11). A promoter reads and stores nothing and stands apart from the study flow
-(ADR-0042 §5): no module of `application/promoters/` imports a repository port or the study package.
+handler never imports the study package, `run_study` (ADR-0042 §11). A promoter reads and stores
+nothing and stands apart from the study flow (ADR-0042 §5): no module of `application/promoters/`
+imports a repository port or the study package.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ from pathlib import Path
 
 SRC = Path(__file__).resolve().parents[2] / "src"
 FORBIDDEN_FROM_APPLICATION = {"adapters", "interface"}
-STUDY_PACKAGES = ("resto.application.executor", "resto.application.run_study")
+STUDY_PACKAGES = ("resto.application.run_study",)
 PROMOTERS_MAY_NOT_IMPORT = ("resto.application.ports.repositories", *STUDY_PACKAGES)
 RULES = ("domain", "application", "eval", "private", "event_handlers", "promoters")
 
@@ -85,12 +85,12 @@ def test_scan_flags_each_violation_kind(tmp_path: Path) -> None:
     )
     (pkg / "application" / "event_handlers").mkdir()
     (pkg / "application" / "event_handlers" / "c.py").write_text(
-        "from resto.application.executor.spend import StudySpend\n"
+        "from resto.application.run_study.spend import StudySpend\n"
         "from resto.application.run_study import RunStudy\n"
     )
     (pkg / "application" / "promoters" / "d.py").write_text(
         "from resto.application.ports.repositories import NoteRepository\n"
-        "from resto.application.executor.deps import StudyDeps\n"
+        "from resto.application.run_study.deps import StepDeps\n"
         "from resto.application.ports.llm import AgentRun\n"
     )
     found = _violations(tmp_path)
@@ -99,10 +99,10 @@ def test_scan_flags_each_violation_kind(tmp_path: Path) -> None:
     assert found["eval"] == ["resto/application/b.py: eval.z"]
     assert found["private"] == ["resto/application/b.py: resto.domain.m._Hidden"]
     assert found["event_handlers"] == [
-        "resto/application/event_handlers/c.py: resto.application.executor.spend",
+        "resto/application/event_handlers/c.py: resto.application.run_study.spend",
         "resto/application/event_handlers/c.py: resto.application.run_study",
     ]
     assert found["promoters"] == [
         "resto/application/promoters/d.py: resto.application.ports.repositories",
-        "resto/application/promoters/d.py: resto.application.executor.deps",
+        "resto/application/promoters/d.py: resto.application.run_study.deps",
     ]

@@ -23,7 +23,7 @@ from eval.plan_bank.bank import PLANS_PATH, load_plans, question_basis, save_cor
 from eval.request_bank.concepts import concept_by_id
 
 # No public coverage check exists: `plan_problems` needs repositories a bank does not have.
-from resto.application.executor.plan_validation import _coverage_problems  # noqa: PLC2701
+from resto.application.run_study.plan_validation import _coverage_problems  # noqa: PLC2701
 from resto.application.schemas import adapter_for
 from resto.domain.value_objects.question import Question
 from resto.domain.value_objects.study_plan import DeriveNetworkStep, StudyPlan

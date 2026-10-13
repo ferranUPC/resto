@@ -14,7 +14,7 @@ Promotion order (ADR-0001):
                  typed value that names an edge names a network of the task's scope and the edge
                  exists on it (ADR-0032); a proposed experiment targets a network of the scope.
   3. construct - `ExpertRound(question, answer)`.
-Attaching the round to a `Study` is the study flow's job (`application/executor/`).
+Attaching the round to a `Study` is the study flow's job (`application/run_study/`).
 """
 
 from __future__ import annotations

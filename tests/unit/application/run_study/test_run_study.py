@@ -7,12 +7,10 @@ from typing import Any
 
 import pytest
 
-from resto.application.executor import (
-    StudyBudget,
-)
 from resto.application.ports.llm import StopReason
 from resto.application.ports.network_query import NetworkNotStored
 from resto.application.ports.tracing import HandlerFailed, ModelCall, NoteWriterFailed
+from resto.application.run_study.spend import StudyBudget
 from resto.domain.constants import DEFAULT_SEEDS
 from resto.domain.entities.expert_note import ExpertNote, NoteStatus, Provenance
 from resto.domain.entities.simulation_result import RunMode
@@ -589,7 +587,7 @@ def test_an_online_scenario_is_infrastructure_until_e2_5(tmp_path: Path) -> None
 
 def test_an_expert_round_on_a_network_that_is_not_stored_is_infrastructure(tmp_path: Path) -> None:
     world = World(tmp_path, plans=(BASELINE_PLAN,))
-    loader = world.deps.network_queries
+    loader = world.network_queries
     gone = False
 
     class VanishingLoader:
@@ -603,7 +601,7 @@ def test_an_expert_round_on_a_network_that_is_not_stored_is_infrastructure(tmp_p
         gone = True
         return answers()(task, ledger)
 
-    world.deps = replace(world.deps, network_queries=VanishingLoader())
+    world.network_queries = VanishingLoader()
     world.expert.items.append(answer_after_the_network_vanishes)
 
     study = world.run()

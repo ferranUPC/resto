@@ -21,7 +21,7 @@ from resto.domain.value_objects.outcomes import (
 from resto.domain.value_objects.step_record import StepStatus
 from resto.interface.render import render_study
 from tests.unit.application._world import DESCRIBE, World, answers, run_of, tools
-from tests.unit.application.executor.test_obtain_steps import _obtain_plan
+from tests.unit.application.run_study.test_obtain_steps import _obtain_plan
 from tests.unit.domain._fixtures import NET, demand_draft, network_draft
 
 NETWORK_SIDE: tuple[tuple[NeedsUserReason, tuple[str, ...]], ...] = (

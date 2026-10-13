@@ -8,34 +8,53 @@ about to run with `StepError(budget)` and spends nothing more.
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import TypeVar
 
-from resto.application.executor.deps import StudyBudget
-from resto.application.executor.failures import describe, fail
 from resto.application.ports.llm import AgentRun
-from resto.domain.value_objects.step_record import StepErrorKind, Usage
+from resto.application.ports.tracing import ModelCall, Tracer
+from resto.application.run_study.failures import describe, fail
+from resto.domain.constants import (
+    DEFAULT_STUDY_MAX_AGENT_CALLS,
+    DEFAULT_STUDY_MAX_SIMULATIONS,
+    DEFAULT_STUDY_MAX_TOKENS,
+)
+from resto.domain.value_objects.step_record import StepErrorKind
 
 T = TypeVar("T")
 
 
+@dataclass(frozen=True, slots=True)
+class StudyBudget:
+    """What one `Study` may spend in total, on top of each agent call's own `Budget`
+    (ADR-0023 §5). Exhausting it fails the step about to run with `StepError(budget)`."""
+
+    max_tokens: int = DEFAULT_STUDY_MAX_TOKENS
+    max_simulations: int = DEFAULT_STUDY_MAX_SIMULATIONS
+    max_agent_calls: int = DEFAULT_STUDY_MAX_AGENT_CALLS
+
+
 class StudySpend:
-    def __init__(self, budget: StudyBudget, on_call: Callable[[Usage], None]) -> None:
-        self._on_call = on_call
+    def __init__(self, budget: StudyBudget, tracer: Tracer, study_id: str) -> None:
+        """Every agent call's usage goes to `tracer` as a `ModelCall` of `study_id` (telemetry)."""
+        self._tracer = tracer
+        self._study_id = study_id
         self._budget = budget
         self._tokens = 0
         self._agent_calls = 0
         self._simulations = 0
 
     def agent_call(self, call: Callable[[], AgentRun[T]]) -> AgentRun[T]:
-        """Checks the budget for one more call, counts it, runs it, adds its tokens and reports
-        its usage. A call that raises is the environment's fault (`infrastructure`)."""
+        """Checks the budget for one more call, counts it, runs it, adds its tokens and traces
+        its usage (`ModelCall`). A call that raises is the environment's fault
+        (`infrastructure`)."""
         self._check(agent_calls=1)
         self._agent_calls += 1
         try:
             run = call()
         except Exception as e:
             fail(StepErrorKind.INFRASTRUCTURE, f"agent call failed: {describe(e)}")
-        self._on_call(run.usage)
+        self._tracer.emit(self._study_id, ModelCall(run.usage))
         self._tokens += run.usage.input_tokens + run.usage.output_tokens
         return run
 

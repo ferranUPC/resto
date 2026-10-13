@@ -6,5 +6,5 @@ and the one public method is `promote(run, context)`.
 
 They live outside the study flow so that `eval/` and the use cases import them without it.
 `tests/unit/test_import_boundaries.py` fails when a module here imports a repository port or the
-Executor package.
+study package (`application/run_study/`).
 """

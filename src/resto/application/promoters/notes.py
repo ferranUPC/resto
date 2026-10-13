@@ -16,7 +16,7 @@ Promotion order (ADR-0001), all drafts checked before any note is built:
                  (`SIMULATION` only when that scenario has ok results in the study, `OPINION`
                  otherwise; a prediction keeps its predicted `scenario_id`), `status = UNVERIFIED`.
 Storing the notes and attaching their ids to the `Study` is the study flow's job
-(`application/executor/`).
+(`application/run_study/`).
 """
 
 from __future__ import annotations

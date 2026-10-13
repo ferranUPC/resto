@@ -12,7 +12,7 @@ from resto.adapters.persistence.memory import (
     InMemoryDemandRepository,
     InMemoryNetworkRepository,
 )
-from resto.application.executor.plan_validation import plan_problems
+from resto.application.run_study.plan_validation import plan_problems
 from resto.domain.services.ids import scenario_id_for
 from resto.domain.value_objects.arm import BASE_ARM, Arm
 from resto.domain.value_objects.question import Intent, Question
