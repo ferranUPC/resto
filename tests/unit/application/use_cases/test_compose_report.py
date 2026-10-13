@@ -8,7 +8,7 @@ import pytest
 
 from resto.application.ports.llm import AgentRun, StopReason
 from resto.application.promotion import DraftRejected, RunWithoutDraft
-from resto.application.use_cases.compose_report import FORCED_LIMITATION, compose_report
+from resto.application.use_cases.compose_report import FORCED_LIMITATION, ComposeReport
 from resto.domain.value_objects.drafts import ClaimDraft, ReportDraft
 from resto.domain.value_objects.expert_answer import Basis
 from resto.domain.value_objects.question import Intent, Mode, Question
@@ -31,7 +31,7 @@ def _run(draft: ReportDraft | None, stop: StopReason = StopReason.OUTPUT) -> Age
 
 def test_a_valid_draft_keeps_its_prose_and_claims() -> None:
     draft = _draft("q1", "/runs/r1/edgedata.xml")
-    report = compose_report(study_with_rounds(), _run(draft))
+    report = ComposeReport().execute(study_with_rounds(), _run(draft))
     assert report.summary == draft.summary
     assert report.sections == draft.sections
     assert [(c.text, c.evidence_refs, c.value) for c in report.claims] == [
@@ -41,12 +41,12 @@ def test_a_valid_draft_keeps_its_prose_and_claims() -> None:
 
 @pytest.mark.parametrize("basis", list(Basis))
 def test_basis_comes_from_the_last_round(basis: Basis) -> None:
-    assert compose_report(study_with_rounds(basis=basis), _run(_draft())).basis is basis
+    assert ComposeReport().execute(study_with_rounds(basis=basis), _run(_draft())).basis is basis
 
 
 def test_mode_comes_from_the_last_round() -> None:
-    free = compose_report(study_with_rounds(), _run(_draft()))
-    forced = compose_report(
+    free = ComposeReport().execute(study_with_rounds(), _run(_draft()))
+    forced = ComposeReport().execute(
         study_with_rounds(question=Question("q", Intent.DESCRIBE, Mode.FORCED)), _run(_draft())
     )
     assert (free.mode, forced.mode) == (Mode.FREE, Mode.FORCED)
@@ -55,8 +55,8 @@ def test_mode_comes_from_the_last_round() -> None:
 def test_the_limitation_line_appears_if_and_only_if_the_last_round_was_forced_by_the_limit() -> (
     None
 ):
-    assert compose_report(study_with_rounds(), _run(_draft())).limitations == ()
-    forced = compose_report(study_with_rounds(3, last_forced=True), _run(_draft()))
+    assert ComposeReport().execute(study_with_rounds(), _run(_draft())).limitations == ()
+    forced = ComposeReport().execute(study_with_rounds(3, last_forced=True), _run(_draft()))
     assert forced.limitations == (FORCED_LIMITATION,)
     assert forced.mode is Mode.FORCED
 
@@ -64,14 +64,14 @@ def test_the_limitation_line_appears_if_and_only_if_the_last_round_was_forced_by
 def test_the_limitation_states_only_the_round_limit_not_the_basis() -> None:
     assert "round limit" in FORCED_LIMITATION
     assert "extrapolat" not in FORCED_LIMITATION
-    observed = compose_report(
+    observed = ComposeReport().execute(
         study_with_rounds(3, last_forced=True, basis=Basis.OBSERVED), _run(_draft())
     )
     assert (observed.basis, observed.limitations) == (Basis.OBSERVED, (FORCED_LIMITATION,))
 
 
 def test_a_forced_question_is_forced_without_the_limitation_line() -> None:
-    report = compose_report(
+    report = ComposeReport().execute(
         study_with_rounds(question=Question("q", Intent.DESCRIBE, Mode.FORCED)), _run(_draft())
     )
     assert (report.mode, report.limitations) == (Mode.FORCED, ())
@@ -80,14 +80,14 @@ def test_a_forced_question_is_forced_without_the_limitation_line() -> None:
 def test_a_claim_without_evidence_is_rejected() -> None:
     bad = ReportDraft(summary="s", claims=(ClaimDraft(text="t", evidence_refs=()),))
     with pytest.raises(DraftRejected, match="evidence"):
-        compose_report(study_with_rounds(), _run(bad))
+        ComposeReport().execute(study_with_rounds(), _run(bad))
 
 
 def test_a_ref_that_is_not_evidence_of_the_last_answer_is_rejected() -> None:
     with pytest.raises(DraftRejected, match="q9"):
-        compose_report(study_with_rounds(), _run(_draft("q1", "q9")))
+        ComposeReport().execute(study_with_rounds(), _run(_draft("q1", "q9")))
 
 
 def test_a_run_without_a_draft_is_refused() -> None:
     with pytest.raises(RunWithoutDraft):
-        compose_report(study_with_rounds(), _run(None, StopReason.BUDGET))
+        ComposeReport().execute(study_with_rounds(), _run(None, StopReason.BUDGET))

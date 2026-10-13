@@ -29,7 +29,7 @@ from resto.application.ports.repositories import ResultRepository, ScenarioRepos
 from resto.application.promotion import DraftRejected, RunWithoutDraft
 from resto.application.schemas import adapter_for
 from resto.application.tools.expert import EvidenceLedger, expert_context
-from resto.application.use_cases.ask_expert import ask_expert
+from resto.application.use_cases.ask_expert import AskExpert
 from resto.domain.value_objects.expert_answer import ExpertAnswer
 from resto.domain.value_objects.question import Mode
 
@@ -128,7 +128,7 @@ def _run_once(
     elapsed = time.monotonic() - started
     rejection: str | None = None
     try:
-        ask_expert(task, run, ledger, loader=loader)
+        AskExpert(loader).execute(task, run, ledger)
     except (RunWithoutDraft, DraftRejected) as exc:
         rejection = str(exc)
     return {
