@@ -12,23 +12,22 @@ from resto.application.executor import (
 )
 from resto.application.ports.llm import StopReason
 from resto.application.ports.network_query import NetworkNotStored
-from resto.application.ports.tracing import (
-    ExpertRoundHeld,
-    ModelCall,
-    NoteWriterFailed,
-    PhaseStarted,
-    PlanMade,
-    ReportComposed,
-    StepTraced,
-    StudyCreated,
-)
+from resto.application.ports.tracing import ModelCall, NoteWriterFailed
 from resto.application.use_cases.ask_expert import AskExpert
 from resto.application.use_cases.run_study import ParserFailed
 from resto.domain.constants import DEFAULT_SEEDS
 from resto.domain.entities.expert_note import ExpertNote, NoteStatus, Provenance
 from resto.domain.entities.simulation_result import RunMode
 from resto.domain.entities.study import Study, StudyResolution, StudyStage
-from resto.domain.events import NoteStatusChanged
+from resto.domain.events import (
+    ExpertRoundHeld,
+    NoteStatusChanged,
+    PhaseStarted,
+    PlanMade,
+    ReportComposed,
+    StepTraced,
+    StudyCreated,
+)
 from resto.domain.services.ids import result_id_for
 from resto.domain.services.planner import PlanningContext, PlanningError
 from resto.domain.value_objects.answer_value import Edges, Measure, Quantity

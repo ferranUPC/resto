@@ -12,7 +12,7 @@ from resto.application.ports.repositories import NetworkRepository, ScenarioRepo
 from resto.application.tools.expert import EvidenceLedger
 from resto.application.use_cases.write_note import WriteNote
 from resto.domain.entities.scenario import Scenario
-from resto.domain.entities.study import Study, StudyResolution
+from resto.domain.entities.study import Study
 from resto.domain.services.ids import scenario_id_for
 from resto.domain.value_objects.arm import BASE_ARM
 from resto.domain.value_objects.experiment import ExperimentRole
@@ -45,7 +45,7 @@ def write_notes(
     except Exception as e:
         recorder.note_writer_failed(describe(e))
         return
-    recorder.set_note_ids(tuple(n.note_id for n in written))
+    recorder.apply(recorder.study.record_notes(tuple(n.note_id for n in written)))
 
 
 def base_network_id(study: Study, networks: NetworkRepository) -> str:
@@ -118,11 +118,10 @@ def compose(recorder: StudyRecorder, spend: StudySpend, deps: StudyDeps) -> None
         draft_of(run, "composer")
         report = promote(lambda: deps.compose_report.execute(study, run), run.usage)
     except StepFailed as failed:
-        recorder.record_failure("compose_report", task, failed)
+        recorder.apply(study.record_failure(failed.record("compose_report", task)))
         return
     except Exception as e:
-        recorder.record_failure("compose_report", task, crash(e))
+        recorder.apply(study.record_failure(crash(e).record("compose_report", task)))
         return
     record = StepRecord("compose_report", StepStatus.OK, task, usage=run.usage)
-    recorder.record(record, resolution=StudyResolution.COMPLETED, report=report)
-    recorder.report_composed()
+    recorder.apply(study.complete(record, report))

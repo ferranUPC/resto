@@ -14,6 +14,7 @@ from resto.application.executor.recorder import StudyRecorder
 from resto.application.executor.spend import StudySpend
 from resto.application.tools.expert import EvidenceLedger
 from resto.application.use_cases.write_note import WriteNote
+from resto.domain.entities.study import Study
 from resto.domain.value_objects.expert_round import ExpertRound
 from resto.domain.value_objects.step_record import Usage
 from tests.unit.application._world import (
@@ -28,7 +29,9 @@ from tests.unit.domain._samples import expert_answer
 def test_a_study_without_a_stored_base_network_traces_the_failure_and_changes_nothing() -> None:
     tracer = RecordingTracer()
     recorder = StudyRecorder(
-        DESCRIBE, Usage(), max_rounds=3, studies=RecordingStudies(), tracer=tracer
+        Study.open("s1", DESCRIBE, Usage(), max_rounds=3),
+        studies=RecordingStudies(),
+        tracer=tracer,
     )
     spend = StudySpend(StudyBudget(), Usage(), recorder.model_call)
     note_writer = FakeNoteWriter()

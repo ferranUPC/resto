@@ -1,6 +1,6 @@
 """Executor (ADR-0023, ADR-0025, ADR-0026, ADR-0027): user text -> a closed `Study`, by
 deterministic code. It decides nothing about the domain: agents decide, promotion use cases
-certify, this module chains them.
+certify, the `Study` makes its own transitions, this module chains them.
 
     parse -> Study (phase 0) -> [plan -> validate -> execute steps -> ask the Expert]* -> notes
     -> report
@@ -8,9 +8,10 @@ certify, this module chains them.
 - **Agents** are reached through their ports (`application/ports/agents/`), promotions the Executor
   cannot call directly yet (network, demand, reroute) through `StudyPromotions`; both are
   bound in the composition root (`interface/cli`).
-- **Persistence.** `StudyRecorder` is the only writer of the `Study`: every change (a step, a new
-  phase, a network added, the note ids) is a new `Study` built with `dataclasses.replace`, stored
-  and traced at once, so the domain invariants check every intermediate state.
+- **Persistence.** Every change (a step, a new phase, a network added, the note ids) is a
+  transition of the `Study` (ADR-0041 §4), which returns the next `Study` and the domain events it
+  produced, so the domain decides each state and its invariants check every one. `StudyRecorder`
+  is the only writer: it stores the new study, then passes its events to the tracer.
 - **Spend.** `StudySpend` counts tokens, agent calls and simulations from the Input Parser's call on
   and checks the `StudyBudget` before each agent call and each batch of new simulations.
 - **Failures.** The first failure becomes a failed `StepRecord` with a `StepError` (ADR-0025 §3,
