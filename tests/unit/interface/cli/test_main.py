@@ -17,7 +17,8 @@ from resto.application.ports.llm import Budget
 from resto.application.ports.tracing import ModelCall, TraceEvent
 from resto.domain.value_objects.drafts import ClaimDraft, ReportDraft
 from resto.domain.value_objects.step_record import Usage
-from resto.interface.cli.main import build_deps, main
+from resto.interface.cli.main import main
+from resto.interface.dependencies import build_deps
 from tests.unit.adapters.llm._fakes import FakeToolAgent
 from tests.unit.application._world import DESCRIBE
 

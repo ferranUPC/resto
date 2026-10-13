@@ -28,7 +28,7 @@ from resto.application.use_cases.run_study import ParserFailed, run_study
 from resto.domain.value_objects.demand_spec import DemandProfile
 from resto.domain.value_objects.outcomes import Found
 from resto.domain.value_objects.step_record import Usage
-from resto.interface.cli.main import AGENT_SECONDS, build_deps
+from resto.interface.dependencies import AGENT_SECONDS, build_deps
 from resto.interface.render import render_study, render_study_text
 
 
