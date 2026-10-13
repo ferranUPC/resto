@@ -2,8 +2,8 @@
 deterministic code. It decides nothing about the domain: agents decide, promotion use cases
 certify, the `Study` makes its own transitions, this module chains them.
 
-    parse -> Study (phase 0) -> [plan -> validate -> execute steps -> ask the Expert]* -> notes
-    -> report
+    Study (at the request) -> parse -> [plan -> validate -> execute steps -> ask the Expert]*
+    -> notes -> report
 
 - **Agents** are reached through their ports (`application/ports/agents/`), promotions the Executor
   cannot call directly yet (network, demand, reroute) through `StudyPromotions`; both are
@@ -14,8 +14,9 @@ certify, the `Study` makes its own transitions, this module chains them.
   is the only writer: it stores the new study, then publishes its events on the event bus
   (`resto.application.event_bus`), whose subscribers are the trace and note verification.
   Telemetry (`ModelCall`, `NoteWriterFailed`) goes straight to the `Tracer` port.
-- **Spend.** `StudySpend` counts tokens, agent calls and simulations from the Input Parser's call on
-  and checks the `StudyBudget` before each agent call and each batch of new simulations.
+- **Spend.** `StudySpend` starts at zero, counts tokens, agent calls (the Input Parser's included)
+  and simulations, and checks the `StudyBudget` before each agent call and each batch of new
+  simulations.
 - **Failures.** The first failure becomes a failed `StepRecord` with a `StepError` (ADR-0025 §3,
   classified in `failures`), the pending plan steps are recorded as skipped and the study is
   `failed` - all in one state. No re-ask: the only retry is inside `ToolAgent`.

@@ -21,7 +21,7 @@ from resto.domain.events import (
     StepTraced,
     StudyCreated,
 )
-from resto.domain.value_objects.question import Intent, Mode, Question
+from resto.domain.value_objects.question import Mode
 from resto.domain.value_objects.step_record import (
     StepError,
     StepErrorKind,
@@ -33,10 +33,7 @@ from resto.domain.value_objects.study_plan import FromStep, ObtainNetworkStep, S
 
 def _events() -> list[TraceEvent]:
     return [
-        StudyCreated(
-            Question(text="how congested is the peak?", intent=Intent.DESCRIBE, mode=Mode.FORCED),
-            Usage(input_tokens=5, output_tokens=7, cost_usd=0.001),
-        ),
+        StudyCreated("how congested is the peak?", Mode.FORCED),
         NetworksAdded(("n1", "n2")),
         StepTraced(
             phase=0,

@@ -10,6 +10,13 @@ from resto.domain.value_objects.study_plan import StudyPlan
 
 
 @dataclass(frozen=True, slots=True)
+class ParseRequest:
+    """Turn the request's `text` into a `Question` with the Input Parser."""
+
+    text: str
+
+
+@dataclass(frozen=True, slots=True)
 class PlanPhase:
     """Plan the current phase's question."""
 
@@ -49,4 +56,6 @@ class Finished:
     """The study has a resolution: nothing more to do."""
 
 
-StudyAction = PlanPhase | RunPlan | ConsultExpert | AskExpert | OpenPhase | Close | Finished
+StudyAction = (
+    ParseRequest | PlanPhase | RunPlan | ConsultExpert | AskExpert | OpenPhase | Close | Finished
+)

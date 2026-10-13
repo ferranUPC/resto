@@ -117,6 +117,7 @@ from resto.domain.value_objects.study_action import (
     ConsultExpert,
     Finished,
     OpenPhase,
+    ParseRequest,
     PlanPhase,
     RunPlan,
 )
@@ -157,6 +158,7 @@ from tests.unit.domain._fixtures import (
     file_recipe,
     good_sanity,
     network_draft,
+    parsed_step,
     probe,
     runnable_script,
     scenario_draft,
@@ -303,6 +305,8 @@ def expert_note() -> ExpertNote:
 def study() -> Study:
     return Study(
         study_id="st-1",
+        text=question().text,
+        parse=parsed_step(question().text),
         stage=StudyStage.CLOSING,
         resolution=StudyResolution.COMPLETED,
         phases=(
@@ -541,7 +545,7 @@ SAMPLES: dict[type, Callable[[], object]] = {
     ),
     # domain events
     NoteStatusChanged: lambda: NoteStatusChanged("note1", "res1", NoteStatus.CONFIRMED),
-    StudyCreated: lambda: StudyCreated(question(), Usage(input_tokens=50)),
+    StudyCreated: lambda: StudyCreated(question().text, Mode.FORCED),
     PhaseStarted: lambda: PhaseStarted(1),
     PlanMade: lambda: PlanMade(0, study_plan()),
     StepTraced: lambda: StepTraced(
@@ -558,6 +562,7 @@ SAMPLES: dict[type, Callable[[], object]] = {
     NotesWritten: lambda: NotesWritten(("note1",)),
     ReportComposed: ReportComposed,
     # study actions
+    ParseRequest: lambda: ParseRequest("how congested is the peak?"),
     PlanPhase: PlanPhase,
     RunPlan: lambda: RunPlan(study_plan()),
     ConsultExpert: ConsultExpert,

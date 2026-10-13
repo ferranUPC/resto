@@ -1,9 +1,8 @@
 """What a `Study` has spent, checked against its `StudyBudget` before spending (ADR-0023 §5).
 
-The Input Parser's call is the study's first: `StudySpend` starts with its tokens and one agent
-call. Every later agent call goes through `agent_call`, every batch of new simulations through
-`reserve_simulations`. Exhausting the budget fails the step about to run with `StepError(budget)`
-and spends nothing more.
+`StudySpend` starts at zero. Every agent call, the Input Parser's first, goes through `agent_call`,
+every batch of new simulations through `reserve_simulations`. Exhausting the budget fails the step
+about to run with `StepError(budget)` and spends nothing more.
 """
 
 from __future__ import annotations
@@ -20,13 +19,11 @@ T = TypeVar("T")
 
 
 class StudySpend:
-    def __init__(
-        self, budget: StudyBudget, parse_usage: Usage, on_call: Callable[[Usage], None]
-    ) -> None:
+    def __init__(self, budget: StudyBudget, on_call: Callable[[Usage], None]) -> None:
         self._on_call = on_call
         self._budget = budget
-        self._tokens = parse_usage.input_tokens + parse_usage.output_tokens
-        self._agent_calls = 1
+        self._tokens = 0
+        self._agent_calls = 0
         self._simulations = 0
 
     def agent_call(self, call: Callable[[], AgentRun[T]]) -> AgentRun[T]:

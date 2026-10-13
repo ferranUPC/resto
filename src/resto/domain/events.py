@@ -13,17 +13,17 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from resto.domain.value_objects.note_status import NoteStatus
-from resto.domain.value_objects.question import Question
+from resto.domain.value_objects.question import Mode
 from resto.domain.value_objects.step_record import StepError, StepStatus, Usage
 from resto.domain.value_objects.study_plan import StudyPlan
 
 
 @dataclass(frozen=True, slots=True)
 class StudyCreated:
-    """A study opened on its question; `parse_usage` is what the Input Parser spent on it."""
+    """A study opened on a request: its `text` and the `mode` the user chose, if any."""
 
-    question: Question
-    parse_usage: Usage
+    text: str
+    mode: Mode | None
 
 
 @dataclass(frozen=True, slots=True)

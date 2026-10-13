@@ -1,4 +1,4 @@
-"""The two specialist steps through `execute_study` with the scripted agents (ADR-0037 §2, §3): a
+"""The two specialist steps through `RunStudy` with the scripted agents (ADR-0037 §2, §3): a
 specialist ends in a found id or in a draft that code promotes."""
 
 from dataclasses import replace

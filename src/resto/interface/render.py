@@ -75,7 +75,7 @@ def render_completed(study: Study) -> str:
     lines = [
         f"# Study {study.study_id}: report",
         "",
-        f"> {_line(study.question.text)}",
+        f"> {_line(study.text)}",
         "",
         "## Summary",
         "",
@@ -183,18 +183,17 @@ def _prose(text: str) -> str:
 def render_failed(study: Study) -> str:
     if study.resolution is not StudyResolution.FAILED:
         raise ValueError("not a failed study")
-    k = len(study.phases) - 1
-    step = study.phases[-1].failed_step
+    step = study.failed_step
     assert step is not None and step.error is not None  # Study invariant: failed <=> a failed step
     error = step.error
     lines = [
         f"# Study {study.study_id}: failed",
         "",
-        f"> {study.question.text}",
+        f"> {study.text}",
         "",
         "## What happened",
         "",
-        f"Step `{step.tool}` of {_phase_name(k)} failed ({error.kind}): {error.message}",
+        f"Step `{step.tool}` of {_stopped_at(study)} failed ({error.kind}): {error.message}",
     ]
     lines += [f"- {d}" for d in error.details if d]
     lines += ["", "## What was done", ""]
@@ -248,6 +247,13 @@ def _phase_name(k: int) -> str:
     return f"phase {k} (the experiment proposed in round {k})"
 
 
+def _stopped_at(study: Study) -> str:
+    """Where a failed study stopped: parsing when it has no phase yet, else its last phase."""
+    if not study.phases:
+        return "parsing (the request)"
+    return _phase_name(len(study.phases) - 1)
+
+
 def _done(
     k: int, phase: Phase, *, tick: str = "`", ids: Mapping[str, str] | None = None
 ) -> list[str]:
@@ -295,7 +301,7 @@ def render_study_text(study: Study) -> str:
     )
     lines = [
         f"STUDY {ids[study.study_id]}  ({study.resolution})",
-        f"Question: {_line(study.question.text)}",
+        f"Question: {_line(study.text)}",
         "",
     ]
     if study.resolution is StudyResolution.COMPLETED:
@@ -383,13 +389,12 @@ def _text_done(study: Study, ids: Mapping[str, str]) -> list[str]:
 
 
 def _text_failed(study: Study, ids: Mapping[str, str]) -> list[str]:
-    k = len(study.phases) - 1
-    step = study.phases[-1].failed_step
+    step = study.failed_step
     assert step is not None and step.error is not None  # Study invariant: failed <=> a failed step
     error = step.error
     lines = [
         "WHAT HAPPENED",
-        f"Step {step.tool} of {_phase_name(k)} failed ({error.kind}): {_line(error.message)}",
+        f"Step {step.tool} of {_stopped_at(study)} failed ({error.kind}): {_line(error.message)}",
     ]
     lines += [f"  - {_line(d)}" for d in error.details if d]
     lines += ["", "WHAT WAS DONE"]

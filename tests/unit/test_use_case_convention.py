@@ -1,7 +1,7 @@
 """ADR-0040 decision 6: a use case is a class with an `execute` method.
 
 A module in `application/use_cases/` defines no public top-level function, and every public class
-in it has `execute`, except an exception class (`ParserFailed`).
+in it has `execute`, except an exception class.
 """
 
 from __future__ import annotations
