@@ -9,10 +9,8 @@ from collections.abc import Callable, Collection
 from resto.application.ports.repositories import (
     DemandRepository,
     NetworkRepository,
-    ResultRepository,
     ScenarioRepository,
 )
-from resto.domain.entities.simulation_result import RunStatus
 from resto.domain.services.experiment_design import needed_arms
 from resto.domain.value_objects.arm import Arm
 from resto.domain.value_objects.intervention import Intervention
@@ -84,12 +82,6 @@ def plan_problems(
             )
     problems += _coverage_problems(plan, question, phase, realised)
     return problems
-
-
-def ok_results(results: ResultRepository, scenario_id: str) -> tuple[str, ...]:
-    """The ids of the ok results stored for `scenario_id`, by seed."""
-    ok = [r for r in results.list(scenario_id) if r.status is RunStatus.OK]
-    return tuple(r.result_id for r in sorted(ok, key=lambda r: r.seed))
 
 
 def _str_refs(step: PlanStep) -> tuple[tuple[Produces, str], ...]:
