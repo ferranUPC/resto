@@ -14,11 +14,12 @@ from collections.abc import Callable
 
 import resto.domain
 from resto.domain.entities.demand import Demand
-from resto.domain.entities.expert_note import ExpertNote, Provenance
+from resto.domain.entities.expert_note import ExpertNote, NoteStatus, Provenance
 from resto.domain.entities.network import Network
 from resto.domain.entities.scenario import Scenario
 from resto.domain.entities.simulation_result import RunMode, RunStatus, SimulationResult
 from resto.domain.entities.study import Phase, Study, StudyStatus
+from resto.domain.events import NoteStatusChanged
 from resto.domain.services.note_ranking import ScoredNote
 from resto.domain.services.planner import PlanningContext
 from resto.domain.value_objects.answer_value import (
@@ -517,6 +518,8 @@ SAMPLES: dict[type, Callable[[], object]] = {
         network_ids=("abc123",),
         result_ids=("res1",),
     ),
+    # domain events
+    NoteStatusChanged: lambda: NoteStatusChanged("note1", "res1", NoteStatus.CONFIRMED),
 }
 
 

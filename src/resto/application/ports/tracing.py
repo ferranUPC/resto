@@ -1,7 +1,8 @@
 """Append-only study trace (E0.7): the typed events a study emits and the port that stores them.
 
 Only `StudyRecorder` calls `Tracer.emit`. The event set is a closed union, so an emitter that leaves
-out a field fails `mypy`. The stored format is internal, not a public contract.
+out a field fails `mypy`. Domain events (`resto.domain.events`) join the union as they are; the
+others are defined here. The stored format is internal, not a public contract.
 """
 
 from __future__ import annotations
@@ -9,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol
 
-from resto.domain.entities.expert_note import NoteStatus
+from resto.domain.events import NoteStatusChanged
 from resto.domain.value_objects.question import Question
 from resto.domain.value_objects.step_record import StepError, StepStatus, Usage
 from resto.domain.value_objects.study_plan import StudyPlan
@@ -39,13 +40,6 @@ class NetworksAdded:
 @dataclass(frozen=True, slots=True)
 class NotesWritten:
     note_ids: tuple[str, ...]
-
-
-@dataclass(frozen=True, slots=True)
-class NoteStatusChanged:
-    note_id: str
-    result_id: str
-    status: NoteStatus
 
 
 @dataclass(frozen=True, slots=True)

@@ -16,7 +16,6 @@ from resto.application.ports.tracing import (
     ExpertRoundHeld,
     ModelCall,
     NetworksAdded,
-    NoteStatusChanged,
     NotesWritten,
     NoteWriterFailed,
     PhaseStarted,
@@ -28,8 +27,8 @@ from resto.application.ports.tracing import (
     Tracer,
 )
 from resto.application.schemas import adapter_for
-from resto.domain.entities.expert_note import NoteStatus
 from resto.domain.entities.study import Phase, Study, StudyStatus
+from resto.domain.events import NoteStatusChanged
 from resto.domain.services.ids import new_id
 from resto.domain.value_objects.experiment import Experiment
 from resto.domain.value_objects.expert_round import ExpertRound
@@ -181,8 +180,9 @@ class StudyRecorder:
     def report_composed(self) -> None:
         self._emit(ReportComposed())
 
-    def note_status_changed(self, note_id: str, result_id: str, status: NoteStatus) -> None:
-        self._emit(NoteStatusChanged(note_id, result_id, status))
+    def note_status_changed(self, event: NoteStatusChanged) -> None:
+        """A note settled by a result of this study (`ExpertNote.verify`)."""
+        self._emit(event)
 
     def note_writer_failed(self, error: str) -> None:
         self._emit(NoteWriterFailed(error))

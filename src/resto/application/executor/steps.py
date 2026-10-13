@@ -365,6 +365,5 @@ def _verify_notes(
         limit=NOTE_VERIFY_LIMIT,
     )
     for note, _ in hits:
-        status = deps.update_note_status.execute(note, result)
-        if status is not None:
-            recorder.note_status_changed(note.note_id, result.result_id, status)
+        for event in deps.update_note_status.execute(note, result):
+            recorder.note_status_changed(event)
