@@ -203,11 +203,15 @@ def build_matrix() -> list[dict[str, object]]:
                 out_dir=row_dir / "load_check",
             ).execute(task, run)
 
+            run_simulation = RunSimulation(
+                runner=runner,
+                results=db.results,
+                run_dirs=FilesystemRunDirectories(),
+                out_dir=row_dir / "runs",
+            )
             results: dict[int, SimulationResult] = {}
             for seed in SEEDS:
-                results[seed] = RunSimulation(
-                    runner, db.results, FilesystemRunDirectories(), row_dir / "runs"
-                ).execute(scenario, seed, row.id)
+                results[seed] = run_simulation.execute(scenario, seed, row.id)
                 if results[seed].status is not RunStatus.OK:
                     raise MatrixBuildError(f"{row.id} seed {seed} failed: {results[seed].error}")
 

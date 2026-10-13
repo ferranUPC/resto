@@ -62,6 +62,8 @@ class StudySettings:
     """What varies per study run and is not a collaborator (ADR-0030 follow-up)."""
 
     out_dir: Path
+    """Root of what the study writes. Only the composition root (`build_run_study`) reads it, to build
+    the use cases; the Executor does not."""
     network_max_rounds: int
     """Network Author rounds for a step that sets none (`RESTO_NETWORK_MAX_ROUNDS`)."""
     calibration_max_rounds: int

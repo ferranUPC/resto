@@ -373,7 +373,10 @@ class World:
             notes=self.notes,
             studies=self.studies,
             run_simulation=RunSimulation(
-                self.runner, self.results, FilesystemRunDirectories(), tmp_path / "results"
+                runner=self.runner,
+                results=self.results,
+                run_dirs=FilesystemRunDirectories(),
+                out_dir=tmp_path / "results",
             ),
             tracer=self.tracer,
             planner=self.planner,

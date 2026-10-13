@@ -15,7 +15,7 @@ Only an *ok* result is ever stored (ADR-0031): `result_id` names the request, no
 a repository must never see two different contents under it (DATABASE_MCP_CONTRACT.md §3). A
 failed run is returned to the caller — who reports it through the trace and its own logs — and
 never reaches `results.store`. SUMO writes into a per-attempt staging directory,
-`<out_dir>/<result_id>.<attempt>/`, named after the caller's own `attempt` label (a `study_id`, or
+`<out_dir>/<result_id>.<attempt>/`, named after the caller's own `attempt_id` (a `study_id`, or
 another caller's own identifier) so two callers retrying the same failed request never step on
 each other's logs. Only on success does that directory become the canonical
 `<out_dir>/<result_id>/`, replacing any leftover directory a crash between an earlier rename and

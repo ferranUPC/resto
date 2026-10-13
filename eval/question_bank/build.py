@@ -8,7 +8,7 @@ Run from the repo root inside the `resto` conda env (`SUMO_HOME` unset):
 
 Reuses `eval.scenario_matrix.rows.ROWS`/`build_draft` and `eval.scenario_matrix.build`'s own
 network/demand/context helpers to re-derive every row's `Scenario`/`SimulationResult`s against the
-already-built `eval/scenario_matrix/matrix.db`: `build_scenario`/`run_simulation` dedupe on
+already-built `eval/scenario_matrix/matrix.db`: `BuildScenario`/`RunSimulation` dedupe on
 content/request hashes (see that module's own docstring), so this touches no SUMO process, it just
 reads back what E3.1 already stored. Gold answers come from `db.results.query_edgedata` (edge-level
 measures) and `SimulationResult.kpis.mean_delay` (network-wide), averaged over each row's 3 seeds.
@@ -136,11 +136,15 @@ def _rebuild_row(
         runner=runner,
         out_dir=REBUILD_DIR / row.id / "load_check",
     ).execute(task, run)
+    run_simulation = RunSimulation(
+        runner=runner,
+        results=db.results,
+        run_dirs=FilesystemRunDirectories(),
+        out_dir=REBUILD_DIR / row.id / "runs",
+    )
     results: dict[int, SimulationResult] = {}
     for seed in SEEDS:
-        result = RunSimulation(
-            runner, db.results, FilesystemRunDirectories(), REBUILD_DIR / row.id / "runs"
-        ).execute(scenario, seed, row.id)
+        result = run_simulation.execute(scenario, seed, row.id)
         if result.status is not RunStatus.OK:
             raise QuestionBankBuildError(f"{row.id} seed {seed} is not OK in matrix.db")
         results[seed] = result

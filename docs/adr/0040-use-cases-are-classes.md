@@ -32,8 +32,8 @@ Wiring is spread over `build_deps` in the CLI, the Executor, the Scenario Builde
    when one use case's wiring makes the reader scroll past another's. A line count is not the trigger. The
    public entry points keep their names, so no caller changes. The first split is expected around E6.1 and E7.1.
 5. **Callers outside `interface/`.** `scripts/` use the composition root for a whole study and construct the
-   class directly for a single use case. `eval/` constructs the classes directly and does not import the
-   interface layer.
+   class directly for a single use case. `eval/` builds the use-case classes itself and does not import
+   `resto.interface.dependencies`.
 6. **Enforcement.** A test next to `tests/unit/test_import_boundaries.py` fails when a module in
    `application/use_cases/` defines a public top-level function, or a public class without `execute`. The
    test excludes the placeholder modules (`derive_network`, `generate_demand`, `generate_network`,

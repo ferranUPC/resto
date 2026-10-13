@@ -142,7 +142,7 @@ def _run_step(
         case RerouteDemandStep():
             return _reroute(step, task, deps), None
         case BuildScenarioStep():
-            return _build_scenario(step, task, spend, deps, settings)
+            return _build_scenario(step, task, spend, deps)
         case RunSimulationStep():
             return _run_simulations(step, task, recorder, spend, deps), None
         case _:
@@ -260,7 +260,6 @@ def _build_scenario(
     task: Mapping[str, Any],
     spend: StudySpend,
     deps: StudyDeps,
-    settings: StudySettings,
 ) -> tuple[StepRecord, Experiment]:
     scenario_task = ScenarioTask(
         network_id=_id(step.network_id),

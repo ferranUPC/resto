@@ -25,8 +25,8 @@ full rebuild from scratch.
   hand-authored ground truth, not a Builder-bank grading run (that's E2.7).
 - `tls_alt_program.py` — generates the alternate `tlLogic` program each `signal_program` row's
   WAUT switches to, by retiming (not redesigning) the junction's own `programID="0"` phases.
-- `build.py` — orchestrates the build: promotes every row through the real `build_scenario`/
-  `run_simulation` use cases, stores through `DatabaseMCP` proper (a real MCP `ClientSession`,
+- `build.py` — orchestrates the build: promotes every row through the real `BuildScenario`/
+  `RunSimulation` use cases, stores through `DatabaseMCP` proper (a real MCP `ClientSession`,
   not the repository classes called in-process), re-checks each row's own DoD §4.5 effect against
   its seed-1 result (`verify.effects`, E2.4) before it counts as built, and writes
   `matrix-report.md`.

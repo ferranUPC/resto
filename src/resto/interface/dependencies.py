@@ -61,7 +61,9 @@ def build_deps(
 ) -> StudyDeps:
     """Studies are kept in memory: there is no persistent `StudyRepository` yet, and the SQLite
     database is the DatabaseMCP reference backend, which does not hold them (ADR-0002).
-    `out_dir` here is only the Builder's; the study's own settings are `StudySettings`.
+    `out_dir` is the root of everything the study writes: `builder/` (the Builder's scratch and
+    its demand scaling), `results/` (RunSimulation) and `scenarios/` (BuildScenario). The study's
+    other settings are `StudySettings`.
     """
     network_query_loader = StoredNetworkQueryLoader(db.networks)
     studies = InMemoryStudyRepository()
@@ -116,7 +118,10 @@ def build_deps(
         notes=db.notes,
         studies=studies,
         run_simulation=RunSimulation(
-            runner, db.results, FilesystemRunDirectories(), out_dir / "results"
+            runner=runner,
+            results=db.results,
+            run_dirs=FilesystemRunDirectories(),
+            out_dir=out_dir / "results",
         ),
         tracer=tracer,
         planner=plan_study,
@@ -143,7 +148,7 @@ def build_run_study(
     tracer: Tracer,
     settings: StudySettings,
 ) -> RunStudy:
-    """The ready `RunStudy`: the object graph of `build_deps` plus the study's settings, whose
-    `out_dir` is also where the Builder and the simulations write."""
+    """The ready `RunStudy`: the object graph of `build_deps`, built with `settings.out_dir` as its
+    `out_dir`, plus `settings` itself, which `RunStudy` hands to the Executor."""
     deps = build_deps(db=db, agent=agent, budget=budget, tracer=tracer, out_dir=settings.out_dir)
     return RunStudy(deps, settings)
