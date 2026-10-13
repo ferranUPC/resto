@@ -22,15 +22,18 @@ from resto.application.executor import (
     StudyAgents,
     StudyBudget,
     StudyDeps,
-    StudyPromotions,
     StudySettings,
 )
 from resto.application.ports.llm import AgentRun, StopReason
 from resto.application.ports.sumo import RunOutput
 from resto.application.ports.tracing import TraceEvent
+from resto.application.promoters.demand import DemandPromoter
 from resto.application.promoters.expert_answer import ExpertAnswerPromoter
+from resto.application.promoters.network import NetworkPromoter
 from resto.application.promoters.notes import NotePromoter
 from resto.application.promoters.report import ReportPromoter
+from resto.application.promoters.reroute import ReroutePromoter
+from resto.application.promoters.scenario import ScenarioPromoter
 from resto.application.tools.expert import EvidenceLedger
 from resto.application.use_cases.build_scenario import BuildScenario
 from resto.application.use_cases.run_simulation import RunSimulation
@@ -188,6 +191,37 @@ class FakeNoteWriter(Scripted):
 class FakeComposer(Scripted):
     def compose(self, study: Study) -> AgentRun[ReportDraft]:
         return self._next(study)  # type: ignore[no-any-return]
+
+
+class FakeNetworkPromoter(NetworkPromoter):
+    """Stands in for the E6.1 promoter. `promote(task, run)` is the World's, which also stores the
+    network: the steps do not store what this promoter returns yet."""
+
+    def __init__(self, promote: Callable[[Any, Any], Network]) -> None:
+        self._promote = promote
+
+    def promote(self, run: Any, context: Any) -> Network:
+        return self._promote(context, run)
+
+
+class FakeDemandPromoter(DemandPromoter):
+    """Stands in for the E7.1 promoter, storing what it returns like `FakeNetworkPromoter`."""
+
+    def __init__(self, promote: Callable[[Any, Any], Demand]) -> None:
+        self._promote = promote
+
+    def promote(self, run: Any, context: Any) -> Demand:
+        return self._promote(context, run)
+
+
+class FakeReroutePromoter(ReroutePromoter):
+    """Stands in for the E7.1 promoter, storing what it returns like `FakeNetworkPromoter`."""
+
+    def __init__(self, reroute: Callable[[Demand, Network], Demand]) -> None:
+        self._reroute = reroute
+
+    def promote(self, demand: Demand, network: Network) -> Demand:
+        return self._reroute(demand, network)
 
 
 class RecordingStudies(InMemoryStudyRepository):
@@ -361,11 +395,6 @@ class World:
                 note_writer=self.note_writer,
                 composer=self.composer,
             ),
-            promotions=StudyPromotions(
-                network=self._promote_network,
-                demand=self._promote_demand,
-                reroute=self._reroute,
-            ),
             networks=self.networks,
             demands=self.demands,
             scenarios=self.scenarios,
@@ -393,11 +422,15 @@ class World:
                 scenarios=self.scenarios,
                 network_query_loader=loader,
                 runner=self.runner,
+                promoter=ScenarioPromoter(),
                 out_dir=tmp_path / "scenarios",
             ),
             expert_answer_promoter=ExpertAnswerPromoter(),
             note_promoter=NotePromoter(),
             report_promoter=ReportPromoter(),
+            network_promoter=FakeNetworkPromoter(self._promote_network),
+            demand_promoter=FakeDemandPromoter(self._promote_demand),
+            reroute_promoter=FakeReroutePromoter(self._reroute),
         )
         self.settings = StudySettings(
             out_dir=tmp_path,

@@ -1,9 +1,9 @@
 """What the composition root (`interface/dependencies.py`) builds to run a `Study`: the agents, the
 planner, the repositories, the network query loader, the event bus with its subscribers already
-wired, the tracer for telemetry, the promotions not implemented yet (E6.1, E7.1), the promoters of
-the Expert answer, the notes and the report, and the use-case instances the Executor calls
-(`RunSimulation`, `BuildScenario`), each already holding its own collaborators. The per-run values
-that are not collaborators are `StudySettings`."""
+wired, the tracer for telemetry, the promoters (the network, demand and reroute ones pending until
+E6.1 and E7.1), and the use-case instances the Executor calls (`RunSimulation`, `BuildScenario`),
+each already holding its own collaborators. The per-run values that are not collaborators are
+`StudySettings`."""
 
 from __future__ import annotations
 
@@ -19,7 +19,6 @@ from resto.application.ports.agents.input_parser import InputParserAgent
 from resto.application.ports.agents.network_author import NetworkAuthorAgent
 from resto.application.ports.agents.note_writer import NoteWriterAgent
 from resto.application.ports.agents.scenario_builder import ScenarioBuilderAgent
-from resto.application.ports.llm import AgentRun
 from resto.application.ports.network_query import NetworkQueryLoader
 from resto.application.ports.repositories import (
     DemandRepository,
@@ -30,9 +29,12 @@ from resto.application.ports.repositories import (
     StudyRepository,
 )
 from resto.application.ports.tracing import Tracer
+from resto.application.promoters.demand import DemandPromoter
 from resto.application.promoters.expert_answer import ExpertAnswerPromoter
+from resto.application.promoters.network import NetworkPromoter
 from resto.application.promoters.notes import NotePromoter
 from resto.application.promoters.report import ReportPromoter
+from resto.application.promoters.reroute import ReroutePromoter
 from resto.application.use_cases.build_scenario import BuildScenario
 from resto.application.use_cases.run_simulation import RunSimulation
 from resto.domain.constants import (
@@ -40,13 +42,9 @@ from resto.domain.constants import (
     DEFAULT_STUDY_MAX_SIMULATIONS,
     DEFAULT_STUDY_MAX_TOKENS,
 )
-from resto.domain.entities.demand import Demand
-from resto.domain.entities.network import Network
 from resto.domain.services.planner import PlanningContext
-from resto.domain.value_objects.drafts import DemandDraft, NetworkDraft
 from resto.domain.value_objects.question import Question
 from resto.domain.value_objects.study_plan import StudyPlan
-from resto.domain.value_objects.tasks import NetworkTask, ObtainDemandTask, ObtainNetworkTask
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,22 +82,6 @@ class StudyAgents:
     composer: ComposerAgent
 
 
-@dataclass(frozen=True, slots=True)
-class StudyPromotions:
-    """The promotions not implemented yet (E6.1, E7.1), injected so the Executor does not
-    change when they land. A `DraftRejected` means the draft was rejected (`StepError(agent)`, or
-    `user_input` when it blames the user); a bare `ValueError` is also read as `agent`, any other
-    exception as `infrastructure` (`failures.promote`). `network` promotes both a created and a
-    derived network (the task says which: a `base_network_id`, or an `ObtainNetworkTask`).
-
-    A temporary seam, not a port to extend: it goes away with E6.1 / E7.1, when the
-    Executor calls those use cases directly, as it already does with `BuildScenario`."""
-
-    network: Callable[[NetworkTask | ObtainNetworkTask, AgentRun[NetworkDraft]], Network]
-    demand: Callable[[ObtainDemandTask, AgentRun[DemandDraft]], Demand]
-    reroute: Callable[[Demand, Network], Demand]
-
-
 Planner = Callable[[Question, PlanningContext], StudyPlan]
 """The planning function the Executor calls for each phase (`resto.domain.services.planner.
 plan_study` in production). It raises `PlanningError` for a question it cannot plan. Injected so the
@@ -109,7 +91,6 @@ Executor's tests control the plan without an agent."""
 @dataclass(frozen=True, slots=True)
 class StudyDeps:
     agents: StudyAgents
-    promotions: StudyPromotions
     networks: NetworkRepository
     demands: DemandRepository
     scenarios: ScenarioRepository
@@ -129,3 +110,12 @@ class StudyDeps:
     expert_answer_promoter: ExpertAnswerPromoter
     note_promoter: NotePromoter
     report_promoter: ReportPromoter
+    network_promoter: NetworkPromoter
+    """Promotes a created and a derived network (pending, E6.1). A `DraftRejected` means the draft
+    was rejected (`StepError(agent)`, or `user_input` when it blames the user); a bare
+    `ValueError` is also read as `agent`, any other exception as `infrastructure`
+    (`failures.promote`). The same holds for the demand and reroute promoters."""
+    demand_promoter: DemandPromoter
+    """Pending, E7.1."""
+    reroute_promoter: ReroutePromoter
+    """Pending, E7.1."""

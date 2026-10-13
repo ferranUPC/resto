@@ -174,7 +174,7 @@ def _obtain_network(
     else:
         draft_run = cast("AgentRun[NetworkDraft]", run)
         network_id = promote(
-            lambda: deps.promotions.network(network_task, draft_run), run.usage
+            lambda: deps.network_promoter.promote(draft_run, network_task), run.usage
         ).network_id
     recorder.apply(recorder.study.add_networks(network_id))
     return StepRecord(step.kind, StepStatus.OK, task, (network_id,), usage=run.usage)
@@ -198,7 +198,7 @@ def _derive_network(
     )
     run = spend.agent_call(lambda: deps.agents.network_author.author(network_task))
     draft_of(run, "network_author")
-    network = promote(lambda: deps.promotions.network(network_task, run), run.usage)
+    network = promote(lambda: deps.network_promoter.promote(run, network_task), run.usage)
     recorder.apply(recorder.study.add_networks(network.network_id))
     return StepRecord(step.kind, StepStatus.OK, task, (network.network_id,), usage=run.usage)
 
@@ -236,7 +236,7 @@ def _obtain_demand(
     else:
         draft_run = cast("AgentRun[DemandDraft]", run)
         demand_id = promote(
-            lambda: deps.promotions.demand(demand_task, draft_run), run.usage
+            lambda: deps.demand_promoter.promote(draft_run, demand_task), run.usage
         ).demand_id
     return StepRecord(step.kind, StepStatus.OK, task, (demand_id,), usage=run.usage)
 
@@ -246,7 +246,7 @@ def _reroute(step: RerouteDemandStep, task: Mapping[str, Any], deps: StudyDeps) 
     network = deps.networks.get(_id(step.network_id))
     if demand is None or network is None:
         fail(StepErrorKind.AGENT, "reroute_demand names a demand or network not stored")
-    rerouted = promote(lambda: deps.promotions.reroute(demand, network), Usage())
+    rerouted = promote(lambda: deps.reroute_promoter.promote(demand, network), Usage())
     return StepRecord(step.kind, StepStatus.OK, task, (rerouted.demand_id,))
 
 

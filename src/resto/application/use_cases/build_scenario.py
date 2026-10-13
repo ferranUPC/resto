@@ -1,33 +1,23 @@
-"""Scenario Builder promotion: an already-run `AgentRun[ScenarioDraft]` -> a `Scenario`
-(DoD §2.2, §2.4, §4.5; ADR-0001, ADR-0007, ADR-0017). E2.2 Minimal scope: static `lane_closure`
-and `speed_limit` on a single lane only — see `adapters/llm/agents/scenario_builder.py` for how
-the draft actually gets produced.
+"""Scenario Builder use case: an already-run `AgentRun[ScenarioDraft]` -> a stored `Scenario`
+(DoD §2.2, §2.4, §4.5; ADR-0001, ADR-0007, ADR-0017, ADR-0042 §5).
 
-This module only does *promotion* — it takes the agent's run as a finished fact, not a `ToolAgent`
-to call: `application/` never imports `adapters/`, and running the Builder (assembling the
-`AgentTask`/tools and calling `ToolAgent.run`, `adapters/llm/agents/scenario_builder.py`) is an
-adapter-layer concern. Whatever wires the two together (today: a script or a test; later: the
-Executor's `build_scenario` step, work-plan E5.2) calls `run_scenario_builder` first and hands
-its result to `BuildScenario.execute`.
+It takes the agent's run as a finished fact, not a `ToolAgent` to call: `application/` never imports
+`adapters/`, and running the Builder (assembling the `AgentTask`/tools and calling `ToolAgent.run`,
+`adapters/llm/agents/scenario_builder.py`) is an adapter-layer concern. Whatever wires the two
+together (the Executor's `build_scenario` step, `eval/`) calls the Builder first and hands its
+result to `BuildScenario.execute`.
 
-Promotion order (ADR-0001):
-  1. syntactic  - the agent actually returned a `ScenarioDraft` (its dataclass invariants already
-                  ran at construction; there is nothing further to re-validate here).
-  2. semantic   - the demand belongs to the network, every intervention target the draft claims
-                  to have implemented still exists on the network, and SUMO actually loads the
-                  cfg it wrote. A `demand_scale` intervention (E2.3) is additionally re-checked
-                  against its own derived `Demand` (`_effective_demand_id`), which also becomes
-                  the promoted `Scenario`'s `demand_id` - what was actually simulated, not
-                  necessarily the task's original request demand.
-  3. construct  - `scenario_id` from the *accepted* interventions (`draft.interventions`, not
-                  whatever was in the original task - a rejected one changes the id, DoD §2.3) and
-                  from `task.demand_id` (the request's own demand, unaffected by which derived
-                  demand a demand_scale mechanism produced - see architecture §1's identity policy).
-  4. persist    - store and return; an existing scenario for that id is returned as-is, skipping
-                  steps 2b/3/4 ("zero redundant simulations", architecture §1). This cannot dedupe
-                  before the agent ran (the id depends on which interventions it accepted), so a
-                  repeated request still costs one agent call even when the result turns out to
-                  already exist — unlike `RunSimulation`, which dedupes before spending compute.
+Order:
+  1. load    - the network (an unknown one is rejected), the demands the draft names and the
+               network's query, for the `ScenarioPromoter`, which checks the draft and builds the
+               `Scenario` (`resto.application.promoters.scenario`).
+  2. dedupe  - an existing scenario for that id is returned as-is, skipping steps 3 and 4 ("zero
+               redundant simulations", architecture §1). This cannot dedupe before the agent ran
+               (the id depends on which interventions it accepted), so a repeated request still
+               costs one agent call even when the result turns out to already exist, unlike
+               `RunSimulation`, which dedupes before spending compute.
+  3. check   - SUMO loads the cfg the draft wrote; a refusal rejects the draft.
+  4. persist - store and return.
 """
 
 from __future__ import annotations
@@ -36,21 +26,22 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from resto.application.ports.llm import AgentRun
-from resto.application.ports.network_query import NetworkQuery, NetworkQueryLoader
+from resto.application.ports.network_query import NetworkQueryLoader
 from resto.application.ports.repositories import (
     DemandRepository,
     NetworkRepository,
     ScenarioRepository,
 )
 from resto.application.ports.sumo import SumoRunner
-from resto.application.promotion import Blame, DraftRejected, require_draft
+from resto.application.promoters.scenario import (
+    ScenarioContext,
+    ScenarioPromoter,
+    effective_demand_id,
+)
+from resto.application.promotion import DraftRejected, require_draft
+from resto.domain.entities.demand import Demand
 from resto.domain.entities.scenario import Scenario
-from resto.domain.services.content_hash import compute_content_hash
-from resto.domain.services.ids import scenario_id_for
-from resto.domain.services.ownership import ensure_demand_on_network
 from resto.domain.value_objects.drafts import ScenarioDraft
-from resto.domain.value_objects.intervention_target import EdgeTarget, LaneTarget, TlsTarget
-from resto.domain.value_objects.mechanism import RegenerateDemandMechanism
 from resto.domain.value_objects.tasks import ScenarioTask
 
 
@@ -64,97 +55,36 @@ class BuildScenario:
     scenarios: ScenarioRepository
     network_query_loader: NetworkQueryLoader
     runner: SumoRunner
+    promoter: ScenarioPromoter
     out_dir: Path
 
     def execute(self, task: ScenarioTask, run: AgentRun[ScenarioDraft]) -> Scenario:
+        # The draft names the derived demand to load, so a run without one stops here, first.
         draft = require_draft(run, "scenario_builder")
-
         network = self.networks.get(task.network_id)
         if network is None:
             raise DraftRejected(f"unknown network_id {task.network_id!r}")
-        _check_demand_on_network(self.demands, task.demand_id, task.network_id, "demand")
-        effective_demand_id = _effective_demand_id(draft, task.demand_id)
-        if effective_demand_id != task.demand_id:
-            _check_demand_on_network(
-                self.demands, effective_demand_id, task.network_id, "derived demand"
-            )
-
-        _check_targets_exist(draft, self.network_query_loader.load(task.network_id))
-
-        scenario_id = scenario_id_for(
-            task.network_id, task.demand_id, draft.interventions, task.context_tags
+        context = ScenarioContext(
+            task=task,
+            network=network,
+            demands=self._load_demands(task.demand_id, effective_demand_id(draft, task.demand_id)),
+            query=self.network_query_loader.load(task.network_id),
         )
-        existing = self.scenarios.get(scenario_id)
+        scenario = self.promoter.promote(run, context)
+
+        existing = self.scenarios.get(scenario.scenario_id)
         if existing is not None:
             return existing
 
         output = self.runner.run_batch(
-            draft.sumocfg, seed=0, out_dir=self.out_dir / scenario_id / "load_check"
+            draft.sumocfg, seed=0, out_dir=self.out_dir / scenario.scenario_id / "load_check"
         )
         if not output.ok:
             raise DraftRejected(f"SUMO rejected the scenario cfg: {output.error}")
-
-        scenario = Scenario(
-            scenario_id=scenario_id,
-            network_id=task.network_id,
-            demand_id=effective_demand_id,
-            interventions=draft.interventions,
-            mechanisms=draft.mechanisms,
-            sumocfg=draft.sumocfg,
-            content_hash=_content_hash(draft),
-            additional_files=draft.additional_files,
-            context_tags=task.context_tags,
-            traci_script=draft.script,
-        )
         self.scenarios.store(scenario)
         return scenario
 
-
-def _check_demand_on_network(
-    demands: DemandRepository, demand_id: str, network_id: str, label: str
-) -> None:
-    demand = demands.get(demand_id)
-    if demand is None:
-        raise DraftRejected(f"unknown {label}_id {demand_id!r}")
-    try:
-        ensure_demand_on_network(demand, network_id, label=label)
-    except ValueError as e:
-        raise DraftRejected(str(e)) from e
-
-
-def _effective_demand_id(draft: ScenarioDraft, task_demand_id: str) -> str:
-    """The demand actually referenced by `draft.sumocfg`'s routes: `task_demand_id` unless a
-    `demand_scale` intervention was accepted, in which case it is that mechanism's derived
-    `RegenerateDemandMechanism.demand_id` (work-plan E2.3) — the last one if more than one demand
-    scale mechanism is present, since only the last write_sumocfg-time route set can have won."""
-    regenerated = [m for m in draft.mechanisms if isinstance(m, RegenerateDemandMechanism)]
-    return regenerated[-1].demand_id if regenerated else task_demand_id
-
-
-def _unknown_target(what: str) -> DraftRejected:
-    """The user's question named it (`StepError(user_input)`), unlike the other rejections, which
-    point at a wrong plan or draft."""
-    return DraftRejected(what, blame=Blame.USER)
-
-
-def _check_targets_exist(draft: ScenarioDraft, query: NetworkQuery) -> None:
-    """Re-checks every implemented intervention's target against the network directly, rather
-    than trusting the agent's own `edge_exists`/`lane_exists` calls (ADR-0001 step 2: semantic
-    validation is promotion's job, not something an agent's tool trace can stand in for)."""
-    for intervention in draft.interventions:
-        target = intervention.target
-        if isinstance(target, EdgeTarget) and not query.has_edge(target.edge_id):
-            raise _unknown_target(f"unknown edge {target.edge_id!r}")
-        if isinstance(target, LaneTarget) and not query.has_lane(target.edge_id, target.lane_index):
-            raise _unknown_target(f"unknown lane {target.lane_id!r}")
-        if isinstance(target, TlsTarget) and not query.has_tls(target.tls_id):
-            raise _unknown_target(f"unknown tls {target.tls_id!r}")
-
-
-def _content_hash(draft: ScenarioDraft) -> str:
-    """Fingerprint of the *authored files*, distinct from `scenario_id` (a request hash): lets
-    two authoring runs of the same request be compared for "authoring determinism" (DoD §4.5)
-    without re-reading every file by hand."""
-    file_hashes = sorted(ref.content_hash for ref in draft.additional_files)
-    script_hash = draft.script.artifact.content_hash if draft.script is not None else None
-    return compute_content_hash("scenario", draft.sumocfg.content_hash, file_hashes, script_hash)
+    def _load_demands(self, *demand_ids: str) -> dict[str, Demand]:
+        """The stored ones among `demand_ids`; the promoter rejects a missing one."""
+        loaded = {demand_id: self.demands.get(demand_id) for demand_id in demand_ids}
+        return {demand_id: d for demand_id, d in loaded.items() if d is not None}

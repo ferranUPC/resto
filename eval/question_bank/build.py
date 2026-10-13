@@ -50,6 +50,7 @@ from resto.adapters.sumo.network_query_loader import StoredNetworkQueryLoader
 from resto.adapters.sumo.run_directories import FilesystemRunDirectories
 from resto.adapters.sumo.runner import SubprocessSumoRunner
 from resto.application.ports.llm import AgentRun, StopReason
+from resto.application.promoters.scenario import ScenarioPromoter
 from resto.application.schemas import adapter_for
 from resto.application.use_cases.build_scenario import BuildScenario
 from resto.application.use_cases.run_simulation import RunSimulation
@@ -134,6 +135,7 @@ def _rebuild_row(
         scenarios=db.scenarios,
         network_query_loader=StoredNetworkQueryLoader(db.networks),
         runner=runner,
+        promoter=ScenarioPromoter(),
         out_dir=REBUILD_DIR / row.id / "load_check",
     ).execute(task, run)
     run_simulation = RunSimulation(
