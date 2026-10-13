@@ -34,7 +34,6 @@ from resto.application.use_cases.build_scenario import BuildScenario
 from resto.application.use_cases.compose_report import ComposeReport
 from resto.application.use_cases.run_simulation import RunSimulation
 from resto.application.use_cases.run_study import RunStudy
-from resto.application.use_cases.update_note_status import UpdateNoteStatus
 from resto.application.use_cases.write_note import WriteNote
 from resto.domain.constants import DEFAULT_SEEDS
 from resto.domain.entities.demand import Demand
@@ -66,6 +65,7 @@ from resto.domain.value_objects.study_plan import (
 from resto.domain.value_objects.tasks import ExpertTask, NoteTask, ObtainNetworkTask
 from resto.domain.value_objects.time_window import TimeWindow
 from resto.domain.value_objects.topology_modification import AddEdge
+from resto.interface.dependencies import build_event_bus
 from tests.unit.application._doubles import FakeRunner, StubNetworkQuery
 from tests.unit.domain._fixtures import (
     DEMAND,
@@ -370,13 +370,18 @@ class World:
             demands=self.demands,
             scenarios=self.scenarios,
             results=self.results,
-            notes=self.notes,
             studies=self.studies,
             run_simulation=RunSimulation(
                 runner=self.runner,
                 results=self.results,
                 run_dirs=FilesystemRunDirectories(),
                 out_dir=tmp_path / "results",
+            ),
+            events=build_event_bus(
+                notes=self.notes,
+                scenarios=self.scenarios,
+                results=self.results,
+                tracer=self.tracer,
             ),
             tracer=self.tracer,
             planner=self.planner,
@@ -390,7 +395,6 @@ class World:
                 out_dir=tmp_path / "scenarios",
             ),
             compose_report=ComposeReport(),
-            update_note_status=UpdateNoteStatus(self.notes),
             write_note=WriteNote(self.notes),
         )
         self.settings = StudySettings(

@@ -22,9 +22,7 @@ from resto.application.executor.recorder import StudyRecorder, data
 from resto.application.executor.spend import StudySpend
 from resto.application.ports.llm import AgentRun
 from resto.application.use_cases.run_simulation import attempt_dir
-from resto.domain.constants import DEFAULT_SEEDS, NOTE_VERIFY_LIMIT
-from resto.domain.entities.expert_note import NoteStatus
-from resto.domain.entities.scenario import Scenario
+from resto.domain.constants import DEFAULT_SEEDS
 from resto.domain.entities.simulation_result import RunMode, RunStatus, SimulationResult
 from resto.domain.services.experiment_design import study_window
 from resto.domain.services.ids import result_id_for, scenario_id_for
@@ -327,7 +325,6 @@ def _run_simulations(
                 f"logs: {attempt_dir(deps.run_simulation.out_dir, result.result_id, attempt)}",
                 usage=Usage(simulations=ran),
             )
-        _verify_notes(scenario, result, recorder, deps)
         results[seed] = result
     result_ids = tuple(results[s].result_id for s in seeds)
     reused = tuple(results[s].result_id for s in seeds if s not in to_run)
@@ -343,18 +340,3 @@ def _stored_batch_results(
     """The results stored for the batch runs of `scenario_id` with `seeds`, ok or failed."""
     ids = (result_id_for(scenario_id, s, RunMode.BATCH.value) for s in seeds)
     return [r for rid in ids if (r := deps.results.get(rid)) is not None]
-
-
-def _verify_notes(
-    scenario: Scenario, result: SimulationResult, recorder: StudyRecorder, deps: StudyDeps
-) -> None:
-    """ADR-0026: a new ok result settles the unverified notes about its scenario."""
-    hits = deps.notes.search(
-        "",
-        scenario.network_id,
-        {"scenario_id": scenario.scenario_id, "status": [NoteStatus.UNVERIFIED.value]},
-        limit=NOTE_VERIFY_LIMIT,
-    )
-    for note, _ in hits:
-        for event in deps.update_note_status.execute(note, result):
-            recorder.note_status_changed(event)

@@ -11,6 +11,7 @@ from resto.application.executor.planning import plan_phase
 from resto.application.executor.recorder import StudyRecorder
 from resto.application.executor.spend import StudySpend
 from resto.application.executor.steps import execute_plan
+from resto.application.ports.tracing import ModelCall
 from resto.domain.entities.study import Study, StudyResolution
 from resto.domain.services.ids import new_id
 from resto.domain.value_objects.question import Question
@@ -31,10 +32,15 @@ def execute_study(
     recorder = StudyRecorder(
         Study.open(new_id(), question, parse_usage, max_rounds=max_rounds),
         studies=deps.studies,
-        tracer=deps.tracer,
+        events=deps.events,
     )
-    recorder.model_call(parse_usage)
-    spend = StudySpend(settings.budget, parse_usage, recorder.model_call)
+    study_id = recorder.study.study_id
+
+    def model_call(usage: Usage) -> None:
+        deps.tracer.emit(study_id, ModelCall(usage))
+
+    model_call(parse_usage)
+    spend = StudySpend(settings.budget, parse_usage, model_call)
     if recorder.study.resolution is StudyResolution.AWAITING_USER:
         return recorder.study
     network_id: str | None = None
@@ -62,6 +68,7 @@ def execute_study(
             deps.scenarios,
             deps.agents.note_writer,
             deps.write_note,
+            deps.tracer,
         )
         compose(recorder, spend, deps)
         return recorder.study

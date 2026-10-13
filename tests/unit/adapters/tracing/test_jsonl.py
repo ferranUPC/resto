@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from resto.adapters.tracing.jsonl import SCHEMA_VERSION, JsonlTracer, read_run
-from resto.application.ports.tracing import NoteWriterFailed, TraceEvent
+from resto.application.ports.tracing import HandlerFailed, NoteWriterFailed, TraceEvent
 from resto.domain.entities.expert_note import NoteStatus
 from resto.domain.events import (
     ExpertRoundHeld,
@@ -49,6 +49,7 @@ def _events() -> list[TraceEvent]:
         NotesWritten(("note-1",)),
         NoteStatusChanged("note-1", "res-1", NoteStatus.CONFIRMED),
         NoteWriterFailed("ValueError: bad"),
+        HandlerFailed("note_verification", "SimulationsRecorded", "ValueError: bad"),
         PhaseStarted(1),
         PlanMade(
             1,
