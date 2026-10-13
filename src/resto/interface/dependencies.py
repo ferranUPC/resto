@@ -30,6 +30,7 @@ from resto.application.ports.llm import Budget, ToolAgent
 from resto.application.ports.tracing import Tracer
 from resto.application.tools.expert import ExpertCollaborators
 from resto.application.tools.scenario_builder import BuilderCollaborators
+from resto.application.use_cases.build_scenario import BuildScenario
 from resto.domain.services.planner import plan_study
 
 AGENT_SECONDS = 300.0
@@ -57,6 +58,7 @@ def build_deps(
     """
     network_query_loader = StoredNetworkQueryLoader(db.networks)
     studies = InMemoryStudyRepository()
+    runner = SubprocessSumoRunner()
     return StudyDeps(
         agents=StudyAgents(
             parser=InputParserPort(agent=agent, budget=budget),
@@ -102,9 +104,17 @@ def build_deps(
         results=db.results,
         notes=db.notes,
         studies=studies,
-        runner=SubprocessSumoRunner(),
+        runner=runner,
         run_dirs=FilesystemRunDirectories(),
         network_query_loader=network_query_loader,
         tracer=tracer,
         planner=plan_study,
+        build_scenario=BuildScenario(
+            networks=db.networks,
+            demands=db.demands,
+            scenarios=db.scenarios,
+            network_query_loader=network_query_loader,
+            runner=runner,
+            out_dir=out_dir / "scenarios",
+        ),
     )

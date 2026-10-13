@@ -51,7 +51,7 @@ from resto.adapters.sumo.outputs import parse_edgedata
 from resto.adapters.sumo.run_directories import FilesystemRunDirectories
 from resto.adapters.sumo.runner import SubprocessSumoRunner
 from resto.application.ports.llm import AgentRun, StopReason
-from resto.application.use_cases.build_scenario import build_scenario
+from resto.application.use_cases.build_scenario import BuildScenario
 from resto.application.use_cases.run_simulation import run_simulation
 from resto.domain.constants import DEFAULT_SEEDS
 from resto.domain.entities.demand import Demand
@@ -194,16 +194,14 @@ def build_matrix() -> list[dict[str, object]]:
             task = ScenarioTask(
                 network_id=network.network_id, demand_id=demand.demand_id, context_tags=CONTEXT_TAGS
             )
-            scenario = build_scenario(
-                task,
-                run,
+            scenario = BuildScenario(
                 networks=db.networks,
                 demands=db.demands,
                 scenarios=db.scenarios,
                 network_query_loader=StoredNetworkQueryLoader(db.networks),
                 runner=runner,
                 out_dir=row_dir / "load_check",
-            )
+            ).execute(task, run)
 
             results: dict[int, SimulationResult] = {}
             for seed in SEEDS:

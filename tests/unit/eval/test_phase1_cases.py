@@ -140,7 +140,12 @@ def _executor_case(tmp_path: Path, case: Phase1Case) -> World:
     )
     query = _QueryOf(case)
     loader = StoredNetworkQueryLoader(world.networks, lambda _path: query)
-    world.deps = replace(world.deps, planner=plan_study, network_query_loader=loader)
+    world.deps = replace(
+        world.deps,
+        planner=plan_study,
+        network_query_loader=loader,
+        build_scenario=replace(world.deps.build_scenario, network_query_loader=loader),
+    )
     return world
 
 

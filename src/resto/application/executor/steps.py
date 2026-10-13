@@ -21,7 +21,6 @@ from resto.application.executor.plan_validation import ok_results
 from resto.application.executor.recorder import StudyRecorder, data
 from resto.application.executor.spend import StudySpend
 from resto.application.ports.llm import AgentRun
-from resto.application.use_cases.build_scenario import build_scenario
 from resto.application.use_cases.run_simulation import attempt_dir, run_simulation
 from resto.application.use_cases.update_note_status import update_note_status
 from resto.domain.constants import DEFAULT_SEEDS, NOTE_VERIFY_LIMIT
@@ -292,16 +291,7 @@ def _build_scenario(
             usage=usage,
         )
     scenario = promote(
-        lambda: build_scenario(
-            scenario_task,
-            run,
-            networks=deps.networks,
-            demands=deps.demands,
-            scenarios=deps.scenarios,
-            network_query_loader=deps.network_query_loader,
-            runner=deps.runner,
-            out_dir=settings.out_dir / "scenarios",
-        ),
+        lambda: deps.build_scenario.execute(scenario_task, run),
         usage,
     )
     scenario_id = scenario.scenario_id
