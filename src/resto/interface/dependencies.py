@@ -25,9 +25,10 @@ from resto.adapters.sumo.writers.rerouter import RerouterWriter
 from resto.adapters.sumo.writers.sumocfg import SumocfgFileWriter
 from resto.adapters.sumo.writers.tls_program import TlsProgramWriter
 from resto.adapters.sumo.writers.vss import VssWriter
-from resto.application.event_bus import EventBus, TraceDomainEvents
+from resto.application.event_bus import EventBus
+from resto.application.event_handlers.note_verification import NoteVerificationHandler
+from resto.application.event_handlers.trace import TRACED_EVENTS, TraceHandler
 from resto.application.executor import StudyAgents, StudyDeps, StudyPromotions, StudySettings
-from resto.application.executor.note_verification import VerifyNotes
 from resto.application.ports.llm import Budget, ToolAgent
 from resto.application.ports.repositories import (
     NoteRepository,
@@ -43,8 +44,8 @@ from resto.application.use_cases.compose_report import ComposeReport
 from resto.application.use_cases.run_simulation import RunSimulation
 from resto.application.use_cases.run_study import RunStudy
 from resto.application.use_cases.scale_demand import ScaleDemand
-from resto.application.use_cases.update_note_status import UpdateNoteStatus
 from resto.application.use_cases.write_note import WriteNote
+from resto.domain.events import SimulationsRecorded
 from resto.domain.services.planner import plan_study
 
 AGENT_SECONDS = 300.0
@@ -196,20 +197,15 @@ def build_event_bus(
     results: ResultRepository,
     tracer: Tracer,
 ) -> EventBus:
-    """The bus of the study's domain events (ADR-0041 §11): the trace first, then note
-    verification. The bus queues what a handler publishes, so this order does not change the
-    trace."""
+    """The bus of the study's domain events (ADR-0041 §11, ADR-0042 §11), with its handlers in the
+    order the bus documents: the trace first, then note verification."""
     bus = EventBus(tracer)
-    bus.subscribe("trace", TraceDomainEvents(tracer))
+    trace = TraceHandler(tracer)
+    for event_type in TRACED_EVENTS:
+        bus.subscribe(event_type, trace)
     bus.subscribe(
-        "note_verification",
-        VerifyNotes(
-            notes=notes,
-            scenarios=scenarios,
-            results=results,
-            update_note_status=UpdateNoteStatus(notes),
-            publish=bus.publish,
-        ),
+        SimulationsRecorded,
+        NoteVerificationHandler(notes=notes, scenarios=scenarios, results=results),
     )
     return bus
 

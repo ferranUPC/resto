@@ -692,7 +692,8 @@ def test_a_new_result_settles_the_unverified_notes_of_its_scenario(tmp_path: Pat
 
 def test_notes_are_verified_once_the_run_step_is_recorded(tmp_path: Path) -> None:
     """ADR-0041 §11: after every seed of the step ran, so the run step is traced first; the
-    first new result in seed order settles the note, and the later ones find nothing to settle."""
+    first new result in seed order settles the note, and the later ones find nothing to settle.
+    The event names the study that wrote the note (ADR-0042 §11)."""
     world = World(tmp_path, plans=(BASELINE_PLAN,), expert=(answers(),))
     note = unverified_note(BASE_SID, KPIS.mean_delay)
     world.notes.store(note)
@@ -705,7 +706,9 @@ def test_notes_are_verified_once_the_run_step_is_recorded(tmp_path: Path) -> Non
     before = events[settled[0] - 1]
     assert isinstance(before, StepTraced) and before.tool == "run_simulation"
     first = result_id_for(BASE_SID, DEFAULT_SEEDS[0], RunMode.BATCH.value)
-    assert events[settled[0]] == NoteStatusChanged(note.note_id, first, NoteStatus.CONFIRMED)
+    assert events[settled[0]] == NoteStatusChanged(
+        note.note_id, "an-earlier-study", first, NoteStatus.CONFIRMED
+    )
 
 
 def test_a_failing_note_verification_is_traced_and_the_study_still_completes(

@@ -325,9 +325,11 @@ DoD (v0.2 §4.7): on 20 probes, no `ExpertNote` with `status = unverified` and `
 cited as observed fact; the status is updated after the corresponding simulation in 100 % of cases. The
 two halves are measured differently:
 
-- **Status updates — deterministic, no model call.** `UpdateNoteStatus` (ADR-0024) confirms or refutes a
-  note from a later `SimulationResult`. "100 % of cases" means 100 % of *applicable* cases: notes with a
-  network-wide `Quantity` claim. Covered by `tests/unit/application/use_cases/test_update_note_status.py`.
+- **Status updates — deterministic, no model call.** `ExpertNote.verify` (ADR-0024) confirms or refutes a
+  note from a later `SimulationResult`, and the note verification handler stores it (ADR-0042 §11).
+  "100 % of cases" means 100 % of *applicable* cases: notes with a network-wide `Quantity` claim.
+  Covered by `tests/unit/domain/test_expert_note.py` and the note verification cases of
+  `tests/unit/application/use_cases/test_run_study.py`.
 - **Citation probes — real model, `eval/hygiene_probes/`.** 20 questions from the bank, spread round-robin
   across families. Each runs in forced mode with `notes_allowed = true`, `result_ids = ()` (no simulated
   data), and one seeded note: `opinion`, `extrapolated`, `unverified`, worded to echo the question so the

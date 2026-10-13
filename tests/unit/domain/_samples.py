@@ -544,7 +544,7 @@ SAMPLES: dict[type, Callable[[], object]] = {
         result_ids=("res1",),
     ),
     # domain events
-    NoteStatusChanged: lambda: NoteStatusChanged("note1", "res1", NoteStatus.CONFIRMED),
+    NoteStatusChanged: lambda: NoteStatusChanged("note1", "study1", "res1", NoteStatus.CONFIRMED),
     StudyCreated: lambda: StudyCreated(question().text, Mode.FORCED),
     PhaseStarted: lambda: PhaseStarted(1),
     PlanMade: lambda: PlanMade(0, study_plan()),

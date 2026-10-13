@@ -2,7 +2,9 @@
 
 Layer direction (CLAUDE.md): `domain` <- `application` <- `adapters` / `interface`; `domain` is
 stdlib only. `eval/` sits outside the hexagon and may import `resto`, never the reverse. A private
-name (`_Foo`) is not imported across modules: if two modules need it, it is not private.
+name (`_Foo`) is not imported across modules: if two modules need it, it is not private. An event
+handler never imports the study package, `executor` today and `run_study` once r24 renames it
+(ADR-0042 §11).
 """
 
 from __future__ import annotations
@@ -13,7 +15,12 @@ from pathlib import Path
 
 SRC = Path(__file__).resolve().parents[2] / "src"
 FORBIDDEN_FROM_APPLICATION = {"adapters", "interface"}
-RULES = ("domain", "application", "eval", "private")
+STUDY_PACKAGES = ("resto.application.executor", "resto.application.run_study")
+RULES = ("domain", "application", "eval", "private", "event_handlers")
+
+
+def _is_within(module: str, packages: tuple[str, ...]) -> bool:
+    return any(module == p or module.startswith(f"{p}.") for p in packages)
 
 
 def _imports(tree: ast.AST) -> list[tuple[str, list[str]]]:
@@ -35,7 +42,9 @@ def _violations(root: Path) -> dict[str, list[str]]:
     """Map each rule to the offending `file: import` lines found under `root`/resto."""
     out: dict[str, list[str]] = {rule: [] for rule in RULES}
     for path in sorted((root / "resto").rglob("*.py")):
-        layer = path.relative_to(root / "resto").parts[0]
+        parts = path.relative_to(root / "resto").parts
+        layer = parts[0]
+        in_handlers = parts[:2] == ("application", "event_handlers")
         for module, names in _imports(ast.parse(path.read_text())):
             top, _, rest = module.partition(".")
             second = rest.partition(".")[0]
@@ -50,6 +59,8 @@ def _violations(root: Path) -> dict[str, list[str]]:
                     out["domain"].append(where)
             if layer == "application" and top == "resto" and second in FORBIDDEN_FROM_APPLICATION:
                 out["application"].append(where)
+            if in_handlers and _is_within(module, STUDY_PACKAGES):
+                out["event_handlers"].append(where)
             if top == "resto":
                 out["private"].extend(f"{where}.{n}" for n in names if _is_private(n))
     return out
@@ -67,8 +78,17 @@ def test_scan_flags_each_violation_kind(tmp_path: Path) -> None:
     (pkg / "application" / "b.py").write_text(
         "from resto.interface import y\nimport eval.z\nfrom resto.domain.m import _Hidden\n"
     )
+    (pkg / "application" / "event_handlers").mkdir()
+    (pkg / "application" / "event_handlers" / "c.py").write_text(
+        "from resto.application.executor.spend import StudySpend\n"
+        "from resto.application.run_study import RunStudy\n"
+    )
     found = _violations(tmp_path)
     assert found["domain"] == ["resto/domain/a.py: pydantic", "resto/domain/a.py: resto.adapters"]
     assert found["application"] == ["resto/application/b.py: resto.interface"]
     assert found["eval"] == ["resto/application/b.py: eval.z"]
     assert found["private"] == ["resto/application/b.py: resto.domain.m._Hidden"]
+    assert found["event_handlers"] == [
+        "resto/application/event_handlers/c.py: resto.application.executor.spend",
+        "resto/application/event_handlers/c.py: resto.application.run_study",
+    ]

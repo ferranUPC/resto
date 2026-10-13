@@ -3,9 +3,10 @@
 A transition returns its next value and the events it produced; the use case stores the value, then
 publishes the events. Event types import value objects only, never the entities that return them.
 
-The events carry no `study_id`: whoever publishes a study's events passes its id along, as
-`Tracer.emit` takes it. Most of them are also trace events and keep the names and fields the trace
-has always had (ADR-0041 Consequences), so a trace reads the same as before they moved here.
+A study's events carry no `study_id`: whoever publishes them passes the study's id along, as
+`Tracer.emit` takes it. `NoteStatusChanged` is about a note, so it names the study that wrote the
+note (ADR-0042 §11). Most of them are also trace events and keep the names and fields the trace has
+always had (ADR-0041 Consequences), so a trace reads the same as before they moved here.
 """
 
 from __future__ import annotations
@@ -89,9 +90,11 @@ class ReportComposed:
 
 @dataclass(frozen=True, slots=True)
 class NoteStatusChanged:
-    """`result_id` settled the note `note_id` as `status` (`ExpertNote.verify`)."""
+    """`result_id` settled the note `note_id`, written by the study `study_id`, as `status`
+    (`ExpertNote.verify`). The study that settled it is the one the event is published for."""
 
     note_id: str
+    study_id: str
     result_id: str
     status: NoteStatus
 
