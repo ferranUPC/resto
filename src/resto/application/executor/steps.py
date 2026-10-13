@@ -1,12 +1,11 @@
-"""Executing one phase's plan: every step in order, `FromStep` resolved against the ids the earlier
-steps produced, one handler per step kind, stop at the first failure (ADR-0025). Each handler
+"""Executing one step of a phase's plan, as the study hands it with its `FromStep` references
+resolved: one handler per step kind, and the first failure stops the study (ADR-0025). Each handler
 returns its step and the stored results it reused; the study records them (`Study.record_step`),
 which decides the experiments they change."""
 
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import replace
 from typing import Any, assert_never, cast
 
 from resto.application.executor.deps import StudyDeps, StudySettings
@@ -46,7 +45,6 @@ from resto.domain.value_objects.study_plan import (
     PlanStep,
     RerouteDemandStep,
     RunSimulationStep,
-    StudyPlan,
 )
 from resto.domain.value_objects.tasks import (
     NetworkTask,
@@ -56,56 +54,34 @@ from resto.domain.value_objects.tasks import (
 )
 
 
-def execute_plan(
-    plan: StudyPlan,
+def execute_step(
+    step: PlanStep,
     recorder: StudyRecorder,
     spend: StudySpend,
     deps: StudyDeps,
     settings: StudySettings,
-) -> str | None:
-    """Runs `plan` in the current phase and returns the study's network id; or nothing, once a
-    step failed (the study is recorded `failed`) or needed the user (`awaiting_user`), with the
-    pending steps skipped."""
-    produced: dict[int, str] = {}
-    for i, step in enumerate(plan.steps):
-        resolved = _resolve(step, produced)
-        task = data(resolved)
-        try:
-            record, reused = _run_step(resolved, task, recorder, spend, deps, settings)
-        except StepFailed as failed:
-            recorder.apply(recorder.study.record_failure(failed.record(resolved.kind, task)))
-            return None
-        except StepNeedsUser as needs:
-            waiting = needs.record(resolved.kind, task)
-            recorder.apply(recorder.study.record_needs_user(waiting, needs.needs_user))
-            return None
-        except Exception as e:
-            recorder.apply(recorder.study.record_failure(crash(e).record(resolved.kind, task)))
-            return None
-        produced[i] = record.produced_ids[-1] if record.produced_ids else ""
-        recorder.apply(recorder.study.record_step(record, reused_result_ids=reused))
-    network_id = (
-        produced[plan.network_id.step] if isinstance(plan.network_id, FromStep) else plan.network_id
-    )
-    return network_id
-
-
-_ID_FIELDS = ("base_network_id", "network_id", "demand_id", "scenario_id")
-
-
-def _resolve(step: PlanStep, produced: Mapping[int, str]) -> PlanStep:
-    """`step` with every `FromStep` replaced by the id that step produced."""
-    changes = {
-        name: produced[ref.step]
-        for name in _ID_FIELDS
-        if isinstance(ref := getattr(step, name, None), FromStep)
-    }
-    resolved: PlanStep = replace(cast(Any, step), **changes)
-    return resolved
+) -> None:
+    """Runs the next `step` of the current phase's plan, whose `FromStep` references the study
+    resolved, and records it: ok, failed (the study is `failed`) or needing the user
+    (`awaiting_user`), with the pending steps skipped."""
+    task = data(step)
+    try:
+        record, reused = _run_step(step, task, recorder, spend, deps, settings)
+    except StepFailed as failed:
+        recorder.apply(recorder.study.record_failure(failed.record(step.kind, task)))
+        return
+    except StepNeedsUser as needs:
+        waiting = needs.record(step.kind, task)
+        recorder.apply(recorder.study.record_needs_user(waiting, needs.needs_user))
+        return
+    except Exception as e:
+        recorder.apply(recorder.study.record_failure(crash(e).record(step.kind, task)))
+        return
+    recorder.apply(recorder.study.record_step(record, reused_result_ids=reused))
 
 
 def _id(ref: str | FromStep) -> str:
-    if isinstance(ref, FromStep):  # _resolve ran first: a FromStep here is a bug
+    if isinstance(ref, FromStep):  # the study resolved the step: a FromStep here is a bug
         raise TypeError(f"unresolved {ref}")
     return ref
 

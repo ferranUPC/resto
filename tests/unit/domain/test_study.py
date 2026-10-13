@@ -35,7 +35,7 @@ from resto.domain.value_objects.study_action import (
     OpenPhase,
     ParseRequest,
     PlanPhase,
-    RunPlan,
+    RunStep,
 )
 from resto.domain.value_objects.study_plan import (
     BuildScenarioStep,
@@ -920,9 +920,44 @@ def test_a_new_study_plans_its_first_phase() -> None:
     assert _opened().next_action() == PlanPhase()
 
 
-def test_a_running_study_runs_the_plan_it_accepted() -> None:
-    assert _running().next_action() == RunPlan(FULL_PLAN)
-    assert _running(NETWORK, DEMAND).next_action() == RunPlan(FULL_PLAN)
+def test_a_running_study_runs_the_next_step_of_its_plan() -> None:
+    assert _running().next_action() == RunStep(ObtainNetworkStep("RIVERSIDE"))
+
+
+def test_the_next_step_names_the_ids_the_steps_it_comes_from_produced() -> None:
+    assert _running(NETWORK).next_action() == RunStep(
+        ObtainDemandStep("net1", seed=1, depends_on=(0,))
+    )
+    assert _running(NETWORK, DEMAND).next_action() == RunStep(
+        BuildScenarioStep("net1", "dem1", "base", BASELINE, "the base", depends_on=(0, 1))
+    )
+    assert _running(NETWORK, DEMAND, BUILT_BASE, RAN_BASE).next_action() == RunStep(
+        BuildScenarioStep("net1", "dem1", "closed", TREATMENT, "E12 closed", depends_on=(0, 1))
+    )
+    assert _running(NETWORK, DEMAND, BUILT_BASE).next_action() == RunStep(
+        RunSimulationStep("scen-base", seeds=(1, 2), depends_on=(2,))
+    )
+
+
+def test_the_study_has_no_network_until_a_plan_fixes_it() -> None:
+    assert _opened().network_id is None
+    assert _running().network_id is None
+
+
+def test_the_study_network_is_the_one_its_plan_names_or_a_step_produced() -> None:
+    named = StudyPlan(
+        network_id="stored-net", rationale="stored", steps=(ObtainNetworkStep("RIVERSIDE"),)
+    )
+
+    assert _running(plan=named).network_id == "stored-net"
+    assert _running(NETWORK).network_id == "net1"
+
+
+def test_the_next_phase_is_planned_on_the_network_of_the_previous_one() -> None:
+    study = _second_phase(_question())
+
+    assert study.stage is S.PLANNING
+    assert study.network_id == "net1"
 
 
 def test_a_study_that_recorded_every_step_consults_the_expert() -> None:

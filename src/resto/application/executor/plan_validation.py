@@ -9,7 +9,6 @@ from collections.abc import Callable, Collection
 from resto.application.ports.repositories import (
     DemandRepository,
     NetworkRepository,
-    ScenarioRepository,
 )
 from resto.domain.services.experiment_design import needed_arms
 from resto.domain.value_objects.arm import Arm
@@ -34,7 +33,6 @@ def plan_problems(
     network_id: str | None,
     networks: NetworkRepository,
     demands: DemandRepository,
-    scenarios: ScenarioRepository,
 ) -> list[str]:
     """Every problem of `plan` for phase `phase`, in the order found; none means it may run.
     `realised` are the arms earlier phases realised, `network_id` the study's network (none

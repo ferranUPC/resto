@@ -1,8 +1,8 @@
 """The planner's output: a typed, immutable plan the Executor walks (ADR-0023 §2, ADR-0025).
 
-Ids that do not exist at planning time are written as `FromStep(i)`: the Executor substitutes the id
-produced by step `i`. Each step variant mirrors the typed task of the use case it calls, with every
-such id widened to `str | FromStep`.
+Ids that do not exist at planning time are written as `FromStep(i)`: the study substitutes the id
+step `i` produced before it hands the step to run (`Phase.resolved`). Each step variant mirrors the
+typed task of the use case it calls, with every such id widened to `str | FromStep`.
 """
 
 from __future__ import annotations
@@ -132,8 +132,8 @@ class DeriveNetworkStep:
 class ObtainDemandStep:
     """The Demand Generator resolves the demand for a network an earlier step produced:
     `network_id` is a `FromStep` to that step, never an id or the reference (ADR-0037 §3).
-    `StudyPlan` enforces it; the Executor's resolved copy of the step holds the id the
-    `FromStep` pointed to. `demand_ref` is the Parser's phrase; none means the request names
+    `StudyPlan` enforces it; the resolved copy of the step the study hands to run holds the
+    id the `FromStep` pointed to. `demand_ref` is the Parser's phrase; none means the request names
     no demand and the specialist asks."""
 
     network_id: str | FromStep

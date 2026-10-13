@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, fields, replace
 from enum import StrEnum
 from itertools import pairwise
-from typing import assert_never
+from typing import Any, assert_never
 
 from resto.domain.constants import DEFAULT_MAX_ROUNDS
 from resto.domain.entities.network import Network
@@ -37,10 +37,10 @@ from resto.domain.value_objects.study_action import (
     OpenPhase,
     ParseRequest,
     PlanPhase,
-    RunPlan,
+    RunStep,
     StudyAction,
 )
-from resto.domain.value_objects.study_plan import PlanStep, Produces, StudyPlan
+from resto.domain.value_objects.study_plan import FromStep, PlanStep, Produces, StudyPlan
 from resto.domain.value_objects.tasks import NoteScenario, NoteTask
 
 
@@ -110,19 +110,49 @@ class Phase:
 
     @property
     def pending_steps(self) -> tuple[PlanStep, ...]:
-        """The steps of the plan not recorded yet."""
+        """The steps of the plan not recorded yet, in plan order. Steps run one at a time in the
+        order the plan lists them, so the next step to run is the first one and, after a stop,
+        every one of them is skipped."""
+        # TODO(dag): steps whose `depends_on` do not join could run in parallel; the next and the
+        # skipped steps would then come from the dependency graph, not from the plan order.
         if self.plan is None:
             return ()
         return self.plan.steps[self.next_plan_index :]
 
+    @property
+    def network_id(self) -> str | None:
+        """The network this phase's plan is about: the id the plan names, or the one its step
+        produced. None without a plan, or while that step is not recorded ok."""
+        if self.plan is None:
+            return None
+        ref = self.plan.network_id
+        if isinstance(ref, str):
+            return ref
+        recorded = ref.step + 1 < len(self.steps)
+        if not recorded or self.steps[ref.step + 1].status is not StepStatus.OK:
+            return None
+        return self._produced(ref)
+
+    def resolved(self, step: PlanStep) -> PlanStep:
+        """`step` with every `FromStep` replaced by the id the step it points to produced. The
+        steps it points to come earlier in the plan, so this phase recorded them."""
+        changes: dict[str, Any] = {
+            f.name: self._produced(ref)
+            for f in fields(step)
+            if isinstance(ref := getattr(step, f.name), FromStep)
+        }
+        return replace(step, **changes)
+
     def named_ids(self, step: PlanStep, kind: Produces) -> tuple[str, ...]:
         """The ids of `kind` that `step` names: directly, or through a `FromStep` to a step this
-        phase recorded (the last id that step produced, as the Executor resolves it)."""
+        phase recorded."""
         direct = tuple(ref for k, ref in step.refs() if k == kind)
-        built = tuple(
-            self.steps[ref.step + 1].produced_ids[-1] for ref, k in step.inputs if k == kind
-        )
+        built = tuple(self._produced(ref) for ref, k in step.inputs if k == kind)
         return direct + built
+
+    def _produced(self, ref: FromStep) -> str:
+        """The id plan step `ref.step` produced: the last of its ids."""
+        return self.steps[ref.step + 1].produced_ids[-1]
 
     @property
     def planned(self) -> bool:
@@ -336,6 +366,13 @@ class Study:
         return tuple(e.arm for p in self.phases[:-1] for e in p.experiments)
 
     @property
+    def network_id(self) -> str | None:
+        """The network the study is about, as the plan of its latest phase that knows it says
+        (`Phase.network_id`); the planner of a later phase is told it. None until a plan fixes
+        it. Not to be confused with `network_ids`, every network the study used."""
+        return next((n for p in reversed(self.phases) if (n := p.network_id) is not None), None)
+
+    @property
     def scenario_ids(self) -> tuple[str, ...]:
         """The scenario of every experiment of the study, in order, without repeats."""
         return tuple(dict.fromkeys(e.scenario_id for p in self.phases for e in p.experiments))
@@ -418,8 +455,8 @@ class Study:
             case StudyStage.PLANNING:
                 return PlanPhase()
             case StudyStage.RUNNING:
-                assert last.plan is not None  # a running study accepted its phase's plan
-                return RunPlan(last.plan) if last.pending_steps else ConsultExpert()
+                pending = last.pending_steps
+                return RunStep(last.resolved(pending[0])) if pending else ConsultExpert()
             case StudyStage.CONSULTING_EXPERT:
                 return OpenPhase() if last.round is not None else AskExpert()
             case StudyStage.CLOSING:
@@ -637,13 +674,8 @@ class Study:
 
 
 def _pending_skipped(phase: Phase) -> tuple[StepRecord, ...]:
-    """The plan steps of `phase` not recorded yet, as skipped steps. The planning is the phase's
-    first step, so plan step `i` is recorded as step `i + 1`."""
-    if phase.plan is None:
-        return ()
-    return tuple(
-        StepRecord(s.kind, StepStatus.SKIPPED) for s in phase.plan.steps[len(phase.steps) :]
-    )
+    """The plan steps of `phase` after the pending one that stopped it, as skipped steps."""
+    return tuple(StepRecord(s.kind, StepStatus.SKIPPED) for s in phase.pending_steps[1:])
 
 
 Transition = tuple[Study, tuple[StudyEvent, ...]]

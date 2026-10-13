@@ -11,15 +11,10 @@ import pytest
 from resto.adapters.persistence.memory import (
     InMemoryDemandRepository,
     InMemoryNetworkRepository,
-    InMemoryResultRepository,
-    InMemoryScenarioRepository,
 )
 from resto.application.executor.plan_validation import plan_problems
-from resto.domain.entities.scenario import Scenario
-from resto.domain.entities.simulation_result import RunMode, RunStatus, SimulationResult
-from resto.domain.services.ids import result_id_for, scenario_id_for
+from resto.domain.services.ids import scenario_id_for
 from resto.domain.value_objects.arm import BASE_ARM, Arm
-from resto.domain.value_objects.kpis import Kpis
 from resto.domain.value_objects.question import Intent, Question
 from resto.domain.value_objects.study_plan import (
     DeriveNetworkStep,
@@ -43,7 +38,6 @@ from tests.unit.domain._samples import demand as sample_demand
 from tests.unit.domain._samples import network as sample_network
 
 CLOSURE = static_intervention()
-KPIS = Kpis(mean_delay=24.4, mean_travel_time=85.4, teleports=0, departed=50, arrived=43)
 NEW_EDGE = AddEdge("J7", "J9", lanes=2, speed=13.9, edge_id="J7J9")
 
 DESCRIBE = Question(text="how congested is the peak?", intent=Intent.DESCRIBE)
@@ -67,44 +61,13 @@ def plan(*steps: PlanStep, network: str | FromStep = NET) -> StudyPlan:
 
 
 class Stored:
-    """The repositories a plan is checked against: the sample network and demand, and whatever
-    scenarios and results a test stores."""
+    """The repositories a plan is checked against: the sample network and demand."""
 
     def __init__(self) -> None:
         self.networks = InMemoryNetworkRepository()
         self.networks.store(sample_network())
         self.demands = InMemoryDemandRepository()
         self.demands.store(sample_demand())
-        self.scenarios = InMemoryScenarioRepository()
-        self.results = InMemoryResultRepository()
-
-    def scenario(self, *, ok: bool = True) -> str:
-        """A stored base scenario on the study network, with one result, ok or failed."""
-        sid = scenario_id_for(NET, DEMAND, (), frozenset())
-        self.scenarios.store(
-            Scenario(
-                scenario_id=sid,
-                network_id=NET,
-                demand_id=DEMAND,
-                interventions=(),
-                mechanisms=(),
-                sumocfg=artifact("stored.sumocfg", "c0", "sumocfg"),
-                content_hash="c0",
-            )
-        )
-        self.results.store(
-            SimulationResult(
-                result_id=result_id_for(sid, 1, RunMode.BATCH.value),
-                scenario_id=sid,
-                seed=1,
-                mode=RunMode.BATCH,
-                status=RunStatus.OK if ok else RunStatus.FAILED,
-                content_hash="h",
-                kpis=KPIS if ok else None,
-                error=None if ok else "Error: SUMO crashed",
-            )
-        )
-        return sid
 
     def problems(
         self,
@@ -123,7 +86,6 @@ class Stored:
             network_id=network_id,
             networks=self.networks,
             demands=self.demands,
-            scenarios=self.scenarios,
         )
 
 
@@ -186,8 +148,8 @@ def test_an_invalid_plan_names_its_problem(
     assert stored.problems(bad_plan, question) == expected
 
 
-def test_a_run_of_a_stored_scenario_id_is_rejected(stored: Stored) -> None:
-    sid = stored.scenario()
+def test_a_run_of_a_scenario_id_is_rejected(stored: Stored) -> None:
+    sid = scenario_id_for(NET, DEMAND, (), frozenset())
 
     assert stored.problems(plan(RunSimulationStep(scenario_id=sid))) == [
         "step 1: run_simulation must run a scenario built by this plan "

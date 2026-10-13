@@ -1,7 +1,6 @@
 """The study flow (ADR-0023, ADR-0030, ADR-0041 §5): a loop that asks the study what comes next,
 performs it and applies the outcome. It holds no rule about the study's state: the study answers
-`next_action` and every phase is a function of its own module; the loop owns the study's network id
-and hands it to the planning phase."""
+`next_action`, one action per plan step, and every phase is a function of its own module."""
 
 from __future__ import annotations
 
@@ -14,7 +13,7 @@ from resto.application.executor.parsing import parse_request
 from resto.application.executor.planning import plan_phase
 from resto.application.executor.recorder import StudyRecorder
 from resto.application.executor.spend import StudySpend
-from resto.application.executor.steps import execute_plan
+from resto.application.executor.steps import execute_step
 from resto.application.ports.tracing import ModelCall
 from resto.domain.entities.study import Study
 from resto.domain.services.ids import new_id
@@ -28,7 +27,7 @@ from resto.domain.value_objects.study_action import (
     OpenPhase,
     ParseRequest,
     PlanPhase,
-    RunPlan,
+    RunStep,
 )
 
 
@@ -54,7 +53,6 @@ def execute_study(
         deps.tracer.emit(study_id, ModelCall(usage))
 
     spend = StudySpend(settings.budget, model_call)
-    network_id: str | None = None
     while True:
         match recorder.study.next_action():
             case Finished():
@@ -62,9 +60,9 @@ def execute_study(
             case ParseRequest():
                 parse_request(recorder, spend, deps)
             case PlanPhase():
-                plan_phase(recorder, deps, network_id)
-            case RunPlan(plan):
-                network_id = execute_plan(plan, recorder, spend, deps, settings)
+                plan_phase(recorder, deps)
+            case RunStep(step):
+                execute_step(step, recorder, spend, deps, settings)
             case ConsultExpert():
                 recorder.apply(recorder.study.consult_expert())
             case AskExpert():

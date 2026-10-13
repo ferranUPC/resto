@@ -11,13 +11,14 @@ from resto.domain.services.planner import PlanningContext, PlanningError
 from resto.domain.value_objects.step_record import StepError, StepErrorKind, StepRecord, StepStatus
 
 
-def plan_phase(recorder: StudyRecorder, deps: StudyDeps, network_id: str | None) -> None:
+def plan_phase(recorder: StudyRecorder, deps: StudyDeps) -> None:
     """Plans the current phase and records its `plan` step: accepted when the plan validates,
     otherwise a failed `plan` step of kind `planning` (the planner could not plan it, or the plan
     did not validate)."""
     study = recorder.study
     k = study.phase_index
     phase = study.current_phase
+    network_id = study.network_id
     realised = study.realised_arms
     task = {"phase": k, "question": data(phase.question)}
     try:
@@ -36,7 +37,6 @@ def plan_phase(recorder: StudyRecorder, deps: StudyDeps, network_id: str | None)
         network_id=network_id,
         networks=deps.networks,
         demands=deps.demands,
-        scenarios=deps.scenarios,
     )
     if problems:
         error = StepError(

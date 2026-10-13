@@ -119,7 +119,7 @@ from resto.domain.value_objects.study_action import (
     OpenPhase,
     ParseRequest,
     PlanPhase,
-    RunPlan,
+    RunStep,
 )
 from resto.domain.value_objects.study_plan import (
     BuildScenarioStep,
@@ -565,7 +565,7 @@ SAMPLES: dict[type, Callable[[], object]] = {
     # study actions
     ParseRequest: lambda: ParseRequest("how congested is the peak?"),
     PlanPhase: PlanPhase,
-    RunPlan: lambda: RunPlan(study_plan()),
+    RunStep: lambda: RunStep(study_plan().steps[0]),
     ConsultExpert: ConsultExpert,
     AskExpert: AskExpert,
     OpenPhase: OpenPhase,
