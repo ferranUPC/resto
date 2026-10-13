@@ -146,6 +146,7 @@ def _executor_case(tmp_path: Path, case: Phase1Case) -> World:
         planner=plan_study,
         network_query_loader=loader,
         ask_expert=AskExpert(loader=loader),
+        build_scenario=replace(world.deps.build_scenario, network_query_loader=loader),
     )
     return world
 

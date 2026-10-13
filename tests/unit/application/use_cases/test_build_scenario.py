@@ -1,4 +1,4 @@
-"""`build_scenario` promotion (E2.2, ADR-0001): semantic checks, dedupe on an existing
+"""`BuildScenario` promotion (E2.2, ADR-0001): semantic checks, dedupe on an existing
 scenario_id, and that a Budget/ERROR stop reason never gets promoted."""
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ from resto.adapters.persistence.memory import (
 from resto.application.ports.llm import AgentRun, StopReason
 from resto.application.ports.sumo import RunOutput
 from resto.application.promotion import Blame, DraftRejected, RunWithoutDraft
-from resto.application.use_cases.build_scenario import build_scenario
+from resto.application.use_cases.build_scenario import BuildScenario
 from resto.domain.services.ids import scenario_id_for
 from resto.domain.value_objects.intervention import Intervention, InterventionType
 from resto.domain.value_objects.mechanism import RegenerateDemandMechanism, StaticFileMechanism
@@ -97,7 +97,7 @@ def test_promotes_a_valid_draft_and_stores_it(tmp_path: Path) -> None:
     kwargs = env()
     kwargs["out_dir"] = tmp_path
 
-    scenario = build_scenario(TASK, agent_run(output=draft()), **kwargs)
+    scenario = BuildScenario(**kwargs).execute(TASK, agent_run(output=draft()))
 
     expected_id = scenario_id_for("abc123", "t1", (static_intervention(),), frozenset({"peak"}))
     assert scenario.scenario_id == expected_id
@@ -111,8 +111,8 @@ def test_an_existing_scenario_is_returned_without_touching_sumo_again(tmp_path: 
     runner = kwargs["runner"]
     runner._outputs = [ok_output(), ok_output()]
 
-    first = build_scenario(TASK, agent_run(output=draft()), **kwargs)
-    second = build_scenario(TASK, agent_run(output=draft()), **kwargs)
+    first = BuildScenario(**kwargs).execute(TASK, agent_run(output=draft()))
+    second = BuildScenario(**kwargs).execute(TASK, agent_run(output=draft()))
 
     assert second == first
     assert len(runner.calls) == 1
@@ -120,22 +120,26 @@ def test_an_existing_scenario_is_returned_without_touching_sumo_again(tmp_path: 
 
 def test_a_budget_stop_reason_is_never_promoted() -> None:
     with pytest.raises(RunWithoutDraft):
-        build_scenario(TASK, agent_run(output=None, stop_reason=StopReason.BUDGET), **env())
+        BuildScenario(**env()).execute(TASK, agent_run(output=None, stop_reason=StopReason.BUDGET))
 
 
 def test_a_missing_output_on_a_reported_output_stop_reason_is_never_promoted() -> None:
     with pytest.raises(RunWithoutDraft):
-        build_scenario(TASK, agent_run(output=None, stop_reason=StopReason.OUTPUT), **env())
+        BuildScenario(**env()).execute(TASK, agent_run(output=None, stop_reason=StopReason.OUTPUT))
 
 
 def test_unknown_network_is_rejected() -> None:
     with pytest.raises(DraftRejected):
-        build_scenario(TASK, agent_run(output=draft()), **env(networks=InMemoryNetworkRepository()))
+        BuildScenario(**env(networks=InMemoryNetworkRepository())).execute(
+            TASK, agent_run(output=draft())
+        )
 
 
 def test_unknown_demand_is_rejected() -> None:
     with pytest.raises(DraftRejected):
-        build_scenario(TASK, agent_run(output=draft()), **env(demands=InMemoryDemandRepository()))
+        BuildScenario(**env(demands=InMemoryDemandRepository())).execute(
+            TASK, agent_run(output=draft())
+        )
 
 
 def test_a_demand_from_a_different_network_is_rejected() -> None:
@@ -143,12 +147,12 @@ def test_a_demand_from_a_different_network_is_rejected() -> None:
 
     mismatched = _demands_with(replace(sample_demand(), network_id="other-network"))
     with pytest.raises(DraftRejected, match="belongs to network 'other-network'"):
-        build_scenario(TASK, agent_run(output=draft()), **env(demands=mismatched))
+        BuildScenario(**env(demands=mismatched)).execute(TASK, agent_run(output=draft()))
 
 
 def test_an_intervention_target_unknown_to_the_network_is_rejected_on_the_users_account() -> None:
     with pytest.raises(DraftRejected) as rejected:
-        build_scenario(TASK, agent_run(output=draft()), **env(query=StubNetworkQuery()))
+        BuildScenario(**env(query=StubNetworkQuery())).execute(TASK, agent_run(output=draft()))
 
     assert rejected.value.blame is Blame.USER
 
@@ -158,7 +162,7 @@ def test_sumo_rejecting_the_cfg_is_a_semantic_error_and_nothing_is_stored(tmp_pa
     kwargs["out_dir"] = tmp_path
 
     with pytest.raises(DraftRejected):
-        build_scenario(TASK, agent_run(output=draft()), **kwargs)
+        BuildScenario(**kwargs).execute(TASK, agent_run(output=draft()))
 
     expected_id = scenario_id_for("abc123", "t1", (static_intervention(),), frozenset({"peak"}))
     assert kwargs["scenarios"].get(expected_id) is None
@@ -167,7 +171,7 @@ def test_sumo_rejecting_the_cfg_is_a_semantic_error_and_nothing_is_stored(tmp_pa
 def test_content_hash_differs_from_scenario_id(tmp_path: Path) -> None:
     kwargs = env()
     kwargs["out_dir"] = tmp_path
-    scenario = build_scenario(TASK, agent_run(output=draft()), **kwargs)
+    scenario = BuildScenario(**kwargs).execute(TASK, agent_run(output=draft()))
     assert scenario.content_hash != scenario.scenario_id
 
 
@@ -204,7 +208,7 @@ def test_a_demand_scale_mechanism_makes_the_scenario_reference_the_derived_deman
     kwargs["out_dir"] = tmp_path
     kwargs["demands"].store(derived_demand())
 
-    scenario = build_scenario(TASK, agent_run(output=demand_scale_draft()), **kwargs)
+    scenario = BuildScenario(**kwargs).execute(TASK, agent_run(output=demand_scale_draft()))
 
     assert scenario.demand_id == "derived1"
     expected_id = scenario_id_for(
@@ -218,7 +222,7 @@ def test_an_unknown_derived_demand_is_rejected(tmp_path: Path) -> None:
     kwargs["out_dir"] = tmp_path
 
     with pytest.raises(DraftRejected):
-        build_scenario(TASK, agent_run(output=demand_scale_draft()), **kwargs)
+        BuildScenario(**kwargs).execute(TASK, agent_run(output=demand_scale_draft()))
 
 
 def test_a_derived_demand_from_a_different_network_is_rejected(tmp_path: Path) -> None:
@@ -229,4 +233,4 @@ def test_a_derived_demand_from_a_different_network_is_rejected(tmp_path: Path) -
     kwargs["demands"].store(replace(derived_demand(), network_id="other-network"))
 
     with pytest.raises(DraftRejected, match="derived demand .* belongs to network 'other-network'"):
-        build_scenario(TASK, agent_run(output=demand_scale_draft()), **kwargs)
+        BuildScenario(**kwargs).execute(TASK, agent_run(output=demand_scale_draft()))

@@ -27,6 +27,7 @@ from resto.application.ports.repositories import (
 from resto.application.ports.sumo import SumoRunner
 from resto.application.ports.tracing import Tracer
 from resto.application.use_cases.ask_expert import AskExpert
+from resto.application.use_cases.build_scenario import BuildScenario
 from resto.application.use_cases.compose_report import ComposeReport
 from resto.application.use_cases.run_simulation import RunSimulation
 from resto.application.use_cases.update_note_status import UpdateNoteStatus
@@ -116,6 +117,7 @@ class StudyDeps:
     tracer: Tracer
     planner: Planner
     ask_expert: AskExpert
+    build_scenario: BuildScenario
     compose_report: ComposeReport
     update_note_status: UpdateNoteStatus
     write_note: WriteNote

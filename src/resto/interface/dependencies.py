@@ -31,6 +31,7 @@ from resto.application.ports.tracing import Tracer
 from resto.application.tools.expert import ExpertCollaborators
 from resto.application.tools.scenario_builder import BuilderCollaborators
 from resto.application.use_cases.ask_expert import AskExpert
+from resto.application.use_cases.build_scenario import BuildScenario
 from resto.application.use_cases.compose_report import ComposeReport
 from resto.application.use_cases.run_simulation import RunSimulation
 from resto.application.use_cases.scale_demand import ScaleDemand
@@ -121,6 +122,14 @@ def build_deps(
         tracer=tracer,
         planner=plan_study,
         ask_expert=AskExpert(loader=network_query_loader),
+        build_scenario=BuildScenario(
+            networks=db.networks,
+            demands=db.demands,
+            scenarios=db.scenarios,
+            network_query_loader=network_query_loader,
+            runner=runner,
+            out_dir=out_dir / "scenarios",
+        ),
         compose_report=ComposeReport(),
         update_note_status=UpdateNoteStatus(db.notes),
         write_note=WriteNote(db.notes),

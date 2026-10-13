@@ -30,6 +30,7 @@ from resto.application.ports.sumo import RunOutput
 from resto.application.ports.tracing import TraceEvent
 from resto.application.tools.expert import EvidenceLedger
 from resto.application.use_cases.ask_expert import AskExpert
+from resto.application.use_cases.build_scenario import BuildScenario
 from resto.application.use_cases.compose_report import ComposeReport
 from resto.application.use_cases.run_simulation import RunSimulation
 from resto.application.use_cases.run_study import run_study
@@ -379,6 +380,14 @@ class World:
             tracer=self.tracer,
             planner=self.planner,
             ask_expert=AskExpert(loader=loader),
+            build_scenario=BuildScenario(
+                networks=self.networks,
+                demands=self.demands,
+                scenarios=self.scenarios,
+                network_query_loader=loader,
+                runner=self.runner,
+                out_dir=tmp_path / "scenarios",
+            ),
             compose_report=ComposeReport(),
             update_note_status=UpdateNoteStatus(self.notes),
             write_note=WriteNote(self.notes),
