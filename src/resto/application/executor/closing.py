@@ -7,8 +7,10 @@ from resto.application.executor.deps import StudyDeps
 from resto.application.executor.failures import StepFailed, crash, describe, draft_of, promote
 from resto.application.executor.recorder import StudyRecorder
 from resto.application.executor.spend import StudySpend
+from resto.application.ports.agents.note_writer import NoteWriterAgent
 from resto.application.ports.repositories import NetworkRepository, ScenarioRepository
 from resto.application.tools.expert import EvidenceLedger
+from resto.application.use_cases.write_note import WriteNote
 from resto.domain.entities.scenario import Scenario
 from resto.domain.entities.study import Study, StudyStatus
 from resto.domain.services.ids import scenario_id_for
@@ -24,7 +26,10 @@ def write_notes(
     ledger: EvidenceLedger,
     recorder: StudyRecorder,
     spend: StudySpend,
-    deps: StudyDeps,
+    networks: NetworkRepository,
+    scenarios: ScenarioRepository,
+    note_writer: NoteWriterAgent,
+    write_note: WriteNote,
 ) -> None:
     """Asks the note writer about the final round and stores the notes' ids on the study; a
     failure is traced and leaves the study as it was."""
@@ -32,11 +37,11 @@ def write_notes(
         study = recorder.study
         task = NoteTask(
             round=final,
-            base_network_id=base_network_id(study, deps.networks),
-            scenarios=allow_list(study, deps.scenarios),
+            base_network_id=base_network_id(study, networks),
+            scenarios=allow_list(study, scenarios),
         )
-        run = spend.agent_call(lambda: deps.agents.note_writer.write(task))
-        written = deps.write_note.execute(run, ledger, task, study.study_id)
+        run = spend.agent_call(lambda: note_writer.write(task))
+        written = write_note.execute(run, ledger, task, study.study_id)
     except Exception as e:
         recorder.note_writer_failed(describe(e))
         return
