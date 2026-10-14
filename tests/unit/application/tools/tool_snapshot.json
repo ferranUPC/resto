@@ -1269,7 +1269,7 @@
       "name": "fetch_osm"
     },
     {
-      "description": "Build the network from a fetched snapshot with `netconvert`: the chosen import profile, cut to the area's polygon, keeping the largest connected component. Starts the cleanups again. Returns the `netconvert_options` and `net_artifact` for the recipe.",
+      "description": "Build the network from a fetched snapshot with `netconvert`: the chosen import profile, cut to the area's polygon, keeping the largest connected component. Starts the cleanups again. Returns the `netconvert_options` and `net_artifact` for the recipe, or `needs_user` when the network has more edges than one import allows.",
       "input_schema": {
         "properties": {
           "osm_snapshot": {

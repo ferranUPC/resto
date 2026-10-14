@@ -214,6 +214,25 @@ def test_an_unknown_profile_names_the_choices(tmp_path: Path) -> None:
         netconvert(run, osm_snapshot=fetched["osm_snapshot"]["content_hash"], profile="space")
 
 
+def test_a_network_with_more_edges_than_the_limit_needs_the_user(tmp_path: Path) -> None:
+    run = run_in(tmp_path, limits=OsmLimits(max_edges=2))
+    fetched = fetch_osm(run, polygon=RING)
+
+    result = netconvert(run, osm_snapshot=fetched["osm_snapshot"]["content_hash"])
+
+    needs = result["needs_user"]
+    assert needs["reason"]["kind"] == "area_too_large"
+    assert needs["reason"]["limit_edges"] == 2 and needs["reason"]["edges"] > 2
+    assert any("Split the area" in r for r in needs["recommendations"])
+    assert "net_artifact" not in result
+
+
+def test_a_network_within_the_edge_limit_is_returned(tmp_path: Path) -> None:
+    result, _ = imported(run_in(tmp_path, limits=OsmLimits(max_edges=100)))
+
+    assert "net_artifact" in result
+
+
 def test_an_area_above_the_limit_needs_the_user_and_nothing_is_downloaded(
     tmp_path: Path,
 ) -> None:
@@ -239,7 +258,8 @@ def test_a_place_that_is_not_a_boundary_needs_the_user_with_the_geocoders_reason
     result = fetch_osm(run_in(tmp_path, osm, geocoder), place_name="Eixample")
 
     needs = result["needs_user"]
-    assert needs["reason"] == {"network_ref": "Eixample", "kind": "network_not_found"}
+    assert needs["reason"] == {"place": "Eixample", "kind": "place_not_boundary"}
+    assert any("polygon" in r for r in needs["recommendations"])
     assert "not a boundary relation" in needs["message"]
     assert osm.calls == []
 

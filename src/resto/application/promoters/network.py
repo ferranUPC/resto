@@ -39,7 +39,11 @@ from resto.domain.value_objects.tasks import NetworkTask, ObtainNetworkTask
 
 class NetworkPromoter:
     """A promoter reads and stores nothing (ADR-0042 §5): the base network of a derivation arrives
-    as an argument, loaded by the step."""
+    as an argument, loaded by the step.
+
+    One exception to ADR-0042 §5, by ADR-0045 §9: replaying the recipe to check its `content_hash`
+    runs `netconvert` and the plain-XML edits in a temporary directory. It is the check itself, and
+    it writes nothing the study keeps: the temporary directory is gone when `promote` returns."""
 
     def __init__(self, runner: NetconvertRunner, editor: PlainNetEditor) -> None:
         self._runner = runner

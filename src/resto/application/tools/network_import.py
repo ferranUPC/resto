@@ -9,7 +9,9 @@ the `source` and the `osm_snapshot` are the recipe, and replaying them gives the
 
 What the code refuses, it refuses before any download and returns as `needs_user` (the agent turns
 it into a `NeedsUser`): an unsupported requirement, a place that is not a boundary, an area over the
-limit. A failing geocoder or Overpass raises `ExternalServiceError` and fails the step by name.
+limit. A built network with more edges than the limit is refused the same way, once `netconvert` has
+counted them. A failing geocoder or Overpass raises `ExternalServiceError` and fails the step by
+name.
 """
 
 from __future__ import annotations
@@ -17,7 +19,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any
+from xml.etree import ElementTree
 
 from pydantic import Field
 
@@ -26,6 +29,7 @@ from resto.application.osm_import import (
     PROFILES,
     VCLASSES,
     Cleanups,
+    VClass,
     netconvert_options,
     profile_named,
     resolve_area,
@@ -33,10 +37,11 @@ from resto.application.osm_import import (
 from resto.application.ports.llm import Tool
 from resto.application.ports.osm import Geocoder, OsmLimits, OsmSource
 from resto.application.ports.sumo import NetconvertRunner
-from resto.application.tools.declaration import tool
+from resto.application.tools.declaration import artifact_json, tool
+from resto.domain.services.geo import area_km2
 from resto.domain.value_objects.artifact_ref import ArtifactRef
 from resto.domain.value_objects.network_source import BBox, PlaceName, Polygon
-from resto.domain.value_objects.outcomes import NeedsUser
+from resto.domain.value_objects.outcomes import AreaTooLarge, NeedsUser
 
 
 @dataclass(slots=True)
@@ -50,7 +55,10 @@ class _Import:
 @dataclass(frozen=True, slots=True)
 class ImportRun:
     """What the import tools are bound to (the `ctx` the model never sees). `imports` is the state
-    of one agent run: each snapshot fetched, with its area, profile and cleanups."""
+    of one agent run: each snapshot fetched, with its area, profile and cleanups. The dataclass is
+    frozen but `imports` is filled as the tools run: the model names a snapshot by hash and the
+    tools must remember what it chose between calls, so the state has to live somewhere; each
+    `obtain` builds its own `ImportRun`, so it never outlives or crosses a run."""
 
     runner: NetconvertRunner
     osm: OsmSource
@@ -59,10 +67,6 @@ class ImportRun:
     typemap_dir: Path
     limits: OsmLimits = field(default_factory=OsmLimits)
     imports: dict[str, _Import] = field(default_factory=dict)
-
-
-def _artifact(ref: ArtifactRef) -> dict[str, str]:
-    return {"path": str(ref.path), "content_hash": ref.content_hash, "kind": ref.kind}
 
 
 def _needs_user(needs: NeedsUser) -> Mapping[str, Any]:
@@ -141,7 +145,7 @@ def fetch_osm(
         return _needs_user(area)
     snapshot = ctx.osm.fetch(area, ctx.out_dir / "osm")
     ctx.imports[snapshot.content_hash] = _Import(area, snapshot)
-    return {"source": asdict(area), "osm_snapshot": _artifact(snapshot)}
+    return {"source": asdict(area), "osm_snapshot": artifact_json(snapshot)}
 
 
 def _build(ctx: ImportRun, key: str, state: _Import) -> Mapping[str, Any]:
@@ -152,10 +156,19 @@ def _build(ctx: ImportRun, key: str, state: _Import) -> Mapping[str, Any]:
     ctx.imports[key] = state
     return {
         "source": asdict(state.area),
-        "osm_snapshot": _artifact(state.snapshot),
+        "osm_snapshot": artifact_json(state.snapshot),
         "netconvert_options": list(options),
-        "net_artifact": _artifact(net),
+        "net_artifact": artifact_json(net),
     }
+
+
+def _edge_count(net_xml: Path) -> int:
+    """Edges of a `.net.xml`, not counting the internal ones junctions add."""
+    return sum(
+        1
+        for _, element in ElementTree.iterparse(net_xml)
+        if element.tag == "edge" and element.get("function") != "internal"
+    )
 
 
 def _state(ctx: ImportRun, osm_snapshot: str) -> _Import:
@@ -175,7 +188,8 @@ _SNAPSHOT = Annotated[
     description=(
         "Build the network from a fetched snapshot with `netconvert`: the chosen import profile, "
         "cut to the area's polygon, keeping the largest connected component. Starts the cleanups "
-        "again. Returns the `netconvert_options` and `net_artifact` for the recipe."
+        "again. Returns the `netconvert_options` and `net_artifact` for the recipe, or "
+        "`needs_user` when the network has more edges than one import allows."
     ),
 )
 def netconvert(
@@ -187,7 +201,25 @@ def netconvert(
 ) -> Mapping[str, Any]:
     state = _state(ctx, osm_snapshot)
     profile_named(profile)
-    return _build(ctx, osm_snapshot, replace(state, profile=profile, cleanups=Cleanups()))
+    built = _build(ctx, osm_snapshot, replace(state, profile=profile, cleanups=Cleanups()))
+    # the edges are only known once the network is built, so the limit is checked here
+    edges = _edge_count(Path(built["net_artifact"]["path"]))
+    if edges > ctx.limits.max_edges:
+        return _needs_user(
+            NeedsUser(
+                reason=AreaTooLarge(
+                    area_km2=area_km2(state.area),
+                    limit_km2=ctx.limits.max_area_km2,
+                    edges=edges,
+                    limit_edges=ctx.limits.max_edges,
+                ),
+                message=(
+                    f"The network has {edges} edges, above the limit of {ctx.limits.max_edges} "
+                    "for one import."
+                ),
+            )
+        )
+    return built
 
 
 @tool(
@@ -238,18 +270,7 @@ def keep_vclass(
     ctx: ImportRun,
     osm_snapshot: _SNAPSHOT,
     vclass: Annotated[
-        Literal[
-            "passenger",
-            "bus",
-            "truck",
-            "delivery",
-            "taxi",
-            "motorcycle",
-            "bicycle",
-            "pedestrian",
-            "tram",
-            "rail",
-        ],
+        VClass,
         Field(description="Vehicle class to keep."),
     ],
 ) -> Mapping[str, Any]:

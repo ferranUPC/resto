@@ -105,6 +105,7 @@ from resto.domain.value_objects.outcomes import (
     FoundItem,
     NeedsUser,
     NetworkNotFound,
+    PlaceNotBoundary,
     SeveralCandidates,
     UnsupportedRequirement,
     WindowMissing,
@@ -403,6 +404,7 @@ SAMPLES: dict[type, Callable[[], object]] = {
     NetworkNotFound: lambda: NetworkNotFound("Gran Via"),
     SeveralCandidates: lambda: SeveralCandidates(),
     AreaTooLarge: lambda: AreaTooLarge(area_km2=101.0, limit_km2=10.0),
+    PlaceNotBoundary: lambda: PlaceNotBoundary("Plaça Catalunya"),
     UnsupportedRequirement: lambda: UnsupportedRequirement("public transport stops"),
     ObtainDemandStep: lambda: ObtainDemandStep(
         network_id=FromStep(0), seed=1, demand_ref="weekday morning peak", depends_on=(0,)

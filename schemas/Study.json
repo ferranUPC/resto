@@ -48,17 +48,41 @@
       "type": "object"
     },
     "AreaTooLarge": {
-      "description": "The area to import is above the size limit; refused before any download (ADR-0045 \u00a76).",
+      "description": "The area to import is too large for one import (ADR-0045 \u00a76): either its size is above the\nlimit, refused before any download, or the network built from it has more edges than the limit\n(`edges` and `limit_edges` are then set, and the area itself may be within its limit).",
       "properties": {
         "area_km2": {
           "title": "Area Km2",
           "type": "number"
+        },
+        "edges": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Edges"
         },
         "kind": {
           "const": "area_too_large",
           "default": "area_too_large",
           "title": "Kind",
           "type": "string"
+        },
+        "limit_edges": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Limit Edges"
         },
         "limit_km2": {
           "title": "Limit Km2",
@@ -1011,6 +1035,9 @@
               "$ref": "#/$defs/AreaTooLarge"
             },
             {
+              "$ref": "#/$defs/PlaceNotBoundary"
+            },
+            {
               "$ref": "#/$defs/UnsupportedRequirement"
             }
           ],
@@ -1281,6 +1308,26 @@
         "question"
       ],
       "title": "Phase",
+      "type": "object"
+    },
+    "PlaceNotBoundary": {
+      "description": "The place name does not resolve to an administrative boundary, so it has no area to import\n(ADR-0045 \u00a72). The geocoder's own words are in `NeedsUser.message`.",
+      "properties": {
+        "kind": {
+          "const": "place_not_boundary",
+          "default": "place_not_boundary",
+          "title": "Kind",
+          "type": "string"
+        },
+        "place": {
+          "title": "Place",
+          "type": "string"
+        }
+      },
+      "required": [
+        "place"
+      ],
+      "title": "PlaceNotBoundary",
       "type": "object"
     },
     "Quantity": {

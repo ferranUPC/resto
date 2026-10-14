@@ -22,7 +22,7 @@ from pydantic import Field
 
 from resto.application.ports.llm import Tool
 from resto.application.ports.sumo import NetconvertRunner, PlainNetEditor, UnresolvableEdit
-from resto.application.tools.declaration import tool
+from resto.application.tools.declaration import artifact_json, tool
 from resto.domain.value_objects.artifact_ref import ArtifactRef
 from resto.domain.value_objects.topology_modification import (
     AddEdge,
@@ -63,11 +63,7 @@ def _edit(
     built = ctx.runner.build(None, plain, (), work / "built")
     return {
         "modification": asdict(modification),
-        "net_artifact": {
-            "path": str(built.path),
-            "content_hash": built.content_hash,
-            "kind": built.kind,
-        },
+        "net_artifact": artifact_json(built),
     }
 
 

@@ -1,10 +1,13 @@
 """Configuration of the Network Author: system prompt, tool list, output type, budget (DoD §2.2;
 ADR-0001, ADR-0033, ADR-0037 §3, ADR-0045).
 
-No logic of its own: the loop lives in the `ToolAgent` implementation, tool behaviour in
-`application/tools/network_*`, and the checks on what the agent returns (recipe replay, sanity,
-`unresolved[]`) in `application/promoters/network.py`. This module assembles the `AgentTask`, the
-tools and the `Budget` for one `ObtainNetworkTask` or `NetworkTask` and calls the agent.
+Wiring, not decisions about networks: the loop lives in the `ToolAgent` implementation, tool
+behaviour in `application/tools/network_*`, and the checks on what the agent returns (recipe replay,
+sanity, `unresolved[]`) in `application/promoters/network.py`. This module assembles the
+`AgentTask`, the tools and the `Budget` for one `ObtainNetworkTask` or `NetworkTask` and calls the
+agent. Besides that it does two small things of its own: `author` loads the base network and puts a
+copy of its `.net.xml` in the working directory (the inspection tools read only there), and it
+raises a service failure again after the run (below).
 
 Two things the tools alone cannot do are done here:
 
@@ -32,6 +35,7 @@ from resto.application.ports.network_query import EnumerableNetworkQuery
 from resto.application.ports.osm import ExternalServiceError, Geocoder, OsmLimits, OsmSource
 from resto.application.ports.repositories import NetworkRepository
 from resto.application.ports.sumo import NetconvertRunner, PlainNetEditor
+from resto.application.tools.declaration import artifact_json
 from resto.application.tools.network_author import (
     AuthorRun,
     NetworkCatalog,
@@ -216,11 +220,7 @@ class NetworkAuthorPort:
         shown = self._work_dir / "base" / base.net_xml.content_hash[:16] / base.net_xml.path.name
         shown.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(base.net_xml.path, shown)
-        agent_input["base_net"] = {
-            "path": str(shown),
-            "content_hash": base.net_xml.content_hash,
-            "kind": base.net_xml.kind,
-        }
+        agent_input["base_net"] = artifact_json(replace(base.net_xml, path=shown))
         return self._run(AgentTask(AUTHOR_PROMPT, agent_input), tools, NetworkDraft)
 
     @property

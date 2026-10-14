@@ -6,6 +6,7 @@ analysis stands only where `netconvert` cannot build the case: it never writes a
 
 from __future__ import annotations
 
+import inspect
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
@@ -16,6 +17,7 @@ from resto.adapters.sumo.network_probe import SumoNetworkProber
 from resto.adapters.sumo.netxml import SumolibNetworkQuery
 from resto.adapters.sumo.runner import SubprocessSumoRunner
 from resto.application.network_analysis import sanity_report
+from resto.application.ports.network_probe import NetworkProber
 from resto.application.tools.network_inspection import (
     MAX_SUSPECTS,
     InspectionRun,
@@ -200,6 +202,17 @@ def test_probe_run_writes_only_under_its_own_directory(tmp_path: Path) -> None:
     created = {p for p in tmp_path.rglob("*")} - before
     assert created
     assert all(out_dir in p.parents for p in created)
+
+
+def test_nothing_that_probe_run_uses_can_reach_a_results_store() -> None:
+    """A probe is a check on a draft, not a result (ADR-0045 §1): neither the tool's context nor
+    the prober is given a repository, so there is nothing for `probe_run` to write a result to."""
+    holders = (InspectionRun, SumoNetworkProber)
+    for holder in holders:
+        params = inspect.signature(holder).parameters.values()
+        assert not [p for p in params if "Repository" in str(p.annotation)], holder
+    probe_params = inspect.signature(NetworkProber.probe).parameters.values()
+    assert not [p for p in probe_params if "Repository" in str(p.annotation)]
 
 
 def test_probe_run_says_so_when_no_vehicle_can_go_anywhere(tmp_path: Path) -> None:

@@ -24,7 +24,7 @@ from pydantic import Field
 from resto.application.ports.llm import Tool
 from resto.application.ports.repositories import NetworkRepository
 from resto.application.ports.sumo import NetconvertRunner
-from resto.application.tools.declaration import tool
+from resto.application.tools.declaration import artifact_json, tool
 from resto.domain.value_objects.network_source import (
     GeneratedNetwork,
     GridNetwork,
@@ -87,11 +87,7 @@ def _generate(ctx: AuthorRun, source: GeneratedNetwork) -> Mapping[str, Any]:
     net = ctx.runner.generate(source, ctx.out_dir / "generated" / digest)
     return {
         "source": asdict(source),
-        "net_artifact": {
-            "path": str(net.path),
-            "content_hash": net.content_hash,
-            "kind": net.kind,
-        },
+        "net_artifact": artifact_json(net),
     }
 
 

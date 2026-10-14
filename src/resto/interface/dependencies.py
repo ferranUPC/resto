@@ -146,6 +146,7 @@ def build_run_study(
     `network_author` and `demand_generator` replace the agents (tests, manual runs); the Network
     Author works under `network/` and downloads OpenStreetMap within `osm_limits`."""
     rounds = rounds or RoundsConfig()
+    osm_limits = osm_limits or OsmLimits()
     netconvert = SubprocessNetconvertRunner()
     plain_editor = XmlPlainNetEditor()
     author = network_author or NetworkAuthorPort(
@@ -161,7 +162,7 @@ def build_run_study(
             geocoder=NominatimGeocoder(out_dir / "network" / "geocoder"),
             typemap_dir=typemap_dir(),
             out_dir=out_dir / "network" / "author",
-            limits=osm_limits or OsmLimits(),
+            limits=osm_limits,
         ),
     )
     generator = demand_generator or _Pending("Demand Generator", "E7.1")

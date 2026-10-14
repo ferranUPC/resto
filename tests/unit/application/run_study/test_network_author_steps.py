@@ -43,6 +43,7 @@ from resto.domain.value_objects.outcomes import (
     Found,
     NeedsUser,
     NetworkNotFound,
+    PlaceNotBoundary,
     SeveralCandidates,
     UnsupportedRequirement,
 )
@@ -235,6 +236,7 @@ def needs_user_of(result: Mapping[str, Any]) -> NeedsUser:
     """The `NeedsUser` an agent builds from the `needs_user` a tool returned."""
     reasons: dict[str, Callable[..., Any]] = {
         "network_not_found": NetworkNotFound,
+        "place_not_boundary": PlaceNotBoundary,
         "area_too_large": AreaTooLarge,
         "unsupported_requirement": UnsupportedRequirement,
     }
@@ -425,7 +427,7 @@ def test_a_place_that_is_not_a_boundary_asks_the_user_and_downloads_nothing(
 
     assert study.resolution is StudyResolution.AWAITING_USER
     needs = study.phases[0].needs_user
-    assert isinstance(needs, NeedsUser) and isinstance(needs.reason, NetworkNotFound)
+    assert isinstance(needs, NeedsUser) and isinstance(needs.reason, PlaceNotBoundary)
     assert "point" in needs.message
     assert geocoder.queries == ["Plaça Catalunya"] and setup.osm.calls == []
 

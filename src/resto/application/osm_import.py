@@ -16,6 +16,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal, get_args
 
 from resto.application.ports.osm import Geocoder, OsmLimits, PlaceRejected
 from resto.domain.services.geo import area_km2, ring_of
@@ -23,7 +24,7 @@ from resto.domain.value_objects.network_source import AreaOfInterest, BBox, Plac
 from resto.domain.value_objects.outcomes import (
     AreaTooLarge,
     NeedsUser,
-    NetworkNotFound,
+    PlaceNotBoundary,
     UnsupportedRequirement,
 )
 
@@ -67,7 +68,7 @@ PROFILES: tuple[ImportProfile, ...] = (
     ),
 )
 
-VCLASSES = (
+VClass = Literal[
     "passenger",
     "bus",
     "truck",
@@ -78,8 +79,10 @@ VCLASSES = (
     "pedestrian",
     "tram",
     "rail",
-)
+]
 """Vehicle classes `keep_vclass` accepts: the ones a study can simulate."""
+
+VCLASSES: tuple[str, ...] = get_args(VClass)
 
 DEFAULT_PROFILE = PROFILES[0].name
 
@@ -157,9 +160,8 @@ def resolve_area(
             area = geocoder.resolve(area)
         except PlaceRejected as rejected:
             return NeedsUser(
-                reason=NetworkNotFound(rejected.query),
+                reason=PlaceNotBoundary(rejected.query),
                 message=f"The place {rejected.query!r} cannot be imported: {rejected.reason}.",
-                advice=("Give a bounding box or a polygon for an area that has no boundary.",),
             )
     size = area_km2(area)
     if size > limits.max_area_km2:

@@ -49,6 +49,7 @@ from resto.domain.value_objects.step_record import Usage
 T = TypeVar("T")
 
 SUBMIT_TOOL_NAME = "submit_output"
+UNION_FIELD = "outcome"
 _RESULT_SUMMARY_MAX_LEN = 500
 
 CompletionFn = Callable[..., Any]
@@ -83,7 +84,10 @@ class OpenRouterToolAgent:
         self, task: AgentTask, tools: Sequence[Tool], output: type[T], budget: Budget
     ) -> AgentRun[T]:
         tools_by_name = {tool.name: tool for tool in tools}
-        tools_schema = [_tool_schema(tool) for tool in tools] + [_submit_tool_schema(output)]
+        submit_schema, wrapped = _submit_parameters(output)
+        tools_schema = [_tool_schema(tool) for tool in tools] + [
+            _submit_tool_schema(output, submit_schema)
+        ]
         messages: list[dict[str, Any]] = [
             {"role": "system", "content": task.system_prompt},
             {"role": "user", "content": json.dumps(task.input, default=str)},
@@ -144,7 +148,10 @@ class OpenRouterToolAgent:
                 result_text, arguments = _run_one_call(call, tools_by_name, output)
                 if name == SUBMIT_TOOL_NAME and arguments is not None:
                     try:
-                        validated = adapter_for(output).validate_python(arguments)
+                        # a wrapped union arrives as {"outcome": <the union>}; the caller never
+                        # sees the wrapper
+                        payload = arguments.get(UNION_FIELD) if wrapped else arguments
+                        validated = adapter_for(output).validate_python(payload)
                     except ValidationError as exc:
                         feedback = f"validation failed: {exc}"
                         messages.append(_tool_result(call.id, feedback))
@@ -224,14 +231,31 @@ def _tool_schema(tool: Tool) -> dict[str, Any]:
     }
 
 
-def _submit_tool_schema(output: type[Any]) -> dict[str, Any]:
+def _submit_parameters(output: type[Any]) -> tuple[dict[str, Any], bool]:
+    """The parameters schema of `submit_output`. Providers require `type: object` at the root, and
+    a union of outcomes is an `anyOf` there, so it goes under one `UNION_FIELD` property. The flag
+    says whether it was wrapped, so the submission is unwrapped before it is validated."""
+    schema: dict[str, Any] = adapter_for(output).json_schema()
+    if "type" in schema:
+        return schema, False
+    wrapper: dict[str, Any] = {
+        "type": "object",
+        "properties": {UNION_FIELD: {k: v for k, v in schema.items() if k != "$defs"}},
+        "required": [UNION_FIELD],
+    }
+    if "$defs" in schema:
+        wrapper["$defs"] = schema["$defs"]
+    return wrapper, True
+
+
+def _submit_tool_schema(output: type[Any], parameters: dict[str, Any]) -> dict[str, Any]:
     name = getattr(output, "__name__", "answer")  # a union of outcomes has no name
     return {
         "type": "function",
         "function": {
             "name": SUBMIT_TOOL_NAME,
             "description": f"Submit the final {name} once you are done.",
-            "parameters": adapter_for(output).json_schema(),
+            "parameters": parameters,
         },
     }
 

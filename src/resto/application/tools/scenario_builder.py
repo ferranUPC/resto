@@ -25,7 +25,7 @@ from resto.application.ports.llm import Tool
 from resto.application.ports.network_query import NetworkQuery, NetworkQueryLoader
 from resto.application.ports.repositories import DemandRepository, NetworkRepository
 from resto.application.ports.writers import AdditionalFileWriter, SimulationSettings, SumocfgWriter
-from resto.application.tools.declaration import tool
+from resto.application.tools.declaration import artifact_json, tool
 from resto.application.use_cases.scale_demand import ScaleDemand
 from resto.domain.entities.demand import Demand
 from resto.domain.entities.network import Network
@@ -286,7 +286,7 @@ def write_sumocfg(ctx: BuilderRun) -> Mapping[str, Any]:
         end=request.end,
     )
     ref = ctx.collaborators.sumocfg_writer.write(settings, request.out_dir, "scenario.sumocfg")
-    return {"path": str(ref.path), "content_hash": ref.content_hash, "kind": ref.kind}
+    return artifact_json(ref)
 
 
 def build_scenario_builder_tools(

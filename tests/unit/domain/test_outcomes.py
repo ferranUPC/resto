@@ -7,6 +7,7 @@ from resto.domain.value_objects.outcomes import (
     FoundItem,
     NeedsUser,
     NetworkNotFound,
+    PlaceNotBoundary,
     SeveralCandidates,
     UnsupportedRequirement,
     WindowMissing,
@@ -19,6 +20,7 @@ REASONS = (
     NetworkNotFound("Gran Via"),
     SeveralCandidates(),
     AreaTooLarge(area_km2=101.0, limit_km2=10.0),
+    PlaceNotBoundary("Plaça Catalunya"),
     UnsupportedRequirement("public transport stops"),
 )
 
@@ -28,6 +30,21 @@ def test_area_too_large_names_both_areas_and_advises_a_smaller_one() -> None:
     assert "smaller area" in reason.recommendation
     with pytest.raises(ValueError, match="limit_km2"):
         AreaTooLarge(area_km2=5.0, limit_km2=10.0)
+
+
+def test_area_too_large_by_edges_needs_both_numbers_and_edges_above_the_limit() -> None:
+    reason = AreaTooLarge(area_km2=4.0, limit_km2=10.0, edges=30_000, limit_edges=25_000)
+    assert "Split the area" in reason.recommendation
+    with pytest.raises(ValueError, match="go together"):
+        AreaTooLarge(area_km2=4.0, limit_km2=10.0, edges=30_000)
+    with pytest.raises(ValueError, match="edges must be above"):
+        AreaTooLarge(area_km2=4.0, limit_km2=10.0, edges=10, limit_edges=25_000)
+
+
+def test_place_not_boundary_advises_a_bbox_or_a_polygon() -> None:
+    assert "polygon" in PlaceNotBoundary("Plaça Catalunya").recommendation
+    with pytest.raises(ValueError, match="place"):
+        PlaceNotBoundary(" ")
 
 
 def test_unsupported_requirement_names_what_is_missing() -> None:

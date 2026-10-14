@@ -28,7 +28,7 @@ from resto.application.network_analysis import (
 from resto.application.ports.llm import Tool
 from resto.application.ports.network_probe import NetworkProber
 from resto.application.ports.network_query import EnumerableNetworkQuery
-from resto.application.tools.declaration import tool
+from resto.application.tools.declaration import artifact_json, tool
 from resto.domain.value_objects.artifact_ref import ArtifactRef
 
 __all__ = [
@@ -139,11 +139,7 @@ def probe_run(
         "collisions": report.collisions,
         "not_arrived": report.not_arrived,
         "hot_edges": list(report.hot_edges),
-        "evidence": {
-            "path": str(report.evidence.path),
-            "content_hash": report.evidence.content_hash,
-            "kind": report.evidence.kind,
-        },
+        "evidence": artifact_json(report.evidence),
     }
 
 
