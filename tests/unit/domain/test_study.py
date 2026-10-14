@@ -3,7 +3,7 @@ from typing import Any
 
 import pytest
 
-from resto.domain.entities.study import Phase, Study, StudyResolution, StudyStage
+from resto.domain.entities.study import Study, StudyResolution, StudyStage
 from resto.domain.events import (
     ExpertRoundHeld,
     NetworksAdded,
@@ -20,6 +20,7 @@ from resto.domain.value_objects.experiment import Experiment, ExperimentRole
 from resto.domain.value_objects.expert_answer import Basis, Evidence, EvidenceKind, ExpertAnswer
 from resto.domain.value_objects.expert_round import ExpertRound
 from resto.domain.value_objects.outcomes import NeedsUser, WindowMissing
+from resto.domain.value_objects.phase import Phase
 from resto.domain.value_objects.question import Intent, Mode, Question
 from resto.domain.value_objects.step_record import (
     StepError,

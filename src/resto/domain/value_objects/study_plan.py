@@ -16,7 +16,7 @@ from resto.domain.value_objects.step_record import StepRecord
 from resto.domain.value_objects.topology_modification import TopologyModification
 
 if TYPE_CHECKING:  # the phase holds its plan: `Phase` is imported for the annotations only
-    from resto.domain.entities.study import Phase
+    from resto.domain.value_objects.phase import Phase
 
 Produces = Literal["network", "demand", "scenario", "result"]
 
