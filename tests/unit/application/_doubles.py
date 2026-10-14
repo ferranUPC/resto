@@ -73,12 +73,16 @@ class FakeRunner:
         self.dry_run_outcome = DryRunOutcome(ok=True, error=None)
         # (sumocfg, script, out_dir, number of run_batch calls made before it)
         self.dry_runs: list[tuple[ArtifactRef, TraciScript, Path, int]] = []
+        self.online_calls: list[tuple[ArtifactRef, TraciScript, int]] = []
 
     def sumo_version(self) -> str:
         return self._version
 
     def run_batch(self, sumocfg: ArtifactRef, seed: int, out_dir: Path) -> RunOutput:
         self.calls.append((sumocfg, seed, out_dir))
+        return self._next()
+
+    def _next(self) -> RunOutput:
         if not self._outputs and self._default is not None:
             return self._default
         return self._outputs.pop(0)
@@ -86,7 +90,9 @@ class FakeRunner:
     def run_online(
         self, sumocfg: ArtifactRef, script: TraciScript, seed: int, out_dir: Path
     ) -> RunOutput:
-        raise AssertionError("not used")
+        self.calls.append((sumocfg, seed, out_dir))
+        self.online_calls.append((sumocfg, script, seed))
+        return self._next()
 
     def dry_run(self, sumocfg: ArtifactRef, script: TraciScript, out_dir: Path) -> DryRunOutcome:
         self.dry_runs.append((sumocfg, script, out_dir, len(self.calls)))

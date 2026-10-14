@@ -1,4 +1,4 @@
-"""`run_simulation`: one batch run per seed, except seeds with a stored ok result."""
+"""`run_simulation`: one run per seed in the scenario's mode, except seeds with a stored result."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from resto.application.run_study.failures import fail
 from resto.application.run_study.steps import StepContext
 from resto.application.use_cases.run_simulation import RunSimulation, attempt_dir
 from resto.domain.constants import DEFAULT_SEEDS
-from resto.domain.entities.simulation_result import RunMode, RunStatus
+from resto.domain.entities.simulation_result import RunStatus
 from resto.domain.entities.study import Transition
 from resto.domain.services.ids import result_id_for
 from resto.domain.services.reuse import reused_results, seeds_to_run
@@ -28,15 +28,10 @@ class RunSimulationExecutor:
         scenario = self.scenarios.get(scenario_id)
         if scenario is None:
             fail(StepErrorKind.AGENT, f"scenario {scenario_id!r} is not stored")
-        if scenario.is_online:
-            fail(
-                StepErrorKind.INFRASTRUCTURE,
-                "online scenarios (traci_api scripts) need the E2.5 runner",
-                scenario_id,
-            )
         seeds = step.seeds or DEFAULT_SEEDS
-        batch_ids = (result_id_for(scenario_id, s, RunMode.BATCH.value) for s in seeds)
-        stored = [r for rid in batch_ids if (r := self.results.get(rid)) is not None]
+        mode = scenario.run_mode.value
+        stored_ids = (result_id_for(scenario_id, s, mode) for s in seeds)
+        stored = [r for rid in stored_ids if (r := self.results.get(rid)) is not None]
         results = reused_results(seeds, stored)
         to_run = seeds_to_run(seeds, stored)
         ctx.spend.reserve_simulations(len(to_run))
