@@ -14,6 +14,7 @@ from urllib.parse import urlencode
 from resto.adapters.osm.http import request
 from resto.adapters.persistence.filesystem import artifact_ref
 from resto.application.ports.osm import ExternalServiceError, OsmLimits
+from resto.domain.services.geo import ring_of
 from resto.domain.value_objects.artifact_ref import ArtifactRef
 from resto.domain.value_objects.network_source import BBox, Polygon
 
@@ -47,7 +48,7 @@ class OverpassOsmSource:
         )
 
     def fetch(self, area: BBox | Polygon, out_dir: Path) -> ArtifactRef:
-        ring = _ring_of(area)
+        ring = ring_of(area)
         target = out_dir / f"osm-{_polygon_key(ring)}.osm"
         if target.exists():
             return artifact_ref(target, SNAPSHOT_KIND)
@@ -72,13 +73,6 @@ class OverpassOsmSource:
             f"[maxsize:{self._limits.overpass_maxsize_bytes}];"
             f'(way["highway"](poly:"{poly}"););(._;>;);out;'
         )
-
-
-def _ring_of(area: BBox | Polygon) -> tuple[tuple[float, float], ...]:
-    if isinstance(area, Polygon):
-        return area.ring
-    s, w, n, e = area.south, area.west, area.north, area.east
-    return ((s, w), (s, e), (n, e), (n, w), (s, w))
 
 
 def _polygon_key(ring: tuple[tuple[float, float], ...]) -> str:
