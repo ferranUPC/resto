@@ -4,8 +4,10 @@ Follows ADR-0038 section 4 and the glossary, not the frozen DoD row ("no simulat
 only forbids abstaining. The base is simulated and the closure is not, so no stored simulation
 matches the situation and the answer's `basis` is `extrapolated`; the limit did not force it.
 
-Reference (by hand; regenerate when a real SUMO run backs it, ADR-0043 section 3): the same as
-GP-3, a mean delay of about 30 s with a 10 % tolerance (27 to 33 s), predicted from the base.
+Reference: ESTIMATE, not a measured value. No SUMO run backs it (the tests have no SUMO). It is
+copied from the GP-3 estimate (about 30 s, 10 % tolerance: 27 to 33 s), itself a rough guess, and
+here the Expert predicts it from the base without simulating the closure. Regenerate it from a real
+SUMO run before trusting it with a real setup (ADR-0043 section 3).
 """
 
 from golden.framework import ExpectedAnswer, ExpectedKpi, ExpectedOutcome, GoldenPath

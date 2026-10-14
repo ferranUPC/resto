@@ -1,10 +1,10 @@
 """GP-2: the baseline is built and run with the default seeds, and the Expert states how congested
 the peak is.
 
-Reference (by hand; regenerate when a real SUMO run backs it, ADR-0043 section 3): the peak of
-the DEV-NET baseline has a mean delay of 24 s (mean travel time 85 s against 61 s free flow), taken
-from the baseline KPIs the shared test World stores. 10 % tolerance: 21.6 to 26.4 s pass, 90 s or
-10 s do not.
+Reference: ESTIMATE, not a measured value. No SUMO run backs it (the tests have no SUMO). The 24 s
+is the mean delay of the baseline KPIs the shared test World stores (mean travel time 85 s against
+61 s free flow), a fixture and not a simulation result. Regenerate it from a real SUMO run before
+trusting it with a real setup (ADR-0043 section 3). 10 % tolerance: 21.6 to 26.4 s pass.
 """
 
 from golden.framework import ExpectedAnswer, ExpectedKpi, ExpectedOutcome, GoldenPath

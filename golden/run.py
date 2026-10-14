@@ -46,8 +46,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         warnings: tuple[Mismatch, ...] = ()
         try:
             diff = check(setup, path)
-            detail = "" if diff.ok else diff.render()
-            warnings = () if not diff.ok else diff.warnings
+            if diff.ok:
+                detail = ""
+                warnings = diff.warnings
+            else:
+                detail = diff.render()
         except Exception as error:
             detail = f"{type(error).__name__}: {error}"
         if detail:

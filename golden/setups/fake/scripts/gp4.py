@@ -14,6 +14,9 @@ from resto.domain.value_objects.question import Mode
 from resto.domain.value_objects.tasks import ExpertTask
 
 
+# The fake Expert answers 31.0 s, a stand-in inside the 27 to 33 s tolerance of the GP-4 estimate
+# (30 s). It is scripted to pass the path, not a result; the reference itself is an unverified
+# estimate (see golden/paths/gp4.py).
 def _extrapolated(task: ExpertTask, ledger: EvidenceLedger) -> AgentRun[ExpertAnswer]:
     run = answers(Quantity(measure=Measure.MEAN_DELAY, value=31.0))(task, ledger)
     assert run.output is not None

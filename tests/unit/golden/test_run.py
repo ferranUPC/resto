@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 from golden import run
-from golden.framework import ExpectedOutcome, ExpectedResolution, GoldenPath
+from golden.framework import ExpectedOutcome, ExpectedResolution, GoldenPath, Severity
 from golden.paths import discover
 from golden.setups.fake import FakeSetup
 
@@ -98,3 +98,35 @@ def test_an_unwritable_trace_directory_warns_and_exits_zero(
     captured = capsys.readouterr()
     assert code == 0
     assert "warning" in captured.err and "FAIL" not in captured.out
+
+
+def test_a_warning_is_printed_and_the_run_still_passes_and_exits_zero(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    soft = GoldenPath(
+        "gp2",
+        "how congested is the peak?",
+        ExpectedOutcome(
+            resolution=ExpectedResolution(StudyResolution.AWAITING_USER, Severity.WARNING)
+        ),
+    )
+    monkeypatch.setattr(run, "discover", lambda: (soft,))
+
+    code = run.main(["--setup", "fake", "--no-trace"])
+
+    out = capsys.readouterr().out
+    assert code == 0
+    assert "PASS gp2" in out and "warning: " in out and "FAIL" not in out
+
+
+def test_a_trace_file_that_cannot_be_written_warns_and_exits_zero(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(run, "run_directory", lambda root: root)
+    (tmp_path / "gp1-rep0.jsonl").mkdir()
+
+    code = run.main(["--setup", "fake", "--trace-dir", str(tmp_path)])
+
+    captured = capsys.readouterr()
+    assert code == 0
+    assert "warning: cannot write traces" in captured.err and "FAIL" not in captured.out

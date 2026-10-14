@@ -96,7 +96,9 @@ class ExpectedOutcome:
 
 @dataclass(frozen=True, slots=True)
 class ObservedAnswer:
-    """The typed values and flags of the last Expert round that did not abstain. Never the prose."""
+    """The typed values and flags of the last Expert round that answered, that is, whose
+    `ExpertAnswer.needs_simulation` is False (abstaining is `needs_simulation=True`). Never the
+    prose."""
 
     values: tuple[AnswerValue, ...]
     basis: Basis
