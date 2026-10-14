@@ -5,9 +5,11 @@ from pathlib import Path
 
 import pytest
 from golden import run
-from golden.framework import ExpectedPhase, ExpectedTrace, GoldenPath
+from golden.framework import ExpectedOutcome, ExpectedResolution, GoldenPath
 from golden.paths import discover
 from golden.setups.fake import FakeSetup
+
+from resto.domain.entities.study import StudyResolution
 
 
 def test_every_golden_path_is_discovered_once() -> None:
@@ -29,7 +31,9 @@ def test_a_path_that_differs_prints_its_diff_and_exits_non_zero(
     capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     wrong = GoldenPath(
-        "gp2", "how congested is the peak?", ExpectedTrace((ExpectedPhase(steps=()),))
+        "gp2",
+        "how congested is the peak?",
+        ExpectedOutcome(resolution=ExpectedResolution(StudyResolution.AWAITING_USER)),
     )
     monkeypatch.setattr(run, "discover", lambda: (wrong,))
 
@@ -37,13 +41,13 @@ def test_a_path_that_differs_prints_its_diff_and_exits_non_zero(
 
     out = capsys.readouterr().out
     assert code == 1
-    assert "FAIL gp2" in out and "phase 0, repetition 0: steps (tool, status)" in out
+    assert "FAIL gp2" in out and "repetition 0: resolution" in out
 
 
 def test_a_path_without_a_script_fails_instead_of_crashing(
     capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    orphan = GoldenPath("orphan", "x", ExpectedTrace(()))
+    orphan = GoldenPath("orphan", "x", ExpectedOutcome())
     monkeypatch.setattr(run, "discover", lambda: (orphan,))
 
     assert run.main(["--setup", "fake"]) == 1

@@ -2,7 +2,7 @@
 
 `FakeSetup.run` builds a `World` from the agent script registered for the golden path, stores the
 path's prior state, runs `run_study` on its request and returns the study and the tracer's events.
-`repetitions` is 3: `golden.framework.check` requires every repetition to meet the expected trace
+`repetitions` is 3: `golden.framework.check` requires every repetition to meet the expected outcome
 and to equal the others, which exposes nondeterminism hidden in `World`.
 
 `World` lives in `tests/unit/application/_world.py` and is imported from there, so the Executor

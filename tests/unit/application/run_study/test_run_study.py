@@ -81,7 +81,7 @@ from tests.unit.domain._fixtures import (
 )
 
 # -- the first studies: what the doubles saw ------------------------------------------------------
-# The tool sequence of each study lives in `golden/` (GP-1 to GP-5, GP-9).
+# The tool sequence of each study lives in `test_step_order.py`.
 
 
 def test_a_stored_baseline_is_answered_without_building_or_simulating(tmp_path: Path) -> None:
