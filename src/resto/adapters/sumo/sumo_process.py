@@ -23,6 +23,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
+from resto.adapters.sumo.script_harness import REQUEST, HarnessRequest
 from resto.domain.constants import SUMO_VERSION
 
 _SEED_IN_CONFIG = frozenset({"sumo"})
@@ -74,51 +75,46 @@ def launch(tool: str, args: Sequence[str], cwd: Path, seed: int) -> LaunchResult
     return LaunchResult(ok=True, message="", files=changed)
 
 
-def launch_harness(
-    script: Path,
-    out_dir: Path,
-    sumo_command: Sequence[str],
-    timeout_s: float,
-    dry_run: bool = False,
-    end: float | None = None,
-) -> LaunchResult:
-    """Runs the script harness (`resto.adapters.sumo.script_harness`) in its own process group, so a
-    timeout can kill the harness and the `sumo` it started. The message of a failure is the
-    harness's stderr, which holds the Python traceback. With `dry_run` the harness rehearses the
-    script and writes nothing. `end` is the run cfg's end time, handed to the harness so `run()`
-    stops there like batch.
+class HarnessLauncher:
+    """Runs the script harness (`resto.adapters.sumo.script_harness`) in its own process group, so
+    a timeout can kill the harness and the `sumo` it started. The request goes to the harness as
+    JSON on stdin. The message of a failure is the harness's stderr, which holds the Python
+    traceback.
 
-    The caller has already checked `sumo_command[0]` with `checked_version`.
+    The caller has already checked `request.sumo_command[0]` with `checked_version`.
     """
-    command = [sys.executable, "-m", "resto.adapters.sumo.script_harness"]
-    if dry_run:
-        command.append("--dry-run")
-    if end is not None:
-        command += ["--end", repr(end)]
-    command += [str(script), str(out_dir), *sumo_command]
-    try:
-        proc = subprocess.Popen(
-            command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            cwd=out_dir,
-            start_new_session=True,
-        )
-    except OSError as exc:
-        return LaunchResult(ok=False, message=str(exc))
-    try:
-        _, stderr = proc.communicate(timeout=timeout_s)
-    except subprocess.TimeoutExpired:
-        os.killpg(proc.pid, signal.SIGKILL)
-        proc.communicate()
-        return LaunchResult(ok=False, message=f"the run timed out after {timeout_s:g} s")
-    if proc.returncode != 0:
-        return LaunchResult(
-            ok=False,
-            message=stderr.strip() or f"the script harness exited with code {proc.returncode}",
-        )
-    return LaunchResult(ok=True, message="")
+
+    def __init__(self, timeout_s: float) -> None:
+        self._timeout_s = timeout_s
+
+    def launch(self, request: HarnessRequest) -> LaunchResult:
+        command = [sys.executable, "-m", "resto.adapters.sumo.script_harness"]
+        try:
+            proc = subprocess.Popen(
+                command,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                cwd=request.out_dir,
+                start_new_session=True,
+            )
+        except OSError as exc:
+            return LaunchResult(ok=False, message=str(exc))
+        try:
+            _, stderr = proc.communicate(
+                REQUEST.dump_json(request).decode(), timeout=self._timeout_s
+            )
+        except subprocess.TimeoutExpired:
+            os.killpg(proc.pid, signal.SIGKILL)
+            proc.communicate()
+            return LaunchResult(ok=False, message=f"the run timed out after {self._timeout_s:g} s")
+        if proc.returncode != 0:
+            return LaunchResult(
+                ok=False,
+                message=stderr.strip() or f"the script harness exited with code {proc.returncode}",
+            )
+        return LaunchResult(ok=True, message="")
 
 
 def checked_version(tool: str) -> str:

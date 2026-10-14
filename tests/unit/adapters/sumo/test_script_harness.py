@@ -1,12 +1,12 @@
 """Script harness (ADR-0044) against real SUMO on DEV-NET: a translated script drives a session and
 changes its state, and the actions that fired land in a file.
 
-The 10 script cases call `run_script` in the test process. Each registers a read-back rule through
-the `setup` hook, before the script's own rules, that samples lane permissions, an edge's max speed
-or a TLS program at every step. State is read back with raw `traci`, not through `traci_api`, so a
-case never checks `traci_api` against itself (DoD §4.6). The applied action's step is the step the
-action fired at, so the sample one step later must show its effect and the sample before it must
-not.
+The 10 script cases call `OnlineHarness.run` in the test process. Each registers a read-back rule
+through the `on_start` hook, before the script's own rules, that samples lane permissions, an
+edge's max speed or a TLS program at every step. State is read back with raw `traci`, not through
+`traci_api`, so a case never checks `traci_api` against itself (DoD §4.6). The applied action's step
+is the step the action fired at, so the sample one step later must show its effect and the sample
+before it must not.
 """
 
 from __future__ import annotations
@@ -21,10 +21,13 @@ import pytest
 import traci
 
 from resto import traci_api
+from resto.adapters.sumo.constants import APPLIED_ACTIONS_FILE
 from resto.adapters.sumo.script_harness import (
-    APPLIED_ACTIONS_FILE,
+    REQUEST,
+    DryRunHarness,
+    HarnessRequest,
+    OnlineHarness,
     read_applied_actions,
-    run_script,
 )
 from resto.adapters.sumo.script_translator import translate_script
 from resto.application.schemas import adapter_for
@@ -96,7 +99,7 @@ def _run(
         traci.trafficlight.setProgram(TLS, "0")  # the added program starts out active
         traci_api.when(record, lambda: None)
 
-    run_script(sumo_cmd, script, out_dir, setup=setup)
+    OnlineHarness(sumo_cmd, on_start=setup).run(script, out_dir)
     return samples, read_applied_actions(out_dir)
 
 
@@ -270,6 +273,16 @@ def test_applied_actions_file_round_trips_through_the_boundary_schemas(
     assert adapter.validate_json(adapter.dump_json(actions)) == actions
 
 
+def _entry_point(request: HarnessRequest) -> subprocess.CompletedProcess[str]:
+    """The harness as the launcher starts it: a request as JSON on stdin."""
+    return subprocess.run(
+        [sys.executable, "-m", "resto.adapters.sumo.script_harness"],
+        input=REQUEST.dump_json(request).decode(),
+        capture_output=True,
+        text=True,
+    )
+
+
 def test_the_entry_point_exits_non_zero_with_the_traceback_when_the_script_raises(
     sumo_cmd: list[str], tmp_path: Path
 ) -> None:
@@ -279,11 +292,8 @@ def test_the_entry_point_exits_non_zero_with_the_traceback_when_the_script_raise
         "set_tls_program('A2', 'no-such-program')\n"
         "run()\n"
     )
-    command = [sys.executable, "-m", "resto.adapters.sumo.script_harness"]
 
-    proc = subprocess.run(
-        [*command, str(script), str(tmp_path), *sumo_cmd], capture_output=True, text=True
-    )
+    proc = _entry_point(HarnessRequest(tuple(sumo_cmd), script, tmp_path))
 
     assert proc.returncode != 0
     assert "Traceback" in proc.stderr
@@ -304,7 +314,7 @@ def _dry_run(sumo_cmd: list[str], out_dir: Path, *rules: Rule, read: Callable[[]
         traci.trafficlight.setProgram(TLS, "0")
         traci_api.when(record, lambda: None)
 
-    run_script(sumo_cmd, script, out_dir, setup=setup, dry_run=True)
+    DryRunHarness(sumo_cmd, on_start=setup).run(script, out_dir)
     return samples
 
 
@@ -334,19 +344,16 @@ def test_a_dry_run_applies_a_rule_that_would_fire_late_so_a_bad_id_in_it_raises(
     )
 
     with pytest.raises(traci.TraCIException, match="no-such-program"):
-        run_script(sumo_cmd, script, tmp_path, dry_run=True)
+        DryRunHarness(sumo_cmd).run(script, tmp_path)
 
 
-def test_the_entry_point_dry_run_flag_exits_zero_and_writes_nothing(
+def test_the_entry_point_dry_run_request_exits_zero_and_writes_nothing(
     sumo_cmd: list[str], tmp_path: Path
 ) -> None:
     script = tmp_path / "script.py"
     script.write_text(translate_script(TraciScript(rules=(Rule(AtTime(T), SetSpeed(EDGE, 5.0)),))))
-    command = [sys.executable, "-m", "resto.adapters.sumo.script_harness", "--dry-run"]
 
-    proc = subprocess.run(
-        [*command, str(script), str(tmp_path), *sumo_cmd], capture_output=True, text=True
-    )
+    proc = _entry_point(HarnessRequest(tuple(sumo_cmd), script, tmp_path, dry_run=True))
 
     assert proc.returncode == 0, proc.stderr
     assert not (tmp_path / APPLIED_ACTIONS_FILE).exists()

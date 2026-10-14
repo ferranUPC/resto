@@ -2,14 +2,14 @@
 file, closes the session and writes the applied actions as JSON into the run directory.
 
 The script ends in `run()` and never calls `start` or `close`; the session's lifecycle belongs to
-this module. `python -m resto.adapters.sumo.script_harness <script> <out_dir> <sumo command...>` is
-the entry point the online runner starts as a subprocess, so `traci_api`'s global state starts clean
-each run and a crash does not take the study down. On an exception it prints the traceback to stderr
-and exits non-zero. The applied actions are written only after the script finished.
+the harness. `OnlineHarness` is the real run; `DryRunHarness` rehearses the script for the build's
+check stage: `run()` is limited to `DRY_RUN_STEPS` steps, then every condition is evaluated once and
+every action applied once, whatever its trigger. The session closes and nothing is written.
 
-Dry-run mode (`--dry-run` on the command line) rehearses the script for the build's check stage:
-`run()` is limited to `DRY_RUN_STEPS` steps, then every condition is evaluated once and every
-action applied once, whatever its trigger. The session closes and nothing is written.
+The online runner starts a harness as a subprocess (`python -m resto.adapters.sumo.script_harness`)
+and sends a `HarnessRequest` as JSON on stdin, so `traci_api`'s global state starts clean each run
+and a crash does not take the study down. On an exception the entry point prints the traceback to
+stderr and exits non-zero.
 """
 
 from __future__ import annotations
@@ -18,58 +18,92 @@ import runpy
 import sys
 import traceback
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from pathlib import Path
 
 from resto import traci_api
 from resto.adapters.sumo import traci_api as harness_hooks
+from resto.adapters.sumo.constants import APPLIED_ACTIONS_FILE, DRY_RUN_STEPS
 from resto.application.schemas import adapter_for
 from resto.domain.value_objects.applied_action import AppliedAction
-
-APPLIED_ACTIONS_FILE = "applied_actions.json"
-DRY_RUN_STEPS = 50
-DRY_RUN_FLAG = "--dry-run"
-END_FLAG = "--end"
 
 _ACTIONS = adapter_for(tuple[AppliedAction, ...])
 
 
-def run_script(
-    sumo_cmd: Sequence[str],
-    script_path: Path,
-    out_dir: Path,
-    setup: Callable[[], None] | None = None,
-    dry_run: bool = False,
-    end: float | None = None,
-) -> None:
-    """Starts SUMO with `sumo_cmd`, executes `script_path`, closes the session and writes
-    `out_dir/APPLIED_ACTIONS_FILE`. `setup` runs after the session starts and before the script,
-    for a caller that registers its own rules (tests read state back that way). With `dry_run` the
-    script runs for `DRY_RUN_STEPS` steps, every rule is forced once, and nothing is written.
-    `end` is the run cfg's end time: `run()` stops there, as batch SUMO does.
+class OnlineHarness:
+    """Starts SUMO with `sumo_command`, executes the script, closes the session and writes the
+    applied actions. `end` is the run cfg's end time: `run()` stops there, as batch SUMO does.
+    `on_start` is a test hook: it runs after the session starts and before the script, for a test
+    that registers its own rules to read state back."""
 
-    Raises whatever the script raises; the session is closed first and no file is written.
-    """
-    traci_api.start(list(sumo_cmd))
-    try:
-        if setup is not None:
-            setup()
-        if end is not None:
-            harness_hooks.set_end_time(end)
-        if dry_run:
-            harness_hooks.set_step_limit(DRY_RUN_STEPS)
-        runpy.run_path(str(script_path), run_name="__main__")
-        if dry_run:
-            harness_hooks.force_all_rules()
-        actions = traci_api.applied_actions()
-    finally:
-        traci_api.close()
-    if dry_run:
-        return
-    (out_dir / APPLIED_ACTIONS_FILE).write_bytes(_ACTIONS.dump_json(actions))
+    def __init__(
+        self,
+        sumo_command: Sequence[str],
+        end: float | None = None,
+        on_start: Callable[[], None] | None = None,
+    ) -> None:
+        self._sumo_command = list(sumo_command)
+        self._end = end
+        self._on_start = on_start
+
+    def run(self, script: Path, out_dir: Path) -> None:
+        """Raises whatever the script raises; the session is closed first and no file is written."""
+        actions = self._execute(script)
+        (out_dir / APPLIED_ACTIONS_FILE).write_bytes(_ACTIONS.dump_json(actions))
+
+    def _execute(self, script: Path) -> tuple[AppliedAction, ...]:
+        traci_api.start(self._sumo_command)
+        try:
+            if self._on_start is not None:
+                self._on_start()
+            if self._end is not None:
+                harness_hooks.set_end_time(self._end)
+            self._before_script()
+            runpy.run_path(str(script), run_name="__main__")
+            self._after_script()
+            return traci_api.applied_actions()
+        finally:
+            traci_api.close()
+
+    def _before_script(self) -> None:
+        """Nothing for a real run."""
+
+    def _after_script(self) -> None:
+        """Nothing for a real run."""
+
+
+class DryRunHarness(OnlineHarness):
+    """Rehearses the script: `DRY_RUN_STEPS` steps, every rule forced once, nothing written."""
+
+    def run(self, script: Path, out_dir: Path) -> None:
+        self._execute(script)
+
+    def _before_script(self) -> None:
+        harness_hooks.set_step_limit(DRY_RUN_STEPS)
+
+    def _after_script(self) -> None:
+        harness_hooks.force_all_rules()
+
+
+@dataclass(frozen=True)
+class HarnessRequest:
+    """What the launcher sends the harness subprocess as JSON on stdin."""
+
+    sumo_command: tuple[str, ...]
+    script: Path
+    out_dir: Path
+    end: float | None = None
+    dry_run: bool = False
+
+    def harness(self) -> OnlineHarness:
+        return (DryRunHarness if self.dry_run else OnlineHarness)(self.sumo_command, self.end)
+
+
+REQUEST = adapter_for(HarnessRequest)
 
 
 def read_applied_actions(out_dir: Path) -> tuple[AppliedAction, ...]:
-    """The actions `run_script` wrote into `out_dir`.
+    """The actions `OnlineHarness.run` wrote into `out_dir`.
 
     Raises:
         FileNotFoundError: the harness did not get to write the file.
@@ -80,29 +114,10 @@ def read_applied_actions(out_dir: Path) -> tuple[AppliedAction, ...]:
     return result
 
 
-def main(argv: Sequence[str]) -> int:
-    dry_run = bool(argv) and argv[0] == DRY_RUN_FLAG
-    if dry_run:
-        argv = argv[1:]
-    end = None
-    if argv and argv[0] == END_FLAG and len(argv) > 1:
-        end = float(argv[1])
-        argv = argv[2:]
-    if len(argv) < 3:
-        print(
-            f"usage: script_harness [{DRY_RUN_FLAG}] [{END_FLAG} <t>] <script> <out_dir> "
-            "<sumo command...>",
-            file=sys.stderr,
-        )
-        return 2
-    script, out_dir, *sumo_cmd = argv
-    try:
-        run_script(sumo_cmd, Path(script), Path(out_dir), dry_run=dry_run, end=end)
-    except BaseException:  # noqa: BLE001 - whatever the script did, the runner reads stderr
-        traceback.print_exc()
-        return 1
-    return 0
-
-
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    try:
+        request: HarnessRequest = REQUEST.validate_json(sys.stdin.read())
+        request.harness().run(request.script, request.out_dir)
+    except BaseException:  # noqa: BLE001 - whatever the script did, the launcher reads stderr
+        traceback.print_exc()
+        sys.exit(1)

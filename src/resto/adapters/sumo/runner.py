@@ -34,14 +34,15 @@ from pathlib import Path
 from time import perf_counter
 
 from resto.adapters.persistence.filesystem import artifact_ref
+from resto.adapters.sumo.constants import APPLIED_ACTIONS_FILE
 from resto.adapters.sumo.outputs import output_artifact, parse_kpis
-from resto.adapters.sumo.script_harness import APPLIED_ACTIONS_FILE, read_applied_actions
+from resto.adapters.sumo.script_harness import HarnessRequest, read_applied_actions
 from resto.adapters.sumo.script_translator import check_script_structure, translate_script
 from resto.adapters.sumo.sumo_process import (
+    HarnessLauncher,
     SumoUnavailable,
     checked_version,
     launch,
-    launch_harness,
 )
 from resto.adapters.sumo.writers.sumocfg import (
     parse_settings,
@@ -155,7 +156,7 @@ def collect_outputs(prepared: PreparedRun, out_dir: Path, wall_clock_s: float) -
 class SubprocessSumoRunner:
     def __init__(self, sumo_binary: str = "sumo", timeout_s: float = DEFAULT_TIMEOUT_S) -> None:
         self._sumo = sumo_binary
-        self._timeout_s = timeout_s
+        self._launcher = HarnessLauncher(timeout_s)
 
     def sumo_version(self) -> str:
         """The `sumo` binary's version; raises if it is not the pinned one."""
@@ -215,8 +216,8 @@ class SubprocessSumoRunner:
             return RunOutput(ok=False, error=str(exc), artifacts=(), wall_clock_s=0.0)
 
         started = perf_counter()
-        launched = launch_harness(
-            script_path, out_dir, [self._sumo, *prepared.args], self._timeout_s, end=prepared.end
+        launched = self._launcher.launch(
+            HarnessRequest((self._sumo, *prepared.args), script_path, out_dir, end=prepared.end)
         )
         wall_clock_s = perf_counter() - started
         if not launched.ok:
@@ -250,7 +251,7 @@ class SubprocessSumoRunner:
             check_script_structure(source, len(script.rules))
         except ValueError as exc:
             return DryRunOutcome(ok=False, error=str(exc))
-        launched = launch_harness(
-            script_path, out_dir, [self._sumo, *prepared.args], self._timeout_s, dry_run=True
+        launched = self._launcher.launch(
+            HarnessRequest((self._sumo, *prepared.args), script_path, out_dir, dry_run=True)
         )
         return DryRunOutcome(ok=launched.ok, error=None if launched.ok else launched.message)
