@@ -28,6 +28,7 @@ from resto.domain.value_objects.applied_action import AppliedAction
 APPLIED_ACTIONS_FILE = "applied_actions.json"
 DRY_RUN_STEPS = 50
 DRY_RUN_FLAG = "--dry-run"
+END_FLAG = "--end"
 
 _ACTIONS = adapter_for(tuple[AppliedAction, ...])
 
@@ -38,11 +39,13 @@ def run_script(
     out_dir: Path,
     setup: Callable[[], None] | None = None,
     dry_run: bool = False,
+    end: float | None = None,
 ) -> None:
     """Starts SUMO with `sumo_cmd`, executes `script_path`, closes the session and writes
     `out_dir/APPLIED_ACTIONS_FILE`. `setup` runs after the session starts and before the script,
     for a caller that registers its own rules (tests read state back that way). With `dry_run` the
     script runs for `DRY_RUN_STEPS` steps, every rule is forced once, and nothing is written.
+    `end` is the run cfg's end time: `run()` stops there, as batch SUMO does.
 
     Raises whatever the script raises; the session is closed first and no file is written.
     """
@@ -50,6 +53,8 @@ def run_script(
     try:
         if setup is not None:
             setup()
+        if end is not None:
+            harness_hooks.set_end_time(end)
         if dry_run:
             harness_hooks.set_step_limit(DRY_RUN_STEPS)
         runpy.run_path(str(script_path), run_name="__main__")
@@ -79,15 +84,20 @@ def main(argv: Sequence[str]) -> int:
     dry_run = bool(argv) and argv[0] == DRY_RUN_FLAG
     if dry_run:
         argv = argv[1:]
+    end = None
+    if argv and argv[0] == END_FLAG and len(argv) > 1:
+        end = float(argv[1])
+        argv = argv[2:]
     if len(argv) < 3:
         print(
-            f"usage: script_harness [{DRY_RUN_FLAG}] <script> <out_dir> <sumo command...>",
+            f"usage: script_harness [{DRY_RUN_FLAG}] [{END_FLAG} <t>] <script> <out_dir> "
+            "<sumo command...>",
             file=sys.stderr,
         )
         return 2
     script, out_dir, *sumo_cmd = argv
     try:
-        run_script(sumo_cmd, Path(script), Path(out_dir), dry_run=dry_run)
+        run_script(sumo_cmd, Path(script), Path(out_dir), dry_run=dry_run, end=end)
     except BaseException:  # noqa: BLE001 - whatever the script did, the runner reads stderr
         traceback.print_exc()
         return 1

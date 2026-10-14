@@ -37,7 +37,12 @@ from resto.adapters.persistence.filesystem import artifact_ref
 from resto.adapters.sumo.outputs import output_artifact, parse_kpis
 from resto.adapters.sumo.script_harness import APPLIED_ACTIONS_FILE, read_applied_actions
 from resto.adapters.sumo.script_translator import check_script_structure, translate_script
-from resto.adapters.sumo.sumo_process import checked_version, launch, launch_harness
+from resto.adapters.sumo.sumo_process import (
+    SumoUnavailable,
+    checked_version,
+    launch,
+    launch_harness,
+)
 from resto.adapters.sumo.writers.sumocfg import (
     parse_settings,
     render_sumocfg,
@@ -83,6 +88,7 @@ class PreparedRun:
 
     args: tuple[str, ...]
     inputs: tuple[ArtifactRef, ...]
+    end: float | None = None  # the cfg's end time; None runs until the demand drains
 
 
 class InvalidScenarioCfg(ValueError):
@@ -119,6 +125,7 @@ def prepare_run(sumocfg: ArtifactRef, seed: int, out_dir: Path) -> PreparedRun:
     return PreparedRun(
         args=tuple(args),
         inputs=(artifact_ref(run_cfg, "sumocfg"), artifact_ref(edgedata_add, "additional")),
+        end=settings.end,
     )
 
 
@@ -173,28 +180,43 @@ class SubprocessSumoRunner:
             )
         return collect_outputs(prepared, out_dir, wall_clock_s)
 
+    def _prepare_script_run(
+        self, sumocfg: ArtifactRef, script: TraciScript, seed: int, out_dir: Path
+    ) -> tuple[PreparedRun, Path, str]:
+        """What online and dry runs share: the checked binary, the run cfg and the generated
+        script in `out_dir`. Returns the run (with the script among its inputs), the script's path
+        and its source.
+
+        Raises:
+            InvalidScenarioCfg: `sumocfg` cannot be parsed.
+            SumoUnavailable: the `sumo` binary cannot be run (a wrong version still raises
+                `SumoVersionError`, as in batch).
+        """
+        self.sumo_version()
+        out_dir.mkdir(parents=True, exist_ok=True)
+        prepared = prepare_run(sumocfg, seed, out_dir)
+        source = translate_script(script)
+        script_path = out_dir / SCRIPT_NAME
+        script_path.write_text(source, encoding="utf-8")
+        prepared = replace(
+            prepared, inputs=prepared.inputs + (artifact_ref(script_path, "script"),)
+        )
+        return prepared, script_path, source
+
     def run_online(
         self, sumocfg: ArtifactRef, script: TraciScript, seed: int, out_dir: Path
     ) -> RunOutput:
-        """Runs the scenario with `script` applied through TraCI. A failure (SUMO's or the script's
-        traceback, a timeout, a harness that left no applied actions) is `ok=False`, never an
-        empty success."""
-        self.sumo_version()
-        out_dir.mkdir(parents=True, exist_ok=True)
+        """Runs the scenario with `script` applied through TraCI, stopping at the cfg's end time
+        like batch. A failure (SUMO's or the script's traceback, a timeout, a harness that left no
+        applied actions, a binary that cannot run) is `ok=False`, never an empty success."""
         try:
-            prepared = prepare_run(sumocfg, seed, out_dir)
-        except InvalidScenarioCfg as exc:
+            prepared, script_path, _ = self._prepare_script_run(sumocfg, script, seed, out_dir)
+        except (InvalidScenarioCfg, SumoUnavailable) as exc:
             return RunOutput(ok=False, error=str(exc), artifacts=(), wall_clock_s=0.0)
-        script_path = out_dir / SCRIPT_NAME
-        script_path.write_text(translate_script(script), encoding="utf-8")
-        prepared = PreparedRun(
-            args=prepared.args,
-            inputs=prepared.inputs + (artifact_ref(script_path, "script"),),
-        )
 
         started = perf_counter()
         launched = launch_harness(
-            script_path, out_dir, [self._sumo, *prepared.args], self._timeout_s
+            script_path, out_dir, [self._sumo, *prepared.args], self._timeout_s, end=prepared.end
         )
         wall_clock_s = perf_counter() - started
         if not launched.ok:
@@ -218,16 +240,12 @@ class SubprocessSumoRunner:
 
     def dry_run(self, sumocfg: ArtifactRef, script: TraciScript, out_dir: Path) -> DryRunOutcome:
         """Rehearses `script` against SUMO (seed 0, as in the load check) and stores nothing. The
-        error is SUMO's message or the harness's traceback."""
-        self.sumo_version()
-        out_dir.mkdir(parents=True, exist_ok=True)
+        error is SUMO's message or the harness's traceback; a binary that cannot run is a failed
+        rehearsal, like a failed load check."""
         try:
-            prepared = prepare_run(sumocfg, 0, out_dir)
-        except InvalidScenarioCfg as exc:
+            prepared, script_path, source = self._prepare_script_run(sumocfg, script, 0, out_dir)
+        except (InvalidScenarioCfg, SumoUnavailable) as exc:
             return DryRunOutcome(ok=False, error=str(exc))
-        source = translate_script(script)
-        script_path = out_dir / SCRIPT_NAME
-        script_path.write_text(source, encoding="utf-8")
         try:
             check_script_structure(source, len(script.rules))
         except ValueError as exc:

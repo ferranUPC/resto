@@ -327,6 +327,56 @@ def test_an_online_run_gives_the_batch_edgedata_when_no_rule_fires(
     )
 
 
+def _last_summary_time(run_dir: Path) -> float:
+    return float(ET.parse(run_dir / "summary.xml").getroot()[-1].get("time", "nan"))
+
+
+@pytest.mark.parametrize("window_s", [3600, 900], ids=["full_hour", "cut_mid_demand"])
+def test_an_online_run_over_the_peak_ends_at_the_cfg_end_like_batch(
+    tmp_path: Path, window_s: int
+) -> None:
+    """The 900 s window leaves vehicles in the network at `end`: an online run that drained them
+    instead of stopping at `end` would simulate (and write tripinfo and summary) past it."""
+    settings = SimulationSettings(
+        net_file=NET, route_files=(PEAK_ROUTES,), begin=BEGIN_S, end=BEGIN_S + window_s
+    )
+    cfg = SumocfgFileWriter().write(settings, tmp_path, "peak.sumocfg")
+    runner = SubprocessSumoRunner()
+    never = TraciScript(rules=(Rule(AtTime(BEGIN_S + 10_000_000), SetSpeed("C0D0", 5.0)),))
+
+    batch = runner.run_batch(cfg, seed=1, out_dir=tmp_path / "batch")
+    online = runner.run_online(cfg, never, seed=1, out_dir=tmp_path / "online")
+
+    assert batch.ok and online.ok, (batch.error, online.error)
+    for name in ("edgedata.xml", "tripinfo.xml"):
+        assert canonical_bytes(tmp_path / "online" / name) == canonical_bytes(
+            tmp_path / "batch" / name
+        ), name
+    assert _last_summary_time(tmp_path / "online") == _last_summary_time(tmp_path / "batch")
+
+
+def test_a_missing_sumo_binary_is_a_failed_online_run_not_an_exception(
+    scenario_cfg: ArtifactRef, tmp_path: Path
+) -> None:
+    output = SubprocessSumoRunner(sumo_binary="sumo-does-not-exist").run_online(
+        scenario_cfg, ONLINE_SCRIPT, seed=1, out_dir=tmp_path / "r"
+    )
+
+    assert output.ok is False
+    assert output.error
+
+
+def test_a_missing_sumo_binary_is_a_failed_dry_run_not_an_exception(
+    scenario_cfg: ArtifactRef, tmp_path: Path
+) -> None:
+    outcome = SubprocessSumoRunner(sumo_binary="sumo-does-not-exist").dry_run(
+        scenario_cfg, ONLINE_SCRIPT, tmp_path / "r"
+    )
+
+    assert outcome.ok is False
+    assert outcome.error
+
+
 def test_an_action_sumo_rejects_at_run_time_fails_the_run_with_the_traceback(
     scenario_cfg: ArtifactRef, tmp_path: Path
 ) -> None:

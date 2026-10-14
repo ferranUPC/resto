@@ -249,6 +249,14 @@ def test_a_rule_naming_something_the_network_lacks_is_rejected(rule: Rule, messa
     assert rejected.value.blame is Blame.USER
 
 
+def test_an_action_variant_the_promoter_does_not_know_fails_loudly() -> None:
+    rule = _rule(SetSpeed("E12", 5.0))
+    object.__setattr__(rule, "action", "not an action")
+
+    with pytest.raises(AssertionError):
+        promote(scripted_draft(rule), query=SCRIPT_QUERY)
+
+
 def test_a_context_whose_network_is_not_the_tasks_is_refused() -> None:
     with pytest.raises(ValueError, match="network"):
         ScenarioContext(

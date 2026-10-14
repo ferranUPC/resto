@@ -35,6 +35,10 @@ class SumoVersionError(RuntimeError):
     """The SUMO binary on the PATH is not the pinned version."""
 
 
+class SumoUnavailable(SumoVersionError):
+    """The SUMO binary cannot be run at all (missing, unreadable, `--version` fails)."""
+
+
 @dataclass(frozen=True)
 class LaunchResult:
     ok: bool
@@ -76,17 +80,21 @@ def launch_harness(
     sumo_command: Sequence[str],
     timeout_s: float,
     dry_run: bool = False,
+    end: float | None = None,
 ) -> LaunchResult:
     """Runs the script harness (`resto.adapters.sumo.script_harness`) in its own process group, so a
     timeout can kill the harness and the `sumo` it started. The message of a failure is the
     harness's stderr, which holds the Python traceback. With `dry_run` the harness rehearses the
-    script and writes nothing.
+    script and writes nothing. `end` is the run cfg's end time, handed to the harness so `run()`
+    stops there like batch.
 
     The caller has already checked `sumo_command[0]` with `checked_version`.
     """
     command = [sys.executable, "-m", "resto.adapters.sumo.script_harness"]
     if dry_run:
         command.append("--dry-run")
+    if end is not None:
+        command += ["--end", repr(end)]
     command += [str(script), str(out_dir), *sumo_command]
     try:
         proc = subprocess.Popen(
@@ -123,7 +131,7 @@ def checked_version(tool: str) -> str:
         try:
             _probe_version(tool, None)
         except _ProbeFailed as failure:
-            raise SumoVersionError(f"cannot read the version of {tool}: {failure}") from failure
+            raise SumoUnavailable(f"cannot read the version of {tool}: {failure}") from failure
     _require_pinned(tool)
     return _version_cache[tool]
 

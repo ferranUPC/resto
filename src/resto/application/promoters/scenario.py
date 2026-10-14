@@ -23,6 +23,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass
+from typing import assert_never
 
 from resto.application.ports.llm import AgentRun
 from resto.application.ports.network_query import NetworkQuery
@@ -37,7 +38,13 @@ from resto.domain.value_objects.drafts import ScenarioDraft
 from resto.domain.value_objects.intervention_target import EdgeTarget, LaneTarget, TlsTarget
 from resto.domain.value_objects.mechanism import RegenerateDemandMechanism
 from resto.domain.value_objects.tasks import ScenarioTask
-from resto.domain.value_objects.traci_script import CloseLane, OpenLane, SetSpeed, When
+from resto.domain.value_objects.traci_script import (
+    CloseLane,
+    OpenLane,
+    SetSpeed,
+    SetTlsProgram,
+    When,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -142,8 +149,11 @@ def _check_script_ids_exist(draft: ScenarioDraft, query: NetworkQuery) -> None:
         elif isinstance(action, SetSpeed):
             if not query.has_edge(action.edge_id):
                 raise _unknown_target(f"unknown edge {action.edge_id!r}")
-        elif not query.has_tls(action.tls_id):
-            raise _unknown_target(f"unknown tls {action.tls_id!r}")
+        elif isinstance(action, SetTlsProgram):
+            if not query.has_tls(action.tls_id):
+                raise _unknown_target(f"unknown tls {action.tls_id!r}")
+        else:
+            assert_never(action)
 
 
 def _content_hash(draft: ScenarioDraft) -> str:

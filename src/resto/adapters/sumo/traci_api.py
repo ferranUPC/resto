@@ -29,6 +29,7 @@ _when_rules: list[list[Any]] = []  # each: [condition, action, was_true]
 _current_origin: ActionOrigin = ActionOrigin.CODE
 _lane_permission_snapshots: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {}
 _step_limit: int | None = None  # harness-only, see set_step_limit
+_end_time: float | None = None  # harness-only, see set_end_time
 
 
 def start(sumo_cmd: list[str]) -> None:
@@ -38,8 +39,9 @@ def start(sumo_cmd: list[str]) -> None:
     `close_lane` permission snapshot (see `open_lane`).
     """
     global _applied_actions, _at_time_rules, _when_rules, _current_origin
-    global _lane_permission_snapshots, _step_limit
+    global _lane_permission_snapshots, _step_limit, _end_time
     _step_limit = None
+    _end_time = None
     _applied_actions = []
     _at_time_rules = []
     _when_rules = []
@@ -220,6 +222,13 @@ def set_step_limit(steps: int) -> None:
     _step_limit = steps
 
 
+def set_end_time(end: float) -> None:
+    """Makes `run()` stop at simulation time `end` (the run cfg's end, which batch SUMO honours),
+    even if its `until` is later or None. `start()` clears it."""
+    global _end_time
+    _end_time = end
+
+
 def force_all_rules() -> None:
     """Evaluates every registered `when` condition once and applies every registered action once,
     whatever its trigger, so an id only SUMO can reject fails here. Actions log with
@@ -238,6 +247,8 @@ def run(until: float | None = None) -> None:
 
     Example: run(until=3600)  # or run() to drain the route file
     """
+    if _end_time is not None:
+        until = _end_time if until is None else min(until, _end_time)
     steps_taken = 0
     while _should_continue(until) and (_step_limit is None or steps_taken < _step_limit):
         step()
