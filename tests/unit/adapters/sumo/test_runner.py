@@ -21,14 +21,9 @@ from pathlib import Path
 
 import pytest
 
-from resto.adapters.sumo.constants import APPLIED_ACTIONS_FILE
+from resto.adapters.sumo.constants import APPLIED_ACTIONS_FILE, EDGEDATA_PERIOD_S, RUN_CFG_NAME
 from resto.adapters.sumo.outputs import canonical_bytes
-from resto.adapters.sumo.runner import (
-    EDGEDATA_PERIOD_S,
-    RUN_CFG_NAME,
-    SubprocessSumoRunner,
-    _has_rerouter,
-)
+from resto.adapters.sumo.runner import SubprocessSumoRunner, _has_rerouter
 from resto.adapters.sumo.writers.rerouter import RerouterWriter
 from resto.adapters.sumo.writers.sumocfg import SumocfgFileWriter, write_edgedata_additional
 from resto.application.ports.sumo import DryRunOutcome

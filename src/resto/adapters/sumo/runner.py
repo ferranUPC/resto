@@ -34,7 +34,16 @@ from pathlib import Path
 from time import perf_counter
 
 from resto.adapters.persistence.filesystem import artifact_ref
-from resto.adapters.sumo.constants import APPLIED_ACTIONS_FILE
+from resto.adapters.sumo.constants import (
+    APPLIED_ACTIONS_FILE,
+    DEFAULT_TIMEOUT_S,
+    EDGEDATA_FILE,
+    EDGEDATA_PERIOD_S,
+    OUTPUT_FILES,
+    RUN_CFG_NAME,
+    SCRIPT_NAME,
+    SUMO_REPORT,
+)
 from resto.adapters.sumo.outputs import output_artifact, parse_kpis
 from resto.adapters.sumo.script_harness import HarnessRequest, read_applied_actions
 from resto.adapters.sumo.script_structure import check_script_structure
@@ -55,12 +64,6 @@ from resto.application.ports.sumo import DryRunOutcome, RunOutput
 from resto.domain.value_objects.artifact_ref import ArtifactRef
 from resto.domain.value_objects.traci_script import TraciScript
 
-EDGEDATA_PERIOD_S = 300.0
-SCRIPT_NAME = "script.py"
-DEFAULT_TIMEOUT_S = 600.0  # twice the DoD's 5-minute threshold
-RUN_CFG_NAME = "run.sumocfg"
-IGNORE_ROUTE_ERRORS_ARGS = ("--ignore-route-errors",)
-
 
 def _has_rerouter(additional_files: Sequence[Path]) -> bool:
     """Whether any of `additional_files` declares a `<rerouter>` - see the module docstring."""
@@ -72,16 +75,6 @@ def _has_rerouter(additional_files: Sequence[Path]) -> bool:
         if any(child.tag == "rerouter" for child in root):
             return True
     return False
-
-
-# output option -> (file name in the run directory, artifact kind)
-_OUTPUTS: dict[str, tuple[str, str]] = {
-    "tripinfo-output": ("tripinfo.xml", "tripinfo"),
-    "statistic-output": ("statistics.xml", "statistics"),
-    "summary-output": ("summary.xml", "summary"),
-}
-_EDGEDATA_FILE = "edgedata.xml"
-_REPORT = {"duration-log.statistics": "true", "no-step-log": "true"}
 
 
 @dataclass(frozen=True)
@@ -109,21 +102,21 @@ def prepare_run(sumocfg: ArtifactRef, seed: int, out_dir: Path) -> PreparedRun:
         settings = parse_settings(sumocfg.path)
     except (ValueError, OSError, SyntaxError) as exc:
         raise InvalidScenarioCfg(f"invalid scenario cfg: {exc}") from exc
-    edgedata_add = write_edgedata_additional(out_dir, EDGEDATA_PERIOD_S, _EDGEDATA_FILE)
+    edgedata_add = write_edgedata_additional(out_dir, EDGEDATA_PERIOD_S, EDGEDATA_FILE)
     run_cfg = out_dir / RUN_CFG_NAME
     run_cfg.write_text(
         render_sumocfg(
             with_additional(settings, edgedata_add),
             out_dir,
             seed=seed,
-            outputs={option: name for option, (name, _) in _OUTPUTS.items()},
-            report=_REPORT,
+            outputs={option: name for option, (name, _) in OUTPUT_FILES.items()},
+            report=SUMO_REPORT,
         ),
         encoding="utf-8",
     )
     args = ["-c", str(run_cfg)]
     if _has_rerouter(settings.additional_files):
-        args.extend(IGNORE_ROUTE_ERRORS_ARGS)
+        args.append("--ignore-route-errors")
     return PreparedRun(
         args=tuple(args),
         inputs=(artifact_ref(run_cfg, "sumocfg"), artifact_ref(edgedata_add, "additional")),
@@ -133,8 +126,8 @@ def prepare_run(sumocfg: ArtifactRef, seed: int, out_dir: Path) -> PreparedRun:
 
 def collect_outputs(prepared: PreparedRun, out_dir: Path, wall_clock_s: float) -> RunOutput:
     """Checks the expected output files exist, refs them and parses the KPIs."""
-    expected = [(out_dir / _EDGEDATA_FILE, "edgedata")] + [
-        (out_dir / name, kind) for name, kind in _OUTPUTS.values()
+    expected = [(out_dir / EDGEDATA_FILE, "edgedata")] + [
+        (out_dir / name, kind) for name, kind in OUTPUT_FILES.values()
     ]
     missing = [p.name for p, _ in expected if not p.exists()]
     if missing:
@@ -150,7 +143,7 @@ def collect_outputs(prepared: PreparedRun, out_dir: Path, wall_clock_s: float) -
         error=None,
         artifacts=prepared.inputs + outputs,
         wall_clock_s=wall_clock_s,
-        kpis=parse_kpis(out_dir / _OUTPUTS["statistic-output"][0]),
+        kpis=parse_kpis(out_dir / OUTPUT_FILES["statistic-output"][0]),
     )
 
 

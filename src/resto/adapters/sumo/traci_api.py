@@ -17,6 +17,7 @@ to TraCI, same convention as `adapters/sumo/netxml.py`'s `KeyError`. Every mutat
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from typing import Any
 
 import traci
@@ -28,8 +29,21 @@ _at_time_rules: list[list[Any]] = []  # each: [t, action, fired]
 _when_rules: list[list[Any]] = []  # each: [condition, action, was_true]
 _current_origin: ActionOrigin = ActionOrigin.CODE
 _lane_permission_snapshots: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {}
-_step_limit: int | None = None  # harness-only, see set_step_limit
-_end_time: float | None = None  # harness-only, see set_end_time
+
+
+@dataclass
+class _HarnessLimits:
+    """When `run()` must stop, set by the harness only (see `set_step_limit`, `set_end_time`)."""
+
+    step_limit: int | None = None
+    end_time: float | None = None
+
+    def reset(self) -> None:
+        self.step_limit = None
+        self.end_time = None
+
+
+_limits = _HarnessLimits()
 
 
 def start(sumo_cmd: list[str]) -> None:
@@ -39,9 +53,8 @@ def start(sumo_cmd: list[str]) -> None:
     `close_lane` permission snapshot (see `open_lane`).
     """
     global _applied_actions, _at_time_rules, _when_rules, _current_origin
-    global _lane_permission_snapshots, _step_limit, _end_time
-    _step_limit = None
-    _end_time = None
+    global _lane_permission_snapshots
+    _limits.reset()
     _applied_actions = []
     _at_time_rules = []
     _when_rules = []
@@ -218,15 +231,13 @@ def _fire(action: Callable[[], Any]) -> None:
 
 def set_step_limit(steps: int) -> None:
     """Makes `run()` stop after `steps` steps, whatever `until` says. `start()` clears it."""
-    global _step_limit
-    _step_limit = steps
+    _limits.step_limit = steps
 
 
 def set_end_time(end: float) -> None:
     """Makes `run()` stop at simulation time `end` (the run cfg's end, which batch SUMO honours),
     even if its `until` is later or None. `start()` clears it."""
-    global _end_time
-    _end_time = end
+    _limits.end_time = end
 
 
 def force_all_rules() -> None:
@@ -247,10 +258,12 @@ def run(until: float | None = None) -> None:
 
     Example: run(until=3600)  # or run() to drain the route file
     """
-    if _end_time is not None:
-        until = _end_time if until is None else min(until, _end_time)
+    if _limits.end_time is not None:
+        until = _limits.end_time if until is None else min(until, _limits.end_time)
     steps_taken = 0
-    while _should_continue(until) and (_step_limit is None or steps_taken < _step_limit):
+    while _should_continue(until) and (
+        _limits.step_limit is None or steps_taken < _limits.step_limit
+    ):
         step()
         steps_taken += 1
         now = traci.simulation.getTime()
