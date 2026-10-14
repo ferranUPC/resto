@@ -15,15 +15,39 @@ from resto.application.promoters.scenario import ScenarioContext, ScenarioPromot
 from resto.application.promotion import Blame, DraftRejected, RunWithoutDraft
 from resto.domain.entities.demand import Demand
 from resto.domain.entities.scenario import Scenario
+from resto.domain.entities.simulation_result import RunMode
 from resto.domain.services.ids import scenario_id_for
+from resto.domain.value_objects.condition import Condition, Metric, Operator
 from resto.domain.value_objects.drafts import ScenarioDraft
 from resto.domain.value_objects.intervention import Intervention, InterventionType
-from resto.domain.value_objects.mechanism import RegenerateDemandMechanism, StaticFileMechanism
+from resto.domain.value_objects.mechanism import (
+    RegenerateDemandMechanism,
+    ScriptMechanism,
+    StaticFileMechanism,
+)
 from resto.domain.value_objects.step_record import Usage
 from resto.domain.value_objects.tasks import ScenarioTask
 from resto.domain.value_objects.time_window import TimeWindow
+from resto.domain.value_objects.traci_script import (
+    Action,
+    AtTime,
+    CloseLane,
+    OpenLane,
+    Rule,
+    SetSpeed,
+    SetTlsProgram,
+    TraciScript,
+    Trigger,
+    When,
+)
 from tests.unit.application._doubles import StubNetworkQuery
-from tests.unit.domain._fixtures import artifact, scenario_draft, static_intervention
+from tests.unit.domain._fixtures import (
+    artifact,
+    dynamic_intervention,
+    scenario_draft,
+    static_intervention,
+    traci_script,
+)
 from tests.unit.domain._samples import demand as sample_demand
 from tests.unit.domain._samples import network as sample_network
 
@@ -164,6 +188,73 @@ def test_a_derived_demand_from_a_different_network_is_rejected() -> None:
             demand_scale_draft(),
             demands=(sample_demand(), derived_demand(network_id="other-network")),
         )
+
+
+def scripted_draft(*rules: Rule) -> ScenarioDraft:
+    return scenario_draft(
+        interventions=(dynamic_intervention(),),
+        mechanisms=(ScriptMechanism(),),
+        additional_files=(),
+        script=TraciScript(rules=rules),
+    )
+
+
+def _rule(action: Action, trigger: Trigger | None = None) -> Rule:
+    return Rule(trigger=trigger or AtTime(t=60.0), action=action)
+
+
+SCRIPT_QUERY = StubNetworkQuery(edges={"E12", "E13"}, lanes={("E12", 1)}, tls={"J4"})
+
+
+def test_a_scripted_scenario_is_promoted_with_its_rules() -> None:
+    script = traci_script()
+
+    scenario = promote(scripted_draft(*script.rules), query=SCRIPT_QUERY)
+
+    assert scenario.traci_script == script
+    assert scenario.run_mode is RunMode.ONLINE
+
+
+def test_the_content_hash_follows_the_rules() -> None:
+    close = scripted_draft(_rule(CloseLane("E12", 1)))
+    open_ = scripted_draft(_rule(OpenLane("E12", 1)))
+
+    first = promote(close, query=SCRIPT_QUERY).content_hash
+    again = promote(close, query=SCRIPT_QUERY).content_hash
+
+    assert first == again
+    assert first != promote(open_, query=SCRIPT_QUERY).content_hash
+
+
+@pytest.mark.parametrize(
+    ("rule", "message"),
+    [
+        (_rule(CloseLane("E12", 5)), "unknown lane 'E12_5'"),
+        (_rule(OpenLane("E13", 0)), "unknown lane 'E13_0'"),
+        (_rule(SetSpeed("E99", 5.0)), "unknown edge 'E99'"),
+        (_rule(SetTlsProgram("J9", "night")), "unknown tls 'J9'"),
+        (
+            _rule(
+                CloseLane("E12", 1),
+                When(Condition(Metric.OCCUPANCY, "E99", Operator.GT, 0.8)),
+            ),
+            "unknown edge 'E99' in a rule condition",
+        ),
+    ],
+)
+def test_a_rule_naming_something_the_network_lacks_is_rejected(rule: Rule, message: str) -> None:
+    with pytest.raises(DraftRejected, match=message) as rejected:
+        promote(scripted_draft(rule), query=SCRIPT_QUERY)
+
+    assert rejected.value.blame is Blame.USER
+
+
+def test_an_action_variant_the_promoter_does_not_know_fails_loudly() -> None:
+    rule = _rule(SetSpeed("E12", 5.0))
+    object.__setattr__(rule, "action", "not an action")
+
+    with pytest.raises(AssertionError):
+        promote(scripted_draft(rule), query=SCRIPT_QUERY)
 
 
 def test_a_context_whose_network_is_not_the_tasks_is_refused() -> None:

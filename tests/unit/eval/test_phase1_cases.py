@@ -107,14 +107,11 @@ class _QueryOf(StubNetworkQuery):
 
     def __init__(self, case: Phase1Case) -> None:
         targets = [i.target for i in case.question.interventions]
-        self._tls = {t.tls_id for t in targets if isinstance(t, TlsTarget)}
         super().__init__(
             edges={t.edge_id for t in targets if isinstance(t, EdgeTarget | LaneTarget)},
             lanes={(t.edge_id, t.lane_index) for t in targets if isinstance(t, LaneTarget)},
+            tls={t.tls_id for t in targets if isinstance(t, TlsTarget)},
         )
-
-    def has_tls(self, tls_id: str) -> bool:
-        return tls_id in self._tls
 
 
 def _builder(task: Any) -> AgentRun[ScenarioDraft]:

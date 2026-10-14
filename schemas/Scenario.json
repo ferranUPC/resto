@@ -25,6 +25,50 @@
       "title": "ArtifactRef",
       "type": "object"
     },
+    "AtTime": {
+      "description": "Fires once, when the simulation time reaches `t` seconds.",
+      "properties": {
+        "kind": {
+          "const": "at_time",
+          "default": "at_time",
+          "title": "Kind",
+          "type": "string"
+        },
+        "t": {
+          "title": "T",
+          "type": "number"
+        }
+      },
+      "required": [
+        "t"
+      ],
+      "title": "AtTime",
+      "type": "object"
+    },
+    "CloseLane": {
+      "properties": {
+        "edge_id": {
+          "title": "Edge Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "close_lane",
+          "default": "close_lane",
+          "title": "Kind",
+          "type": "string"
+        },
+        "lane_index": {
+          "title": "Lane Index",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "edge_id",
+        "lane_index"
+      ],
+      "title": "CloseLane",
+      "type": "object"
+    },
     "Condition": {
       "description": "Runtime predicate `metric(target) op value` evaluated by the script's `when(...)`.",
       "properties": {
@@ -50,25 +94,6 @@
         "value"
       ],
       "title": "Condition",
-      "type": "object"
-    },
-    "DeclaredRule": {
-      "description": "A rule registered through traci_api's `at_time(...)` / `when(...)`, as data.",
-      "properties": {
-        "action": {
-          "title": "Action",
-          "type": "string"
-        },
-        "trigger": {
-          "title": "Trigger",
-          "type": "string"
-        }
-      },
-      "required": [
-        "trigger",
-        "action"
-      ],
-      "title": "DeclaredRule",
       "type": "object"
     },
     "EdgeTarget": {
@@ -220,6 +245,30 @@
       "title": "Metric",
       "type": "string"
     },
+    "OpenLane": {
+      "properties": {
+        "edge_id": {
+          "title": "Edge Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "open_lane",
+          "default": "open_lane",
+          "title": "Kind",
+          "type": "string"
+        },
+        "lane_index": {
+          "title": "Lane Index",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "edge_id",
+        "lane_index"
+      ],
+      "title": "OpenLane",
+      "type": "object"
+    },
     "Operator": {
       "enum": [
         ">",
@@ -250,6 +299,44 @@
       "title": "RegenerateDemandMechanism",
       "type": "object"
     },
+    "Rule": {
+      "properties": {
+        "action": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CloseLane"
+            },
+            {
+              "$ref": "#/$defs/OpenLane"
+            },
+            {
+              "$ref": "#/$defs/SetSpeed"
+            },
+            {
+              "$ref": "#/$defs/SetTlsProgram"
+            }
+          ],
+          "title": "Action"
+        },
+        "trigger": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AtTime"
+            },
+            {
+              "$ref": "#/$defs/When"
+            }
+          ],
+          "title": "Trigger"
+        }
+      },
+      "required": [
+        "trigger",
+        "action"
+      ],
+      "title": "Rule",
+      "type": "object"
+    },
     "ScriptMechanism": {
       "description": "Intervention implemented inside the scenario's traci_api script.",
       "properties": {
@@ -261,6 +348,55 @@
         }
       },
       "title": "ScriptMechanism",
+      "type": "object"
+    },
+    "SetSpeed": {
+      "description": "Sets the maximum speed of an edge, in m/s. Not the network-level `SetSpeed` of\n`topology_modification`, which edits the network file.",
+      "properties": {
+        "edge_id": {
+          "title": "Edge Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "set_speed",
+          "default": "set_speed",
+          "title": "Kind",
+          "type": "string"
+        },
+        "speed": {
+          "title": "Speed",
+          "type": "number"
+        }
+      },
+      "required": [
+        "edge_id",
+        "speed"
+      ],
+      "title": "SetSpeed",
+      "type": "object"
+    },
+    "SetTlsProgram": {
+      "properties": {
+        "kind": {
+          "const": "set_tls_program",
+          "default": "set_tls_program",
+          "title": "Kind",
+          "type": "string"
+        },
+        "program_id": {
+          "title": "Program Id",
+          "type": "string"
+        },
+        "tls_id": {
+          "title": "Tls Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "tls_id",
+        "program_id"
+      ],
+      "title": "SetTlsProgram",
       "type": "object"
     },
     "StaticFileMechanism": {
@@ -354,37 +490,37 @@
     },
     "TraciScript": {
       "properties": {
-        "api_version": {
-          "title": "Api Version",
-          "type": "string"
-        },
-        "artifact": {
-          "$ref": "#/$defs/ArtifactRef"
-        },
-        "declared_rules": {
-          "default": [],
+        "rules": {
           "items": {
-            "$ref": "#/$defs/DeclaredRule"
+            "$ref": "#/$defs/Rule"
           },
-          "title": "Declared Rules",
+          "title": "Rules",
           "type": "array"
-        },
-        "dry_run_ok": {
-          "default": false,
-          "title": "Dry Run Ok",
-          "type": "boolean"
-        },
-        "lint_ok": {
-          "default": false,
-          "title": "Lint Ok",
-          "type": "boolean"
         }
       },
       "required": [
-        "artifact",
-        "api_version"
+        "rules"
       ],
       "title": "TraciScript",
+      "type": "object"
+    },
+    "When": {
+      "description": "Fires each time `condition` goes from false to true.",
+      "properties": {
+        "condition": {
+          "$ref": "#/$defs/Condition"
+        },
+        "kind": {
+          "const": "when",
+          "default": "when",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "condition"
+      ],
+      "title": "When",
       "type": "object"
     }
   },

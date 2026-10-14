@@ -16,18 +16,28 @@ from resto.adapters.persistence.memory import (
 )
 from resto.application.ports.llm import AgentRun, StopReason
 from resto.application.ports.network_query import NetworkNotStored, NetworkQuery
-from resto.application.ports.sumo import RunOutput
+from resto.application.ports.sumo import DryRunOutcome, RunOutput
 from resto.application.promoters.scenario import ScenarioPromoter
 from resto.application.promotion import DraftRejected, RunWithoutDraft
 from resto.application.use_cases.build_scenario import BuildScenario
 from resto.domain.services.ids import scenario_id_for
 from resto.domain.value_objects.intervention import Intervention, InterventionType
-from resto.domain.value_objects.mechanism import RegenerateDemandMechanism, StaticFileMechanism
+from resto.domain.value_objects.mechanism import (
+    RegenerateDemandMechanism,
+    ScriptMechanism,
+    StaticFileMechanism,
+)
 from resto.domain.value_objects.step_record import Usage
 from resto.domain.value_objects.tasks import ScenarioTask
 from resto.domain.value_objects.time_window import TimeWindow
 from tests.unit.application._doubles import FakeRunner, StubNetworkQuery
-from tests.unit.domain._fixtures import artifact, scenario_draft, static_intervention
+from tests.unit.domain._fixtures import (
+    artifact,
+    dynamic_intervention,
+    scenario_draft,
+    static_intervention,
+    traci_script,
+)
 from tests.unit.domain._samples import demand as sample_demand
 from tests.unit.domain._samples import network as sample_network
 
@@ -208,3 +218,80 @@ def test_a_demand_scale_mechanism_makes_the_scenario_reference_the_derived_deman
         "abc123", "t1", (demand_scale_intervention(),), frozenset({"peak"})
     )
     assert scenario.scenario_id == expected_id  # request identity keeps the task's own demand_id
+
+
+# --- dry run of a script (ADR-0044) ---------------------------------------------------------------
+
+SCRIPT_TASK = ScenarioTask(
+    network_id="abc123",
+    demand_id="t1",
+    interventions=(dynamic_intervention(),),
+    context_tags=frozenset({"peak"}),
+)
+
+
+def scripted_draft():  # noqa: ANN201
+    return scenario_draft(
+        interventions=(dynamic_intervention(),),
+        mechanisms=(ScriptMechanism(),),
+        additional_files=(),
+        script=traci_script(),
+    )
+
+
+def scripted_env(**kwargs):  # noqa: ANN003, ANN201
+    result = env(query=StubNetworkQuery(edges={"E12"}, lanes={("E12", 1)}), **kwargs)
+    return result
+
+
+def test_a_scripted_scenario_is_dry_run_into_its_own_directory_before_the_load_check(
+    tmp_path: Path,
+) -> None:
+    kwargs = scripted_env()
+    kwargs["out_dir"] = tmp_path
+    runner = kwargs["runner"]
+
+    scenario = BuildScenario(**kwargs).execute(SCRIPT_TASK, agent_run(output=scripted_draft()))
+
+    ((sumocfg, script, out_dir, batches_before),) = runner.dry_runs
+    assert sumocfg == scenario.sumocfg
+    assert script == traci_script()
+    assert out_dir == tmp_path / scenario.scenario_id / "dry_run"
+    assert batches_before == 0
+    assert len(runner.calls) == 1  # the load check ran after it
+    assert kwargs["scenarios"].get(scenario.scenario_id) == scenario
+
+
+def test_a_failed_dry_run_rejects_the_draft_with_sumos_message_and_stores_nothing(
+    tmp_path: Path,
+) -> None:
+    kwargs = scripted_env()
+    kwargs["out_dir"] = tmp_path
+    runner = kwargs["runner"]
+    runner.dry_run_outcome = DryRunOutcome(ok=False, error="Error: unknown TLS program 'x'")
+
+    with pytest.raises(DraftRejected, match="SUMO rejected the script: Error: unknown TLS program"):
+        BuildScenario(**kwargs).execute(SCRIPT_TASK, agent_run(output=scripted_draft()))
+
+    assert runner.calls == []  # the load check never ran
+    assert kwargs["scenarios"].get(runner.dry_runs[0][2].parent.name) is None
+
+
+def test_an_existing_scripted_scenario_is_returned_without_a_dry_run(tmp_path: Path) -> None:
+    kwargs = scripted_env()
+    kwargs["out_dir"] = tmp_path
+    runner = kwargs["runner"]
+    BuildScenario(**kwargs).execute(SCRIPT_TASK, agent_run(output=scripted_draft()))
+
+    BuildScenario(**kwargs).execute(SCRIPT_TASK, agent_run(output=scripted_draft()))
+
+    assert len(runner.dry_runs) == 1
+
+
+def test_a_scenario_without_a_script_never_calls_dry_run(tmp_path: Path) -> None:
+    kwargs = env()
+    kwargs["out_dir"] = tmp_path
+
+    BuildScenario(**kwargs).execute(TASK, agent_run(output=draft()))
+
+    assert kwargs["runner"].dry_runs == []

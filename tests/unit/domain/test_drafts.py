@@ -30,10 +30,9 @@ from tests.unit.domain._fixtures import (
     fidelity,
     good_sanity,
     network_draft,
-    runnable_script,
     scenario_draft,
     static_intervention,
-    unlinted_script,
+    traci_script,
 )
 from tests.unit.domain._samples import expert_answer
 
@@ -162,28 +161,6 @@ def test_scenario_draft_requires_a_script_for_script_mechanisms() -> None:
         )
 
 
-def test_a_draft_may_carry_a_script_that_failed_lint_but_a_scenario_may_not() -> None:
-    """The draft reports what the agent built; promotion is what gates on lint and dry_run."""
-    draft = scenario_draft(
-        interventions=(dynamic_intervention(),),
-        mechanisms=(ScriptMechanism(),),
-        script=unlinted_script(),
-    )
-    assert draft.script is not None and not draft.script.is_runnable
-
-    with pytest.raises(ValueError):
-        Scenario(
-            scenario_id="s1",
-            network_id="n1",
-            demand_id="d1",
-            interventions=draft.interventions,
-            mechanisms=draft.mechanisms,
-            sumocfg=draft.sumocfg,
-            content_hash="c1",
-            traci_script=draft.script,
-        )
-
-
 def test_rejected_intervention_must_say_why() -> None:
     with pytest.raises(ValueError):
         RejectedIntervention(intervention=static_intervention(), reason="")
@@ -220,11 +197,11 @@ def test_expert_note_draft_requires_text() -> None:
         )
 
 
-def test_runnable_script_is_accepted_by_both_draft_and_entity() -> None:
+def test_traci_script_is_accepted_by_both_draft_and_entity() -> None:
     draft = scenario_draft(
         interventions=(dynamic_intervention(),),
         mechanisms=(ScriptMechanism(),),
-        script=runnable_script(),
+        script=traci_script(),
     )
     scenario = Scenario(
         scenario_id="s1",

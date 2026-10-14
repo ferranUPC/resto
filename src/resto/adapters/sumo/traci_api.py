@@ -3,8 +3,8 @@
 Global module state, deliberately not a class: this is the module Builder-authored scripts call
 bare (`close_lane("B0C0_1")`), the same way the `traci` package itself is a global-connection
 module - there is no object to thread through a generated script. `start()` opens a TraCI session
-and resets `applied_actions`/registered rules; `close()` ends it. The Simulation Runner (E2.5)
-calls `start()`/`close()` around executing a script; a script itself only ever calls the
+and resets `applied_actions`/registered rules; `close()` ends it. The online Simulation Runner
+calls `start()`/`close()` around executing the generated script; a script itself only ever calls the
 primitives and the declarative helpers below.
 
 Every primitive raises `traci.TraCIException` on an unknown edge/lane/TLS id - a thin passthrough
@@ -16,20 +16,34 @@ to TraCI, same convention as `adapters/sumo/netxml.py`'s `KeyError`. Every mutat
 
 from __future__ import annotations
 
-import inspect
 from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from typing import Any
 
 import traci
 
 from resto.domain.value_objects.applied_action import ActionOrigin, AppliedAction
-from resto.domain.value_objects.traci_script import DeclaredRule
 
 _applied_actions: list[AppliedAction] = []
 _at_time_rules: list[list[Any]] = []  # each: [t, action, fired]
 _when_rules: list[list[Any]] = []  # each: [condition, action, was_true]
 _current_origin: ActionOrigin = ActionOrigin.CODE
 _lane_permission_snapshots: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {}
+
+
+@dataclass
+class _HarnessLimits:
+    """When `run()` must stop, set by the harness only (see `set_step_limit`, `set_end_time`)."""
+
+    step_limit: int | None = None
+    end_time: float | None = None
+
+    def reset(self) -> None:
+        self.step_limit = None
+        self.end_time = None
+
+
+_limits = _HarnessLimits()
 
 
 def start(sumo_cmd: list[str]) -> None:
@@ -40,6 +54,7 @@ def start(sumo_cmd: list[str]) -> None:
     """
     global _applied_actions, _at_time_rules, _when_rules, _current_origin
     global _lane_permission_snapshots
+    _limits.reset()
     _applied_actions = []
     _at_time_rules = []
     _when_rules = []
@@ -200,43 +215,6 @@ def when(condition: Callable[[], bool], action: Callable[[], Any]) -> None:
     _when_rules.append([condition, action, False])
 
 
-def registered_rules() -> tuple[DeclaredRule, ...]:
-    """`DeclaredRule`s for every current `at_time`/`when` registration.
-
-    Feeds `TraciScript.declared_rules`.
-    """
-    rules = [
-        DeclaredRule(trigger=f"at_time({t})", action=_describe(action))
-        for t, action, _fired in _at_time_rules
-    ]
-    rules += [
-        DeclaredRule(trigger=_describe(condition), action=_describe(action))
-        for condition, action, _was_true in _when_rules
-    ]
-    return tuple(rules)
-
-
-def _describe(fn: Callable[..., Any]) -> str:
-    """A description of `fn`, never `repr()` (bakes in a memory address, breaking the authoring-
-    determinism criterion: identical script, 3 runs -> identical `declared_rules[]`).
-
-    Named functions: `inspect.getsource` is unambiguous - a `def` is exactly one function - so
-    the full source is used. Lambdas are different: `inspect.getsource` returns the *whole source
-    line*, which is wrong whenever two lambdas share a line (`when(lambda: ..., lambda: ...)`,
-    exactly the style ADR-0005's own examples use) - both would get identical, misleading text.
-    Falls back to a `file:line` marker for those instead; prefer named functions over lambdas in
-    a script wherever the registered rule matters to an audit trail.
-    """
-    name = getattr(fn, "__name__", "<anonymous>")
-    if name != "<lambda>":
-        try:
-            return inspect.getsource(fn).strip()
-        except (OSError, TypeError):
-            return name
-    code = fn.__code__
-    return f"<lambda {code.co_filename}:{code.co_firstlineno}>"
-
-
 def _fire(action: Callable[[], Any]) -> None:
     global _current_origin
     _current_origin = ActionOrigin.RULE
@@ -246,6 +224,33 @@ def _fire(action: Callable[[], Any]) -> None:
         _current_origin = ActionOrigin.CODE
 
 
+# --- harness-only hooks (ADR-0044) ---------------------------------------------------------
+# Not exported through `resto.traci_api`: a generated script cannot reach them. The dry run in
+# `adapters/sumo/script_harness.py` uses them.
+
+
+def set_step_limit(steps: int) -> None:
+    """Makes `run()` stop after `steps` steps, whatever `until` says. `start()` clears it."""
+    _limits.step_limit = steps
+
+
+def set_end_time(end: float) -> None:
+    """Makes `run()` stop at simulation time `end` (the run cfg's end, which batch SUMO honours),
+    even if its `until` is later or None. `start()` clears it."""
+    _limits.end_time = end
+
+
+def force_all_rules() -> None:
+    """Evaluates every registered `when` condition once and applies every registered action once,
+    whatever its trigger, so an id only SUMO can reject fails here. Actions log with
+    `origin = rule`, in registration order (`at_time` rules first, then `when` rules)."""
+    for _, action, _ in _at_time_rules:
+        _fire(action)
+    for condition, action, _ in _when_rules:
+        condition()
+        _fire(action)
+
+
 def run(until: float | None = None) -> None:
     """Steps the simulation, firing registered `at_time`/`when` rules, until `until` (simulation
     time) is reached - or, if `until` is None, until no more vehicles are expected
@@ -253,8 +258,14 @@ def run(until: float | None = None) -> None:
 
     Example: run(until=3600)  # or run() to drain the route file
     """
-    while _should_continue(until):
+    if _limits.end_time is not None:
+        until = _limits.end_time if until is None else min(until, _limits.end_time)
+    steps_taken = 0
+    while _should_continue(until) and (
+        _limits.step_limit is None or steps_taken < _limits.step_limit
+    ):
         step()
+        steps_taken += 1
         now = traci.simulation.getTime()
         for rule in _at_time_rules:
             t, action, fired = rule

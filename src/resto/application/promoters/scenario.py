@@ -22,7 +22,8 @@ Promotion order (ADR-0001):
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+from typing import assert_never
 
 from resto.application.ports.llm import AgentRun
 from resto.application.ports.network_query import NetworkQuery
@@ -37,6 +38,13 @@ from resto.domain.value_objects.drafts import ScenarioDraft
 from resto.domain.value_objects.intervention_target import EdgeTarget, LaneTarget, TlsTarget
 from resto.domain.value_objects.mechanism import RegenerateDemandMechanism
 from resto.domain.value_objects.tasks import ScenarioTask
+from resto.domain.value_objects.traci_script import (
+    CloseLane,
+    OpenLane,
+    SetSpeed,
+    SetTlsProgram,
+    When,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,6 +74,7 @@ class ScenarioPromoter:
         if demand_id != task.demand_id:
             _check_demand_on_network(context.demands, demand_id, task.network_id, "derived demand")
         _check_targets_exist(draft, context.query)
+        _check_script_ids_exist(draft, context.query)
         return Scenario(
             scenario_id=scenario_id_for(
                 task.network_id, task.demand_id, draft.interventions, task.context_tags
@@ -123,10 +132,34 @@ def _check_targets_exist(draft: ScenarioDraft, query: NetworkQuery) -> None:
             raise _unknown_target(f"unknown tls {target.tls_id!r}")
 
 
+def _check_script_ids_exist(draft: ScenarioDraft, query: NetworkQuery) -> None:
+    """Every id a rule names, trigger and action, against the network. A TLS program id cannot be
+    checked here; the dry run does."""
+    if draft.script is None:
+        return
+    for rule in draft.script.rules:
+        if isinstance(rule.trigger, When):
+            target = rule.trigger.condition.target
+            if not query.has_edge(target):
+                raise _unknown_target(f"unknown edge {target!r} in a rule condition")
+        action = rule.action
+        if isinstance(action, CloseLane | OpenLane):
+            if not query.has_lane(action.edge_id, action.lane_index):
+                raise _unknown_target(f"unknown lane {action.lane_id!r}")
+        elif isinstance(action, SetSpeed):
+            if not query.has_edge(action.edge_id):
+                raise _unknown_target(f"unknown edge {action.edge_id!r}")
+        elif isinstance(action, SetTlsProgram):
+            if not query.has_tls(action.tls_id):
+                raise _unknown_target(f"unknown tls {action.tls_id!r}")
+        else:
+            assert_never(action)
+
+
 def _content_hash(draft: ScenarioDraft) -> str:
-    """Fingerprint of the *authored files*, distinct from `scenario_id` (a request hash): lets
-    two authoring runs of the same request be compared for "authoring determinism" (DoD §4.5)
-    without re-reading every file by hand."""
+    """Fingerprint of the *authored files* and the script's rules, distinct from `scenario_id` (a
+    request hash): lets two authoring runs of the same request be compared for "authoring
+    determinism" (DoD §4.5) without re-reading every file by hand."""
     file_hashes = sorted(ref.content_hash for ref in draft.additional_files)
-    script_hash = draft.script.artifact.content_hash if draft.script is not None else None
+    script_hash = asdict(draft.script) if draft.script is not None else None
     return compute_content_hash("scenario", draft.sumocfg.content_hash, file_hashes, script_hash)

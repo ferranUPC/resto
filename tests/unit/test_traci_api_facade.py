@@ -20,7 +20,6 @@ def test_facade_exports_every_public_primitive_and_declarative_name() -> None:
         "get_edge_speed",
         "get_vehicle_count",
         "open_lane",
-        "registered_rules",
         "run",
         "set_speed",
         "set_tls_program",

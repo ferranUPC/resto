@@ -7,9 +7,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
+from resto.domain.value_objects.applied_action import AppliedAction
 from resto.domain.value_objects.artifact_ref import ArtifactRef
 from resto.domain.value_objects.kpis import Kpis
 from resto.domain.value_objects.topology_modification import TopologyModification
+from resto.domain.value_objects.traci_script import TraciScript
 
 
 class OsmSource(Protocol):
@@ -64,19 +66,33 @@ class RunOutput:
     """What one `sumo` execution left behind (ADR-0017). `artifacts` always includes the run cfg
     SUMO was started with (kind `sumocfg`); on success it also holds `edgedata`, `tripinfo`,
     `summary` and `statistics`, and `kpis` is read from the latter. `error` is SUMO's own
-    message."""
+    message. An online run also lists `script.py` (kind `script`) among its artifacts and returns
+    the actions its script applied."""
 
     ok: bool
     error: str | None
     artifacts: tuple[ArtifactRef, ...]
     wall_clock_s: float
     kpis: Kpis | None = None
+    applied_actions: tuple[AppliedAction, ...] = ()
 
     def __post_init__(self) -> None:
         if self.ok and self.kpis is None:
             raise ValueError("a successful run must carry KPIs")
         if not self.ok and not self.error:
             raise ValueError("a failed run must carry the SUMO error message")
+
+
+@dataclass(frozen=True, slots=True)
+class DryRunOutcome:
+    """What rehearsing a script against SUMO gave: ok, or SUMO's error (or the Python traceback)."""
+
+    ok: bool
+    error: str | None
+
+    def __post_init__(self) -> None:
+        if not self.ok and not self.error:
+            raise ValueError("a failed dry run must carry the error message")
 
 
 class SumoRunner(Protocol):
@@ -86,5 +102,10 @@ class SumoRunner(Protocol):
 
     def run_batch(self, sumocfg: ArtifactRef, seed: int, out_dir: Path) -> RunOutput: ...
     def run_online(
-        self, sumocfg: ArtifactRef, script: ArtifactRef, seed: int, out_dir: Path
+        self, sumocfg: ArtifactRef, script: TraciScript, seed: int, out_dir: Path
     ) -> RunOutput: ...
+    def dry_run(self, sumocfg: ArtifactRef, script: TraciScript, out_dir: Path) -> DryRunOutcome:
+        """Rehearses `script` on `sumocfg` (seed 0): 50 steps of the real script, then every
+        condition evaluated once and every action applied once. Stores nothing; `out_dir` is
+        scratch space."""
+        ...

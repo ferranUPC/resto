@@ -14,12 +14,16 @@ tool gets `--seed <n>`.
 
 from __future__ import annotations
 
+import os
 import re
+import signal
 import subprocess
+import sys
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
+from resto.adapters.sumo.script_harness import REQUEST, HarnessRequest
 from resto.domain.constants import SUMO_VERSION
 
 _SEED_IN_CONFIG = frozenset({"sumo"})
@@ -30,6 +34,10 @@ _version_cache: dict[str, str] = {}
 
 class SumoVersionError(RuntimeError):
     """The SUMO binary on the PATH is not the pinned version."""
+
+
+class SumoUnavailable(SumoVersionError):
+    """The SUMO binary cannot be run at all (missing, unreadable, `--version` fails)."""
 
 
 @dataclass(frozen=True)
@@ -67,6 +75,48 @@ def launch(tool: str, args: Sequence[str], cwd: Path, seed: int) -> LaunchResult
     return LaunchResult(ok=True, message="", files=changed)
 
 
+class HarnessLauncher:
+    """Runs the script harness (`resto.adapters.sumo.script_harness`) in its own process group, so
+    a timeout can kill the harness and the `sumo` it started. The request goes to the harness as
+    JSON on stdin. The message of a failure is the harness's stderr, which holds the Python
+    traceback.
+
+    The caller has already checked `request.sumo_command[0]` with `checked_version`.
+    """
+
+    def __init__(self, timeout_s: float) -> None:
+        self._timeout_s = timeout_s
+
+    def launch(self, request: HarnessRequest) -> LaunchResult:
+        command = [sys.executable, "-m", "resto.adapters.sumo.script_harness"]
+        try:
+            proc = subprocess.Popen(
+                command,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                cwd=request.out_dir,
+                start_new_session=True,
+            )
+        except OSError as exc:
+            return LaunchResult(ok=False, message=str(exc))
+        try:
+            _, stderr = proc.communicate(
+                REQUEST.dump_json(request).decode(), timeout=self._timeout_s
+            )
+        except subprocess.TimeoutExpired:
+            os.killpg(proc.pid, signal.SIGKILL)
+            proc.communicate()
+            return LaunchResult(ok=False, message=f"the run timed out after {self._timeout_s:g} s")
+        if proc.returncode != 0:
+            return LaunchResult(
+                ok=False,
+                message=stderr.strip() or f"the script harness exited with code {proc.returncode}",
+            )
+        return LaunchResult(ok=True, message="")
+
+
 def checked_version(tool: str) -> str:
     """The version of `tool`, read once per process and known to be `SUMO_VERSION`.
 
@@ -77,7 +127,7 @@ def checked_version(tool: str) -> str:
         try:
             _probe_version(tool, None)
         except _ProbeFailed as failure:
-            raise SumoVersionError(f"cannot read the version of {tool}: {failure}") from failure
+            raise SumoUnavailable(f"cannot read the version of {tool}: {failure}") from failure
     _require_pinned(tool)
     return _version_cache[tool]
 

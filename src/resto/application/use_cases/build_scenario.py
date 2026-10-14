@@ -17,7 +17,9 @@ Order:
                (the id depends on which interventions it accepted), so a repeated request still
                costs one agent call even when the result turns out to already exist, unlike
                `RunSimulation`, which dedupes before spending compute.
-  3. check   - SUMO loads the cfg the draft wrote; a refusal rejects the draft.
+  3. check   - for a scenario with a script, a dry run rehearses it against SUMO (into
+               `<out_dir>/<scenario_id>/dry_run`) and a refusal rejects the draft; then SUMO loads
+               the cfg the draft wrote and a refusal rejects the draft.
   4. persist - store and return.
 """
 
@@ -49,7 +51,7 @@ from resto.domain.value_objects.tasks import ScenarioTask
 @dataclass(frozen=True, slots=True)
 class BuildScenario:
     """Promotes the Scenario Builder's run into a stored `Scenario`. `out_dir` is where the SUMO
-    load check of each scenario writes (`<out_dir>/<scenario_id>/load_check`)."""
+    checks of each scenario write (`<out_dir>/<scenario_id>/dry_run` and `.../load_check`)."""
 
     networks: NetworkRepository
     demands: DemandRepository
@@ -76,6 +78,15 @@ class BuildScenario:
         existing = self.scenarios.get(scenario.scenario_id)
         if existing is not None:
             return existing
+
+        if scenario.traci_script is not None:
+            dry_run = self.runner.dry_run(
+                scenario.sumocfg,
+                scenario.traci_script,
+                self.out_dir / scenario.scenario_id / "dry_run",
+            )
+            if not dry_run.ok:
+                raise DraftRejected(f"SUMO rejected the script: {dry_run.error}")
 
         output = self.runner.run_batch(
             scenario.sumocfg, seed=0, out_dir=self.out_dir / scenario.scenario_id / "load_check"
