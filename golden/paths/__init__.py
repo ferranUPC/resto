@@ -1,4 +1,4 @@
-"""Golden path definitions: request, prior world state and expected trace.
+"""Golden path definitions: request, prior world state and Expected outcome.
 
 One module per golden path. `discover` returns every `GoldenPath` the modules define, so adding a
 path edits no central list.

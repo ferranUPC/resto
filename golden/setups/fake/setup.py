@@ -10,8 +10,10 @@ from tests.unit.application._world import World
 
 from golden.framework.expected import GoldenPath
 from golden.framework.setup import Run
+from golden.framework.simulations import Stored
 from golden.setups.fake import scripts
 from golden.setups.fake.script import AgentScript
+from resto.domain.entities.study import Study
 
 REPETITIONS = 3
 
@@ -46,4 +48,18 @@ class FakeSetup:
             for stored in path.prior.stored:
                 world.store_scenario(stored.interventions, stored.seeds)
             study = world.run_study().execute(path.request)
-            return Run(study, tuple(world.tracer.events))
+            return Run(study, tuple(world.tracer.events), _stored(world, study))
+
+
+def _stored(world: World, study: Study) -> Stored:
+    """The scenarios, results and demands the study's experiments point to."""
+    experiments = [e for phase in study.phases for e in phase.experiments]
+    scenarios = {e.scenario_id: s for e in experiments if (s := world.scenarios.get(e.scenario_id))}
+    results = {
+        r: found
+        for e in experiments
+        for r in e.result_ids
+        if (found := world.results.get(r)) is not None
+    }
+    demands = {s.demand_id: d for s in scenarios.values() if (d := world.demands.get(s.demand_id))}
+    return Stored(scenarios, results, demands)
