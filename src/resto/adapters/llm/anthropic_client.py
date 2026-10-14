@@ -225,11 +225,12 @@ def _tool_schema(tool: Tool) -> dict[str, Any]:
 
 
 def _submit_tool_schema(output: type[Any]) -> dict[str, Any]:
+    name = getattr(output, "__name__", "answer")  # a union of outcomes has no name
     return {
         "type": "function",
         "function": {
             "name": SUBMIT_TOOL_NAME,
-            "description": f"Submit the final {output.__name__} once you are done.",
+            "description": f"Submit the final {name} once you are done.",
             "parameters": adapter_for(output).json_schema(),
         },
     }

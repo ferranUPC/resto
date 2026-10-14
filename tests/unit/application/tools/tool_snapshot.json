@@ -1201,6 +1201,25 @@
       "name": "set_speed"
     }
   ],
+  "network_find": [
+    {
+      "description": "List the stored networks whose label matches a name, case ignored. Returns `candidates`, each with its `network_id`, `label` and the network it `derived_from`. One candidate that is what the user means: answer Found with its id. None: build the network, or ask the user when it cannot be built. Several: ask the user which one.",
+      "input_schema": {
+        "properties": {
+          "name": {
+            "description": "The network reference, as the user wrote it.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "name": "find_network"
+    }
+  ],
   "network_import": [
     {
       "description": "List the import profiles `netconvert` can use (what the imported network keeps: roads, rail, bicycle lanes, pedestrian paths) and the vehicle classes `keep_vclass` accepts. Public transport stops and lines and polygons are not part of any profile.",

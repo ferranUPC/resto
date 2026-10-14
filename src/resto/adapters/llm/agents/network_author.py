@@ -1,4 +1,239 @@
-"""Configuration of the network_author agent: system prompt, tool list, output draft type, budget.
+"""Configuration of the Network Author: system prompt, tool list, output type, budget (DoD §2.2;
+ADR-0001, ADR-0033, ADR-0037 §3, ADR-0045).
 
-Placeholder: see docs/tfm-architecture-and-dod.md §2.2.
+No logic of its own: the loop lives in the `ToolAgent` implementation, tool behaviour in
+`application/tools/network_*`, and the checks on what the agent returns (recipe replay, sanity,
+`unresolved[]`) in `application/promoters/network.py`. This module assembles the `AgentTask`, the
+tools and the `Budget` for one `ObtainNetworkTask` or `NetworkTask` and calls the agent.
+
+Two things the tools alone cannot do are done here:
+
+- A fresh working state per call: `ImportRun` keeps the snapshots one agent run fetched, so each
+  `obtain` or `author` builds its own and two runs never see each other's.
+- A failing public service ends the step by name. The real `ToolAgent` hands a tool's exception back
+  to the model as feedback; an `ExternalServiceError` is not the model's to fix, so the tool still
+  raises it for the model, remembers it, and the port raises it again once the run is over.
+
+A round is one repair cycle (edit, recompile, `sanity_check`). The task's `max_rounds` is told to
+the model; what stops a run is the `Budget` (calls, tokens, seconds), not a count of rounds.
 """
+
+from __future__ import annotations
+
+import shutil
+from collections.abc import Callable, Sequence
+from dataclasses import asdict, dataclass, field, replace
+from pathlib import Path
+from typing import Any, cast
+
+from resto.application.ports.llm import AgentRun, AgentTask, Budget, Tool, ToolAgent
+from resto.application.ports.network_probe import NetworkProber
+from resto.application.ports.network_query import EnumerableNetworkQuery
+from resto.application.ports.osm import ExternalServiceError, Geocoder, OsmLimits, OsmSource
+from resto.application.ports.repositories import NetworkRepository
+from resto.application.ports.sumo import NetconvertRunner, PlainNetEditor
+from resto.application.tools.network_author import (
+    AuthorRun,
+    NetworkCatalog,
+    build_find_network_tool,
+    build_network_author_tools,
+)
+from resto.application.tools.network_edit import EditRun, build_network_edit_tools
+from resto.application.tools.network_import import ImportRun, build_network_import_tools
+from resto.application.tools.network_inspection import (
+    InspectionRun,
+    build_network_inspection_tools,
+)
+from resto.domain.value_objects.drafts import NetworkDraft
+from resto.domain.value_objects.outcomes import NetworkOutcome
+from resto.domain.value_objects.tasks import NetworkTask, ObtainNetworkTask
+
+# Bump whenever the prompt, the tool set or the default budget changes in a way that can change
+# the agent's answers (E6.2 records it with every measurement).
+NETWORK_AUTHOR_VERSION = "v1"
+
+_COMMON = """\
+You are the Network Author of a SUMO traffic-simulation framework. You make sure a road network
+exists, and you never approximate: what you cannot do, you say.
+
+How you work. Every tool that builds a network returns a `net_artifact` (path and content_hash) and
+what the recipe needs (`source`, `osm_snapshot`, `netconvert_options`, `modification`). Never type a
+path, a hash or a polygon yourself: use exactly what a tool returned. A round is one repair cycle:
+change the network, recompile, then call `sanity_check` on the result. You have at most
+`max_rounds` rounds; the number of tool calls is limited separately.
+
+You finish by calling submit_output. A NetworkDraft is:
+  - recipe: {source | base_network_id, osm_snapshot, netconvert_options, plain_edits}. It must
+    replay without you and give the same `content_hash`: put in it exactly the source,
+    snapshot, options and modifications the tools returned for the network you submit.
+  - net_artifact: the `net_artifact` of the last tool that built the network you submit.
+  - sanity_report: the numbers `sanity_check` returned for that same network (largest_scc_ratio,
+    zero_length_edges, all_reachable_from_fringe).
+  - probe_report: only if you called `probe_run` on it.
+  - unresolved: every defect you found and did not fix, or every request you could not carry
+    out, each with the `needed_tool` that was missing. If the sanity check still fails when you
+    run out of rounds, submit the draft with the failure listed here; an empty list on a failing
+    network is rejected.
+  - rationale: what you decided and why, in one or two sentences.
+"""
+
+OBTAIN_PROMPT = (
+    _COMMON
+    + """
+Your task: resolve `network_ref`, the way the user named the network. Start with
+`find_network(name)`. Then choose exactly one ending:
+
+  1. Found(id): one stored network is what the user means. Use the id `find_network` returned.
+  2. A NetworkDraft: nothing stored matches and the network can be built. Build it:
+       - "a 5 by 5 grid", a spider or a random network: `generate_grid`, `generate_spider` or
+         `generate_random` (random needs a seed; pick one and keep it). Nothing else is needed.
+       - a real area (a district, a box or a polygon): `list_import_profiles`, `fetch_osm`, then
+         `netconvert` with the profile that keeps what the user asked for ("with the train" is
+         the rail profile, "with bicycle lanes" the bicycle profile), then cleanups if the sanity
+         check asks for them (`keep_largest_component`, `remove_isolated`, `join_junctions`,
+         `keep_vclass`).
+  3. NeedsUser(reason, message, candidates): the user must act. Use it when
+       - two or more stored networks match: SeveralCandidates, with their ids as candidates;
+       - nothing is stored and it cannot be built from the reference: NetworkNotFound;
+       - `fetch_osm` answered `needs_user` (area too large, place that is not an administrative
+         boundary, unsupported requirement): pass its reason on as it is, and say what you were
+         asked and why it cannot be done;
+       - the user asks for something no profile imports (public transport stops or lines,
+         polygons): UnsupportedRequirement. Do not build a network without it and say nothing.
+"""
+)
+
+AUTHOR_PROMPT = (
+    _COMMON
+    + """
+Your task: derive a new network from the base network `base_net` by carrying out `modifications`,
+each in the order given, with `remove_edge`, `add_edge`, `set_lanes` and `set_speed`. Each edit tool
+takes the `net_path` and `net_hash` of the network to edit and returns the edited one: chain them,
+and put each returned `modification` in the recipe's plain_edits in that order. The recipe's
+base_network_id is the task's `base_network_id`; it has no source and no osm_snapshot.
+
+An edit a tool answers with `unresolved` (an edge that does not exist, a junction that does not
+exist) is not carried out: copy that issue to the draft's unresolved. A modification for which no
+tool exists (for example a new junction) goes to unresolved with the tool that is missing, never
+approximated with another edit.
+"""
+)
+
+
+@dataclass(frozen=True, slots=True)
+class NetworkAuthorCollaborators:
+    """Everything the Network Author's tools are bound to except the per-run state."""
+
+    networks: NetworkRepository
+    runner: NetconvertRunner
+    editor: PlainNetEditor
+    prober: NetworkProber
+    open_network: Callable[[Path], EnumerableNetworkQuery]
+    osm: OsmSource
+    geocoder: Geocoder
+    typemap_dir: Path
+    out_dir: Path
+    limits: OsmLimits = field(default_factory=OsmLimits)
+
+
+def _task_input(task: ObtainNetworkTask | NetworkTask, limits: OsmLimits) -> dict[str, Any]:
+    common: dict[str, Any] = {
+        "goals": list(task.goals),
+        "max_rounds": task.max_rounds,
+        "min_scc_ratio": task.min_scc_ratio,
+        "probe_teleport_threshold": task.probe_teleport_threshold,
+    }
+    if isinstance(task, ObtainNetworkTask):
+        return {
+            "network_ref": task.network_ref,
+            "max_area_km2": limits.max_area_km2,
+            **common,
+        }
+    return {
+        "base_network_id": task.base_network_id,
+        "modifications": [asdict(m) | {"kind": type(m).__name__} for m in task.modifications],
+        **common,
+    }
+
+
+def _surface_service_errors(
+    tools: Sequence[Tool], failures: list[ExternalServiceError]
+) -> tuple[Tool, ...]:
+    def guard(tool: Tool) -> Tool:
+        def call(**kwargs: Any) -> Any:
+            try:
+                return tool.fn(**kwargs)
+            except ExternalServiceError as error:
+                failures.append(error)
+                raise
+
+        return replace(tool, fn=call)
+
+    return tuple(guard(t) for t in tools)
+
+
+@dataclass(frozen=True, slots=True)
+class NetworkAuthorPort:
+    """`NetworkAuthorAgent` port (ADR-0025 §6) over the shared `ToolAgent`, with the collaborators
+    bound. `budget` limits the calls of one run."""
+
+    agent: ToolAgent
+    budget: Budget
+    collaborators: NetworkAuthorCollaborators
+
+    def obtain(self, task: ObtainNetworkTask) -> AgentRun[NetworkOutcome]:
+        c = self.collaborators
+        tools = (
+            build_find_network_tool(NetworkCatalog(c.networks)),
+            *build_network_author_tools(AuthorRun(c.runner, self._work_dir)),
+            *build_network_import_tools(
+                ImportRun(
+                    runner=c.runner,
+                    osm=c.osm,
+                    geocoder=c.geocoder,
+                    out_dir=self._work_dir,
+                    typemap_dir=c.typemap_dir,
+                    limits=c.limits,
+                )
+            ),
+            *build_network_inspection_tools(self._inspection()),
+        )
+        agent_task = AgentTask(OBTAIN_PROMPT, _task_input(task, c.limits))
+        # a union is not a `type[T]` for mypy; the real client builds its schema from it anyway
+        return self._run(agent_task, tools, cast("type[NetworkOutcome]", NetworkOutcome))
+
+    def author(self, task: NetworkTask) -> AgentRun[NetworkDraft]:
+        c = self.collaborators
+        base = c.networks.get(task.base_network_id)
+        if base is None:
+            raise LookupError(f"base network {task.base_network_id!r} is not stored")
+        tools = (
+            *build_network_edit_tools(EditRun(c.runner, c.editor, self._work_dir)),
+            *build_network_inspection_tools(self._inspection()),
+        )
+        agent_input = _task_input(task, c.limits)
+        # the inspection tools read only inside the working directory, so the agent gets a copy
+        shown = self._work_dir / "base" / base.net_xml.content_hash[:16] / base.net_xml.path.name
+        shown.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(base.net_xml.path, shown)
+        agent_input["base_net"] = {
+            "path": str(shown),
+            "content_hash": base.net_xml.content_hash,
+            "kind": base.net_xml.kind,
+        }
+        return self._run(AgentTask(AUTHOR_PROMPT, agent_input), tools, NetworkDraft)
+
+    @property
+    def _work_dir(self) -> Path:
+        return self.collaborators.out_dir
+
+    def _inspection(self) -> InspectionRun:
+        c = self.collaborators
+        return InspectionRun(open_network=c.open_network, prober=c.prober, out_dir=self._work_dir)
+
+    def _run(self, task: AgentTask, tools: Sequence[Tool], output: type[Any]) -> AgentRun[Any]:
+        failures: list[ExternalServiceError] = []
+        run = self.agent.run(task, _surface_service_errors(tools, failures), output, self.budget)
+        if failures:
+            raise failures[0]
+        return run

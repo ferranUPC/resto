@@ -1,5 +1,9 @@
-"""Tools of the Network Author, declared once (ADR-0033). This slice holds the generated-network
-tools; the rest of the catalogue (ADR-0045) joins as its slices land.
+"""Tools of the Network Author, declared once (ADR-0033): `find_network`, which is code, and the
+generated-network tools. The rest of the catalogue (ADR-0045) lives in `network_import`,
+`network_inspection` and `network_edit`.
+
+`find_network` lists the stored networks whose label matches a name. It decides nothing: the agent
+chooses between `Found`, building and `NeedsUser` from what it returns.
 
 `generate_grid`, `generate_spider` and `generate_random` take typed parameters with SUMO's defaults
 and never a free `netgenerate` option. Ranges are checked by the source dataclass, before SUMO runs,
@@ -18,6 +22,7 @@ from typing import Annotated, Any
 from pydantic import Field
 
 from resto.application.ports.llm import Tool
+from resto.application.ports.repositories import NetworkRepository
 from resto.application.ports.sumo import NetconvertRunner
 from resto.application.tools.declaration import tool
 from resto.domain.value_objects.network_source import (
@@ -34,6 +39,47 @@ class AuthorRun:
 
     runner: NetconvertRunner
     out_dir: Path
+
+
+@dataclass(frozen=True, slots=True)
+class NetworkCatalog:
+    """What `find_network` reads: the stored networks."""
+
+    networks: NetworkRepository
+
+
+def _matches(label: str, name: str) -> bool:
+    """A label answers a name when either holds the other, ignoring case: "Eixample" finds
+    "bcn/eixample" and a request "Eixample with the train" finds the label "eixample"."""
+    label, name = label.casefold().strip(), name.casefold().strip()
+    return bool(label) and bool(name) and (name in label or label in name)
+
+
+@tool(
+    name="find_network",
+    description=(
+        "List the stored networks whose label matches a name, case ignored. Returns "
+        "`candidates`, each with its `network_id`, `label` and the network it `derived_from`. "
+        "One candidate that is what the user means: answer Found with its id. None: build the "
+        "network, or ask the user when it cannot be built. Several: ask the user which one."
+    ),
+)
+def find_network(
+    ctx: NetworkCatalog,
+    name: Annotated[
+        str, Field(min_length=1, description="The network reference, as the user wrote it.")
+    ],
+) -> Mapping[str, Any]:
+    found = [
+        {"network_id": n.network_id, "label": n.label, "derived_from": n.derived_from}
+        for n in ctx.networks.list()
+        if n.label is not None and _matches(n.label, name)
+    ]
+    return {"candidates": found}
+
+
+def build_find_network_tool(ctx: NetworkCatalog) -> Tool:
+    return find_network.bind(ctx)
 
 
 def _generate(ctx: AuthorRun, source: GeneratedNetwork) -> Mapping[str, Any]:

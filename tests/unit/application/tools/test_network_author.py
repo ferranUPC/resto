@@ -4,19 +4,26 @@ with SUMO's defaults, range checks before SUMO runs, and a real `netgenerate` be
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
 import pytest
 
+from resto.adapters.persistence.memory import InMemoryNetworkRepository
 from resto.adapters.sumo.netconvert import SubprocessNetconvertRunner
 from resto.application.tools.network_author import (
     AuthorRun,
+    NetworkCatalog,
     build_network_author_tools,
+    find_network,
     generate_grid,
     generate_random,
     generate_spider,
 )
+from resto.domain.entities.network import Network
+from resto.domain.value_objects.artifact_ref import ArtifactRef
+from tests.unit.domain._samples import network as sample_network
 
 
 class RefusingRunner:
@@ -105,3 +112,40 @@ def test_a_bound_tool_builds_the_network(tmp_path: Path) -> None:
     result = tools["generate_grid"].fn(x_number=2, y_number=2)
 
     assert result["net_artifact"]["content_hash"]
+
+
+def stored(network_id: str, label: str | None) -> Network:
+    return replace(
+        sample_network(),
+        network_id=network_id,
+        label=label,
+        net_xml=ArtifactRef(Path("n.net.xml"), network_id, "net"),
+    )
+
+
+def catalog(*networks: Network) -> NetworkCatalog:
+    repository = InMemoryNetworkRepository()
+    for network in networks:
+        repository.store(network)
+    return NetworkCatalog(repository)
+
+
+def test_find_network_lists_the_stored_networks_whose_label_matches_the_name() -> None:
+    ctx = catalog(stored("a", "bcn/Eixample"), stored("b", "gracia"), stored("c", None))
+
+    result = find_network(ctx, name="eixample")
+
+    assert [c["network_id"] for c in result["candidates"]] == ["a"]
+    assert result["candidates"][0]["label"] == "bcn/Eixample"
+
+
+def test_find_network_matches_a_longer_request_that_names_a_stored_label() -> None:
+    ctx = catalog(stored("a", "eixample"))
+
+    result = find_network(ctx, name="Eixample with the train")
+
+    assert [c["network_id"] for c in result["candidates"]] == ["a"]
+
+
+def test_find_network_returns_nothing_when_no_label_matches() -> None:
+    assert find_network(catalog(stored("a", "gracia")), name="Atlantis") == {"candidates": []}

@@ -1,7 +1,7 @@
 """What every agent is given today: name, description and input schema of each network, Expert and
 Scenario Builder tool, stored once in `tool_snapshot.json` and asserted exactly (refactor r3).
 E6.1/02 added the Network Author's generated-network tools, E6.1/05 its inspection tools and
-E6.1/06 its plain-XML edit tools, on purpose.
+E6.1/06 its plain-XML edit tools and E6.1/07 `find_network`, on purpose.
 
 The declaration refactor must leave this file unchanged. Regenerate it only on purpose:
 
@@ -29,7 +29,12 @@ from resto.adapters.sumo.runner import SubprocessSumoRunner
 from resto.application.ports.llm import Tool
 from resto.application.tools.expert import EvidenceLedger, build_expert_tools, expert_context
 from resto.application.tools.network import build_network_tools
-from resto.application.tools.network_author import AuthorRun, build_network_author_tools
+from resto.application.tools.network_author import (
+    AuthorRun,
+    NetworkCatalog,
+    build_find_network_tool,
+    build_network_author_tools,
+)
 from resto.application.tools.network_edit import EditRun, build_network_edit_tools
 from resto.application.tools.network_import import ImportRun, build_network_import_tools
 from resto.application.tools.network_inspection import InspectionRun, build_network_inspection_tools
@@ -145,6 +150,9 @@ def collect() -> dict[str, list[dict[str, object]]]:
             build_network_author_tools(
                 AuthorRun(runner=SubprocessNetconvertRunner(), out_dir=Path("out"))
             )
+        ),
+        "network_find": _describe(
+            (build_find_network_tool(NetworkCatalog(InMemoryNetworkRepository())),)
         ),
         "network_inspection": _describe(
             build_network_inspection_tools(

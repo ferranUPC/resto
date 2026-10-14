@@ -11,7 +11,9 @@ Promotion order (ADR-0001):
                  network); a generated network carries no `netconvert` options; the sanity check
                  passed with the task's threshold or the failure is in `unresolved[]`; and the
                  recipe, replayed here without an LLM, gives the `content_hash` the draft claims.
-  3. construct - `network_id` is that hash, `derived_from` the recipe's base network.
+  3. construct - `network_id` is that hash, `derived_from` the recipe's base network, and an
+                 obtained network is labelled with the reference it was asked for, so the next
+                 `find_network` of that name finds it.
 """
 
 from __future__ import annotations
@@ -70,6 +72,7 @@ class NetworkPromoter:
             sanity_report=draft.sanity_report,
             derived_from=recipe.base_network_id,
             probe_report=draft.probe_report,
+            label=context.network_ref if isinstance(context, ObtainNetworkTask) else None,
         )
 
     def _replay(self, recipe: NetworkRecipe, base_net: ArtifactRef | None) -> ArtifactRef:
