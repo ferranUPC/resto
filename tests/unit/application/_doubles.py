@@ -11,6 +11,7 @@ from typing import Any
 from resto.application.ports.sumo import RunOutput
 from resto.domain.constants import SUMO_VERSION
 from resto.domain.value_objects.artifact_ref import ArtifactRef
+from resto.domain.value_objects.traci_script import TraciScript
 
 
 class StubNetworkQuery:
@@ -80,6 +81,6 @@ class FakeRunner:
         return self._outputs.pop(0)
 
     def run_online(
-        self, sumocfg: ArtifactRef, script: ArtifactRef, seed: int, out_dir: Path
+        self, sumocfg: ArtifactRef, script: TraciScript, seed: int, out_dir: Path
     ) -> RunOutput:
         raise AssertionError("not used")

@@ -20,20 +20,24 @@ favour of this simpler, verified fix. Added only when the scenario's additional 
 contain a `<rerouter>`, so a scenario with none (most of E2.1's own reproducibility test, and
 every baseline/non-closure run) stays byte-identical to before this fix.
 
-Online mode (SUMO under TraCI running the script generated from a `TraciScript`) is E2.5.
+Online mode (`run_online`, ADR-0044) derives the same run cfg, writes the `script.py` the translator
+generates from the `TraciScript` into the run directory and starts the script harness as a
+subprocess under a timeout. Same scenario and seed give the same edgedata as a batch run.
 """
 
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from time import perf_counter
 
 from resto.adapters.persistence.filesystem import artifact_ref
 from resto.adapters.sumo.outputs import output_artifact, parse_kpis
-from resto.adapters.sumo.sumo_process import checked_version, launch
+from resto.adapters.sumo.script_harness import APPLIED_ACTIONS_FILE, read_applied_actions
+from resto.adapters.sumo.script_translator import translate_script
+from resto.adapters.sumo.sumo_process import checked_version, launch, launch_harness
 from resto.adapters.sumo.writers.sumocfg import (
     parse_settings,
     render_sumocfg,
@@ -42,8 +46,11 @@ from resto.adapters.sumo.writers.sumocfg import (
 )
 from resto.application.ports.sumo import RunOutput
 from resto.domain.value_objects.artifact_ref import ArtifactRef
+from resto.domain.value_objects.traci_script import TraciScript
 
 EDGEDATA_PERIOD_S = 300.0
+SCRIPT_NAME = "script.py"
+DEFAULT_TIMEOUT_S = 600.0  # twice the DoD's 5-minute threshold
 RUN_CFG_NAME = "run.sumocfg"
 IGNORE_ROUTE_ERRORS_ARGS = ("--ignore-route-errors",)
 
@@ -139,8 +146,9 @@ def collect_outputs(prepared: PreparedRun, out_dir: Path, wall_clock_s: float) -
 
 
 class SubprocessSumoRunner:
-    def __init__(self, sumo_binary: str = "sumo") -> None:
+    def __init__(self, sumo_binary: str = "sumo", timeout_s: float = DEFAULT_TIMEOUT_S) -> None:
         self._sumo = sumo_binary
+        self._timeout_s = timeout_s
 
     def sumo_version(self) -> str:
         """The `sumo` binary's version; raises if it is not the pinned one."""
@@ -166,6 +174,44 @@ class SubprocessSumoRunner:
         return collect_outputs(prepared, out_dir, wall_clock_s)
 
     def run_online(
-        self, sumocfg: ArtifactRef, script: ArtifactRef, seed: int, out_dir: Path
+        self, sumocfg: ArtifactRef, script: TraciScript, seed: int, out_dir: Path
     ) -> RunOutput:
-        raise NotImplementedError("online mode is work-plan E2.5")
+        """Runs the scenario with `script` applied through TraCI. A failure (SUMO's or the script's
+        traceback, a timeout, a harness that left no applied actions) is `ok=False`, never an
+        empty success."""
+        self.sumo_version()
+        out_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            prepared = prepare_run(sumocfg, seed, out_dir)
+        except InvalidScenarioCfg as exc:
+            return RunOutput(ok=False, error=str(exc), artifacts=(), wall_clock_s=0.0)
+        script_path = out_dir / SCRIPT_NAME
+        script_path.write_text(translate_script(script), encoding="utf-8")
+        prepared = PreparedRun(
+            args=prepared.args,
+            inputs=prepared.inputs + (artifact_ref(script_path, "script"),),
+        )
+
+        started = perf_counter()
+        launched = launch_harness(
+            script_path, out_dir, [self._sumo, *prepared.args], self._timeout_s
+        )
+        wall_clock_s = perf_counter() - started
+        if not launched.ok:
+            return RunOutput(
+                ok=False,
+                error=launched.message,
+                artifacts=prepared.inputs,
+                wall_clock_s=wall_clock_s,
+            )
+        try:
+            applied = read_applied_actions(out_dir)
+        except FileNotFoundError:
+            return RunOutput(
+                ok=False,
+                error=f"the harness exited normally but did not write {APPLIED_ACTIONS_FILE}",
+                artifacts=prepared.inputs,
+                wall_clock_s=wall_clock_s,
+            )
+        collected = collect_outputs(prepared, out_dir, wall_clock_s)
+        return replace(collected, applied_actions=applied)

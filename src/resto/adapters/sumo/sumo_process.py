@@ -14,8 +14,11 @@ tool gets `--seed <n>`.
 
 from __future__ import annotations
 
+import os
 import re
+import signal
 import subprocess
+import sys
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -65,6 +68,42 @@ def launch(tool: str, args: Sequence[str], cwd: Path, seed: int) -> LaunchResult
     after = _snapshot(cwd)
     changed = tuple(sorted(p for p, stamp in after.items() if before.get(p) != stamp))
     return LaunchResult(ok=True, message="", files=changed)
+
+
+def launch_harness(
+    script: Path, out_dir: Path, sumo_command: Sequence[str], timeout_s: float
+) -> LaunchResult:
+    """Runs the script harness (`resto.adapters.sumo.script_harness`) in its own process group, so a
+    timeout can kill the harness and the `sumo` it started. The message of a failure is the
+    harness's stderr, which holds the Python traceback.
+
+    The caller has already checked `sumo_command[0]` with `checked_version`.
+    """
+    command = [sys.executable, "-m", "resto.adapters.sumo.script_harness"]
+    command += [str(script), str(out_dir), *sumo_command]
+    try:
+        proc = subprocess.Popen(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            cwd=out_dir,
+            start_new_session=True,
+        )
+    except OSError as exc:
+        return LaunchResult(ok=False, message=str(exc))
+    try:
+        _, stderr = proc.communicate(timeout=timeout_s)
+    except subprocess.TimeoutExpired:
+        os.killpg(proc.pid, signal.SIGKILL)
+        proc.communicate()
+        return LaunchResult(ok=False, message=f"the run timed out after {timeout_s:g} s")
+    if proc.returncode != 0:
+        return LaunchResult(
+            ok=False,
+            message=stderr.strip() or f"the script harness exited with code {proc.returncode}",
+        )
+    return LaunchResult(ok=True, message="")
 
 
 def checked_version(tool: str) -> str:

@@ -3,8 +3,7 @@
 `duarouter` is implemented now — work-plan E2.3 needs it to route a `demand_scale`-derived trips
 file. `random_trips`/`route_sampler` are work-plan E7.1 (Demand Generator Minimal/Done): raising
 `NotImplementedError` here rather than a bare placeholder keeps this adapter usable for the part
-that already has a caller (ADR-0017's "raise, don't stub silently" convention — see
-`SubprocessSumoRunner.run_online`).
+that already has a caller (ADR-0017's "raise, don't stub silently" convention).
 """
 
 from __future__ import annotations

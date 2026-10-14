@@ -12,7 +12,10 @@ determinism it checks does not depend on the window length.
 
 from __future__ import annotations
 
+import inspect
 import subprocess
+import sys
+import time
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -25,6 +28,7 @@ from resto.adapters.sumo.runner import (
     SubprocessSumoRunner,
     _has_rerouter,
 )
+from resto.adapters.sumo.script_harness import APPLIED_ACTIONS_FILE
 from resto.adapters.sumo.writers.rerouter import RerouterWriter
 from resto.adapters.sumo.writers.sumocfg import SumocfgFileWriter, write_edgedata_additional
 from resto.application.ports.writers import SimulationSettings
@@ -32,6 +36,7 @@ from resto.domain.value_objects.artifact_ref import ArtifactRef
 from resto.domain.value_objects.intervention import Intervention, InterventionType
 from resto.domain.value_objects.intervention_target import LaneTarget
 from resto.domain.value_objects.time_window import TimeWindow
+from resto.domain.value_objects.traci_script import AtTime, CloseLane, Rule, SetSpeed, TraciScript
 
 DEV_NET_DIR = Path(__file__).resolve().parents[4] / "eval" / "dev-net"
 NET = DEV_NET_DIR / "dev-net.net.xml"
@@ -250,3 +255,119 @@ def test_a_different_seed_changes_the_edgedata(scenario_cfg: ArtifactRef, tmp_pa
 
 def test_the_runner_reports_the_checked_sumo_version() -> None:
     assert SubprocessSumoRunner().sumo_version() == "1.27.1"
+
+
+# Online mode (E2.5, ADR-0044)
+
+ONLINE_SCRIPT = TraciScript(rules=(Rule(AtTime(BEGIN_S + 60), SetSpeed("C0D0", 5.0)),))
+
+
+def test_an_online_run_succeeds_with_kpis_the_script_artifact_and_the_applied_actions(
+    scenario_cfg: ArtifactRef, tmp_path: Path
+) -> None:
+    output = SubprocessSumoRunner().run_online(
+        scenario_cfg, ONLINE_SCRIPT, seed=1, out_dir=tmp_path / "r"
+    )
+
+    assert output.ok, output.error
+    assert output.kpis is not None and output.kpis.departed > 0
+    kinds = _kinds(output.artifacts)
+    assert set(kinds) == {
+        "sumocfg", "additional", "script", "edgedata", "tripinfo", "summary", "statistics",
+    }  # fmt: skip
+    assert kinds["script"].path.name == "script.py"
+    (applied,) = output.applied_actions
+    assert applied.action == "set_speed"
+    assert applied.step == BEGIN_S + 60
+
+
+def test_twenty_online_runs_with_the_same_seed_are_byte_identical(
+    scenario_cfg: ArtifactRef, tmp_path: Path
+) -> None:
+    runner = SubprocessSumoRunner()
+    hashes = set()
+    for i in range(20):
+        output = runner.run_online(
+            scenario_cfg, ONLINE_SCRIPT, seed=42, out_dir=tmp_path / f"run{i}"
+        )
+        assert output.ok, output.error
+        kinds = _kinds(output.artifacts)
+        hashes.add(
+            tuple(
+                kinds[k].content_hash
+                for k in ("sumocfg", "additional", "script", "edgedata", "tripinfo")
+            )
+        )
+
+    assert len(hashes) == 1
+
+
+def test_an_online_run_gives_the_batch_edgedata_when_no_rule_fires(
+    scenario_cfg: ArtifactRef, tmp_path: Path
+) -> None:
+    runner = SubprocessSumoRunner()
+    never = TraciScript(rules=(Rule(AtTime(BEGIN_S + 10_000_000), SetSpeed("C0D0", 5.0)),))
+
+    batch = runner.run_batch(scenario_cfg, seed=7, out_dir=tmp_path / "batch")
+    online = runner.run_online(scenario_cfg, never, seed=7, out_dir=tmp_path / "online")
+
+    assert online.ok, online.error
+    assert online.applied_actions == ()
+    assert (
+        _kinds(online.artifacts)["edgedata"].content_hash
+        == _kinds(batch.artifacts)["edgedata"].content_hash
+    )
+
+
+def test_an_action_sumo_rejects_at_run_time_fails_the_run_with_the_traceback(
+    scenario_cfg: ArtifactRef, tmp_path: Path
+) -> None:
+    script = TraciScript(rules=(Rule(AtTime(BEGIN_S + 60), CloseLane("NO_SUCH_EDGE", 0)),))
+
+    output = SubprocessSumoRunner().run_online(scenario_cfg, script, seed=1, out_dir=tmp_path / "r")
+
+    assert output.ok is False
+    assert output.error is not None
+    assert "Traceback" in output.error
+    assert "NO_SUCH_EDGE" in output.error
+    assert "script" in _kinds(output.artifacts)
+
+
+def test_exit_zero_without_the_applied_actions_file_is_a_failure(
+    scenario_cfg: ArtifactRef, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real_popen = subprocess.Popen
+
+    def popen_noop(command, **kwargs):  # noqa: ANN001, ANN201
+        # A harness that exits 0 without writing anything.
+        return real_popen([sys.executable, "-c", "pass"], **kwargs)
+
+    monkeypatch.setattr(subprocess, "Popen", popen_noop)
+
+    output = SubprocessSumoRunner().run_online(
+        scenario_cfg, ONLINE_SCRIPT, seed=1, out_dir=tmp_path / "r"
+    )
+
+    assert output.ok is False
+    assert APPLIED_ACTIONS_FILE in (output.error or "")
+
+
+def test_a_timeout_fails_the_run_and_leaves_no_process_behind(
+    scenario_cfg: ArtifactRef, tmp_path: Path
+) -> None:
+    out_dir = tmp_path / "slow"
+
+    output = SubprocessSumoRunner(timeout_s=1.0).run_online(
+        scenario_cfg, ONLINE_SCRIPT, seed=1, out_dir=out_dir
+    )
+
+    assert output.ok is False
+    assert "timed out" in (output.error or "")
+    time.sleep(0.5)
+    left = subprocess.run(["pgrep", "-f", str(out_dir)], capture_output=True, text=True)
+    assert left.stdout.strip() == ""
+
+
+def test_the_online_timeout_defaults_to_600_seconds() -> None:
+    default = inspect.signature(SubprocessSumoRunner).parameters["timeout_s"].default
+    assert default == 600.0

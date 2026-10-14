@@ -7,9 +7,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
+from resto.domain.value_objects.applied_action import AppliedAction
 from resto.domain.value_objects.artifact_ref import ArtifactRef
 from resto.domain.value_objects.kpis import Kpis
 from resto.domain.value_objects.topology_modification import TopologyModification
+from resto.domain.value_objects.traci_script import TraciScript
 
 
 class OsmSource(Protocol):
@@ -64,13 +66,15 @@ class RunOutput:
     """What one `sumo` execution left behind (ADR-0017). `artifacts` always includes the run cfg
     SUMO was started with (kind `sumocfg`); on success it also holds `edgedata`, `tripinfo`,
     `summary` and `statistics`, and `kpis` is read from the latter. `error` is SUMO's own
-    message."""
+    message. An online run also lists `script.py` (kind `script`) among its artifacts and returns
+    the actions its script applied."""
 
     ok: bool
     error: str | None
     artifacts: tuple[ArtifactRef, ...]
     wall_clock_s: float
     kpis: Kpis | None = None
+    applied_actions: tuple[AppliedAction, ...] = ()
 
     def __post_init__(self) -> None:
         if self.ok and self.kpis is None:
@@ -86,5 +90,5 @@ class SumoRunner(Protocol):
 
     def run_batch(self, sumocfg: ArtifactRef, seed: int, out_dir: Path) -> RunOutput: ...
     def run_online(
-        self, sumocfg: ArtifactRef, script: ArtifactRef, seed: int, out_dir: Path
+        self, sumocfg: ArtifactRef, script: TraciScript, seed: int, out_dir: Path
     ) -> RunOutput: ...

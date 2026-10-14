@@ -25,3 +25,12 @@ def test_content_hash_covers_only_the_deterministic_artifacts() -> None:
 
     assert reproducibility_hash(with_clock_a) == reproducibility_hash(with_clock_b)
     assert reproducibility_hash(with_clock_a) != reproducibility_hash(other_edgedata)
+
+
+def test_the_script_is_part_of_an_online_runs_hash() -> None:
+    batch = _artifacts()
+    online = batch + (artifact("script.py", "script1", "script"),)
+    other_script = batch + (artifact("script.py", "script2", "script"),)
+
+    assert reproducibility_hash(online) != reproducibility_hash(batch)
+    assert reproducibility_hash(online) != reproducibility_hash(other_script)
