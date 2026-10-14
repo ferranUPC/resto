@@ -8,7 +8,7 @@ from golden.setups.fake import FakeSetup, scripts
 from golden.setups.fake.scripts.gp9 import SCRIPT
 
 from resto.application.ports.tracing import PlanMade
-from resto.domain.entities.study import StudyStatus
+from resto.domain.entities.study import StudyResolution
 from tests.unit.application._world import BASELINE_PLAN, DESCRIBE, answers
 
 
@@ -16,7 +16,7 @@ def test_gp9_passes_against_the_fake() -> None:
     setup = FakeSetup()
 
     assert check(setup, GP9).ok
-    assert setup.run(GP9).study.status is StudyStatus.AWAITING_USER
+    assert setup.run(GP9).study.resolution is StudyResolution.AWAITING_USER
 
 
 def test_the_script_flags_the_request_and_plans_nothing() -> None:

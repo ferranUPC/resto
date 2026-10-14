@@ -8,7 +8,7 @@ from golden.framework import (
     StoredScenario,
     steps,
 )
-from resto.domain.entities.study import StudyStatus
+from resto.domain.entities.study import StudyResolution
 from resto.domain.value_objects.expert_answer import Basis
 
 PATH = GoldenPath(
@@ -32,6 +32,6 @@ PATH = GoldenPath(
                 round=1,
             ),
         ),
-        status=StudyStatus.COMPLETED,
+        resolution=StudyResolution.COMPLETED,
     ),
 )

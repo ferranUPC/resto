@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from resto.application.ports.tracing import TraceEvent
 from resto.domain.constants import DEFAULT_SEEDS
-from resto.domain.entities.study import StudyStatus
+from resto.domain.entities.study import StudyResolution
 from resto.domain.value_objects.expert_answer import Basis
 from resto.domain.value_objects.intervention import Intervention
 from resto.domain.value_objects.step_record import StepStatus
@@ -33,12 +33,12 @@ class ExpectedPhase:
 @dataclass(frozen=True, slots=True)
 class ExpectedTrace:
     """One entry per `PhaseStarted`, in order. An ambiguous request that stops before planning is
-    still phase 0, with no steps. `status` is the status the study ends in; left as `None` it is
-    not compared. `allowed_events` limits which event types the tracer may hold at all; an event of
-    another type fails the comparison. Left as `None` any event type is accepted."""
+    still phase 0, with no steps. `resolution` is the one the study ends with; left as `None` it
+    is not compared. `allowed_events` limits which event types the tracer may hold at all; an
+    event of another type fails the comparison. Left as `None` any event type is accepted."""
 
     phases: tuple[ExpectedPhase, ...]
-    status: StudyStatus | None = None
+    resolution: StudyResolution | None = None
     allowed_events: tuple[type[TraceEvent], ...] | None = None
 
 

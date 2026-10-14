@@ -29,8 +29,9 @@ class ObservedPhase:
 
 
 def observe(study: Study, events: Sequence[TraceEvent]) -> tuple[ObservedPhase, ...]:
-    """One `ObservedPhase` per `PhaseStarted`. Events before the first one (`StudyCreated`) belong
-    to no phase. Phase `k` of the events is read against `study.phases[k]`."""
+    """One `ObservedPhase` per `PhaseStarted`. Events before the first one (`StudyCreated`, the
+    `parse` step of ADR-0041) belong to no phase. Phase `k` of the events is read against
+    `study.phases[k]`."""
     steps: list[list[tuple[str, StepStatus]]] = []
     arms: list[tuple[str, ...]] = []
     rounds: list[int | None] = []

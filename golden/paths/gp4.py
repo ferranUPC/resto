@@ -6,7 +6,7 @@ phase, only the base experiment, the answer's `basis` is set and no second phase
 """
 
 from golden.framework import ExpectedPhase, ExpectedTrace, GoldenPath, steps
-from resto.domain.entities.study import StudyStatus
+from resto.domain.entities.study import StudyResolution
 from resto.domain.value_objects.expert_answer import Basis
 
 GP4 = GoldenPath(
@@ -29,6 +29,6 @@ GP4 = GoldenPath(
                 round=1,
             ),
         ),
-        status=StudyStatus.COMPLETED,
+        resolution=StudyResolution.COMPLETED,
     ),
 )

@@ -6,13 +6,14 @@ from collections.abc import Iterator, Mapping
 from dataclasses import fields, is_dataclass
 from decimal import Decimal
 from enum import Enum
-from typing import Any
+from typing import Any, get_args
 
 from golden.framework import GoldenPath, Run
 from golden.paths import discover
 from golden.setups.agentic import AgenticSetup
 from golden.setups.fake import FakeSetup
 
+from resto.application.ports.tracing import TraceEvent
 from resto.domain.entities.study import Study
 from resto.domain.value_objects.expert_answer import ExpertAnswer
 from resto.domain.value_objects.question import Question
@@ -80,10 +81,7 @@ def test_golden_path_data_is_plain_values_and_stored_facts() -> None:
             module = type(value).__module__
             assert (
                 value is None
-                or (
-                    isinstance(value, type)
-                    and value.__module__ == "resto.application.ports.tracing"
-                )
+                or value in get_args(TraceEvent)
                 or isinstance(value, str | int | float | bool | Enum | tuple | dict)
                 or module.startswith("golden.framework")
                 or module.startswith("resto.domain.value_objects.")

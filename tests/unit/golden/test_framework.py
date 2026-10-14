@@ -19,9 +19,10 @@ from resto.application.ports.tracing import (
     StudyCreated,
     TraceEvent,
 )
-from resto.domain.entities.study import Study, StudyStatus
+from resto.domain.entities.study import Study, StudyResolution
 from resto.domain.value_objects.experiment import Experiment, ExperimentRole
 from resto.domain.value_objects.expert_answer import Basis
+from resto.domain.value_objects.question import Mode
 from resto.domain.value_objects.step_record import StepStatus, Usage
 from tests.unit.domain._fixtures import ASKED, PROPOSED, study_with_rounds
 
@@ -33,7 +34,7 @@ def _step(
 
 
 def _experiment(arm: str, *, reused: bool, scenario_id: str = "sc1") -> Experiment:
-    return Experiment(scenario_id, arm, ExperimentRole.BASELINE, "p", ("r1",), reused)
+    return Experiment(scenario_id, arm, ExperimentRole.BASELINE, "p", 1, ("r1",), reused)
 
 
 def _study(*, reused: bool = False, basis: Basis = Basis.OBSERVED) -> Study:
@@ -44,7 +45,7 @@ def _events(study: Study, tool_ids: tuple[str, ...] = ()) -> list[TraceEvent]:
     plan = study.phases[0].plan
     assert plan is not None
     return [
-        StudyCreated(ASKED, Usage()),
+        StudyCreated(ASKED.text, None),
         PhaseStarted(0),
         PlanMade(0, plan),
         _step(0, "obtain_network", ids=tool_ids),
@@ -155,27 +156,27 @@ def test_free_text_tokens_and_ids_are_not_compared() -> None:
         replace(e, usage=Usage(input_tokens=99)) if isinstance(e, StepTraced) else e for e in events
     ]
     noisy.insert(2, ModelCall(Usage(input_tokens=500)))
-    noisy[0] = StudyCreated(PROPOSED, Usage(input_tokens=7))
+    noisy[0] = StudyCreated(PROPOSED.text, Mode.FORCED)
     other = replace(study, study_id="another-id")
 
     assert compare(EXPECTED, observe(other, noisy)).ok
 
 
-def test_an_expected_study_status_is_compared_when_given() -> None:
+def test_an_expected_resolution_is_compared_when_given() -> None:
     study = _study()
-    expected = replace(EXPECTED, status=StudyStatus.AWAITING_USER)
+    expected = replace(EXPECTED, resolution=StudyResolution.AWAITING_USER)
 
-    diff = compare(expected, observe(study, _events(study)), study.status)
+    diff = compare(expected, observe(study, _events(study)), study.resolution)
 
     text = diff.render()
-    assert text.startswith("study, status:")
-    assert "awaiting_user" in text and f"observed {study.status.value}" in text
+    assert text.startswith("study, resolution:")
+    assert "awaiting_user" in text and f"observed {study.resolution}" in text
 
 
-def test_a_study_status_the_expectation_leaves_out_is_not_compared() -> None:
+def test_a_resolution_the_expectation_leaves_out_is_not_compared() -> None:
     study = _study()
 
-    assert compare(EXPECTED, observe(study, _events(study)), StudyStatus.FAILED).ok
+    assert compare(EXPECTED, observe(study, _events(study)), StudyResolution.FAILED).ok
 
 
 def test_an_event_type_outside_allowed_events_is_reported() -> None:

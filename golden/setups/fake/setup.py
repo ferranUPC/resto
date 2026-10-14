@@ -12,7 +12,6 @@ from golden.framework.expected import GoldenPath
 from golden.framework.setup import Run
 from golden.setups.fake import scripts
 from golden.setups.fake.script import AgentScript
-from resto.application.use_cases.run_study import run_study
 
 REPETITIONS = 3
 
@@ -46,5 +45,5 @@ class FakeSetup:
             world = World(Path(tmp), **script.world_args())
             for stored in path.prior.stored:
                 world.store_scenario(stored.interventions, stored.seeds)
-            study = run_study(path.request, world.deps, world.settings)
+            study = world.run_study().execute(path.request)
             return Run(study, tuple(world.tracer.events))

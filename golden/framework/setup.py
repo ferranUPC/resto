@@ -64,7 +64,9 @@ def check(setup: Setup, path: GoldenPath) -> Diff:
     runs = [setup.run(path) for _ in range(setup.repetitions)]
     found: list[Mismatch] = []
     for i, run in enumerate(runs):
-        diff = compare(path.expected, observe(run.study, run.events), run.study.status, run.events)
+        diff = compare(
+            path.expected, observe(run.study, run.events), run.study.resolution, run.events
+        )
         found += [replace(m, what=f"repetition {i}: {m.what}") for m in diff.mismatches]
     if setup.compare_repetitions:
         found += _repetition_diffs(runs)
