@@ -57,14 +57,14 @@ def test_a_matching_measurement_confirms_the_note() -> None:
     verified, events = _note().verify(_result(mean_delay=41.0))
 
     assert verified.status is NoteStatus.CONFIRMED
-    assert events == (NoteStatusChanged("n1", "r1", NoteStatus.CONFIRMED),)
+    assert events == (NoteStatusChanged("n1", "st1", "r1", NoteStatus.CONFIRMED),)
 
 
 def test_a_contradicting_measurement_refutes_the_note() -> None:
     verified, events = _note().verify(_result(mean_delay=90.0))
 
     assert verified.status is NoteStatus.REFUTED
-    assert events == (NoteStatusChanged("n1", "r1", NoteStatus.REFUTED),)
+    assert events == (NoteStatusChanged("n1", "st1", "r1", NoteStatus.REFUTED),)
 
 
 def test_every_network_wide_claim_must_agree_to_confirm() -> None:

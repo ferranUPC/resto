@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import argparse
 import sys
-from dataclasses import replace
 from pathlib import Path
 
 from eval.scenario_matrix.build import _dev_net_network, dev_net_demand
@@ -22,13 +21,12 @@ from resto.adapters.llm.config import load_llm_config, load_rounds_config
 from resto.adapters.llm.pricing import estimate_cost_usd
 from resto.adapters.persistence.sqlite.repositories import SqliteDatabase
 from resto.adapters.tracing.jsonl import JsonlTracer
-from resto.application.executor import StudyBudget, StudySettings
 from resto.application.ports.llm import AgentRun, Budget, StopReason
-from resto.application.use_cases.run_study import RunStudy
+from resto.application.run_study.spend import StudyBudget
 from resto.domain.value_objects.demand_spec import DemandProfile
 from resto.domain.value_objects.outcomes import Found
 from resto.domain.value_objects.step_record import Usage
-from resto.interface.dependencies import AGENT_SECONDS, build_deps
+from resto.interface.dependencies import AGENT_SECONDS, build_run_study
 from resto.interface.render import render_study, render_study_text
 
 
@@ -65,24 +63,19 @@ def main() -> int:
     db.demands.store(demand)
     agent = OpenRouterToolAgent(config)
     tracer = JsonlTracer(args.work / "traces")
-    deps = build_deps(db=db, agent=agent, budget=budget, tracer=tracer, out_dir=args.work)
-    deps = replace(
-        deps,
-        agents=replace(
-            deps.agents,
-            network_author=FoundStub(network.network_id),
-            demand_generator=FoundStub(demand.demand_id),
-        ),
-    )
-    rounds = load_rounds_config()
-    settings = StudySettings(
+    run_study = build_run_study(
+        db=db,
+        agent=agent,
+        budget=budget,
+        tracer=tracer,
         out_dir=args.work,
-        network_max_rounds=rounds.network_max_rounds,
-        calibration_max_rounds=rounds.calibration_max_rounds,
-        budget=study_budget,
+        rounds=load_rounds_config(),
+        study_budget=study_budget,
+        network_author=FoundStub(network.network_id),
+        demand_generator=FoundStub(demand.demand_id),
     )
     try:
-        study = RunStudy(deps, settings).execute(args.text)
+        study = run_study.execute(args.text)
     finally:
         db.close()
     print(render_study_text(study))

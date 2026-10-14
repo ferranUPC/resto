@@ -1,7 +1,8 @@
 """How a promotion refuses an agent run (ADR-0001), the same for every agent.
 
-A promotion (`BuildScenario`, `AskExpert`, `WriteNote`) takes a finished `AgentRun` and either
-returns the promoted entity or raises one of two errors:
+A promoter of `application/promoters/` (`ScenarioPromoter`, `ExpertAnswerPromoter`, `NotePromoter`,
+`ReportPromoter`) takes a finished `AgentRun` and either returns the promoted object or raises one
+of two errors:
 
 - `RunWithoutDraft`: the run ended without a draft, so there is nothing to validate;
 - `DraftRejected`: the draft exists but breaks a semantic rule. `blame` says whose fault it is,
@@ -27,8 +28,9 @@ class Blame(Enum):
 class RunWithoutDraft(RuntimeError):
     """The agent stopped (budget/error) without returning its draft."""
 
-    def __init__(self, message: str, *, stop_reason: StopReason) -> None:
-        super().__init__(message)
+    def __init__(self, agent: str, stop_reason: StopReason) -> None:
+        super().__init__(f"{agent} stopped on {stop_reason} without a draft")
+        self.agent = agent
         self.stop_reason = stop_reason
 
 
@@ -45,7 +47,5 @@ class DraftRejected(Exception):
 
 def require_draft(run: AgentRun[T], agent: str) -> T:
     if run.stop_reason is not StopReason.OUTPUT or run.output is None:
-        raise RunWithoutDraft(
-            f"{agent} stopped on {run.stop_reason} without a draft", stop_reason=run.stop_reason
-        )
+        raise RunWithoutDraft(agent, run.stop_reason)
     return run.output

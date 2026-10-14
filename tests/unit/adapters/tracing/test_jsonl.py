@@ -44,7 +44,7 @@ def _events() -> list[TraceEvent]:
             error=StepError(StepErrorKind.INFRASTRUCTURE, "sumo crashed", ("log.txt",)),
         ),
         NotesWritten(("note-1",)),
-        NoteStatusChanged("note-1", "res-1", NoteStatus.CONFIRMED),
+        NoteStatusChanged("note-1", "study-0", "res-1", NoteStatus.CONFIRMED),
         NoteWriterFailed("ValueError: bad"),
         HandlerFailed("note_verification", "SimulationsRecorded", "ValueError: bad"),
         PhaseStarted(1),

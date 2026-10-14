@@ -1,3 +1,4 @@
+from dataclasses import replace
 from typing import Any
 
 import pytest
@@ -35,7 +36,7 @@ from resto.domain.value_objects.study_action import (
     OpenPhase,
     ParseRequest,
     PlanPhase,
-    RunPlan,
+    RunStep,
 )
 from resto.domain.value_objects.study_plan import (
     BuildScenarioStep,
@@ -669,11 +670,35 @@ def _running(*records: StepRecord, plan: StudyPlan = FULL_PLAN) -> Study:
 
 
 def test_an_ok_step_is_appended_to_the_current_phase() -> None:
+    study, events = _running(NETWORK).record_step(DEMAND)
+
+    assert study.phases[0].steps == (PLANNED, NETWORK, DEMAND)
+    assert (study.stage, study.resolution) == (S.RUNNING, None)
+    assert events == (_traced(DEMAND),)
+
+
+def test_a_network_step_adds_the_network_it_produced_before_its_trace() -> None:
     study, events = _running().record_step(NETWORK)
 
-    assert study.phases[0].steps == (PLANNED, NETWORK)
-    assert (study.stage, study.resolution) == (S.RUNNING, None)
-    assert events == (_traced(NETWORK),)
+    assert study.network_ids == ("net1",)
+    assert events == (NetworksAdded(("net1",)), _traced(NETWORK))
+
+
+def test_a_planned_network_joins_the_study_only_through_the_step_that_produced_it() -> None:
+    """Pinned: accepting a plan adds none of its networks, even one it names by id (r24)."""
+    planned = _running(plan=replace(FULL_PLAN, network_id="net1"))
+
+    assert planned.network_ids == ()
+    assert planned.record_step(NETWORK)[0].network_ids == ("net1",)
+
+
+def test_a_network_the_study_already_has_is_not_added_again() -> None:
+    study, _ = _second_phase(_question()).accept_plan(PLAN, PLANNED)
+
+    study, events = study.record_step(NETWORK)
+
+    assert study.network_ids == ("net1",)
+    assert events == (_traced(NETWORK, phase=1),)
 
 
 def test_a_recorded_step_is_the_next_step_of_the_plan() -> None:
@@ -683,17 +708,12 @@ def test_a_recorded_step_is_the_next_step_of_the_plan() -> None:
         _running(NETWORK, DEMAND, BUILT_BASE, RAN_BASE, BUILT_CLOSED, RAN_CLOSED).record_step(OK)
 
 
-def test_a_built_scenario_becomes_an_experiment_of_its_arm() -> None:
+def test_a_built_scenario_becomes_an_experiment_of_its_arm_and_its_step() -> None:
     study, _ = _running(NETWORK, DEMAND).record_step(BUILT_BASE)
 
-    assert study.phases[0].experiments == (Experiment("scen-base", "base", BASELINE, "the base"),)
-
-
-def test_a_reused_scenario_is_an_experiment_with_its_stored_results() -> None:
-    study, _ = _running(NETWORK, DEMAND).record_step(BUILT_BASE, reused_result_ids=("rb1",))
-
-    (experiment,) = study.phases[0].experiments
-    assert (experiment.result_ids, experiment.reused) == (("rb1",), True)
+    assert study.phases[0].experiments == (
+        Experiment("scen-base", "base", BASELINE, "the base", step_index=2),
+    )
 
 
 def test_a_run_joins_the_experiment_of_the_step_that_built_its_scenario() -> None:
@@ -702,14 +722,6 @@ def test_a_run_joins_the_experiment_of_the_step_that_built_its_scenario() -> Non
     base, closed = study.phases[0].experiments
     assert (base.scenario_id, base.result_ids) == ("scen-base", ("rb1", "rb2"))
     assert (closed.scenario_id, closed.result_ids) == ("scen-closed", ("rc1", "rc2"))
-
-
-def test_a_run_on_a_reused_scenario_adds_its_results_without_repeats() -> None:
-    reused, _ = _running(NETWORK, DEMAND).record_step(BUILT_BASE, reused_result_ids=("rb1",))
-
-    study, _ = reused.record_step(RAN_BASE, reused_result_ids=("rb1",))
-
-    assert study.phases[0].experiments[0].result_ids == ("rb1", "rb2")
 
 
 def test_an_ok_simulation_step_tells_its_new_results_from_the_reused_ones() -> None:
@@ -735,13 +747,6 @@ def test_a_run_on_a_stored_scenario_joins_no_experiment() -> None:
 
     assert study.phases[0].experiments == ()
     assert events[-1] == SimulationsRecorded(0, "scen-stored", ("r1",), ())
-
-
-def test_only_scenarios_and_runs_reuse_results_and_only_those_they_hold() -> None:
-    with pytest.raises(ValueError, match="reuse"):
-        _running().record_step(NETWORK, reused_result_ids=("r1",))
-    with pytest.raises(ValueError, match="reuse"):
-        _running(NETWORK, DEMAND, BUILT_BASE).record_step(RAN_BASE, reused_result_ids=("r9",))
 
 
 def test_a_failed_step_skips_the_rest_of_the_plan() -> None:
@@ -782,21 +787,6 @@ def test_a_closed_study_takes_no_more_transitions() -> None:
 def _ran(**kw: Any) -> Study:
     """Phase 0 with every step of FULL_PLAN recorded."""
     return _running(NETWORK, DEMAND, BUILT_BASE, RAN_BASE, BUILT_CLOSED, RAN_CLOSED, **kw)
-
-
-def test_networks_are_added_without_repeats() -> None:
-    study, events = _running().add_networks("net1", "net2", "net1")
-    assert study.network_ids == ("net1", "net2")
-    assert events == (NetworksAdded(("net1", "net2")),)
-
-    again, events = study.add_networks("net2", "net3")
-    assert again.network_ids == ("net1", "net2", "net3")
-    assert events == (NetworksAdded(("net3",)),)
-
-
-def test_adding_only_known_networks_changes_nothing() -> None:
-    study, _ = _running().add_networks("net1")
-    assert study.add_networks("net1") == (study, ())
 
 
 def test_the_expert_is_consulted_once_every_step_of_the_plan_is_recorded() -> None:
@@ -939,9 +929,44 @@ def test_a_new_study_plans_its_first_phase() -> None:
     assert _opened().next_action() == PlanPhase()
 
 
-def test_a_running_study_runs_the_plan_it_accepted() -> None:
-    assert _running().next_action() == RunPlan(FULL_PLAN)
-    assert _running(NETWORK, DEMAND).next_action() == RunPlan(FULL_PLAN)
+def test_a_running_study_runs_the_next_step_of_its_plan() -> None:
+    assert _running().next_action() == RunStep(ObtainNetworkStep("RIVERSIDE"))
+
+
+def test_the_next_step_names_the_ids_the_steps_it_comes_from_produced() -> None:
+    assert _running(NETWORK).next_action() == RunStep(
+        ObtainDemandStep("net1", seed=1, depends_on=(0,))
+    )
+    assert _running(NETWORK, DEMAND).next_action() == RunStep(
+        BuildScenarioStep("net1", "dem1", "base", BASELINE, "the base", depends_on=(0, 1))
+    )
+    assert _running(NETWORK, DEMAND, BUILT_BASE, RAN_BASE).next_action() == RunStep(
+        BuildScenarioStep("net1", "dem1", "closed", TREATMENT, "E12 closed", depends_on=(0, 1))
+    )
+    assert _running(NETWORK, DEMAND, BUILT_BASE).next_action() == RunStep(
+        RunSimulationStep("scen-base", seeds=(1, 2), depends_on=(2,))
+    )
+
+
+def test_the_study_has_no_network_until_a_plan_fixes_it() -> None:
+    assert _opened().network_id is None
+    assert _running().network_id is None
+
+
+def test_the_study_network_is_the_one_its_plan_names_or_a_step_produced() -> None:
+    named = StudyPlan(
+        network_id="stored-net", rationale="stored", steps=(ObtainNetworkStep("RIVERSIDE"),)
+    )
+
+    assert _running(plan=named).network_id == "stored-net"
+    assert _running(NETWORK).network_id == "net1"
+
+
+def test_the_next_phase_is_planned_on_the_network_of_the_previous_one() -> None:
+    study = _second_phase(_question())
+
+    assert study.stage is S.PLANNING
+    assert study.network_id == "net1"
 
 
 def test_a_study_that_recorded_every_step_consults_the_expert() -> None:
@@ -974,7 +999,7 @@ def test_an_expert_who_answers_closes_the_study() -> None:
     final = _round(_answer())
     closing, _ = consulting.record_expert_round(EXPERT_OK, final)
 
-    assert closing.next_action() == Close(final)
+    assert closing.next_action() == Close()
 
 
 def test_a_resolved_study_needs_nothing() -> None:

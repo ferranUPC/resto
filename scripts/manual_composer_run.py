@@ -22,7 +22,7 @@ from resto.adapters.llm.config import load_llm_config
 from resto.adapters.llm.pricing import estimate_cost_usd
 from resto.adapters.persistence.memory import InMemoryResultRepository
 from resto.application.ports.llm import Budget
-from resto.application.use_cases.compose_report import ComposeReport
+from resto.application.promoters.report import ReportPromoter
 from resto.domain.entities.simulation_result import RunMode, RunStatus, SimulationResult
 from resto.domain.value_objects.answer_value import Change, ChangeDirection, Measure
 from resto.domain.value_objects.expert_answer import Basis, Evidence, EvidenceKind, ExpertAnswer
@@ -110,7 +110,7 @@ def main() -> int:
     if run.output is None:
         print("no draft produced")
         return 1
-    report = ComposeReport().execute(study, run)
+    report = ReportPromoter().promote(run, study)
     print("\n" + render_study(replace(study, report=report)))
     return 0
 

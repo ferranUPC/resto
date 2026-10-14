@@ -4,7 +4,6 @@ turn into a `Question` ends in an error without creating a Study."""
 from __future__ import annotations
 
 import sys
-from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -12,10 +11,9 @@ import pytest
 from resto.adapters.llm.agents.composer import ComposerPort
 from resto.adapters.persistence.sqlite.repositories import SqliteDatabase
 from resto.adapters.tracing.jsonl import JsonlTracer, read_run
-from resto.application.executor.deps import StudySettings
 from resto.application.ports.llm import Budget
 from resto.application.ports.tracing import ModelCall
-from resto.application.use_cases.run_study import RunStudy
+from resto.application.run_study import RunStudy
 from resto.domain.value_objects.drafts import ClaimDraft, ReportDraft
 from resto.domain.value_objects.step_record import Usage
 from resto.interface.cli.main import main
@@ -34,7 +32,7 @@ def test_without_a_question_the_study_fails_at_parsing(
         agent=agent,
         budget=Budget(max_steps=1, max_tokens=1, max_seconds=1.0),
         tracer=RecordingTracer(),
-        settings=_settings(tmp_path),
+        out_dir=tmp_path,
     )
 
     code = main(
@@ -55,7 +53,7 @@ def test_a_failed_study_is_rendered(tmp_path: Path, capsys: pytest.CaptureFixtur
 
     code = main(
         ["how congested is the peak?", "--out", str(tmp_path)],
-        run_study=RunStudy(world.deps, world.settings),
+        run_study=world.run_study(),
     )
 
     out = capsys.readouterr().out
@@ -63,12 +61,8 @@ def test_a_failed_study_is_rendered(tmp_path: Path, capsys: pytest.CaptureFixtur
     assert "Step `ask_expert` of phase 0 (the question as asked) failed (infrastructure)" in out
 
 
-def _settings(tmp_path: Path) -> StudySettings:
-    return StudySettings(out_dir=tmp_path, network_max_rounds=1, calibration_max_rounds=1)
-
-
 def _completed_run_study(tmp_path: Path) -> RunStudy:
-    from tests.unit.application._world import BASELINE_PLAN, World, answers
+    from tests.unit.application._world import BASELINE_PLAN, FakeComposer, World, answers
 
     world = World(tmp_path, plans=(BASELINE_PLAN,), expert=(answers(),))
     draft = ReportDraft(
@@ -80,8 +74,8 @@ def _completed_run_study(tmp_path: Path) -> RunStudy:
         budget=Budget(max_steps=1, max_tokens=1, max_seconds=1.0),
         results=world.results,
     )
-    agents = replace(world.deps.agents, composer=composer)
-    return RunStudy(replace(world.deps, agents=agents), world.settings)
+    world.composer = FakeComposer(default=composer.compose)
+    return world.run_study()
 
 
 def _run(tmp_path: Path, *args: str, tty: bool, monkeypatch: pytest.MonkeyPatch) -> int:
@@ -168,7 +162,7 @@ def test_a_failed_study_is_saved_as_markdown_too(
 
     code = main(
         ["how congested is the peak?", "--out", str(tmp_path)],
-        run_study=RunStudy(world.deps, world.settings),
+        run_study=world.run_study(),
     )
 
     captured = capsys.readouterr()
@@ -188,7 +182,7 @@ def test_the_parsers_model_call_reaches_the_jsonl_trace(tmp_path: Path) -> None:
         agent=agent,
         budget=Budget(max_steps=1, max_tokens=1, max_seconds=1.0),
         tracer=JsonlTracer(traces),
-        settings=_settings(tmp_path),
+        out_dir=tmp_path,
     )
 
     main(["how congested is the peak?", "--out", str(tmp_path)], run_study=run_study)

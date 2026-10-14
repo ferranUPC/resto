@@ -19,7 +19,7 @@ Two things are added on top of plain delegation, both bound in `build_expert_too
   listed, or used to reach its scenario. An empty list means no simulated evidence is available.
 - **Evidence ledger.** Every successful call is recorded in an `EvidenceLedger` under a ref
   (`"q1"`, `"q2"`, ...) and returned to the agent as `{"ref": ..., "result": ...}`. The agent cites
-  those refs in `ExpertAnswer.evidence`, and `use_cases/ask_expert.py` rejects any ref the ledger
+  those refs in `ExpertAnswer.evidence`, and `promoters/expert_answer.py` rejects any ref the ledger
   does not hold - which is what makes "every fact comes from a tool call visible in the trace"
   checkable instead of a prompt instruction.
 """

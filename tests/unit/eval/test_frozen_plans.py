@@ -16,9 +16,8 @@ from eval.request_bank.concepts import concept_by_id
 from resto.adapters.persistence.memory import (
     InMemoryDemandRepository,
     InMemoryNetworkRepository,
-    InMemoryScenarioRepository,
 )
-from resto.application.executor.plan_validation import plan_problems
+from resto.application.run_study.plan_validation import plan_problems
 from resto.domain.services.planner import PlanningContext, plan_study
 from resto.domain.value_objects.arm import Arm
 from resto.domain.value_objects.question import Question
@@ -71,7 +70,6 @@ def _problems(
         network_id=network_id,
         networks=networks,
         demands=demands,
-        scenarios=InMemoryScenarioRepository(),
     )
 
 

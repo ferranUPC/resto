@@ -581,7 +581,7 @@
       "type": "string"
     },
     "Experiment": {
-      "description": "One scenario and its seeded runs, inside a Study. `arm` is the question's arm it realises\n(ADR-0027); `reused` marks a scenario the Executor found by the hash of its request, with ok\nresults, and so did not send to the Scenario Builder (ADR-0037 \u00a75).",
+      "description": "One scenario and its seeded runs, inside a Study. `arm` is the question's arm it realises\n(ADR-0027); `reused` marks a scenario the Executor found by the hash of its request, with ok\nresults, and so did not send to the Scenario Builder (ADR-0037 \u00a75). `step_index` is the index\nin its phase's plan of the `build_scenario` step that built it: a run whose scenario comes from\nthat step (`FromStep`) joins this experiment.",
       "properties": {
         "arm": {
           "title": "Arm",
@@ -610,13 +610,18 @@
         "scenario_id": {
           "title": "Scenario Id",
           "type": "string"
+        },
+        "step_index": {
+          "title": "Step Index",
+          "type": "integer"
         }
       },
       "required": [
         "scenario_id",
         "arm",
         "role",
-        "purpose"
+        "purpose",
+        "step_index"
       ],
       "title": "Experiment",
       "type": "object"
@@ -1049,7 +1054,7 @@
       "type": "string"
     },
     "ObtainDemandStep": {
-      "description": "The Demand Generator resolves the demand for a network an earlier step produced:\n`network_id` is a `FromStep` to that step, never an id or the reference (ADR-0037 \u00a73).\n`StudyPlan` enforces it; the Executor's resolved copy of the step holds the id the\n`FromStep` pointed to. `demand_ref` is the Parser's phrase; none means the request names\nno demand and the specialist asks.",
+      "description": "The Demand Generator resolves the demand for a network an earlier step produced:\n`network_id` is a `FromStep` to that step, never an id or the reference (ADR-0037 \u00a73).\n`StudyPlan` enforces it; the resolved copy of the step the study hands to run holds the\nid the `FromStep` pointed to. `demand_ref` is the Parser's phrase; none means the request names\nno demand and the specialist asks.",
       "properties": {
         "demand_ref": {
           "anyOf": [

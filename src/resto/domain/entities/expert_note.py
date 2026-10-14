@@ -71,5 +71,5 @@ class ExpertNote:
         )
         status = NoteStatus.CONFIRMED if agrees else NoteStatus.REFUTED
         return replace(self, status=status), (
-            NoteStatusChanged(self.note_id, result.result_id, status),
+            NoteStatusChanged(self.note_id, self.study_id, result.result_id, status),
         )

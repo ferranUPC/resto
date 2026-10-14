@@ -119,7 +119,7 @@ from resto.domain.value_objects.study_action import (
     OpenPhase,
     ParseRequest,
     PlanPhase,
-    RunPlan,
+    RunStep,
 )
 from resto.domain.value_objects.study_plan import (
     BuildScenarioStep,
@@ -321,13 +321,14 @@ def study() -> Study:
                 ),
                 experiments=(
                     Experiment(
-                        "s0", "base", ExperimentRole.BASELINE, "reference", ("res0",), reused=True
+                        "s0", "base", ExperimentRole.BASELINE, "reference", 1, ("res0",), True
                     ),
                     Experiment(
                         scenario_id="s1",
                         arm="treatment",
                         role=ExperimentRole.TREATMENT,
                         purpose="measure the closure",
+                        step_index=2,
                         result_ids=("res1",),
                     ),
                 ),
@@ -417,7 +418,7 @@ SAMPLES: dict[type, Callable[[], object]] = {
     Usage: lambda: Usage(input_tokens=120, output_tokens=45, simulations=1),
     PlanningContext: lambda: PlanningContext(phase=1, network_id="n1", realised=("base",)),
     Experiment: lambda: Experiment(
-        scenario_id="s1", arm="base", role=ExperimentRole.BASELINE, purpose="ref"
+        scenario_id="s1", arm="base", role=ExperimentRole.BASELINE, purpose="ref", step_index=1
     ),
     ExpertRound: lambda: ExpertRound(question="why?", answer=expert_answer(), forced_by_limit=True),
     ExpertAnswer: expert_answer,
@@ -544,7 +545,7 @@ SAMPLES: dict[type, Callable[[], object]] = {
         result_ids=("res1",),
     ),
     # domain events
-    NoteStatusChanged: lambda: NoteStatusChanged("note1", "res1", NoteStatus.CONFIRMED),
+    NoteStatusChanged: lambda: NoteStatusChanged("note1", "study1", "res1", NoteStatus.CONFIRMED),
     StudyCreated: lambda: StudyCreated(question().text, Mode.FORCED),
     PhaseStarted: lambda: PhaseStarted(1),
     PlanMade: lambda: PlanMade(0, study_plan()),
@@ -564,11 +565,11 @@ SAMPLES: dict[type, Callable[[], object]] = {
     # study actions
     ParseRequest: lambda: ParseRequest("how congested is the peak?"),
     PlanPhase: PlanPhase,
-    RunPlan: lambda: RunPlan(study_plan()),
+    RunStep: lambda: RunStep(study_plan().steps[0]),
     ConsultExpert: ConsultExpert,
     AskExpert: AskExpert,
     OpenPhase: OpenPhase,
-    Close: lambda: Close(ExpertRound(question="why?", answer=expert_answer())),
+    Close: Close,
     Finished: Finished,
 }
 

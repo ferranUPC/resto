@@ -5,8 +5,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from resto.domain.value_objects.expert_round import ExpertRound
-from resto.domain.value_objects.study_plan import StudyPlan
+from resto.domain.value_objects.study_plan import PlanStep
 
 
 @dataclass(frozen=True, slots=True)
@@ -22,10 +21,11 @@ class PlanPhase:
 
 
 @dataclass(frozen=True, slots=True)
-class RunPlan:
-    """Run the steps of the current phase's accepted `plan`."""
+class RunStep:
+    """Run the next `step` of the current phase's plan. The study resolved its `FromStep`
+    references: `step` names the ids the earlier steps produced."""
 
-    plan: StudyPlan
+    step: PlanStep
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,10 +45,8 @@ class OpenPhase:
 
 @dataclass(frozen=True, slots=True)
 class Close:
-    """The Expert answered without a simulation: write the notes about `final`, then compose the
-    report."""
-
-    final: ExpertRound
+    """The Expert answered without a simulation: write the notes about its answer, then compose
+    the report."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,5 +55,5 @@ class Finished:
 
 
 StudyAction = (
-    ParseRequest | PlanPhase | RunPlan | ConsultExpert | AskExpert | OpenPhase | Close | Finished
+    ParseRequest | PlanPhase | RunStep | ConsultExpert | AskExpert | OpenPhase | Close | Finished
 )
