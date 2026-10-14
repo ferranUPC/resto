@@ -37,7 +37,8 @@ from resto.adapters.persistence.filesystem import artifact_ref
 from resto.adapters.sumo.constants import APPLIED_ACTIONS_FILE
 from resto.adapters.sumo.outputs import output_artifact, parse_kpis
 from resto.adapters.sumo.script_harness import HarnessRequest, read_applied_actions
-from resto.adapters.sumo.script_translator import check_script_structure, translate_script
+from resto.adapters.sumo.script_structure import check_script_structure
+from resto.adapters.sumo.script_translator import translate_script
 from resto.adapters.sumo.sumo_process import (
     HarnessLauncher,
     SumoUnavailable,
