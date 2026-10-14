@@ -12,10 +12,6 @@ from resto.domain.value_objects.kpis import Kpis
 from resto.domain.value_objects.topology_modification import TopologyModification
 
 
-class OsmSource(Protocol):
-    def fetch(self, place_or_bbox: str, out_dir: Path) -> ArtifactRef: ...
-
-
 class NetconvertRunner(Protocol):
     def build(
         self, osm: ArtifactRef | None, plain_dir: Path | None, options: Sequence[str], out_dir: Path
