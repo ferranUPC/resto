@@ -4,7 +4,7 @@ meet their implementations and the infrastructure is bound.
 Agents that do not exist yet (Network Author, E6.1; Demand Generator, E7.1) are `_Pending`
 placeholders that raise `NotImplementedError`; so do the promoters of their drafts and of a reroute
 (`DemandPromoter`, `ReroutePromoter`) until those tasks build them. `NetworkPromoter` replays
-recipes with the real `netgenerate`/`netconvert`; derivations wait for the plain XML editor.
+recipes with the real `netgenerate`/`netconvert` and the plain XML editor.
 """
 
 from __future__ import annotations
@@ -23,6 +23,7 @@ from resto.adapters.sumo.demand import SumoDemandTools
 from resto.adapters.sumo.demand_scaling import SumoDemandScaler
 from resto.adapters.sumo.netconvert import SubprocessNetconvertRunner
 from resto.adapters.sumo.network_query_loader import StoredNetworkQueryLoader
+from resto.adapters.sumo.plain_edit import XmlPlainNetEditor
 from resto.adapters.sumo.run_directories import FilesystemRunDirectories
 from resto.adapters.sumo.runner import SubprocessSumoRunner
 from resto.adapters.sumo.writers.rerouter import RerouterWriter
@@ -135,7 +136,7 @@ def build_run_study(
     builder_dir = out_dir / "builder"
     loader = StoredNetworkQueryLoader(db.networks)
     runner = SubprocessSumoRunner()
-    network_promoter = NetworkPromoter(SubprocessNetconvertRunner())
+    network_promoter = NetworkPromoter(SubprocessNetconvertRunner(), XmlPlainNetEditor())
     builder = ScenarioBuilderPort(
         agent=agent,
         budget=budget,
