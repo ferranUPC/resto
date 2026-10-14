@@ -20,7 +20,12 @@ import tempfile
 from pathlib import Path
 
 from resto.application.ports.llm import AgentRun
-from resto.application.ports.sumo import NetBuildError, NetconvertRunner, PlainNetEditor
+from resto.application.ports.sumo import (
+    NetBuildError,
+    NetconvertRunner,
+    PlainNetEditor,
+    UnresolvableEdit,
+)
 from resto.application.promotion import DraftRejected, require_draft
 from resto.domain.entities.network import Network
 from resto.domain.value_objects.artifact_ref import ArtifactRef
@@ -34,7 +39,7 @@ class NetworkPromoter:
     """A promoter reads and stores nothing (ADR-0042 §5): the base network of a derivation arrives
     as an argument, loaded by the step."""
 
-    def __init__(self, runner: NetconvertRunner, editor: PlainNetEditor | None = None) -> None:
+    def __init__(self, runner: NetconvertRunner, editor: PlainNetEditor) -> None:
         self._runner = runner
         self._editor = editor
 
@@ -75,6 +80,12 @@ class NetworkPromoter:
                 return self._rebuild(recipe, base_net, root)
             except NetBuildError as error:
                 raise DraftRejected(f"the recipe does not build: {error}") from error
+            except UnresolvableEdit as error:
+                needed = error.issue.needed_tool
+                raise DraftRejected(
+                    f"the recipe holds an edit that cannot be applied: {error}"
+                    + (f" (needs the tool {needed!r}); put it in unresolved[]" if needed else "")
+                ) from error
 
     def _rebuild(
         self, recipe: NetworkRecipe, base_net: ArtifactRef | None, root: Path
@@ -92,8 +103,6 @@ class NetworkPromoter:
         return self._edit(net, recipe, root) if recipe.plain_edits else net
 
     def _edit(self, net: ArtifactRef, recipe: NetworkRecipe, root: Path) -> ArtifactRef:
-        if self._editor is None:
-            raise NotImplementedError("the plain XML editor is not wired yet (E6.1)")
         plain = self._runner.export_plain(net, root / "plain")
         for modification in recipe.plain_edits:
             self._editor.apply(plain, modification)

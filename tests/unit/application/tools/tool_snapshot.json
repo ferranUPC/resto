@@ -1057,6 +1057,150 @@
       "name": "generate_random"
     }
   ],
+  "network_edit": [
+    {
+      "description": "Remove an edge, and every connection that starts or ends on it, from a network and recompile. Returns the new net_artifact and the modification to put in the recipe, or `unresolved` when the edge does not exist.",
+      "input_schema": {
+        "properties": {
+          "edge_id": {
+            "description": "Id of an existing edge.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "net_hash": {
+            "description": "`net_artifact.content_hash` of that same .net.xml.",
+            "type": "string"
+          },
+          "net_path": {
+            "description": "`net_artifact.path` of the .net.xml to edit, from an earlier tool.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "net_path",
+          "net_hash",
+          "edge_id"
+        ],
+        "type": "object"
+      },
+      "name": "remove_edge"
+    },
+    {
+      "description": "Add an edge between two junctions that already exist and recompile; SUMO guesses its connections. A junction that does not exist is not created: the result is `unresolved` with needed_tool `add_node`. Returns the new net_artifact and the modification to put in the recipe.",
+      "input_schema": {
+        "properties": {
+          "edge_id": {
+            "description": "Id the new edge gets; by default the two junction ids joined.",
+            "type": "string"
+          },
+          "from_junction": {
+            "description": "Id of the junction it leaves.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "lanes": {
+            "description": "Number of lanes, at least 1.",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "net_hash": {
+            "description": "`net_artifact.content_hash` of that same .net.xml.",
+            "type": "string"
+          },
+          "net_path": {
+            "description": "`net_artifact.path` of the .net.xml to edit, from an earlier tool.",
+            "type": "string"
+          },
+          "speed": {
+            "description": "Speed limit in m/s, above 0.",
+            "exclusiveMinimum": 0,
+            "type": "number"
+          },
+          "to_junction": {
+            "description": "Id of the junction it enters.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "net_path",
+          "net_hash",
+          "from_junction",
+          "to_junction",
+          "lanes",
+          "speed"
+        ],
+        "type": "object"
+      },
+      "name": "add_edge"
+    },
+    {
+      "description": "Set the number of lanes of an existing edge and recompile. Connections on a lane that no longer exists move to the outermost remaining lane. Returns the new net_artifact and the modification to put in the recipe, or `unresolved` when the edge does not exist.",
+      "input_schema": {
+        "properties": {
+          "edge_id": {
+            "description": "Id of an existing edge.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "lanes": {
+            "description": "New number of lanes, at least 1.",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "net_hash": {
+            "description": "`net_artifact.content_hash` of that same .net.xml.",
+            "type": "string"
+          },
+          "net_path": {
+            "description": "`net_artifact.path` of the .net.xml to edit, from an earlier tool.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "net_path",
+          "net_hash",
+          "edge_id",
+          "lanes"
+        ],
+        "type": "object"
+      },
+      "name": "set_lanes"
+    },
+    {
+      "description": "Set the speed limit of an existing edge, all its lanes included, and recompile. Returns the new net_artifact and the modification to put in the recipe, or `unresolved` when the edge does not exist.",
+      "input_schema": {
+        "properties": {
+          "edge_id": {
+            "description": "Id of an existing edge.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "net_hash": {
+            "description": "`net_artifact.content_hash` of that same .net.xml.",
+            "type": "string"
+          },
+          "net_path": {
+            "description": "`net_artifact.path` of the .net.xml to edit, from an earlier tool.",
+            "type": "string"
+          },
+          "speed": {
+            "description": "New speed limit in m/s, above 0.",
+            "exclusiveMinimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "net_path",
+          "net_hash",
+          "edge_id",
+          "speed"
+        ],
+        "type": "object"
+      },
+      "name": "set_speed"
+    }
+  ],
   "network_inspection": [
     {
       "description": "A bounded summary of a network: edge, junction and traffic light counts, total length, speed range, road types, vehicle classes, connected components and a short list of suspect edges (zero length, isolated, with no outgoing connection).",

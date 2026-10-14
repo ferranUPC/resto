@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Protocol
 
 from resto.domain.value_objects.artifact_ref import ArtifactRef
+from resto.domain.value_objects.drafts import UnresolvedIssue
 from resto.domain.value_objects.kpis import Kpis
 from resto.domain.value_objects.network_source import GeneratedNetwork
 from resto.domain.value_objects.topology_modification import TopologyModification
@@ -15,6 +16,16 @@ from resto.domain.value_objects.topology_modification import TopologyModificatio
 
 class NetBuildError(RuntimeError):
     """`netconvert` or `netgenerate` could not build the network; the message is SUMO's own."""
+
+
+class UnresolvableEdit(Exception):
+    """A typed edit that cannot be applied (an edge or junction that does not exist, an id already
+    taken). `issue` is what goes into `NetworkDraft.unresolved[]`: the edit is reported, never
+    approximated (DoD §4.5)."""
+
+    def __init__(self, issue: UnresolvedIssue) -> None:
+        super().__init__(f"{issue.element_kind} {issue.element_id!r}: {issue.issue}")
+        self.issue = issue
 
 
 class NetconvertRunner(Protocol):
@@ -31,7 +42,9 @@ class NetconvertRunner(Protocol):
 
 
 class PlainNetEditor(Protocol):
-    """Applies one TopologyModification to the plain XML files in `plain_dir`."""
+    """Applies one TopologyModification to the plain XML files in `plain_dir`.
+
+    Raises `UnresolvableEdit` when the edit cannot be applied; the files are left untouched."""
 
     def apply(self, plain_dir: Path, modification: TopologyModification) -> None: ...
 
