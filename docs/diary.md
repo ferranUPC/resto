@@ -2,6 +2,10 @@
 
 A short summary of what happened on each working day. The most recent entry comes first, and days with no activity have no entry. `daily-review` and `weekly-review` add the new entries.
 
+## 13.10.2026
+
+Work focused on refactors across the application layer. Use cases are classes with their dependencies in the constructor (r21, ADR-0040), and `build_deps` and the placeholders moved to `interface/dependencies.py`. The Study owns its lifecycle (r23, ADR-0041), and the reuse rules for seeds, stored scenarios and a specialist's `Found` now live in `domain/services/reuse.py`. E9.1 is still unmerged.
+
 ## 12.10.2026
 
 E9.1 (the golden-path framework with GP-1 to GP-5 and GP-9) was merged into `master` and reverted a minute later, so `master` has no `golden/` directory. The same 11 commits are open again as PR #34. Nothing else changed in the code.
