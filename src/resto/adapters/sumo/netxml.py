@@ -35,6 +35,12 @@ class SumolibNetworkQuery:
     def __init__(self, net_xml_path: Path) -> None:
         self._net = sumolib.net.readNet(str(net_xml_path), withPrograms=True)
 
+    def edge_ids(self) -> Sequence[str]:
+        return sorted(edge.getID() for edge in self._net.getEdges())
+
+    def tls_ids(self) -> Sequence[str]:
+        return sorted(tls.getID() for tls in self._net.getTrafficLights())
+
     def has_edge(self, edge_id: str) -> bool:
         return self._net.hasEdge(edge_id)
 

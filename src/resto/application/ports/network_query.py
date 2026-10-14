@@ -19,6 +19,14 @@ class NetworkQuery(Protocol):
     def get_tls(self, tls_id: str) -> Mapping[str, Any]: ...
 
 
+class EnumerableNetworkQuery(NetworkQuery, Protocol):
+    """A `NetworkQuery` that can also list what it holds. The Network Author's inspection and sanity
+    tools need the whole graph; the Expert's tools never do, so `NetworkQuery` stays as it is."""
+
+    def edge_ids(self) -> Sequence[str]: ...
+    def tls_ids(self) -> Sequence[str]: ...
+
+
 class NetworkNotStored(LookupError):
     """The network id names no stored network. The Executor records it as `infrastructure`."""
 

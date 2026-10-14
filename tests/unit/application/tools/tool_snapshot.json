@@ -1057,6 +1057,94 @@
       "name": "generate_random"
     }
   ],
+  "network_inspection": [
+    {
+      "description": "A bounded summary of a network: edge, junction and traffic light counts, total length, speed range, road types, vehicle classes, connected components and a short list of suspect edges (zero length, isolated, with no outgoing connection).",
+      "input_schema": {
+        "properties": {
+          "net_path": {
+            "description": "Path of the .net.xml to look at, as a tool that built it returned it.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "net_path"
+        ],
+        "type": "object"
+      },
+      "name": "inspect_network"
+    },
+    {
+      "description": "One edge of a network: endpoints, length, speed, lanes, road type, allowed vehicle classes and the edges it leads to.",
+      "input_schema": {
+        "properties": {
+          "edge_id": {
+            "description": "Edge id, e.g. 'A0A1'.",
+            "type": "string"
+          },
+          "net_path": {
+            "description": "Path of the .net.xml to look at, as a tool that built it returned it.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "net_path",
+          "edge_id"
+        ],
+        "type": "object"
+      },
+      "name": "inspect_edge"
+    },
+    {
+      "description": "Is the network sound? Returns the share of edges in the largest strongly connected component, the number of zero-length edges, whether every edge can be reached from the border, and whether the three together pass.",
+      "input_schema": {
+        "properties": {
+          "net_path": {
+            "description": "Path of the .net.xml to look at, as a tool that built it returned it.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "net_path"
+        ],
+        "type": "object"
+      },
+      "name": "sanity_check"
+    },
+    {
+      "description": "Simulate light random demand on a network with SUMO to see whether it jams. Returns teleports, collisions, vehicles that did not arrive, the edges where vehicles waited most and the SUMO statistics file as evidence. Nothing is stored as a result.",
+      "input_schema": {
+        "properties": {
+          "duration_s": {
+            "description": "Simulated seconds, 60 to 7200. Default 900.",
+            "maximum": 7200,
+            "minimum": 60,
+            "type": "number"
+          },
+          "net_path": {
+            "description": "Path of the .net.xml to look at, as a tool that built it returned it.",
+            "type": "string"
+          },
+          "seed": {
+            "description": "Seed of the demand and of SUMO. Default 0.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "vehicles": {
+            "description": "Number of random trips, 1 to 2000. Default 100.",
+            "maximum": 2000,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "net_path"
+        ],
+        "type": "object"
+      },
+      "name": "probe_run"
+    }
+  ],
   "scenario_builder": [
     {
       "description": "Whether `edge_id` exists on the scenario's network.",
