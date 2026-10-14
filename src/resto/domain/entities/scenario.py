@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from resto.domain.entities.simulation_result import RunMode
 from resto.domain.value_objects.artifact_ref import ArtifactRef
 from resto.domain.value_objects.intervention import Intervention
 from resto.domain.value_objects.mechanism import (
@@ -32,13 +33,15 @@ class Scenario:
         check_mechanisms_match(self.interventions, self.mechanisms)
         if self.needs_script and self.traci_script is None:
             raise ValueError("script mechanisms require a traci_script")
-        if self.traci_script is not None and not self.traci_script.is_runnable:
-            raise ValueError("a scenario's script must pass lint and dry_run")
 
     @property
     def needs_script(self) -> bool:
         return needs_script(self.mechanisms)
 
     @property
+    def run_mode(self) -> RunMode:
+        return RunMode.ONLINE if self.traci_script is not None else RunMode.BATCH
+
+    @property
     def is_online(self) -> bool:
-        return self.traci_script is not None
+        return self.run_mode is RunMode.ONLINE

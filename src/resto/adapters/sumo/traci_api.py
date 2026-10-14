@@ -4,7 +4,7 @@ Global module state, deliberately not a class: this is the module Builder-author
 bare (`close_lane("B0C0_1")`), the same way the `traci` package itself is a global-connection
 module - there is no object to thread through a generated script. `start()` opens a TraCI session
 and resets `applied_actions`/registered rules; `close()` ends it. The Simulation Runner (E2.5)
-calls `start()`/`close()` around executing a script; a script itself only ever calls the
+calls `start()`/`close()` around executing the generated script; a script itself only ever calls the
 primitives and the declarative helpers below.
 
 Every primitive raises `traci.TraCIException` on an unknown edge/lane/TLS id - a thin passthrough
@@ -16,14 +16,12 @@ to TraCI, same convention as `adapters/sumo/netxml.py`'s `KeyError`. Every mutat
 
 from __future__ import annotations
 
-import inspect
 from collections.abc import Callable, Mapping
 from typing import Any
 
 import traci
 
 from resto.domain.value_objects.applied_action import ActionOrigin, AppliedAction
-from resto.domain.value_objects.traci_script import DeclaredRule
 
 _applied_actions: list[AppliedAction] = []
 _at_time_rules: list[list[Any]] = []  # each: [t, action, fired]
@@ -198,43 +196,6 @@ def when(condition: Callable[[], bool], action: Callable[[], Any]) -> None:
     Example: when(lambda: get_edge_occupancy("C0D0") > 0.8, lambda: set_speed("C0D0", 5.0))
     """
     _when_rules.append([condition, action, False])
-
-
-def registered_rules() -> tuple[DeclaredRule, ...]:
-    """`DeclaredRule`s for every current `at_time`/`when` registration.
-
-    Feeds `TraciScript.declared_rules`.
-    """
-    rules = [
-        DeclaredRule(trigger=f"at_time({t})", action=_describe(action))
-        for t, action, _fired in _at_time_rules
-    ]
-    rules += [
-        DeclaredRule(trigger=_describe(condition), action=_describe(action))
-        for condition, action, _was_true in _when_rules
-    ]
-    return tuple(rules)
-
-
-def _describe(fn: Callable[..., Any]) -> str:
-    """A description of `fn`, never `repr()` (bakes in a memory address, breaking the authoring-
-    determinism criterion: identical script, 3 runs -> identical `declared_rules[]`).
-
-    Named functions: `inspect.getsource` is unambiguous - a `def` is exactly one function - so
-    the full source is used. Lambdas are different: `inspect.getsource` returns the *whole source
-    line*, which is wrong whenever two lambdas share a line (`when(lambda: ..., lambda: ...)`,
-    exactly the style ADR-0005's own examples use) - both would get identical, misleading text.
-    Falls back to a `file:line` marker for those instead; prefer named functions over lambdas in
-    a script wherever the registered rule matters to an audit trail.
-    """
-    name = getattr(fn, "__name__", "<anonymous>")
-    if name != "<lambda>":
-        try:
-            return inspect.getsource(fn).strip()
-        except (OSError, TypeError):
-            return name
-    code = fn.__code__
-    return f"<lambda {code.co_filename}:{code.co_firstlineno}>"
 
 
 def _fire(action: Callable[[], Any]) -> None:

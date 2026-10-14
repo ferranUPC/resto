@@ -18,9 +18,11 @@ class StubNetworkQuery:
         self,
         edges: AbstractSet[str] = frozenset(),
         lanes: AbstractSet[tuple[str, int]] = frozenset(),
+        tls: AbstractSet[str] = frozenset(),
     ) -> None:
         self._edges = edges
         self._lanes = lanes
+        self._tls = tls
 
     def has_edge(self, edge_id: str) -> bool:
         return edge_id in self._edges
@@ -29,7 +31,7 @@ class StubNetworkQuery:
         return (edge_id, lane_index) in self._lanes
 
     def has_tls(self, tls_id: str) -> bool:
-        raise AssertionError("not used by this intervention")
+        return tls_id in self._tls
 
     def get_edge(self, edge_id: str) -> Mapping[str, Any]:
         raise AssertionError("not used")

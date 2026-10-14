@@ -213,19 +213,3 @@ def test_run_without_until_drains_the_route_file(session: None) -> None:
     traci_api.run()
 
     assert traci.simulation.getMinExpectedNumber() == 0
-
-
-def test_registered_rules_reports_named_functions_and_lambda_locations(
-    session: None,
-) -> None:
-    def reopen() -> None:
-        traci_api.open_lane("B0C0_1")
-
-    traci_api.at_time(5, reopen)
-    traci_api.when(lambda: True, lambda: None)
-
-    rules = traci_api.registered_rules()
-
-    assert rules[0].trigger == "at_time(5)"
-    assert "def reopen" in rules[0].action
-    assert rules[1].trigger.startswith("<lambda ")  # can't isolate two lambdas on one line

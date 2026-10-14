@@ -22,9 +22,9 @@ from tests.unit.domain._fixtures import (
     dynamic_intervention,
     expert_note_draft,
     network_draft,
-    runnable_script,
     scenario_draft,
     static_intervention,
+    traci_script,
 )
 
 
@@ -46,7 +46,7 @@ def test_scenario_round_trip_and_discriminated_unions() -> None:
         ),
         sumocfg=artifact("s1.sumocfg"),
         content_hash="c1",
-        traci_script=runnable_script(),
+        traci_script=traci_script(),
         context_tags=frozenset({"peak", "rain"}),
     )
     ta = ADAPTERS["Scenario"]
@@ -67,7 +67,7 @@ def test_domain_invariants_fire_during_validation() -> None:
             mechanisms=(ScriptMechanism(),),
             sumocfg=artifact("s1.sumocfg"),
             content_hash="c1",
-            traci_script=runnable_script(),
+            traci_script=traci_script(),
         )
     )
     payload["traci_script"] = None

@@ -40,7 +40,7 @@ from resto.domain.value_objects.study_plan import (
     StudyPlan,
 )
 from resto.domain.value_objects.time_window import TimeWindow
-from resto.domain.value_objects.traci_script import DeclaredRule, TraciScript
+from resto.domain.value_objects.traci_script import CloseLane, Rule, TraciScript, When
 
 LANE = LaneTarget(edge_id="E12", lane_index=1)
 NET = "abc123"  # the sample network's id (`_samples.network`)
@@ -72,15 +72,17 @@ def dynamic_intervention() -> Intervention:
     )
 
 
-def runnable_script() -> TraciScript:
+def traci_script() -> TraciScript:
+    """The script of `dynamic_intervention()`: close its lane when its condition holds."""
     return TraciScript(
-        artifact=artifact("s1.py", "5c71p7", "script"),
-        api_version="1",
-        declared_rules=(
-            DeclaredRule(trigger="when(occupancy(E12) > 0.8)", action="close_lane(E12_1)"),
-        ),
-        lint_ok=True,
-        dry_run_ok=True,
+        rules=(
+            Rule(
+                trigger=When(
+                    Condition(metric=Metric.OCCUPANCY, target="E12", op=Operator.GT, value=0.8)
+                ),
+                action=CloseLane(edge_id="E12", lane_index=1),
+            ),
+        )
     )
 
 
@@ -90,10 +92,6 @@ def file_recipe() -> NetworkRecipe:
 
 def good_sanity() -> SanityReport:
     return SanityReport(largest_scc_ratio=0.98, zero_length_edges=0, all_reachable_from_fringe=True)
-
-
-def unlinted_script() -> TraciScript:
-    return TraciScript(artifact=artifact("s2.py", "b4d", "script"), api_version="1")
 
 
 def bad_sanity() -> SanityReport:

@@ -20,7 +20,7 @@ favour of this simpler, verified fix. Added only when the scenario's additional 
 contain a `<rerouter>`, so a scenario with none (most of E2.1's own reproducibility test, and
 every baseline/non-closure run) stays byte-identical to before this fix.
 
-Online mode (SUMO under TraCI with a sandboxed script) is E2.5.
+Online mode (SUMO under TraCI running the script generated from a `TraciScript`) is E2.5.
 """
 
 from __future__ import annotations
