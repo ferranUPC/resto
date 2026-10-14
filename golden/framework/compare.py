@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from golden.framework.expected import ExpectedPhase, ExpectedTrace
 from golden.framework.observed import ObservedPhase
 from golden.framework.outcome import ExpectedOutcome, ObservedOutcome, Severity
+from golden.framework.simulations import compare_simulations
 from resto.application.ports.tracing import TraceEvent
 from resto.domain.entities.study import StudyResolution
 
@@ -105,4 +106,9 @@ def compare_outcome(expected: ExpectedOutcome, observed: ObservedOutcome) -> Dif
         )
     if (n := expected.network) is not None and n.network_id != observed.network_id:
         found.append(Mismatch(None, "network", n.network_id, observed.network_id, n.severity))
+    if (s := expected.simulations) is not None:
+        found += [
+            Mismatch(None, what, want, got, s.severity)
+            for what, want, got in compare_simulations(s, observed.simulations)
+        ]
     return Diff(tuple(found))

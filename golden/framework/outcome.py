@@ -9,8 +9,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import TYPE_CHECKING
 
 from resto.domain.entities.study import Study, StudyResolution
+
+if TYPE_CHECKING:  # simulations.py imports Severity from here
+    from golden.framework.simulations import ObservedSimulation, SimulationsExpectation
 
 
 class Severity(StrEnum):
@@ -44,6 +48,7 @@ NetworkExpectation = SameNetworkId
 class ExpectedOutcome:
     resolution: ExpectedResolution | None = None
     network: NetworkExpectation | None = None
+    simulations: SimulationsExpectation | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,7 +57,11 @@ class ObservedOutcome:
 
     resolution: StudyResolution | None
     network_id: str | None
+    simulations: tuple[ObservedSimulation, ...] = ()
 
 
-def observe_outcome(study: Study) -> ObservedOutcome:
-    return ObservedOutcome(study.resolution, study.network_ids[0] if study.network_ids else None)
+def observe_outcome(
+    study: Study, simulations: tuple[ObservedSimulation, ...] = ()
+) -> ObservedOutcome:
+    network_id = study.network_ids[0] if study.network_ids else None
+    return ObservedOutcome(study.resolution, network_id, simulations)

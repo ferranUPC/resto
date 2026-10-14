@@ -9,7 +9,8 @@ from typing import Protocol
 from golden.framework.compare import Diff, Mismatch, compare, compare_outcome
 from golden.framework.expected import GoldenPath
 from golden.framework.observed import observe
-from golden.framework.outcome import ExpectedOutcome, observe_outcome
+from golden.framework.outcome import ExpectedOutcome, ObservedOutcome, observe_outcome
+from golden.framework.simulations import NO_FACTS, Stored, observe_simulations
 from resto.application.ports.tracing import TraceEvent
 from resto.domain.entities.study import Study
 
@@ -20,6 +21,7 @@ class Run:
 
     study: Study
     events: Sequence[TraceEvent]
+    stored: Stored = NO_FACTS
 
 
 class Setup(Protocol):
@@ -59,12 +61,16 @@ def _repetition_diffs(runs: Sequence[Run]) -> list[Mismatch]:
     return found
 
 
+def _observed(run: Run) -> ObservedOutcome:
+    return observe_outcome(run.study, observe_simulations(run.study, run.stored))
+
+
 def _outcome_repetition_diffs(runs: Sequence[Run]) -> list[Mismatch]:
     """Every repetition against the first, on the observed outcome and not on raw events."""
-    reference = observe_outcome(runs[0].study)
+    reference = _observed(runs[0])
     found: list[Mismatch] = []
     for i, run in enumerate(runs[1:], start=1):
-        again = observe_outcome(run.study)
+        again = _observed(run)
         if again != reference:
             found.append(
                 Mismatch(None, f"repetition {i} differs from repetition 0", reference, again)
@@ -80,7 +86,7 @@ def check(setup: Setup, path: GoldenPath) -> Diff:
     expected = path.expected
     for i, run in enumerate(runs):
         if isinstance(expected, ExpectedOutcome):
-            diff = compare_outcome(expected, observe_outcome(run.study))
+            diff = compare_outcome(expected, _observed(run))
         else:
             diff = compare(
                 expected, observe(run.study, run.events), run.study.resolution, run.events

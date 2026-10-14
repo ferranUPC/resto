@@ -1,45 +1,35 @@
 """GP-5: a question whose two arms are stored costs no simulation.
 
-The base and the treatment are stored before the request, so both experiments of the single phase
-are reused. The steps are still traced: each build and run finds its result stored.
+The base and the treatment are stored before the request, so both essential simulations are
+reused and the bound of new simulations is zero.
 """
 
 from tests.unit.application._world import CLOSURE
 
 from golden.framework import (
-    ExpectedPhase,
-    ExpectedTrace,
+    EssentialSimulation,
+    ExpectedOutcome,
+    ExpectedResolution,
     GoldenPath,
+    InterventionPredicate,
     PriorState,
+    SimulationsExpectation,
     StoredScenario,
-    steps,
 )
 from resto.domain.entities.study import StudyResolution
-from resto.domain.value_objects.expert_answer import Basis
 
 GP5 = GoldenPath(
     name="gp5",
     request="What happens if lane 1 of E12 is closed?",
     prior=PriorState((StoredScenario(), StoredScenario((CLOSURE,)))),
-    expected=ExpectedTrace(
-        (
-            ExpectedPhase(
-                steps=steps(
-                    "obtain_network",
-                    "build_scenario",
-                    "run_simulation",
-                    "build_scenario",
-                    "run_simulation",
-                    "ask_expert",
-                    "compose_report",
-                ),
-                arms=("base", "treatment"),
-                reused=(True, True),
-                basis=Basis.OBSERVED,
-                forced_by_limit=False,
-                round=1,
+    expected=ExpectedOutcome(
+        resolution=ExpectedResolution(StudyResolution.COMPLETED),
+        simulations=SimulationsExpectation(
+            (
+                EssentialSimulation(),
+                EssentialSimulation((InterventionPredicate(CLOSURE.type, CLOSURE.target),)),
             ),
+            max_new=0,
         ),
-        resolution=StudyResolution.COMPLETED,
     ),
 )
