@@ -3,7 +3,7 @@
 Global module state, deliberately not a class: this is the module Builder-authored scripts call
 bare (`close_lane("B0C0_1")`), the same way the `traci` package itself is a global-connection
 module - there is no object to thread through a generated script. `start()` opens a TraCI session
-and resets `applied_actions`/registered rules; `close()` ends it. The Simulation Runner (E2.5)
+and resets `applied_actions`/registered rules; `close()` ends it. The online Simulation Runner
 calls `start()`/`close()` around executing the generated script; a script itself only ever calls the
 primitives and the declarative helpers below.
 

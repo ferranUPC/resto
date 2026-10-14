@@ -57,11 +57,10 @@ class RunSimulation:
     def execute(self, scenario: Scenario, seed: int, attempt_id: str) -> SimulationResult:
         """Runs `scenario` with `seed`, returns the `SimulationResult`; stores it iff it is `ok`.
 
-        `attempt_id` labels the staging directory of this attempt. Batch only until E2.5.
+        `attempt_id` labels the staging directory of this attempt. The mode is the scenario's: a
+        scenario with a `traci_script` runs online and its result carries the applied actions.
         """
-        if scenario.is_online:
-            raise NotImplementedError("online scenarios need the E2.5 runner")
-        mode = RunMode.BATCH
+        mode = scenario.run_mode
         sumo_version = self.runner.sumo_version()
         result_id = result_id_for(scenario.scenario_id, seed, mode.value, sumo_version)
         existing = self.results.get(result_id)
@@ -70,7 +69,12 @@ class RunSimulation:
 
         staging_dir = attempt_dir(self.out_dir, result_id, attempt_id)
         self.run_dirs.prepare(staging_dir)
-        output = self.runner.run_batch(scenario.sumocfg, seed, staging_dir)
+        if scenario.traci_script is not None:
+            output = self.runner.run_online(
+                scenario.sumocfg, scenario.traci_script, seed, staging_dir
+            )
+        else:
+            output = self.runner.run_batch(scenario.sumocfg, seed, staging_dir)
 
         if not output.ok:
             return _build_result(
@@ -114,6 +118,7 @@ def _build_result(
         artifacts=artifacts,
         kpis=output.kpis if status is RunStatus.OK else None,
         error=output.error,
+        applied_actions=output.applied_actions,
         wall_clock_s=output.wall_clock_s,
         sumo_version=sumo_version,
     )

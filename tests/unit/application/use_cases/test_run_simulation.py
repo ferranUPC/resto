@@ -20,6 +20,7 @@ from resto.domain.constants import SUMO_VERSION
 from resto.domain.entities.scenario import Scenario
 from resto.domain.entities.simulation_result import RunMode, RunStatus
 from resto.domain.services.ids import result_id_for
+from resto.domain.value_objects.applied_action import ActionOrigin, AppliedAction
 from resto.domain.value_objects.kpis import Kpis
 from resto.domain.value_objects.mechanism import StaticFileMechanism
 from tests.unit.application._doubles import FakeRunner
@@ -131,14 +132,62 @@ def test_a_failed_run_is_returned_but_not_stored_and_the_retry_stores_the_ok_one
     assert (tmp_path / failed.result_id).is_dir()  # the retry's ok result got the canonical one
 
 
-def test_online_scenarios_are_refused_until_e2_5(tmp_path: Path) -> None:
-    with pytest.raises(NotImplementedError):
-        RunSimulation(
-            runner=FakeRunner([]),
-            results=InMemoryResultRepository(),
-            run_dirs=RUN_DIRS,
-            out_dir=tmp_path,
-        ).execute(online_scenario(), 1, "study-1")
+def online_ok_output() -> RunOutput:
+    return RunOutput(
+        ok=True,
+        error=None,
+        artifacts=ok_output().artifacts,
+        wall_clock_s=2.0,
+        kpis=KPIS,
+        applied_actions=(AppliedAction(step=120, action="close_lane", origin=ActionOrigin.RULE),),
+    )
+
+
+def test_an_online_scenario_runs_with_its_script_and_stores_an_online_result(
+    tmp_path: Path,
+) -> None:
+    runner = FakeRunner([online_ok_output()])
+    results = InMemoryResultRepository()
+    scenario = online_scenario()
+
+    result = RunSimulation(
+        runner=runner, results=results, run_dirs=RUN_DIRS, out_dir=tmp_path
+    ).execute(scenario, 3, "study-1")
+
+    expected_id = result_id_for(scenario.scenario_id, 3, RunMode.ONLINE.value, SUMO_VERSION)
+    assert result.result_id == expected_id
+    assert result.mode is RunMode.ONLINE
+    assert result.applied_actions == online_ok_output().applied_actions
+    assert runner.online_calls == [(scenario.sumocfg, scenario.traci_script, 3)]
+    assert results.get(expected_id) == result
+    assert expected_id != result_id_for(scenario.scenario_id, 3, RunMode.BATCH.value, SUMO_VERSION)
+
+
+def test_a_second_online_request_with_the_same_scenario_and_seed_reuses_the_result(
+    tmp_path: Path,
+) -> None:
+    runner = FakeRunner([online_ok_output()])
+    results = InMemoryResultRepository()
+    use_case = RunSimulation(runner=runner, results=results, run_dirs=RUN_DIRS, out_dir=tmp_path)
+    first = use_case.execute(online_scenario(), 3, "study-1")
+
+    second = use_case.execute(online_scenario(), 3, "study-2")
+
+    assert second == first
+    assert len(runner.online_calls) == 1
+
+
+def test_a_failed_online_run_is_returned_and_not_stored(tmp_path: Path) -> None:
+    runner = FakeRunner([failed_output()])
+    results = InMemoryResultRepository()
+
+    result = RunSimulation(
+        runner=runner, results=results, run_dirs=RUN_DIRS, out_dir=tmp_path
+    ).execute(online_scenario(), 3, "study-1")
+
+    assert result.status is RunStatus.FAILED
+    assert result.mode is RunMode.ONLINE
+    assert results.get(result.result_id) is None
 
 
 def test_ephemeral_runs_return_the_raw_output_and_take_no_repository(tmp_path: Path) -> None:

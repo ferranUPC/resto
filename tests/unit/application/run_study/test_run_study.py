@@ -563,10 +563,35 @@ def test_an_exception_from_an_agent_is_infrastructure(tmp_path: Path) -> None:
     assert_failed_at(study, "build_scenario", StepErrorKind.INFRASTRUCTURE, skipped=1)
 
 
-def test_an_online_scenario_is_infrastructure_until_e2_5(tmp_path: Path) -> None:
-    study = run_treatment(tmp_path, (dynamic_intervention(),))
+def test_an_online_scenario_runs_and_a_second_study_reuses_it_by_its_online_ids(
+    tmp_path: Path,
+) -> None:
+    interventions = (dynamic_intervention(),)
+    question = Question(text="close it", intent=Intent.COMPARE, interventions=interventions)
+    two_arms = plan(
+        build_step(),
+        run_step(0),
+        build_step("treatment", interventions, role=ExperimentRole.TREATMENT),
+        run_step(2),
+    )
+    world = World(
+        tmp_path, question=question, plans=(two_arms, two_arms), expert=(answers(), answers())
+    )
+    world.parser.items.append(run_of(question, tokens=50))
 
-    assert_failed_at(study, "run_simulation", StepErrorKind.INFRASTRUCTURE, skipped=0)
+    first = world.run()
+    assert first.resolution is StudyResolution.COMPLETED
+    online_runs = len(world.runner.online_calls)
+    second = world.run()
+
+    treatment = first.phases[0].experiments[1]
+    assert treatment.result_ids == tuple(
+        result_id_for(treatment.scenario_id, s, RunMode.ONLINE.value) for s in DEFAULT_SEEDS
+    )
+    assert online_runs == len(DEFAULT_SEEDS)
+    assert len(world.runner.online_calls) == online_runs  # the second study ran nothing new
+    assert second.phases[0].experiments[1].result_ids == treatment.result_ids
+    assert second.phases[0].experiments[1].reused
 
 
 def test_an_expert_round_on_a_network_that_is_not_stored_is_infrastructure(tmp_path: Path) -> None:
