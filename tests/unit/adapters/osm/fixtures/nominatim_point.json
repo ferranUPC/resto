@@ -1,0 +1,11 @@
+[
+  {
+    "place_id": 1003,
+    "osm_type": "node",
+    "osm_id": 123,
+    "category": "place",
+    "type": "suburb",
+    "display_name": "Eixample, Barcelona",
+    "geojson": {"type": "Point", "coordinates": [2.1623, 41.3891]}
+  }
+]

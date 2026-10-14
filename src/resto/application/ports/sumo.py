@@ -13,10 +13,6 @@ from resto.domain.value_objects.network_source import GeneratedNetwork
 from resto.domain.value_objects.topology_modification import TopologyModification
 
 
-class OsmSource(Protocol):
-    def fetch(self, place_or_bbox: str, out_dir: Path) -> ArtifactRef: ...
-
-
 class NetBuildError(RuntimeError):
     """`netconvert` or `netgenerate` could not build the network; the message is SUMO's own."""
 
