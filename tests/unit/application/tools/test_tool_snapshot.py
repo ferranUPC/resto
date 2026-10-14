@@ -1,5 +1,6 @@
 """What every agent is given today: name, description and input schema of each network, Expert and
 Scenario Builder tool, stored once in `tool_snapshot.json` and asserted exactly (refactor r3).
+E6.1/02 added the Network Author's generated-network tools on purpose.
 
 The declaration refactor must leave this file unchanged. Regenerate it only on purpose:
 
@@ -19,10 +20,12 @@ from resto.adapters.persistence.memory import (
     InMemoryResultRepository,
     InMemoryScenarioRepository,
 )
+from resto.adapters.sumo.netconvert import SubprocessNetconvertRunner
 from resto.adapters.sumo.netxml import SumolibNetworkQuery
 from resto.application.ports.llm import Tool
 from resto.application.tools.expert import EvidenceLedger, build_expert_tools, expert_context
 from resto.application.tools.network import build_network_tools
+from resto.application.tools.network_author import AuthorRun, build_network_author_tools
 from resto.application.tools.scenario_builder import (
     BuilderCollaborators,
     BuilderRequest,
@@ -119,6 +122,11 @@ def collect() -> dict[str, list[dict[str, object]]]:
         "expert": _describe(_expert(query, notes_allowed=False)),
         "expert_with_notes": _describe(_expert(query, notes_allowed=True)),
         "scenario_builder": _describe(_builder(query)),
+        "network_author": _describe(
+            build_network_author_tools(
+                AuthorRun(runner=SubprocessNetconvertRunner(), out_dir=Path("out"))
+            )
+        ),
     }
 
 

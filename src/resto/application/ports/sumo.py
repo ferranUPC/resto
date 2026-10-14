@@ -9,6 +9,7 @@ from typing import Protocol
 
 from resto.domain.value_objects.artifact_ref import ArtifactRef
 from resto.domain.value_objects.kpis import Kpis
+from resto.domain.value_objects.network_source import GeneratedNetwork
 from resto.domain.value_objects.topology_modification import TopologyModification
 
 
@@ -16,7 +17,17 @@ class OsmSource(Protocol):
     def fetch(self, place_or_bbox: str, out_dir: Path) -> ArtifactRef: ...
 
 
+class NetBuildError(RuntimeError):
+    """`netconvert` or `netgenerate` could not build the network; the message is SUMO's own."""
+
+
 class NetconvertRunner(Protocol):
+    """Builds `.net.xml` files. Each method raises `NetBuildError` when SUMO refuses."""
+
+    def generate(self, source: GeneratedNetwork, out_dir: Path) -> ArtifactRef:
+        """`netgenerate` for a grid, spider or random network (a random one uses its own seed)."""
+        ...
+
     def build(
         self, osm: ArtifactRef | None, plain_dir: Path | None, options: Sequence[str], out_dir: Path
     ) -> ArtifactRef: ...

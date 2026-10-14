@@ -3,7 +3,8 @@ meet their implementations and the infrastructure is bound.
 
 Agents that do not exist yet (Network Author, E6.1; Demand Generator, E7.1) are `_Pending`
 placeholders that raise `NotImplementedError`; so do the promoters of their drafts and of a reroute
-(`NetworkPromoter`, `DemandPromoter`, `ReroutePromoter`) until those tasks build them.
+(`DemandPromoter`, `ReroutePromoter`) until those tasks build them. `NetworkPromoter` replays
+recipes with the real `netgenerate`/`netconvert`; derivations wait for the plain XML editor.
 """
 
 from __future__ import annotations
@@ -20,6 +21,7 @@ from resto.adapters.persistence.memory import InMemoryStudyRepository
 from resto.adapters.persistence.sqlite.repositories import SqliteDatabase
 from resto.adapters.sumo.demand import SumoDemandTools
 from resto.adapters.sumo.demand_scaling import SumoDemandScaler
+from resto.adapters.sumo.netconvert import SubprocessNetconvertRunner
 from resto.adapters.sumo.network_query_loader import StoredNetworkQueryLoader
 from resto.adapters.sumo.run_directories import FilesystemRunDirectories
 from resto.adapters.sumo.runner import SubprocessSumoRunner
@@ -133,6 +135,7 @@ def build_run_study(
     builder_dir = out_dir / "builder"
     loader = StoredNetworkQueryLoader(db.networks)
     runner = SubprocessSumoRunner()
+    network_promoter = NetworkPromoter(SubprocessNetconvertRunner())
     builder = ScenarioBuilderPort(
         agent=agent,
         budget=budget,
@@ -177,10 +180,10 @@ def build_run_study(
         ),
         steps={
             ObtainNetworkStep: ObtainNetworkExecutor(
-                author, db.networks, NetworkPromoter(), rounds.network_max_rounds
+                author, db.networks, network_promoter, rounds.network_max_rounds
             ),
             DeriveNetworkStep: DeriveNetworkExecutor(
-                author, db.networks, NetworkPromoter(), rounds.network_max_rounds
+                author, db.networks, network_promoter, rounds.network_max_rounds
             ),
             ObtainDemandStep: ObtainDemandExecutor(
                 generator, db.demands, DemandPromoter(), rounds.calibration_max_rounds

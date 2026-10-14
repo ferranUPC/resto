@@ -211,7 +211,7 @@ class FakeNetworkPromoter(NetworkPromoter):
     def __init__(self, promote: Callable[[Any, Any], Network]) -> None:
         self._promote = promote
 
-    def promote(self, run: Any, context: Any) -> Network:
+    def promote(self, run: Any, context: Any, base_net: Any = None) -> Network:
         return self._promote(context, run)
 
 

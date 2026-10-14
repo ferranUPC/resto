@@ -966,6 +966,97 @@
       "name": "get_tls"
     }
   ],
+  "network_author": [
+    {
+      "description": "Build a rectangular grid network with `netgenerate`, no OpenStreetMap. Returns the source to put in the recipe and the built .net.xml artifact.",
+      "input_schema": {
+        "properties": {
+          "x_length": {
+            "description": "Length in metres of an x-direction edge. SUMO: 100.",
+            "exclusiveMinimum": 0,
+            "type": "number"
+          },
+          "x_number": {
+            "description": "Junctions along x, at least 2. SUMO: 5.",
+            "minimum": 2,
+            "type": "integer"
+          },
+          "y_length": {
+            "description": "Length in metres of a y-direction edge. SUMO: 100.",
+            "exclusiveMinimum": 0,
+            "type": "number"
+          },
+          "y_number": {
+            "description": "Junctions along y, at least 2. SUMO: 5.",
+            "minimum": 2,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "name": "generate_grid"
+    },
+    {
+      "description": "Build a spider-web network (arms crossed by concentric circles) with `netgenerate`, no OpenStreetMap. Returns the source to put in the recipe and the built .net.xml artifact.",
+      "input_schema": {
+        "properties": {
+          "arm_number": {
+            "description": "Number of arms, at least 3. SUMO: 13.",
+            "minimum": 3,
+            "type": "integer"
+          },
+          "circle_number": {
+            "description": "Number of circles, at least 1. SUMO: 20.",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "omit_center": {
+            "description": "Leave out the central junction. SUMO: false.",
+            "type": "boolean"
+          },
+          "space_radius": {
+            "description": "Distance in metres between circles. SUMO: 100.",
+            "exclusiveMinimum": 0,
+            "type": "number"
+          }
+        },
+        "type": "object"
+      },
+      "name": "generate_spider"
+    },
+    {
+      "description": "Build a random network with `netgenerate`, no OpenStreetMap. The seed is required: the same seed and parameters give the same network. Returns the source to put in the recipe and the built .net.xml artifact.",
+      "input_schema": {
+        "properties": {
+          "iterations": {
+            "description": "Number of random growth steps, at least 1. SUMO: 200.",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "max_distance": {
+            "description": "Maximum distance in metres, at least min_distance. SUMO: 250.",
+            "exclusiveMinimum": 0,
+            "type": "number"
+          },
+          "min_distance": {
+            "description": "Minimum distance in metres between nodes. SUMO: 100.",
+            "exclusiveMinimum": 0,
+            "type": "number"
+          },
+          "seed": {
+            "description": "Seed of the generator, at least 0.",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "seed"
+        ],
+        "type": "object"
+      },
+      "name": "generate_random"
+    }
+  ],
   "scenario_builder": [
     {
       "description": "Whether `edge_id` exists on the scenario's network.",
