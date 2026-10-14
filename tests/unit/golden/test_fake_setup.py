@@ -33,6 +33,11 @@ SCRIPT = AgentScript(question=DESCRIBE, plans=(BASELINE_PLAN,), expert=(answers(
 NO_PRIOR = PriorState()
 
 
+def _trace(path: GoldenPath) -> ExpectedTrace:
+    assert isinstance(path.expected, ExpectedTrace)
+    return path.expected
+
+
 def _path(
     name: str = "throwaway", *, prior: PriorState = NO_PRIOR, reused: bool = False
 ) -> GoldenPath:
@@ -64,7 +69,7 @@ def test_a_throwaway_path_passes_the_comparator_through_the_fake() -> None:
 
     run = setup.run(_path())
 
-    assert compare(_path().expected, observe(run.study, run.events)).ok
+    assert compare(_trace(_path()), observe(run.study, run.events)).ok
     assert check(setup, _path()).ok
 
 
@@ -110,7 +115,7 @@ class _Wobbly:
 
 def test_repetitions_that_differ_fail_the_check() -> None:
     path = replace(
-        _path(), expected=ExpectedTrace((replace(_path().expected.phases[0], basis=None),))
+        _path(), expected=ExpectedTrace((replace(_trace(_path()).phases[0], basis=None),))
     )
 
     text = check(_Wobbly(FakeSetup({"throwaway": SCRIPT}), vary=True), path).render()
@@ -124,7 +129,7 @@ def test_repetitions_that_are_equal_pass_the_check() -> None:
 
 def test_a_setup_that_does_not_compare_repetitions_passes_when_each_meets_the_trace() -> None:
     path = replace(
-        _path(), expected=ExpectedTrace((replace(_path().expected.phases[0], basis=None),))
+        _path(), expected=ExpectedTrace((replace(_trace(_path()).phases[0], basis=None),))
     )
     setup = _Wobbly(FakeSetup({"throwaway": SCRIPT}), vary=True, compare_repetitions=False)
 
@@ -163,7 +168,7 @@ class _LateEventDrift:
 
 def test_a_difference_in_a_later_repetition_is_not_masked_by_an_earlier_one() -> None:
     path = replace(
-        _path(), expected=ExpectedTrace((replace(_path().expected.phases[0], basis=None),))
+        _path(), expected=ExpectedTrace((replace(_trace(_path()).phases[0], basis=None),))
     )
 
     text = check(_LateEventDrift(FakeSetup({"throwaway": SCRIPT})), path).render()

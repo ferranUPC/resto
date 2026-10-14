@@ -1,4 +1,8 @@
-"""Golden-path framework: the Expected trace, its projection from a run and the comparator.
+"""Golden-path framework: the Expected outcome (ADR-0043) and its comparator, plus the Expected
+trace beside it until r20 ticket 05 removes it.
+
+The outcome is read from the finished study (`observe_outcome`) and compared with `compare_outcome`;
+what follows describes the old trace.
 
 A golden path says which trace a study must leave; a `Setup` runs it; `compare` checks what the
 run left against what was expected, phase by phase.
@@ -14,7 +18,7 @@ Where each compared attribute is read from (confirmed in E9.1 slice 1):
 Free text, tokens and ids are never compared: the observed side does not even hold them.
 """
 
-from golden.framework.compare import Diff, Mismatch, compare
+from golden.framework.compare import Diff, Mismatch, compare, compare_outcome
 from golden.framework.expected import (
     ExpectedPhase,
     ExpectedStep,
@@ -25,15 +29,30 @@ from golden.framework.expected import (
     steps,
 )
 from golden.framework.observed import ObservedPhase, observe
+from golden.framework.outcome import (
+    ExpectedOutcome,
+    ExpectedResolution,
+    NetworkExpectation,
+    ObservedOutcome,
+    SameNetworkId,
+    Severity,
+    observe_outcome,
+)
 from golden.framework.setup import Run, Setup, check
 
 __all__ = [
     "Diff",
+    "ExpectedOutcome",
     "ExpectedPhase",
+    "ExpectedResolution",
     "ExpectedStep",
     "ExpectedTrace",
     "GoldenPath",
     "Mismatch",
+    "NetworkExpectation",
+    "ObservedOutcome",
+    "SameNetworkId",
+    "Severity",
     "PriorState",
     "ObservedPhase",
     "Run",
@@ -41,6 +60,8 @@ __all__ = [
     "StoredScenario",
     "check",
     "compare",
+    "compare_outcome",
     "observe",
+    "observe_outcome",
     "steps",
 ]

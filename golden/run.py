@@ -10,6 +10,7 @@ import argparse
 import sys
 from collections.abc import Sequence
 
+from golden.framework.compare import Mismatch
 from golden.framework.setup import check
 from golden.paths import discover
 from golden.setups.fake import FakeSetup
@@ -30,9 +31,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     setup = FakeSetup()
     failed = 0
     for path in discover():
+        warnings: tuple[Mismatch, ...] = ()
         try:
             diff = check(setup, path)
             detail = "" if diff.ok else diff.render()
+            warnings = () if not diff.ok else diff.warnings
         except Exception as error:
             detail = f"{type(error).__name__}: {error}"
         if detail:
@@ -41,6 +44,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             print("\n".join(f"  {line}" for line in detail.splitlines()))
         else:
             print(f"PASS {path.name} ({setup.repetitions} repetitions)")
+            for warning in warnings:
+                print(f"  {warning.render()}")
     return 1 if failed else 0
 
 

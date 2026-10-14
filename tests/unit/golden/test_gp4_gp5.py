@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import pytest
-from golden.framework import GoldenPath, check
+from golden.framework import ExpectedTrace, GoldenPath, check
 from golden.paths import gp4, gp5
 from golden.setups.fake import FakeSetup
 
@@ -14,6 +14,7 @@ def test_the_path_passes_the_fake_with_an_empty_diff(path: GoldenPath) -> None:
 
 
 def test_gp4_leaves_one_phase_with_only_the_base_and_no_second_phase() -> None:
+    assert isinstance(gp4.GP4.expected, ExpectedTrace)
     (phase,) = gp4.GP4.expected.phases
     assert phase.arms == ("base",)
     assert phase.reused == (False,)
@@ -21,6 +22,7 @@ def test_gp4_leaves_one_phase_with_only_the_base_and_no_second_phase() -> None:
 
 
 def test_gp5_leaves_one_phase_with_both_experiments_reused() -> None:
+    assert isinstance(gp5.GP5.expected, ExpectedTrace)
     (phase,) = gp5.GP5.expected.phases
     assert phase.reused == (True, True)
     assert len(gp5.GP5.prior.stored) == 2

@@ -7,6 +7,7 @@ from dataclasses import dataclass
 
 from golden.framework.expected import ExpectedPhase, ExpectedTrace
 from golden.framework.observed import ObservedPhase
+from golden.framework.outcome import ExpectedOutcome, ObservedOutcome, Severity
 from resto.application.ports.tracing import TraceEvent
 from resto.domain.entities.study import StudyResolution
 
@@ -19,10 +20,12 @@ class Mismatch:
     what: str
     expected: object
     observed: object
+    severity: Severity = Severity.HARD
 
     def render(self) -> str:
         where = "study" if self.phase is None else f"phase {self.phase}"
-        return f"{where}, {self.what}: expected {self.expected}, observed {self.observed}"
+        line = f"{where}, {self.what}: expected {self.expected}, observed {self.observed}"
+        return line if self.severity is Severity.HARD else f"{self.severity.value}: {line}"
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,7 +34,15 @@ class Diff:
 
     @property
     def ok(self) -> bool:
-        return not self.mismatches
+        return not self.failures
+
+    @property
+    def failures(self) -> tuple[Mismatch, ...]:
+        return tuple(m for m in self.mismatches if m.severity is Severity.HARD)
+
+    @property
+    def warnings(self) -> tuple[Mismatch, ...]:
+        return tuple(m for m in self.mismatches if m.severity is not Severity.HARD)
 
     def render(self) -> str:
         return "\n".join(m.render() for m in self.mismatches) or "traces match"
@@ -80,4 +91,18 @@ def compare(
             found += _phase(k, want, observed[k])
     for k in range(len(expected.phases), len(observed)):
         found.append(Mismatch(k, "phase", "absent", "extra"))
+    return Diff(tuple(found))
+
+
+def compare_outcome(expected: ExpectedOutcome, observed: ObservedOutcome) -> Diff:
+    """Each part the expectation sets is compared; a part left empty is not."""
+    found: list[Mismatch] = []
+    if (r := expected.resolution) is not None and r.resolution is not observed.resolution:
+        found.append(
+            Mismatch(
+                None, "resolution", _show(r.resolution), _show(observed.resolution), r.severity
+            )
+        )
+    if (n := expected.network) is not None and n.network_id != observed.network_id:
+        found.append(Mismatch(None, "network", n.network_id, observed.network_id, n.severity))
     return Diff(tuple(found))

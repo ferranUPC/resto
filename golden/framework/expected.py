@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from golden.framework.outcome import ExpectedOutcome
 from resto.application.ports.tracing import TraceEvent
 from resto.domain.constants import DEFAULT_SEEDS
 from resto.domain.entities.study import StudyResolution
@@ -65,9 +66,10 @@ class PriorState:
 
 @dataclass(frozen=True, slots=True)
 class GoldenPath:
-    """A request, the world it starts from and the trace it must leave."""
+    """A request, the world it starts from and what it must leave: an outcome, or (until r20 ticket
+    05) the old trace."""
 
     name: str
     request: str
-    expected: ExpectedTrace
+    expected: ExpectedTrace | ExpectedOutcome
     prior: PriorState = PriorState()

@@ -6,9 +6,10 @@ from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from typing import Protocol
 
-from golden.framework.compare import Diff, Mismatch, compare
+from golden.framework.compare import Diff, Mismatch, compare, compare_outcome
 from golden.framework.expected import GoldenPath
 from golden.framework.observed import observe
+from golden.framework.outcome import ExpectedOutcome, observe_outcome
 from resto.application.ports.tracing import TraceEvent
 from resto.domain.entities.study import Study
 
@@ -58,16 +59,36 @@ def _repetition_diffs(runs: Sequence[Run]) -> list[Mismatch]:
     return found
 
 
+def _outcome_repetition_diffs(runs: Sequence[Run]) -> list[Mismatch]:
+    """Every repetition against the first, on the observed outcome and not on raw events."""
+    reference = observe_outcome(runs[0].study)
+    found: list[Mismatch] = []
+    for i, run in enumerate(runs[1:], start=1):
+        again = observe_outcome(run.study)
+        if again != reference:
+            found.append(
+                Mismatch(None, f"repetition {i} differs from repetition 0", reference, again)
+            )
+    return found
+
+
 def check(setup: Setup, path: GoldenPath) -> Diff:
     """Run `path` `setup.repetitions` times; every repetition must meet the expected trace and
     equal the others when the setup asks for it (`compare_repetitions`)."""
     runs = [setup.run(path) for _ in range(setup.repetitions)]
     found: list[Mismatch] = []
+    expected = path.expected
     for i, run in enumerate(runs):
-        diff = compare(
-            path.expected, observe(run.study, run.events), run.study.resolution, run.events
-        )
+        if isinstance(expected, ExpectedOutcome):
+            diff = compare_outcome(expected, observe_outcome(run.study))
+        else:
+            diff = compare(
+                expected, observe(run.study, run.events), run.study.resolution, run.events
+            )
         found += [replace(m, what=f"repetition {i}: {m.what}") for m in diff.mismatches]
     if setup.compare_repetitions:
-        found += _repetition_diffs(runs)
+        if isinstance(expected, ExpectedOutcome):
+            found += _outcome_repetition_diffs(runs)
+        else:
+            found += _repetition_diffs(runs)
     return Diff(tuple(found))
