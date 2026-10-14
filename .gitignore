@@ -156,5 +156,8 @@ eval/hygiene_probes/runs/
 # reports/<name>.md and reports/<name>.json are the committed assets
 eval/parser_benchmark/runs/
 
+# golden-path JSONL traces (python -m golden.run), one UTC-time directory per run
+golden-traces/
+
 # Progress site build output (progress-site/build_site.py)
 _site/

@@ -39,7 +39,7 @@ def _observed(
     *values: Quantity, basis: Basis = Basis.OBSERVED, forced: bool = False
 ) -> ObservedOutcome:
     return ObservedOutcome(
-        StudyResolution.COMPLETED, "net", ObservedAnswer(tuple(values), basis, forced)
+        StudyResolution.COMPLETED, "net", answer=ObservedAnswer(tuple(values), basis, forced)
     )
 
 
@@ -102,7 +102,7 @@ def test_basis_and_forced_by_limit_are_ignored_when_empty() -> None:
 
 
 def test_no_final_answer_fails_every_set_item() -> None:
-    gone = ObservedOutcome(StudyResolution.FAILED, "net", None)
+    gone = ObservedOutcome(StudyResolution.FAILED, "net")
 
     text = _diff(ExpectedAnswer((DELAY,), basis=Basis.OBSERVED), gone)
 

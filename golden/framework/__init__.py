@@ -42,8 +42,24 @@ from golden.framework.outcome import (
     observe_outcome,
 )
 from golden.framework.setup import Run, Setup, check
+from golden.framework.simulations import (
+    EssentialSimulation,
+    InterventionPredicate,
+    ObservedSimulation,
+    ParamBound,
+    SimulationsExpectation,
+    Stored,
+    observe_simulations,
+)
 
 __all__ = [
+    "EssentialSimulation",
+    "InterventionPredicate",
+    "ObservedSimulation",
+    "ParamBound",
+    "SimulationsExpectation",
+    "Stored",
+    "observe_simulations",
     "Diff",
     "ExpectedAnswer",
     "ExpectedKpi",

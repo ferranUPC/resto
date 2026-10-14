@@ -10,10 +10,14 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import TYPE_CHECKING
 
 from resto.domain.entities.study import Study, StudyResolution
 from resto.domain.value_objects.answer_value import AnswerValue, Measure
 from resto.domain.value_objects.expert_answer import Basis
+
+if TYPE_CHECKING:  # simulations.py imports Severity from here
+    from golden.framework.simulations import ObservedSimulation, SimulationsExpectation
 
 
 class Severity(StrEnum):
@@ -86,6 +90,7 @@ class ExpectedAnswer:
 class ExpectedOutcome:
     resolution: ExpectedResolution | None = None
     network: NetworkExpectation | None = None
+    simulations: SimulationsExpectation | None = None
     answer: ExpectedAnswer | None = None
 
 
@@ -104,6 +109,7 @@ class ObservedOutcome:
 
     resolution: StudyResolution | None
     network_id: str | None
+    simulations: tuple[ObservedSimulation, ...] = ()
     answer: ObservedAnswer | None = None
 
 
@@ -115,9 +121,8 @@ def _final_answer(study: Study) -> ObservedAnswer | None:
     return None
 
 
-def observe_outcome(study: Study) -> ObservedOutcome:
-    return ObservedOutcome(
-        study.resolution,
-        study.network_ids[0] if study.network_ids else None,
-        _final_answer(study),
-    )
+def observe_outcome(
+    study: Study, simulations: tuple[ObservedSimulation, ...] = ()
+) -> ObservedOutcome:
+    network_id = study.network_ids[0] if study.network_ids else None
+    return ObservedOutcome(study.resolution, network_id, simulations, _final_answer(study))
