@@ -1057,6 +1057,156 @@
       "name": "generate_random"
     }
   ],
+  "network_import": [
+    {
+      "description": "List the import profiles `netconvert` can use (what the imported network keeps: roads, rail, bicycle lanes, pedestrian paths) and the vehicle classes `keep_vclass` accepts. Public transport stops and lines and polygons are not part of any profile.",
+      "input_schema": {
+        "properties": {},
+        "type": "object"
+      },
+      "name": "list_import_profiles"
+    },
+    {
+      "description": "Download the OpenStreetMap data of an area of interest, once per polygon (a second call for the same area reuses the stored snapshot). Name the area with exactly one of `bbox`, `polygon` or `place_name` (an administrative boundary, resolved to a polygon). Put any extra thing the user asked for in `requirements`, for example 'bus stops'. Returns the `source` and the `osm_snapshot` for the recipe, or `needs_user` when the area is above the size limit, the place is not a boundary, or a requirement is unsupported (public transport stops and lines); then nothing was downloaded.",
+      "input_schema": {
+        "properties": {
+          "bbox": {
+            "description": "[south, west, north, east] in degrees.",
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 4,
+            "minItems": 4,
+            "type": "array"
+          },
+          "place_name": {
+            "description": "Name of an administrative area, e.g. 'Sant Antoni'.",
+            "type": "string"
+          },
+          "polygon": {
+            "description": "Closed ring of [lat, lon] points, at most about 200 vertices.",
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "type": "array"
+          },
+          "requirements": {
+            "description": "What else the user asked for, in their words, e.g. ['bus stops'].",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "name": "fetch_osm"
+    },
+    {
+      "description": "Build the network from a fetched snapshot with `netconvert`: the chosen import profile, cut to the area's polygon, keeping the largest connected component. Starts the cleanups again. Returns the `netconvert_options` and `net_artifact` for the recipe.",
+      "input_schema": {
+        "properties": {
+          "osm_snapshot": {
+            "description": "`content_hash` of the snapshot `fetch_osm` returned.",
+            "type": "string"
+          },
+          "profile": {
+            "description": "Profile name from `list_import_profiles`. Default 'roads'.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "osm_snapshot"
+        ],
+        "type": "object"
+      },
+      "name": "netconvert"
+    },
+    {
+      "description": "Rebuild keeping only the largest connected component, so no piece of road is cut off from the rest. `netconvert` already does it; this makes the choice explicit after other cleanups. Returns the updated options.",
+      "input_schema": {
+        "properties": {
+          "osm_snapshot": {
+            "description": "`content_hash` of the snapshot `fetch_osm` returned.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "osm_snapshot"
+        ],
+        "type": "object"
+      },
+      "name": "keep_largest_component"
+    },
+    {
+      "description": "Rebuild removing isolated edges (edges that connect to nothing at either end).",
+      "input_schema": {
+        "properties": {
+          "osm_snapshot": {
+            "description": "`content_hash` of the snapshot `fetch_osm` returned.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "osm_snapshot"
+        ],
+        "type": "object"
+      },
+      "name": "remove_isolated"
+    },
+    {
+      "description": "Rebuild joining junctions that are close together (a big crossing mapped as several nodes) into one.",
+      "input_schema": {
+        "properties": {
+          "osm_snapshot": {
+            "description": "`content_hash` of the snapshot `fetch_osm` returned.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "osm_snapshot"
+        ],
+        "type": "object"
+      },
+      "name": "join_junctions"
+    },
+    {
+      "description": "Rebuild keeping only the edges that allow a vehicle class, for example 'passenger' to drop rail and pedestrian-only paths.",
+      "input_schema": {
+        "properties": {
+          "osm_snapshot": {
+            "description": "`content_hash` of the snapshot `fetch_osm` returned.",
+            "type": "string"
+          },
+          "vclass": {
+            "description": "Vehicle class to keep.",
+            "enum": [
+              "passenger",
+              "bus",
+              "truck",
+              "delivery",
+              "taxi",
+              "motorcycle",
+              "bicycle",
+              "pedestrian",
+              "tram",
+              "rail"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "osm_snapshot",
+          "vclass"
+        ],
+        "type": "object"
+      },
+      "name": "keep_vclass"
+    }
+  ],
   "scenario_builder": [
     {
       "description": "Whether `edge_id` exists on the scenario's network.",

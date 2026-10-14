@@ -26,6 +26,7 @@ from resto.application.ports.llm import Tool
 from resto.application.tools.expert import EvidenceLedger, build_expert_tools, expert_context
 from resto.application.tools.network import build_network_tools
 from resto.application.tools.network_author import AuthorRun, build_network_author_tools
+from resto.application.tools.network_import import ImportRun, build_network_import_tools
 from resto.application.tools.scenario_builder import (
     BuilderCollaborators,
     BuilderRequest,
@@ -38,6 +39,7 @@ from resto.domain.value_objects.question import Mode
 from resto.domain.value_objects.tasks import ExpertTask
 from resto.domain.value_objects.time_window import TimeWindow
 from tests.unit._paths import DEV_NET
+from tests.unit.application.tools._osm_doubles import FakeGeocoder, FakeOsmSource
 from tests.unit.application.tools._recorders import (
     RecordingAdditionalFileWriter,
     RecordingDemandRepository,
@@ -122,6 +124,17 @@ def collect() -> dict[str, list[dict[str, object]]]:
         "expert": _describe(_expert(query, notes_allowed=False)),
         "expert_with_notes": _describe(_expert(query, notes_allowed=True)),
         "scenario_builder": _describe(_builder(query)),
+        "network_import": _describe(
+            build_network_import_tools(
+                ImportRun(
+                    runner=SubprocessNetconvertRunner(),
+                    osm=FakeOsmSource(),
+                    geocoder=FakeGeocoder(),
+                    out_dir=Path("out"),
+                    typemap_dir=Path("typemaps"),
+                )
+            )
+        ),
         "network_author": _describe(
             build_network_author_tools(
                 AuthorRun(runner=SubprocessNetconvertRunner(), out_dir=Path("out"))
