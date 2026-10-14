@@ -78,8 +78,50 @@ class SeveralCandidates:
         return "Ask again, naming the one you mean."
 
 
+@dataclass(frozen=True, slots=True)
+class AreaTooLarge:
+    """The area to import is above the size limit; refused before any download (ADR-0045 §6)."""
+
+    area_km2: float
+    limit_km2: float
+    kind: Literal["area_too_large"] = "area_too_large"
+
+    def __post_init__(self) -> None:
+        if self.limit_km2 <= 0:
+            raise ValueError("limit_km2 must be positive")
+        if self.area_km2 <= self.limit_km2:
+            raise ValueError("area_km2 must be above limit_km2")
+
+    @property
+    def recommendation(self) -> str:
+        return "Pick a smaller area, or an import profile with fewer road classes."
+
+
+@dataclass(frozen=True, slots=True)
+class UnsupportedRequirement:
+    """The request needs something the network cannot hold, such as public transport stops
+    (ADR-0045 §5)."""
+
+    requirement: str
+    kind: Literal["unsupported_requirement"] = "unsupported_requirement"
+
+    def __post_init__(self) -> None:
+        if not self.requirement.strip():
+            raise ValueError("UnsupportedRequirement requires the requirement it names")
+
+    @property
+    def recommendation(self) -> str:
+        return "Ask again without that requirement; the network does not hold it."
+
+
 NeedsUserReason = (
-    WindowMissing | DemandNotNamed | DemandNotObtainable | NetworkNotFound | SeveralCandidates
+    WindowMissing
+    | DemandNotNamed
+    | DemandNotObtainable
+    | NetworkNotFound
+    | SeveralCandidates
+    | AreaTooLarge
+    | UnsupportedRequirement
 )
 
 

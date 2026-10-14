@@ -1,12 +1,14 @@
 import pytest
 
 from resto.domain.value_objects.outcomes import (
+    AreaTooLarge,
     DemandNotNamed,
     DemandNotObtainable,
     FoundItem,
     NeedsUser,
     NetworkNotFound,
     SeveralCandidates,
+    UnsupportedRequirement,
     WindowMissing,
 )
 
@@ -16,7 +18,21 @@ REASONS = (
     DemandNotObtainable("Easter 2019"),
     NetworkNotFound("Gran Via"),
     SeveralCandidates(),
+    AreaTooLarge(area_km2=101.0, limit_km2=10.0),
+    UnsupportedRequirement("public transport stops"),
 )
+
+
+def test_area_too_large_names_both_areas_and_advises_a_smaller_one() -> None:
+    reason = AreaTooLarge(area_km2=101.0, limit_km2=10.0)
+    assert "smaller area" in reason.recommendation
+    with pytest.raises(ValueError, match="limit_km2"):
+        AreaTooLarge(area_km2=5.0, limit_km2=10.0)
+
+
+def test_unsupported_requirement_names_what_is_missing() -> None:
+    with pytest.raises(ValueError, match="requirement"):
+        UnsupportedRequirement(" ")
 
 
 def test_needs_user_requires_a_message() -> None:

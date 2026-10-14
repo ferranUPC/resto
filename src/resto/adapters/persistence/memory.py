@@ -66,7 +66,7 @@ class InMemoryNetworkRepository:
         matching = (
             n
             for n in self._networks.values()
-            if (source is None or (n.recipe.source is not None and n.recipe.source.value == source))
+            if (source is None or n.recipe.source_key == source)
             and (derived_from is None or n.derived_from == derived_from)
             and (label is None or n.label == label)
         )

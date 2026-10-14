@@ -60,7 +60,7 @@ from resto.domain.entities.network import Network
 from resto.domain.entities.simulation_result import RunStatus, SimulationResult
 from resto.domain.value_objects.demand_spec import DemandProfile, DemandSpec
 from resto.domain.value_objects.network_recipe import NetworkRecipe
-from resto.domain.value_objects.network_source import NetworkSource
+from resto.domain.value_objects.network_source import GridNetwork
 from resto.domain.value_objects.sanity_report import SanityReport
 from resto.domain.value_objects.step_record import Usage
 from resto.domain.value_objects.tasks import ScenarioTask
@@ -87,7 +87,7 @@ def _dev_net_network() -> Network:
         network_id=net_ref.content_hash,
         net_xml=net_ref,
         recipe=NetworkRecipe(
-            source=NetworkSource(kind="file", value=str(DEV_NET_DIR / "generate.sh"))
+            source=GridNetwork(x_number=5, y_number=5, x_length=200.0, y_length=200.0)
         ),
         sanity_report=SanityReport(
             largest_scc_ratio=1.0, zero_length_edges=0, all_reachable_from_fringe=True

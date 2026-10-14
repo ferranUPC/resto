@@ -47,6 +47,31 @@
       "title": "AddEdge",
       "type": "object"
     },
+    "AreaTooLarge": {
+      "description": "The area to import is above the size limit; refused before any download (ADR-0045 \u00a76).",
+      "properties": {
+        "area_km2": {
+          "title": "Area Km2",
+          "type": "number"
+        },
+        "kind": {
+          "const": "area_too_large",
+          "default": "area_too_large",
+          "title": "Kind",
+          "type": "string"
+        },
+        "limit_km2": {
+          "title": "Limit Km2",
+          "type": "number"
+        }
+      },
+      "required": [
+        "area_km2",
+        "limit_km2"
+      ],
+      "title": "AreaTooLarge",
+      "type": "object"
+    },
     "Arm": {
       "properties": {
         "interventions": {
@@ -981,6 +1006,12 @@
             },
             {
               "$ref": "#/$defs/SeveralCandidates"
+            },
+            {
+              "$ref": "#/$defs/AreaTooLarge"
+            },
+            {
+              "$ref": "#/$defs/UnsupportedRequirement"
             }
           ],
           "title": "Reason"
@@ -1895,6 +1926,26 @@
         "tls_id"
       ],
       "title": "TlsTarget",
+      "type": "object"
+    },
+    "UnsupportedRequirement": {
+      "description": "The request needs something the network cannot hold, such as public transport stops\n(ADR-0045 \u00a75).",
+      "properties": {
+        "kind": {
+          "const": "unsupported_requirement",
+          "default": "unsupported_requirement",
+          "title": "Kind",
+          "type": "string"
+        },
+        "requirement": {
+          "title": "Requirement",
+          "type": "string"
+        }
+      },
+      "required": [
+        "requirement"
+      ],
+      "title": "UnsupportedRequirement",
       "type": "object"
     },
     "Usage": {
