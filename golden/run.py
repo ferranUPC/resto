@@ -9,11 +9,13 @@ from __future__ import annotations
 import argparse
 import sys
 from collections.abc import Sequence
+from pathlib import Path
 
 from golden.framework.compare import Mismatch
-from golden.framework.setup import check
+from golden.framework.setup import Setup, check
 from golden.paths import discover
 from golden.setups.fake import FakeSetup
+from golden.trace import DEFAULT_TRACE_ROOT, TracingSetup, run_directory
 
 AGENTIC_REJECTED = (
     "the agentic setup is not implemented: the model and limits per agent arrive with E12.1. "
@@ -24,11 +26,21 @@ AGENTIC_REJECTED = (
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m golden.run", description=__doc__)
     parser.add_argument("--setup", choices=("fake", "agentic"), required=True)
+    parser.add_argument("--no-trace", action="store_true", help="write no JSONL traces")
+    parser.add_argument(
+        "--trace-dir",
+        type=Path,
+        default=DEFAULT_TRACE_ROOT,
+        help="root of the traces; each run writes under a UTC-time directory "
+        f"(default {DEFAULT_TRACE_ROOT})",
+    )
     args = parser.parse_args(argv)
     if args.setup == "agentic":
         print(AGENTIC_REJECTED, file=sys.stderr)
         return 2
-    setup = FakeSetup()
+    setup: Setup = FakeSetup()
+    if not args.no_trace:
+        setup = TracingSetup(setup, run_directory(args.trace_dir))
     failed = 0
     for path in discover():
         warnings: tuple[Mismatch, ...] = ()
