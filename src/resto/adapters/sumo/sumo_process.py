@@ -71,15 +71,22 @@ def launch(tool: str, args: Sequence[str], cwd: Path, seed: int) -> LaunchResult
 
 
 def launch_harness(
-    script: Path, out_dir: Path, sumo_command: Sequence[str], timeout_s: float
+    script: Path,
+    out_dir: Path,
+    sumo_command: Sequence[str],
+    timeout_s: float,
+    dry_run: bool = False,
 ) -> LaunchResult:
     """Runs the script harness (`resto.adapters.sumo.script_harness`) in its own process group, so a
     timeout can kill the harness and the `sumo` it started. The message of a failure is the
-    harness's stderr, which holds the Python traceback.
+    harness's stderr, which holds the Python traceback. With `dry_run` the harness rehearses the
+    script and writes nothing.
 
     The caller has already checked `sumo_command[0]` with `checked_version`.
     """
     command = [sys.executable, "-m", "resto.adapters.sumo.script_harness"]
+    if dry_run:
+        command.append("--dry-run")
     command += [str(script), str(out_dir), *sumo_command]
     try:
         proc = subprocess.Popen(

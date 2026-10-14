@@ -36,7 +36,7 @@ from time import perf_counter
 from resto.adapters.persistence.filesystem import artifact_ref
 from resto.adapters.sumo.outputs import output_artifact, parse_kpis
 from resto.adapters.sumo.script_harness import APPLIED_ACTIONS_FILE, read_applied_actions
-from resto.adapters.sumo.script_translator import translate_script
+from resto.adapters.sumo.script_translator import check_script_structure, translate_script
 from resto.adapters.sumo.sumo_process import checked_version, launch, launch_harness
 from resto.adapters.sumo.writers.sumocfg import (
     parse_settings,
@@ -44,7 +44,7 @@ from resto.adapters.sumo.writers.sumocfg import (
     with_additional,
     write_edgedata_additional,
 )
-from resto.application.ports.sumo import RunOutput
+from resto.application.ports.sumo import DryRunOutcome, RunOutput
 from resto.domain.value_objects.artifact_ref import ArtifactRef
 from resto.domain.value_objects.traci_script import TraciScript
 
@@ -215,3 +215,24 @@ class SubprocessSumoRunner:
             )
         collected = collect_outputs(prepared, out_dir, wall_clock_s)
         return replace(collected, applied_actions=applied)
+
+    def dry_run(self, sumocfg: ArtifactRef, script: TraciScript, out_dir: Path) -> DryRunOutcome:
+        """Rehearses `script` against SUMO (seed 0, as in the load check) and stores nothing. The
+        error is SUMO's message or the harness's traceback."""
+        self.sumo_version()
+        out_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            prepared = prepare_run(sumocfg, 0, out_dir)
+        except InvalidScenarioCfg as exc:
+            return DryRunOutcome(ok=False, error=str(exc))
+        source = translate_script(script)
+        script_path = out_dir / SCRIPT_NAME
+        script_path.write_text(source, encoding="utf-8")
+        try:
+            check_script_structure(source, len(script.rules))
+        except ValueError as exc:
+            return DryRunOutcome(ok=False, error=str(exc))
+        launched = launch_harness(
+            script_path, out_dir, [self._sumo, *prepared.args], self._timeout_s, dry_run=True
+        )
+        return DryRunOutcome(ok=launched.ok, error=None if launched.ok else launched.message)

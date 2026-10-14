@@ -28,6 +28,7 @@ _at_time_rules: list[list[Any]] = []  # each: [t, action, fired]
 _when_rules: list[list[Any]] = []  # each: [condition, action, was_true]
 _current_origin: ActionOrigin = ActionOrigin.CODE
 _lane_permission_snapshots: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {}
+_step_limit: int | None = None  # harness-only, see set_step_limit
 
 
 def start(sumo_cmd: list[str]) -> None:
@@ -37,7 +38,8 @@ def start(sumo_cmd: list[str]) -> None:
     `close_lane` permission snapshot (see `open_lane`).
     """
     global _applied_actions, _at_time_rules, _when_rules, _current_origin
-    global _lane_permission_snapshots
+    global _lane_permission_snapshots, _step_limit
+    _step_limit = None
     _applied_actions = []
     _at_time_rules = []
     _when_rules = []
@@ -207,6 +209,28 @@ def _fire(action: Callable[[], Any]) -> None:
         _current_origin = ActionOrigin.CODE
 
 
+# --- harness-only hooks (ADR-0044) ---------------------------------------------------------
+# Not exported through `resto.traci_api`: a generated script cannot reach them. The dry run in
+# `adapters/sumo/script_harness.py` uses them.
+
+
+def set_step_limit(steps: int) -> None:
+    """Makes `run()` stop after `steps` steps, whatever `until` says. `start()` clears it."""
+    global _step_limit
+    _step_limit = steps
+
+
+def force_all_rules() -> None:
+    """Evaluates every registered `when` condition once and applies every registered action once,
+    whatever its trigger, so an id only SUMO can reject fails here. Actions log with
+    `origin = rule`, in registration order (`at_time` rules first, then `when` rules)."""
+    for _, action, _ in _at_time_rules:
+        _fire(action)
+    for condition, action, _ in _when_rules:
+        condition()
+        _fire(action)
+
+
 def run(until: float | None = None) -> None:
     """Steps the simulation, firing registered `at_time`/`when` rules, until `until` (simulation
     time) is reached - or, if `until` is None, until no more vehicles are expected
@@ -214,8 +238,10 @@ def run(until: float | None = None) -> None:
 
     Example: run(until=3600)  # or run() to drain the route file
     """
-    while _should_continue(until):
+    steps_taken = 0
+    while _should_continue(until) and (_step_limit is None or steps_taken < _step_limit):
         step()
+        steps_taken += 1
         now = traci.simulation.getTime()
         for rule in _at_time_rules:
             t, action, fired = rule

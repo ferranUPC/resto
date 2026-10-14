@@ -31,12 +31,20 @@ from resto.adapters.sumo.runner import (
 from resto.adapters.sumo.script_harness import APPLIED_ACTIONS_FILE
 from resto.adapters.sumo.writers.rerouter import RerouterWriter
 from resto.adapters.sumo.writers.sumocfg import SumocfgFileWriter, write_edgedata_additional
+from resto.application.ports.sumo import DryRunOutcome
 from resto.application.ports.writers import SimulationSettings
 from resto.domain.value_objects.artifact_ref import ArtifactRef
 from resto.domain.value_objects.intervention import Intervention, InterventionType
 from resto.domain.value_objects.intervention_target import LaneTarget
 from resto.domain.value_objects.time_window import TimeWindow
-from resto.domain.value_objects.traci_script import AtTime, CloseLane, Rule, SetSpeed, TraciScript
+from resto.domain.value_objects.traci_script import (
+    AtTime,
+    CloseLane,
+    Rule,
+    SetSpeed,
+    SetTlsProgram,
+    TraciScript,
+)
 
 DEV_NET_DIR = Path(__file__).resolve().parents[4] / "eval" / "dev-net"
 NET = DEV_NET_DIR / "dev-net.net.xml"
@@ -371,3 +379,49 @@ def test_a_timeout_fails_the_run_and_leaves_no_process_behind(
 def test_the_online_timeout_defaults_to_600_seconds() -> None:
     default = inspect.signature(SubprocessSumoRunner).parameters["timeout_s"].default
     assert default == 600.0
+
+
+def _tls_script(program_id: str, at: float) -> TraciScript:
+    return TraciScript(rules=(Rule(AtTime(at), SetTlsProgram("A2", program_id)),))
+
+
+def test_a_dry_run_of_a_valid_script_passes_and_leaves_no_result(
+    scenario_cfg: ArtifactRef, tmp_path: Path
+) -> None:
+    out_dir = tmp_path / "dry_run"
+
+    outcome = SubprocessSumoRunner().dry_run(scenario_cfg, ONLINE_SCRIPT, out_dir)
+
+    assert outcome == DryRunOutcome(ok=True, error=None)
+    assert not (out_dir / APPLIED_ACTIONS_FILE).exists()
+
+
+def test_a_dry_run_fails_with_sumos_message_for_an_unknown_tls_program(
+    scenario_cfg: ArtifactRef, tmp_path: Path
+) -> None:
+    outcome = SubprocessSumoRunner().dry_run(
+        scenario_cfg, _tls_script("no-such-program", BEGIN_S + 10), tmp_path / "dry_run"
+    )
+
+    assert outcome.ok is False
+    assert "no-such-program" in (outcome.error or "")
+
+
+def test_a_dry_run_catches_a_bad_id_in_a_rule_that_fires_after_the_fifty_steps(
+    scenario_cfg: ArtifactRef, tmp_path: Path
+) -> None:
+    outcome = SubprocessSumoRunner().dry_run(
+        scenario_cfg, _tls_script("no-such-program", END_S - 1), tmp_path / "dry_run"
+    )
+
+    assert outcome.ok is False
+    assert "no-such-program" in (outcome.error or "")
+
+
+def test_a_dry_run_times_out_as_a_failure(scenario_cfg: ArtifactRef, tmp_path: Path) -> None:
+    outcome = SubprocessSumoRunner(timeout_s=0.01).dry_run(
+        scenario_cfg, ONLINE_SCRIPT, tmp_path / "dry_run"
+    )
+
+    assert outcome.ok is False
+    assert "timed out" in (outcome.error or "")

@@ -83,6 +83,18 @@ class RunOutput:
             raise ValueError("a failed run must carry the SUMO error message")
 
 
+@dataclass(frozen=True, slots=True)
+class DryRunOutcome:
+    """What rehearsing a script against SUMO gave: ok, or SUMO's error (or the Python traceback)."""
+
+    ok: bool
+    error: str | None
+
+    def __post_init__(self) -> None:
+        if not self.ok and not self.error:
+            raise ValueError("a failed dry run must carry the error message")
+
+
 class SumoRunner(Protocol):
     def sumo_version(self) -> str:
         """The SUMO version this runner runs, known before a run because the result id hashes it."""
@@ -92,3 +104,8 @@ class SumoRunner(Protocol):
     def run_online(
         self, sumocfg: ArtifactRef, script: TraciScript, seed: int, out_dir: Path
     ) -> RunOutput: ...
+    def dry_run(self, sumocfg: ArtifactRef, script: TraciScript, out_dir: Path) -> DryRunOutcome:
+        """Rehearses `script` on `sumocfg` (seed 0): 50 steps of the real script, then every
+        condition evaluated once and every action applied once. Stores nothing; `out_dir` is
+        scratch space."""
+        ...

@@ -8,7 +8,7 @@ from collections.abc import Set as AbstractSet
 from pathlib import Path
 from typing import Any
 
-from resto.application.ports.sumo import RunOutput
+from resto.application.ports.sumo import DryRunOutcome, RunOutput
 from resto.domain.constants import SUMO_VERSION
 from resto.domain.value_objects.artifact_ref import ArtifactRef
 from resto.domain.value_objects.traci_script import TraciScript
@@ -70,6 +70,9 @@ class FakeRunner:
         self._default = default
         self._version = version
         self.calls: list[tuple[ArtifactRef, int, Path]] = []
+        self.dry_run_outcome = DryRunOutcome(ok=True, error=None)
+        # (sumocfg, script, out_dir, number of run_batch calls made before it)
+        self.dry_runs: list[tuple[ArtifactRef, TraciScript, Path, int]] = []
 
     def sumo_version(self) -> str:
         return self._version
@@ -84,3 +87,7 @@ class FakeRunner:
         self, sumocfg: ArtifactRef, script: TraciScript, seed: int, out_dir: Path
     ) -> RunOutput:
         raise AssertionError("not used")
+
+    def dry_run(self, sumocfg: ArtifactRef, script: TraciScript, out_dir: Path) -> DryRunOutcome:
+        self.dry_runs.append((sumocfg, script, out_dir, len(self.calls)))
+        return self.dry_run_outcome

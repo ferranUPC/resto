@@ -19,6 +19,7 @@ import pytest
 import traci
 
 from resto import traci_api
+from resto.adapters.sumo import traci_api as real
 from resto.domain.value_objects.applied_action import ActionOrigin
 
 DEV_NET = Path(__file__).resolve().parents[4] / "eval" / "dev-net" / "dev-net.net.xml"
@@ -213,3 +214,47 @@ def test_run_without_until_drains_the_route_file(session: None) -> None:
     traci_api.run()
 
     assert traci.simulation.getMinExpectedNumber() == 0
+
+
+# --- harness-only hooks (ADR-0044): step limit and forcing every rule ------------------------
+
+
+def test_the_step_limit_stops_run_after_that_many_steps(session: None) -> None:
+    real.set_step_limit(5)
+    start = traci.simulation.getTime()
+
+    traci_api.run()
+
+    assert traci.simulation.getTime() == pytest.approx(start + 5)
+
+
+def test_start_clears_the_step_limit() -> None:
+    real.set_step_limit(3)
+    traci_api.start(SUMO_CMD)
+    try:
+        traci_api.run(until=10)
+        assert traci.simulation.getTime() == pytest.approx(10.0)
+    finally:
+        traci_api.close()
+
+
+def test_forcing_applies_every_action_once_with_rule_origin_whatever_the_trigger(
+    session: None,
+) -> None:
+    traci_api.at_time(10_000_000, lambda: traci_api.close_lane("B0C0_1"))
+    traci_api.when(lambda: False, lambda: traci_api.set_speed("C0D0", 5.0))
+
+    real.force_all_rules()
+
+    actions = traci_api.applied_actions()
+    assert [(a.action, a.origin) for a in actions] == [
+        ("close_lane", ActionOrigin.RULE),
+        ("set_speed", ActionOrigin.RULE),
+    ]
+
+
+def test_forcing_evaluates_a_condition_so_a_bad_id_in_it_raises(session: None) -> None:
+    traci_api.when(lambda: traci_api.get_edge_speed("NO_SUCH_EDGE") > 1, lambda: None)
+
+    with pytest.raises(traci.TraCIException):
+        real.force_all_rules()

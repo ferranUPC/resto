@@ -289,3 +289,64 @@ def test_the_entry_point_exits_non_zero_with_the_traceback_when_the_script_raise
     assert "Traceback" in proc.stderr
     assert "no-such-program" in proc.stderr
     assert not (tmp_path / APPLIED_ACTIONS_FILE).exists()
+
+
+def _dry_run(sumo_cmd: list[str], out_dir: Path, *rules: Rule, read: Callable[[], Any]) -> Samples:
+    script = out_dir / "script.py"
+    script.write_text(translate_script(TraciScript(rules=rules)))
+    samples: Samples = {}
+
+    def record() -> bool:
+        samples[int(traci.simulation.getTime())] = read()
+        return False
+
+    def setup() -> None:
+        traci.trafficlight.setProgram(TLS, "0")
+        traci_api.when(record, lambda: None)
+
+    run_script(sumo_cmd, script, out_dir, setup=setup, dry_run=True)
+    return samples
+
+
+def test_a_dry_run_steps_fifty_times_forces_every_rule_and_writes_nothing(
+    sumo_cmd: list[str], tmp_path: Path
+) -> None:
+    samples = _dry_run(
+        sumo_cmd,
+        tmp_path,
+        Rule(AtTime(10 * BEGIN), SetSpeed(EDGE, 5.0)),
+        Rule(When(NEVER), CloseLane("B0C0", 1)),
+        read=_max_speed,
+    )
+
+    assert max(samples) == BEGIN + 50
+    assert not (tmp_path / APPLIED_ACTIONS_FILE).exists()
+
+
+def test_a_dry_run_applies_a_rule_that_would_fire_late_so_a_bad_id_in_it_raises(
+    sumo_cmd: list[str], tmp_path: Path
+) -> None:
+    script = tmp_path / "script.py"
+    script.write_text(
+        translate_script(
+            TraciScript(rules=(Rule(AtTime(10 * BEGIN), SetTlsProgram(TLS, "no-such-program")),))
+        )
+    )
+
+    with pytest.raises(traci.TraCIException, match="no-such-program"):
+        run_script(sumo_cmd, script, tmp_path, dry_run=True)
+
+
+def test_the_entry_point_dry_run_flag_exits_zero_and_writes_nothing(
+    sumo_cmd: list[str], tmp_path: Path
+) -> None:
+    script = tmp_path / "script.py"
+    script.write_text(translate_script(TraciScript(rules=(Rule(AtTime(T), SetSpeed(EDGE, 5.0)),))))
+    command = [sys.executable, "-m", "resto.adapters.sumo.script_harness", "--dry-run"]
+
+    proc = subprocess.run(
+        [*command, str(script), str(tmp_path), *sumo_cmd], capture_output=True, text=True
+    )
+
+    assert proc.returncode == 0, proc.stderr
+    assert not (tmp_path / APPLIED_ACTIONS_FILE).exists()
