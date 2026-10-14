@@ -2,6 +2,10 @@
 
 A short summary of what happened on each working day. The most recent entry comes first, and days with no activity have no entry. `daily-review` and `weekly-review` add the new entries.
 
+## 14.10.2026
+
+The golden-path framework (E9.1) is merged: GP-1 to GP-5 and GP-9 pass on the fake setup with 3 repetitions each, which meets milestone M3. The paths now assert the outcome (status, phases, simulations run) and not the sequence of steps (r20, ADR-0043). The online Runner (E2.5) is merged: a script is a list of typed rules and code writes the Python (ADR-0044), with 10 script cases and 20 byte-identical online runs. The Network Author (E6.1) has tickets 02 to 08 on its branch and is not merged.
+
 ## 13.10.2026
 
 Work focused on refactors across the application layer. Use cases are classes with their dependencies in the constructor (r21, ADR-0040), and `build_deps` and the placeholders moved to `interface/dependencies.py`. The Study owns its lifecycle (r23, ADR-0041), and the reuse rules for seeds, stored scenarios and a specialist's `Found` now live in `domain/services/reuse.py`. E9.1 is still unmerged.
