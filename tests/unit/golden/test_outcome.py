@@ -87,7 +87,8 @@ def test_the_network_is_the_first_one_of_the_study() -> None:
     setup = FakeSetup({"throwaway": SCRIPT})
     study = setup.run(_path(ExpectedOutcome())).study
 
-    assert observe_outcome(study) == ObservedOutcome(StudyResolution.COMPLETED, NETWORK)
+    observed = observe_outcome(study)
+    assert (observed.resolution, observed.network_id) == (StudyResolution.COMPLETED, NETWORK)
 
 
 class _Wobbly:

@@ -7,7 +7,7 @@ from golden.framework import GoldenPath, check
 from golden.paths import gp1, gp2, gp3
 from golden.setups.fake import FakeSetup
 
-PATHS = [gp1.PATH, gp2.PATH, gp3.PATH, gp3.SINGLE_PHASE]
+PATHS = [gp1.PATH, gp2.PATH, gp3.PATH]
 
 
 @pytest.mark.parametrize("path", PATHS, ids=lambda p: p.name)

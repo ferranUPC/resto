@@ -30,9 +30,12 @@ from golden.framework.expected import (
 )
 from golden.framework.observed import ObservedPhase, observe
 from golden.framework.outcome import (
+    ExpectedAnswer,
+    ExpectedKpi,
     ExpectedOutcome,
     ExpectedResolution,
     NetworkExpectation,
+    ObservedAnswer,
     ObservedOutcome,
     SameNetworkId,
     Severity,
@@ -42,6 +45,8 @@ from golden.framework.setup import Run, Setup, check
 
 __all__ = [
     "Diff",
+    "ExpectedAnswer",
+    "ExpectedKpi",
     "ExpectedOutcome",
     "ExpectedPhase",
     "ExpectedResolution",
@@ -50,6 +55,7 @@ __all__ = [
     "GoldenPath",
     "Mismatch",
     "NetworkExpectation",
+    "ObservedAnswer",
     "ObservedOutcome",
     "SameNetworkId",
     "Severity",

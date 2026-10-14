@@ -7,10 +7,13 @@ Definitions hold plain values only, never agent output.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from enum import StrEnum
 
 from resto.domain.entities.study import Study, StudyResolution
+from resto.domain.value_objects.answer_value import AnswerValue, Measure
+from resto.domain.value_objects.expert_answer import Basis
 
 
 class Severity(StrEnum):
@@ -41,9 +44,58 @@ NetworkExpectation = SameNetworkId
 
 
 @dataclass(frozen=True, slots=True)
+class ExpectedKpi:
+    """One value the Expert must give: a measure in its scope (network-wide, or an edge with its
+    network, as `Quantity` requires), a `reference` from a solution by hand and a relative
+    `tolerance`. A value passes when `|value - reference| <= tolerance * |reference|`."""
+
+    measure: Measure
+    reference: float
+    tolerance: float
+    edge_id: str | None = None
+    network_id: str | None = None
+    severity: Severity = Severity.HARD
+
+    def __post_init__(self) -> None:
+        if not math.isfinite(self.reference):
+            raise ValueError("a KPI reference must be finite")
+        if not math.isfinite(self.tolerance) or self.tolerance < 0:
+            raise ValueError("a KPI tolerance must be a finite relative value >= 0")
+        if self.measure.is_network_wide and (self.edge_id or self.network_id):
+            raise ValueError(f"{self.measure} is network-wide: it names no edge or network")
+        if not self.measure.is_network_wide and not (self.edge_id and self.network_id):
+            raise ValueError(f"{self.measure} is per edge: name the edge and its network")
+
+    def accepts(self, value: float) -> bool:
+        limit = self.tolerance * abs(self.reference)
+        return abs(value - self.reference) <= limit * (1 + 1e-9)
+
+
+@dataclass(frozen=True, slots=True)
+class ExpectedAnswer:
+    """The final Expert answer: its KPIs, plus `basis` and `forced_by_limit` when the golden path
+    fixes them (`None` is not compared)."""
+
+    kpis: tuple[ExpectedKpi, ...] = ()
+    basis: Basis | None = None
+    forced_by_limit: bool | None = None
+    severity: Severity = Severity.HARD
+
+
+@dataclass(frozen=True, slots=True)
 class ExpectedOutcome:
     resolution: ExpectedResolution | None = None
     network: NetworkExpectation | None = None
+    answer: ExpectedAnswer | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ObservedAnswer:
+    """The typed values and flags of the last Expert round that did not abstain. Never the prose."""
+
+    values: tuple[AnswerValue, ...]
+    basis: Basis
+    forced_by_limit: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,7 +104,20 @@ class ObservedOutcome:
 
     resolution: StudyResolution | None
     network_id: str | None
+    answer: ObservedAnswer | None = None
+
+
+def _final_answer(study: Study) -> ObservedAnswer | None:
+    for held in reversed(study.rounds):
+        if not held.answer.needs_simulation:
+            a = held.answer
+            return ObservedAnswer(a.values, a.basis, held.forced_by_limit)
+    return None
 
 
 def observe_outcome(study: Study) -> ObservedOutcome:
-    return ObservedOutcome(study.resolution, study.network_ids[0] if study.network_ids else None)
+    return ObservedOutcome(
+        study.resolution,
+        study.network_ids[0] if study.network_ids else None,
+        _final_answer(study),
+    )

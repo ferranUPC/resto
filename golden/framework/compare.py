@@ -7,9 +7,17 @@ from dataclasses import dataclass
 
 from golden.framework.expected import ExpectedPhase, ExpectedTrace
 from golden.framework.observed import ObservedPhase
-from golden.framework.outcome import ExpectedOutcome, ObservedOutcome, Severity
+from golden.framework.outcome import (
+    ExpectedAnswer,
+    ExpectedKpi,
+    ExpectedOutcome,
+    ObservedAnswer,
+    ObservedOutcome,
+    Severity,
+)
 from resto.application.ports.tracing import TraceEvent
 from resto.domain.entities.study import StudyResolution
+from resto.domain.value_objects.answer_value import Quantity
 
 _ATTRIBUTES = ("arms", "reused", "basis", "forced_by_limit", "round")
 
@@ -105,4 +113,42 @@ def compare_outcome(expected: ExpectedOutcome, observed: ObservedOutcome) -> Dif
         )
     if (n := expected.network) is not None and n.network_id != observed.network_id:
         found.append(Mismatch(None, "network", n.network_id, observed.network_id, n.severity))
+    if (a := expected.answer) is not None:
+        found += _answer(a, observed.answer)
     return Diff(tuple(found))
+
+
+def _kpi_label(kpi: ExpectedKpi) -> str:
+    where = f" on {kpi.network_id}/{kpi.edge_id}" if kpi.edge_id else ""
+    return f"answer, {kpi.measure.value}{where}"
+
+
+def _kpi(kpi: ExpectedKpi, answer: ObservedAnswer | None) -> Mismatch | None:
+    want = f"{kpi.reference:g} {kpi.measure.unit} +-{kpi.tolerance:.0%}"
+    given = [
+        v.value
+        for v in (answer.values if answer else ())
+        if isinstance(v, Quantity)
+        and (v.measure, v.edge_id, v.network_id) == (kpi.measure, kpi.edge_id, kpi.network_id)
+    ]
+    if not given:
+        return Mismatch(None, _kpi_label(kpi), want, "not given", kpi.severity)
+    if any(kpi.accepts(v) for v in given):
+        return None
+    return Mismatch(None, _kpi_label(kpi), want, f"{given[0]:g} {kpi.measure.unit}", kpi.severity)
+
+
+def _answer(expected: ExpectedAnswer, observed: ObservedAnswer | None) -> list[Mismatch]:
+    """The KPIs, `basis` and `forced_by_limit` the golden path sets. With no final answer
+    (the study never got one) every set item is reported as missing."""
+    found = [m for k in expected.kpis if (m := _kpi(k, observed)) is not None]
+    for name in ("basis", "forced_by_limit"):
+        wanted = getattr(expected, name)
+        if wanted is None:
+            continue
+        got = getattr(observed, name) if observed is not None else None
+        if wanted != got:
+            found.append(
+                Mismatch(None, f"answer, {name}", _show(wanted), _show(got), expected.severity)
+            )
+    return found

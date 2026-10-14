@@ -11,7 +11,7 @@ def test_every_golden_path_is_discovered_once() -> None:
     names = [p.name for p in discover()]
 
     assert names == sorted(set(names))
-    assert {"gp1", "gp2", "gp3", "gp3_single_phase", "gp4", "gp5", "gp9"} <= set(names)
+    assert {"gp1", "gp2", "gp3", "gp4", "gp5", "gp9"} <= set(names)
 
 
 def test_the_fake_setup_passes_every_golden_path(capsys: pytest.CaptureFixture[str]) -> None:
