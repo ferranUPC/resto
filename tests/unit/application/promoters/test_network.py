@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 
 from resto.adapters.sumo.netconvert import SubprocessNetconvertRunner
+from resto.adapters.sumo.plain_edit import XmlPlainNetEditor
 from resto.application.ports.llm import AgentRun, StopReason
 from resto.application.promoters.network import NetworkPromoter
 from resto.application.promotion import Blame, DraftRejected, RunWithoutDraft
@@ -21,7 +22,13 @@ from resto.domain.value_objects.network_source import GridNetwork
 from resto.domain.value_objects.sanity_report import SanityReport
 from resto.domain.value_objects.step_record import Usage
 from resto.domain.value_objects.tasks import NetworkTask, ObtainNetworkTask
-from resto.domain.value_objects.topology_modification import SetSpeed, TopologyModification
+from resto.domain.value_objects.topology_modification import (
+    AddEdge,
+    RemoveEdge,
+    SetLanes,
+    SetSpeed,
+    TopologyModification,
+)
 from tests.unit.domain._fixtures import bad_sanity, good_sanity, network_draft
 
 RUNNER = SubprocessNetconvertRunner()
@@ -182,3 +189,66 @@ def test_a_derivation_must_start_from_the_task_base_network(tmp_path: Path) -> N
 
     with pytest.raises(DraftRejected, match="base"):
         promoter().promote(run_of(draft), task, base.net_xml)
+
+
+ALL_EDITS: tuple[TopologyModification, ...] = (
+    RemoveEdge("A0A1"),
+    AddEdge("A0", "C2", lanes=2, speed=11.11, edge_id="shortcut"),
+    SetLanes("B0B1", 2),
+    SetSpeed("B0C0", 8.33),
+)
+
+
+def real_derived_draft(
+    tmp_path: Path, base: Network, edits: tuple[TopologyModification, ...]
+) -> NetworkDraft:
+    """What the edit tools leave behind: the base exported, edited with the real editor, rebuilt."""
+    plain = RUNNER.export_plain(base.net_xml, tmp_path / "plain")
+    for edit in edits:
+        XmlPlainNetEditor().apply(plain, edit)
+    built = RUNNER.build(None, plain, (), tmp_path / "derived")
+    recipe = NetworkRecipe(base_network_id=base.network_id, plain_edits=edits)
+    return network_draft(recipe=recipe, net_artifact=built)
+
+
+def test_the_four_edits_replay_to_the_same_hash_and_the_derived_network_points_at_its_base(
+    tmp_path: Path,
+) -> None:
+    base = stored_base(tmp_path)
+    draft = real_derived_draft(tmp_path, base, ALL_EDITS)
+    task = NetworkTask(base_network_id=base.network_id, max_rounds=2)
+
+    network = NetworkPromoter(RUNNER, XmlPlainNetEditor()).promote(
+        run_of(draft), task, base.net_xml
+    )
+
+    assert network.derived_from == base.network_id
+    assert network.network_id == draft.net_artifact.content_hash != base.network_id
+    assert network.recipe.plain_edits == ALL_EDITS
+
+
+def test_each_edit_changes_the_network_it_derives(tmp_path: Path) -> None:
+    base = stored_base(tmp_path)
+    hashes = {
+        real_derived_draft(tmp_path / str(i), base, (edit,)).net_artifact.content_hash
+        for i, edit in enumerate(ALL_EDITS)
+    }
+
+    assert len(hashes) == len(ALL_EDITS)
+    assert base.network_id not in hashes
+
+
+def test_a_recipe_with_an_edit_that_cannot_apply_is_rejected_not_approximated(
+    tmp_path: Path,
+) -> None:
+    base = stored_base(tmp_path)
+    draft = real_derived_draft(tmp_path, base, (SetSpeed("B0C0", 8.33),))
+    bad = replace(draft.recipe, plain_edits=(AddEdge("A0", "Z9", lanes=1, speed=8.0),))
+    task = NetworkTask(base_network_id=base.network_id, max_rounds=2)
+
+    with pytest.raises(DraftRejected, match="add_node") as rejected:
+        NetworkPromoter(RUNNER, XmlPlainNetEditor()).promote(
+            run_of(replace(draft, recipe=bad)), task, base.net_xml
+        )
+
+    assert rejected.value.blame is Blame.AGENT
