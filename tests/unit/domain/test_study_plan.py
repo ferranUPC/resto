@@ -3,8 +3,8 @@ from typing import get_args
 
 import pytest
 
-from resto.domain.entities.study import Phase
 from resto.domain.value_objects.experiment import Experiment, ExperimentRole
+from resto.domain.value_objects.phase import Phase
 from resto.domain.value_objects.question import Intent, Question
 from resto.domain.value_objects.step_record import StepRecord, StepStatus
 from resto.domain.value_objects.study_plan import (

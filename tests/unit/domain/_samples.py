@@ -18,7 +18,7 @@ from resto.domain.entities.expert_note import ExpertNote, NoteStatus, Provenance
 from resto.domain.entities.network import Network
 from resto.domain.entities.scenario import Scenario
 from resto.domain.entities.simulation_result import RunMode, RunStatus, SimulationResult
-from resto.domain.entities.study import Phase, Study, StudyResolution, StudyStage
+from resto.domain.entities.study import Study, StudyResolution, StudyStage
 from resto.domain.events import (
     ExpertRoundHeld,
     NetworksAdded,
@@ -100,6 +100,7 @@ from resto.domain.value_objects.outcomes import (
     SeveralCandidates,
     WindowMissing,
 )
+from resto.domain.value_objects.phase import Phase
 from resto.domain.value_objects.probe_report import ProbeReport
 from resto.domain.value_objects.question import Intent, Mode, Question
 from resto.domain.value_objects.report import Claim, Report, ReportSection

@@ -4,7 +4,7 @@ import dataclasses
 from pathlib import Path
 from typing import Any
 
-from resto.domain.entities.study import Phase, Study, StudyResolution, StudyStage
+from resto.domain.entities.study import Study, StudyResolution, StudyStage
 from resto.domain.value_objects.answer_value import Edges
 from resto.domain.value_objects.arm import BASE_ARM
 from resto.domain.value_objects.artifact_ref import ArtifactRef
@@ -25,6 +25,7 @@ from resto.domain.value_objects.intervention_target import LaneTarget
 from resto.domain.value_objects.mechanism import RegenerateDemandMechanism
 from resto.domain.value_objects.network_recipe import NetworkRecipe
 from resto.domain.value_objects.network_source import NetworkSource
+from resto.domain.value_objects.phase import Phase
 from resto.domain.value_objects.probe_report import ProbeReport
 from resto.domain.value_objects.question import Intent, Question
 from resto.domain.value_objects.report import Report
