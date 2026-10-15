@@ -32,15 +32,14 @@ class DeriveNetworkExecutor:
             probe_teleport_threshold=step.probe_teleport_threshold,
             max_rounds=self.max_rounds if step.max_rounds is None else step.max_rounds,
         )
-        run = ctx.spend.agent_call(lambda: self.author.author(task))
-        draft_of(run, "network_author")
         base = self.networks.get(task.base_network_id)
         if base is None:
             fail(
                 StepErrorKind.INFRASTRUCTURE,
                 f"base network {task.base_network_id!r} is not stored",
-                usage=run.usage,
             )
+        run = ctx.spend.agent_call(lambda: self.author.author(task))
+        draft_of(run, "network_author")
         network = promote(lambda: self.promoter.promote(run, task, base.net_xml), run.usage)
         self.networks.store(network)
         return ctx.record(step, (network.network_id,), run.usage)

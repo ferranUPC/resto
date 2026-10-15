@@ -5,7 +5,6 @@ with whole ways and their nodes; cutting to the polygon happens later, in `netco
 
 from __future__ import annotations
 
-import hashlib
 import json
 import re
 from pathlib import Path
@@ -14,6 +13,7 @@ from urllib.parse import urlencode
 from resto.adapters.osm.http import request
 from resto.adapters.persistence.filesystem import artifact_ref
 from resto.application.ports.osm import ExternalServiceError, OsmLimits
+from resto.domain.services.content_hash import work_key
 from resto.domain.services.geo import ring_of
 from resto.domain.value_objects.artifact_ref import ArtifactRef
 from resto.domain.value_objects.network_source import BBox, Polygon
@@ -77,7 +77,7 @@ class OverpassOsmSource:
 
 def _polygon_key(ring: tuple[tuple[float, float], ...]) -> str:
     """Hash of the ring alone: the same polygon from a geocoder or typed by hand is one snapshot."""
-    return hashlib.sha256(json.dumps(ring).encode()).hexdigest()[:16]
+    return work_key(json.dumps(ring))
 
 
 def _check_answer(body: bytes) -> None:

@@ -31,7 +31,7 @@ from typing import Any, cast
 
 from resto.application.ports.llm import AgentRun, AgentTask, Budget, Tool, ToolAgent
 from resto.application.ports.network_probe import NetworkProber
-from resto.application.ports.network_query import EnumerableNetworkQuery
+from resto.application.ports.network_query import EnumerableNetworkQuery, NetworkNotStored
 from resto.application.ports.osm import ExternalServiceError, Geocoder, OsmLimits, OsmSource
 from resto.application.ports.repositories import NetworkRepository
 from resto.application.ports.sumo import NetconvertRunner, PlainNetEditor
@@ -48,6 +48,7 @@ from resto.application.tools.network_inspection import (
     InspectionRun,
     build_network_inspection_tools,
 )
+from resto.domain.services.content_hash import short_hash
 from resto.domain.value_objects.drafts import NetworkDraft
 from resto.domain.value_objects.outcomes import NetworkOutcome
 from resto.domain.value_objects.tasks import NetworkTask, ObtainNetworkTask
@@ -210,14 +211,16 @@ class NetworkAuthorPort:
         c = self.collaborators
         base = c.networks.get(task.base_network_id)
         if base is None:
-            raise LookupError(f"base network {task.base_network_id!r} is not stored")
+            raise NetworkNotStored(f"base network {task.base_network_id!r} is not stored")
         tools = (
             *build_network_edit_tools(EditRun(c.runner, c.editor, self._work_dir)),
             *build_network_inspection_tools(self._inspection()),
         )
         agent_input = _task_input(task, c.limits)
         # the inspection tools read only inside the working directory, so the agent gets a copy
-        shown = self._work_dir / "base" / base.net_xml.content_hash[:16] / base.net_xml.path.name
+        shown = (
+            self._work_dir / "base" / short_hash(base.net_xml.content_hash) / base.net_xml.path.name
+        )
         shown.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(base.net_xml.path, shown)
         agent_input["base_net"] = artifact_json(replace(base.net_xml, path=shown))

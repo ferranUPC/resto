@@ -29,6 +29,7 @@ from resto.application.ports.llm import Tool
 from resto.application.ports.network_probe import NetworkProber
 from resto.application.ports.network_query import EnumerableNetworkQuery
 from resto.application.tools.declaration import artifact_json, tool
+from resto.domain.services.content_hash import work_key
 from resto.domain.value_objects.artifact_ref import ArtifactRef
 
 __all__ = [
@@ -131,8 +132,8 @@ def probe_run(
 ) -> Mapping[str, Any]:
     path = _inside(ctx, net_path)
     net = ArtifactRef(path, hashlib.sha256(path.read_bytes()).hexdigest(), "net")
-    key = f"{net.content_hash}-{seed}-{vehicles}-{duration_s}".encode()
-    run_dir = ctx.out_dir / "probes" / hashlib.sha256(key).hexdigest()[:16]
+    key = f"{net.content_hash}-{seed}-{vehicles}-{duration_s}"
+    run_dir = ctx.out_dir / "probes" / work_key(key)
     report = ctx.prober.probe(net, seed, vehicles, duration_s, run_dir)
     return {
         "teleports": report.teleports,

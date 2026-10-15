@@ -15,6 +15,7 @@ import pytest
 import sumolib.net
 
 from resto.adapters.llm.agents.network_author import NetworkAuthorCollaborators, NetworkAuthorPort
+from resto.adapters.persistence.memory import InMemoryNetworkRepository
 from resto.adapters.sumo.netconvert import SubprocessNetconvertRunner
 from resto.adapters.sumo.network_probe import SumoNetworkProber
 from resto.adapters.sumo.netxml import SumolibNetworkQuery
@@ -22,7 +23,9 @@ from resto.adapters.sumo.plain_edit import XmlPlainNetEditor
 from resto.adapters.sumo.runner import SubprocessSumoRunner
 from resto.adapters.sumo.typemaps import typemap_dir
 from resto.application.ports.llm import AgentTask, Budget, Tool
+from resto.application.ports.network_query import NetworkNotStored
 from resto.application.ports.osm import ExternalServiceError, OsmLimits
+from resto.application.ports.repositories import NetworkRepository
 from resto.application.promoters.network import NetworkPromoter
 from resto.application.run_study.steps.derive_network import DeriveNetworkExecutor
 from resto.application.run_study.steps.obtain_network import ObtainNetworkExecutor
@@ -97,7 +100,9 @@ class Setup:
         limits: OsmLimits | None = None,
         stored: Sequence[Network] = (),
         question: Question = NETWORK_ONLY,
+        derive_from: NetworkRepository | None = None,
     ) -> None:
+        self._derive_from = derive_from
         self.osm = osm or FakeOsmSource()
         self.world = World(
             tmp_path / "world", plans=(plan,), question=question, expert=(answers(),)
@@ -133,7 +138,9 @@ class Setup:
         steps = {
             **run_study.steps,
             ObtainNetworkStep: ObtainNetworkExecutor(self.agent, self.world.networks, promoter, 5),
-            DeriveNetworkStep: DeriveNetworkExecutor(self.agent, self.world.networks, promoter, 5),
+            DeriveNetworkStep: DeriveNetworkExecutor(
+                self.agent, self._derive_from or self.world.networks, promoter, 5
+            ),
         }
         return replace(run_study, steps=steps).execute("the user's text")
 
@@ -611,7 +618,46 @@ def test_each_edit_derives_a_network_that_points_at_its_base(
     assert ("A0A1" in edges) is (tool != "remove_edge")
 
 
-def test_an_edit_that_needs_a_junction_lists_the_tool_that_was_missing(tmp_path: Path) -> None:
+def test_a_base_network_that_is_not_stored_is_a_typed_error_of_the_port(tmp_path: Path) -> None:
+    setup = Setup(tmp_path, grid_script, plan=obtain_plan())
+
+    with pytest.raises(NetworkNotStored, match="ghost"):
+        setup.agent.author(NetworkTask("ghost", max_rounds=5))
+
+
+def test_a_derivation_whose_base_is_not_stored_fails_before_the_agent_is_called(
+    tmp_path: Path,
+) -> None:
+    base = stored_grid(tmp_path, 3, "base")
+    calls: list[AgentTask] = []
+
+    def script(task: AgentTask, tools: Sequence[Tool]) -> Any:
+        calls.append(task)
+        if "network_ref" in task.input:
+            return resolve_by_label(task, tools)
+        raise AssertionError("the derivation must not reach the agent")
+
+    setup = Setup(
+        tmp_path,
+        script,
+        plan=derive_plan("base", AddEdge("A0", "Z9", lanes=1, speed=13.9)),
+        stored=[base],
+        derive_from=InMemoryNetworkRepository(),
+    )
+
+    study = setup.run()
+
+    assert study.resolution is StudyResolution.FAILED
+    failed = study.phases[0].failed_step
+    assert failed is not None and failed.tool == "derive_network"
+    assert failed.error is not None and failed.error.kind is StepErrorKind.INFRASTRUCTURE
+    assert base.network_id in failed.error.message
+    assert len(calls) == 1
+
+
+def test_an_edit_that_needs_a_junction_lists_the_tool_the_tool_that_was_missing(
+    tmp_path: Path,
+) -> None:
     base = stored_grid(tmp_path, 3, "base")
     modification = AddEdge("A0", "Z9", lanes=1, speed=13.9)
 

@@ -14,4 +14,8 @@ class NetworkAuthorAgent(Protocol):
 
     def obtain(self, task: ObtainNetworkTask) -> AgentRun[NetworkOutcome]: ...
 
-    def author(self, task: NetworkTask) -> AgentRun[NetworkDraft]: ...
+    def author(self, task: NetworkTask) -> AgentRun[NetworkDraft]:
+        """Raises:
+        NetworkNotStored: `task.base_network_id` names no stored network.
+        """
+        ...

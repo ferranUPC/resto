@@ -1,4 +1,4 @@
-"""The Network Author's `probe_run` (ADR-0045 §1): light random demand on a network, to see whether
+"""The Network Author's `probe_run` (ADR-0045): light random demand on a network, to see whether
 it jams, teleports or collides. A probe is a check on a draft, not a result, so this port has no
 repository and nothing it does reaches the results store."""
 

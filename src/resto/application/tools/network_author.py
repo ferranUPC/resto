@@ -13,7 +13,6 @@ the same request gives the same file and two requests never overwrite each other
 
 from __future__ import annotations
 
-import hashlib
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -25,6 +24,7 @@ from resto.application.ports.llm import Tool
 from resto.application.ports.repositories import NetworkRepository
 from resto.application.ports.sumo import NetconvertRunner
 from resto.application.tools.declaration import artifact_json, tool
+from resto.domain.services.content_hash import work_key
 from resto.domain.value_objects.network_source import (
     GeneratedNetwork,
     GridNetwork,
@@ -83,7 +83,7 @@ def build_find_network_tool(ctx: NetworkCatalog) -> Tool:
 
 
 def _generate(ctx: AuthorRun, source: GeneratedNetwork) -> Mapping[str, Any]:
-    digest = hashlib.sha256(repr(source).encode()).hexdigest()[:16]
+    digest = work_key(repr(source))
     net = ctx.runner.generate(source, ctx.out_dir / "generated" / digest)
     return {
         "source": asdict(source),

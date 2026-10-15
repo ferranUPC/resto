@@ -1,4 +1,4 @@
-"""What the Network Author can say about a network without simulating it (ADR-0045 §8): a bounded
+"""What the Network Author can say about a network without simulating it: a bounded
 summary, one edge, and the `SanityReport`.
 
 Every function reads through `EnumerableNetworkQuery` and returns plain values. The graph is the

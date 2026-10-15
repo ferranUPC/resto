@@ -205,7 +205,7 @@ def test_probe_run_writes_only_under_its_own_directory(tmp_path: Path) -> None:
 
 
 def test_nothing_that_probe_run_uses_can_reach_a_results_store() -> None:
-    """A probe is a check on a draft, not a result (ADR-0045 §1): neither the tool's context nor
+    """A probe is a check on a draft, not a result (ADR-0045): neither the tool's context nor
     the prober is given a repository, so there is nothing for `probe_run` to write a result to."""
     holders = (InspectionRun, SumoNetworkProber)
     for holder in holders:

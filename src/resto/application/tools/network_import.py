@@ -38,6 +38,7 @@ from resto.application.ports.llm import Tool
 from resto.application.ports.osm import Geocoder, OsmLimits, OsmSource
 from resto.application.ports.sumo import NetconvertRunner
 from resto.application.tools.declaration import artifact_json, tool
+from resto.domain.services.content_hash import short_hash
 from resto.domain.services.geo import area_km2
 from resto.domain.value_objects.artifact_ref import ArtifactRef
 from resto.domain.value_objects.network_source import BBox, PlaceName, Polygon
@@ -67,6 +68,9 @@ class ImportRun:
     typemap_dir: Path
     limits: OsmLimits = field(default_factory=OsmLimits)
     imports: dict[str, _Import] = field(default_factory=dict)
+
+
+_ONE_AREA = "name the area with exactly one of bbox, polygon or place_name"
 
 
 def _needs_user(needs: NeedsUser) -> Mapping[str, Any]:
@@ -131,15 +135,16 @@ def fetch_osm(
 ) -> Mapping[str, Any]:
     named = [x for x in (bbox, polygon, place_name) if x is not None]
     if len(named) != 1:
-        raise ValueError("name the area with exactly one of bbox, polygon or place_name")
+        raise ValueError(_ONE_AREA)
     request: BBox | Polygon | PlaceName
     if bbox is not None:
         request = BBox(south=bbox[0], west=bbox[1], north=bbox[2], east=bbox[3])
     elif polygon is not None:
         request = Polygon(tuple((lat, lon) for lat, lon in polygon))
-    else:
-        assert place_name is not None
+    elif place_name is not None:
         request = PlaceName(place_name)
+    else:
+        raise ValueError(_ONE_AREA)
     area = resolve_area(request, tuple(requirements), ctx.geocoder, ctx.limits)
     if isinstance(area, NeedsUser):
         return _needs_user(area)
@@ -152,7 +157,9 @@ def _build(ctx: ImportRun, key: str, state: _Import) -> Mapping[str, Any]:
     options = netconvert_options(
         profile_named(state.profile), state.area, ctx.typemap_dir, state.cleanups
     )
-    net = ctx.runner.build(state.snapshot, None, options, ctx.out_dir / "imported" / key[:16])
+    net = ctx.runner.build(
+        state.snapshot, None, options, ctx.out_dir / "imported" / short_hash(key)
+    )
     ctx.imports[key] = state
     return {
         "source": asdict(state.area),

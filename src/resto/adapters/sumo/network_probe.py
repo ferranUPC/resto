@@ -1,4 +1,4 @@
-"""`NetworkProber` over the shared `SumoRunner` (ADR-0045 §1).
+"""`NetworkProber` over the shared `SumoRunner` (ADR-0045).
 
 The demand is `vehicles` trips between random pairs of passenger edges that a route joins, drawn
 from the seed and departing in the first third of the run, so the same seed gives the same demand.

@@ -12,7 +12,6 @@ dataclass, before SUMO runs.
 
 from __future__ import annotations
 
-import hashlib
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -23,6 +22,7 @@ from pydantic import Field
 from resto.application.ports.llm import Tool
 from resto.application.ports.sumo import NetconvertRunner, PlainNetEditor, UnresolvableEdit
 from resto.application.tools.declaration import artifact_json, tool
+from resto.domain.services.content_hash import work_key
 from resto.domain.value_objects.artifact_ref import ArtifactRef
 from resto.domain.value_objects.topology_modification import (
     AddEdge,
@@ -53,7 +53,7 @@ def _edit(
     ctx: EditRun, net_path: str, net_hash: str, modification: TopologyModification
 ) -> Mapping[str, Any]:
     net = ArtifactRef(Path(net_path), net_hash, "net")
-    digest = hashlib.sha256(f"{net_hash}{modification!r}".encode()).hexdigest()[:16]
+    digest = work_key(f"{net_hash}{modification!r}")
     work = ctx.out_dir / "edits" / digest
     plain = ctx.runner.export_plain(net, work / "plain")
     try:

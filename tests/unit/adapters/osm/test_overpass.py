@@ -138,3 +138,17 @@ def test_a_service_slower_than_the_timeout_names_overpass(tmp_path: Path) -> Non
             source.fetch(AREA, tmp_path)
 
     assert raised.value.service == "overpass"
+
+
+def test_the_overpass_timeout_of_the_limits_bounds_the_client_wait_too(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("resto.adapters.osm.overpass._CLIENT_MARGIN_S", 0.2)
+    with fake_service() as service:
+        service.answer(Reply(OSM.body, delay_s=2.0))
+        source = OverpassOsmSource(base_url=service.url, limits=OsmLimits(overpass_timeout_s=1))
+
+        with pytest.raises(ExternalServiceError) as raised:
+            source.fetch(AREA, tmp_path)
+
+    assert raised.value.service == "overpass"
