@@ -7,9 +7,10 @@ from dataclasses import dataclass
 from resto.application.ports.agents.network_author import NetworkAuthorAgent
 from resto.application.ports.repositories import NetworkRepository
 from resto.application.promoters.network import NetworkPromoter
-from resto.application.run_study.failures import draft_of, promote
+from resto.application.run_study.failures import draft_of, fail, promote
 from resto.application.run_study.steps import StepContext
 from resto.domain.entities.study import Transition
+from resto.domain.value_objects.step_record import StepErrorKind
 from resto.domain.value_objects.study_plan import DeriveNetworkStep
 from resto.domain.value_objects.tasks import NetworkTask
 
@@ -31,8 +32,14 @@ class DeriveNetworkExecutor:
             probe_teleport_threshold=step.probe_teleport_threshold,
             max_rounds=self.max_rounds if step.max_rounds is None else step.max_rounds,
         )
+        base = self.networks.get(task.base_network_id)
+        if base is None:
+            fail(
+                StepErrorKind.INFRASTRUCTURE,
+                f"base network {task.base_network_id!r} is not stored",
+            )
         run = ctx.spend.agent_call(lambda: self.author.author(task))
         draft_of(run, "network_author")
-        network = promote(lambda: self.promoter.promote(run, task), run.usage)
+        network = promote(lambda: self.promoter.promote(run, task, base.net_xml), run.usage)
         self.networks.store(network)
         return ctx.record(step, (network.network_id,), run.usage)

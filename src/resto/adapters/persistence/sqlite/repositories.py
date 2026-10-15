@@ -143,7 +143,7 @@ class SqliteNetworkRepository:
                 (
                     network.network_id,
                     data_json.decode("utf-8"),
-                    network.recipe.source.value if network.recipe.source else None,
+                    network.recipe.source_key,
                     network.derived_from,
                     network.label,
                 ),

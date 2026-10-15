@@ -1,28 +1,39 @@
 """The composition root (ADR-0025 §6, ADR-0042 §14): the one place where the study's agent ports
 meet their implementations and the infrastructure is bound.
 
-Agents that do not exist yet (Network Author, E6.1; Demand Generator, E7.1) are `_Pending`
-placeholders that raise `NotImplementedError`; so do the promoters of their drafts and of a reroute
-(`NetworkPromoter`, `DemandPromoter`, `ReroutePromoter`) until those tasks build them.
+The Demand Generator (E7.1) is a `_Pending` placeholder that raises `NotImplementedError`; so are
+the promoters of its drafts and of a reroute (`DemandPromoter`, `ReroutePromoter`) until those tasks
+build them. The Network Author is real: its tools use the real `netgenerate`/`netconvert`, the
+Nominatim and Overpass adapters and the SUMO prober, and `NetworkPromoter` replays recipes with the
+same runner and the plain XML editor. Nothing here touches the network until an agent calls a tool.
 """
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from typing import NoReturn
 
 from resto.adapters.llm.agents.composer import ComposerPort
 from resto.adapters.llm.agents.expert import ExpertPort, NoteWriterPort
 from resto.adapters.llm.agents.input_parser import InputParserPort
+from resto.adapters.llm.agents.network_author import NetworkAuthorCollaborators, NetworkAuthorPort
 from resto.adapters.llm.agents.scenario_builder import ScenarioBuilderPort
 from resto.adapters.llm.config import RoundsConfig
+from resto.adapters.osm.nominatim import NominatimGeocoder
+from resto.adapters.osm.overpass import OverpassOsmSource
 from resto.adapters.persistence.memory import InMemoryStudyRepository
 from resto.adapters.persistence.sqlite.repositories import SqliteDatabase
 from resto.adapters.sumo.demand import SumoDemandTools
 from resto.adapters.sumo.demand_scaling import SumoDemandScaler
+from resto.adapters.sumo.netconvert import SubprocessNetconvertRunner
+from resto.adapters.sumo.network_probe import SumoNetworkProber
 from resto.adapters.sumo.network_query_loader import StoredNetworkQueryLoader
+from resto.adapters.sumo.netxml import SumolibNetworkQuery
+from resto.adapters.sumo.plain_edit import XmlPlainNetEditor
 from resto.adapters.sumo.run_directories import FilesystemRunDirectories
 from resto.adapters.sumo.runner import SubprocessSumoRunner
+from resto.adapters.sumo.typemaps import typemap_dir
 from resto.adapters.sumo.writers.rerouter import RerouterWriter
 from resto.adapters.sumo.writers.sumocfg import SumocfgFileWriter
 from resto.adapters.sumo.writers.tls_program import TlsProgramWriter
@@ -33,6 +44,7 @@ from resto.application.event_handlers.trace import TRACED_EVENTS, TraceHandler
 from resto.application.ports.agents.demand_generator import DemandGeneratorAgent
 from resto.application.ports.agents.network_author import NetworkAuthorAgent
 from resto.application.ports.llm import Budget, ToolAgent
+from resto.application.ports.osm import OsmLimits
 from resto.application.ports.repositories import (
     NoteRepository,
     ResultRepository,
@@ -75,6 +87,10 @@ from resto.domain.value_objects.study_plan import (
 )
 
 AGENT_SECONDS = 300.0
+NETWORK_AUTHOR_STEPS = 40
+"""Tool calls one Network Author run may make. A repair cycle takes several (edit, recompile,
+`sanity_check`), so the Author gets far more than the other agents' `max_steps`."""
+NETWORK_AUTHOR_SECONDS = 900.0
 
 
 class _Pending:
@@ -121,18 +137,39 @@ def build_run_study(
     study_budget: StudyBudget | None = None,
     network_author: NetworkAuthorAgent | None = None,
     demand_generator: DemandGeneratorAgent | None = None,
+    osm_limits: OsmLimits | None = None,
 ) -> RunStudy:
     """The ready `RunStudy`. Studies are kept in memory: there is no persistent `StudyRepository`
     yet, and the SQLite database is the DatabaseMCP reference backend, which does not hold them
     (ADR-0002). `out_dir` is the root of everything the study writes: `builder/` (the Builder's
     scratch and its demand scaling), `results/` (RunSimulation) and `scenarios/` (BuildScenario).
-    `network_author` and `demand_generator` replace the pending agents (tests, manual runs)."""
+    `network_author` and `demand_generator` replace the agents (tests, manual runs); the Network
+    Author works under `network/` and downloads OpenStreetMap within `osm_limits`."""
     rounds = rounds or RoundsConfig()
-    author = network_author or _Pending("Network Author", "E6.1")
+    osm_limits = osm_limits or OsmLimits()
+    netconvert = SubprocessNetconvertRunner()
+    plain_editor = XmlPlainNetEditor()
+    author = network_author or NetworkAuthorPort(
+        agent=agent,
+        budget=replace(budget, max_steps=NETWORK_AUTHOR_STEPS, max_seconds=NETWORK_AUTHOR_SECONDS),
+        collaborators=NetworkAuthorCollaborators(
+            networks=db.networks,
+            runner=netconvert,
+            editor=plain_editor,
+            prober=SumoNetworkProber(SubprocessSumoRunner()),
+            open_network=SumolibNetworkQuery,
+            osm=OverpassOsmSource(limits=osm_limits),
+            geocoder=NominatimGeocoder(out_dir / "network" / "geocoder"),
+            typemap_dir=typemap_dir(),
+            out_dir=out_dir / "network" / "author",
+            limits=osm_limits,
+        ),
+    )
     generator = demand_generator or _Pending("Demand Generator", "E7.1")
     builder_dir = out_dir / "builder"
     loader = StoredNetworkQueryLoader(db.networks)
     runner = SubprocessSumoRunner()
+    network_promoter = NetworkPromoter(netconvert, plain_editor)
     builder = ScenarioBuilderPort(
         agent=agent,
         budget=budget,
@@ -177,10 +214,10 @@ def build_run_study(
         ),
         steps={
             ObtainNetworkStep: ObtainNetworkExecutor(
-                author, db.networks, NetworkPromoter(), rounds.network_max_rounds
+                author, db.networks, network_promoter, rounds.network_max_rounds
             ),
             DeriveNetworkStep: DeriveNetworkExecutor(
-                author, db.networks, NetworkPromoter(), rounds.network_max_rounds
+                author, db.networks, network_promoter, rounds.network_max_rounds
             ),
             ObtainDemandStep: ObtainDemandExecutor(
                 generator, db.demands, DemandPromoter(), rounds.calibration_max_rounds

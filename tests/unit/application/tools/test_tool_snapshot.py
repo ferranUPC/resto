@@ -1,5 +1,7 @@
 """What every agent is given today: name, description and input schema of each network, Expert and
 Scenario Builder tool, stored once in `tool_snapshot.json` and asserted exactly (refactor r3).
+E6.1/02 added the Network Author's generated-network tools, E6.1/05 its inspection tools and
+E6.1/06 its plain-XML edit tools and E6.1/07 `find_network`, on purpose.
 
 The declaration refactor must leave this file unchanged. Regenerate it only on purpose:
 
@@ -19,10 +21,23 @@ from resto.adapters.persistence.memory import (
     InMemoryResultRepository,
     InMemoryScenarioRepository,
 )
+from resto.adapters.sumo.netconvert import SubprocessNetconvertRunner
+from resto.adapters.sumo.network_probe import SumoNetworkProber
 from resto.adapters.sumo.netxml import SumolibNetworkQuery
+from resto.adapters.sumo.plain_edit import XmlPlainNetEditor
+from resto.adapters.sumo.runner import SubprocessSumoRunner
 from resto.application.ports.llm import Tool
 from resto.application.tools.expert import EvidenceLedger, build_expert_tools, expert_context
 from resto.application.tools.network import build_network_tools
+from resto.application.tools.network_author import (
+    AuthorRun,
+    NetworkCatalog,
+    build_find_network_tool,
+    build_network_author_tools,
+)
+from resto.application.tools.network_edit import EditRun, build_network_edit_tools
+from resto.application.tools.network_import import ImportRun, build_network_import_tools
+from resto.application.tools.network_inspection import InspectionRun, build_network_inspection_tools
 from resto.application.tools.scenario_builder import (
     BuilderCollaborators,
     BuilderRequest,
@@ -35,6 +50,7 @@ from resto.domain.value_objects.question import Mode
 from resto.domain.value_objects.tasks import ExpertTask
 from resto.domain.value_objects.time_window import TimeWindow
 from tests.unit._paths import DEV_NET
+from tests.unit.application.tools._osm_doubles import FakeGeocoder, FakeOsmSource
 from tests.unit.application.tools._recorders import (
     RecordingAdditionalFileWriter,
     RecordingDemandRepository,
@@ -119,6 +135,43 @@ def collect() -> dict[str, list[dict[str, object]]]:
         "expert": _describe(_expert(query, notes_allowed=False)),
         "expert_with_notes": _describe(_expert(query, notes_allowed=True)),
         "scenario_builder": _describe(_builder(query)),
+        "network_import": _describe(
+            build_network_import_tools(
+                ImportRun(
+                    runner=SubprocessNetconvertRunner(),
+                    osm=FakeOsmSource(),
+                    geocoder=FakeGeocoder(),
+                    out_dir=Path("out"),
+                    typemap_dir=Path("typemaps"),
+                )
+            )
+        ),
+        "network_author": _describe(
+            build_network_author_tools(
+                AuthorRun(runner=SubprocessNetconvertRunner(), out_dir=Path("out"))
+            )
+        ),
+        "network_find": _describe(
+            (build_find_network_tool(NetworkCatalog(InMemoryNetworkRepository())),)
+        ),
+        "network_inspection": _describe(
+            build_network_inspection_tools(
+                InspectionRun(
+                    open_network=SumolibNetworkQuery,
+                    prober=SumoNetworkProber(SubprocessSumoRunner()),
+                    out_dir=Path("out"),
+                )
+            )
+        ),
+        "network_edit": _describe(
+            build_network_edit_tools(
+                EditRun(
+                    runner=SubprocessNetconvertRunner(),
+                    editor=XmlPlainNetEditor(),
+                    out_dir=Path("out"),
+                )
+            )
+        ),
     }
 
 

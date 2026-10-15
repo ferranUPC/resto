@@ -1,0 +1,14 @@
+[
+  {
+    "place_id": 1004,
+    "osm_type": "way",
+    "osm_id": 456,
+    "category": "office",
+    "type": "company",
+    "display_name": "Some Company, Barcelona",
+    "geojson": {
+      "type": "Polygon",
+      "coordinates": [[[2.1, 41.3], [2.11, 41.3], [2.11, 41.31], [2.1, 41.3]]]
+    }
+  }
+]

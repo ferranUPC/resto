@@ -24,7 +24,7 @@ from resto.domain.value_objects.intervention import Intervention, InterventionTy
 from resto.domain.value_objects.intervention_target import LaneTarget
 from resto.domain.value_objects.mechanism import RegenerateDemandMechanism
 from resto.domain.value_objects.network_recipe import NetworkRecipe
-from resto.domain.value_objects.network_source import NetworkSource
+from resto.domain.value_objects.network_source import GridNetwork, Polygon
 from resto.domain.value_objects.phase import Phase
 from resto.domain.value_objects.probe_report import ProbeReport
 from resto.domain.value_objects.question import Intent, Question
@@ -86,8 +86,22 @@ def traci_script() -> TraciScript:
     )
 
 
+def square_ring() -> tuple[tuple[float, float], ...]:
+    """A closed (lat, lon) ring around a few blocks of the Eixample."""
+    return ((41.38, 2.15), (41.38, 2.17), (41.40, 2.17), (41.40, 2.15), (41.38, 2.15))
+
+
 def file_recipe() -> NetworkRecipe:
-    return NetworkRecipe(source=NetworkSource(kind="file", value="dev-net.osm"))
+    """A recipe for a generated network: no OSM snapshot."""
+    return NetworkRecipe(source=GridNetwork())
+
+
+def area_recipe() -> NetworkRecipe:
+    """A recipe for an area of interest: it carries the OSM snapshot it was built from."""
+    return NetworkRecipe(
+        source=Polygon(ring=square_ring(), osm_id=347950),
+        osm_snapshot=artifact("eixample.osm", "snap1", "osm"),
+    )
 
 
 def good_sanity() -> SanityReport:

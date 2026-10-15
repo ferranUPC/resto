@@ -22,10 +22,16 @@ from typing import Any, Concatenate, Generic, ParamSpec, TypeVar, get_type_hints
 from pydantic import create_model
 
 from resto.application.ports.llm import Tool
+from resto.domain.value_objects.artifact_ref import ArtifactRef
 
 C = TypeVar("C")
 P = ParamSpec("P")
 R = TypeVar("R")
+
+
+def artifact_json(ref: ArtifactRef) -> dict[str, str]:
+    """An artifact as a tool returns it to the model: `path`, `content_hash` and `kind`."""
+    return {"path": str(ref.path), "content_hash": ref.content_hash, "kind": ref.kind}
 
 
 class Declared(Generic[C, P, R]):

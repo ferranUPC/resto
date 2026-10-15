@@ -47,6 +47,55 @@
       "title": "AddEdge",
       "type": "object"
     },
+    "AreaTooLarge": {
+      "description": "The area to import is too large for one import (ADR-0045 \u00a76): either its size is above the\nlimit, refused before any download, or the network built from it has more edges than the limit\n(`edges` and `limit_edges` are then set, and the area itself may be within its limit).",
+      "properties": {
+        "area_km2": {
+          "title": "Area Km2",
+          "type": "number"
+        },
+        "edges": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Edges"
+        },
+        "kind": {
+          "const": "area_too_large",
+          "default": "area_too_large",
+          "title": "Kind",
+          "type": "string"
+        },
+        "limit_edges": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Limit Edges"
+        },
+        "limit_km2": {
+          "title": "Limit Km2",
+          "type": "number"
+        }
+      },
+      "required": [
+        "area_km2",
+        "limit_km2"
+      ],
+      "title": "AreaTooLarge",
+      "type": "object"
+    },
     "Arm": {
       "properties": {
         "interventions": {
@@ -981,6 +1030,15 @@
             },
             {
               "$ref": "#/$defs/SeveralCandidates"
+            },
+            {
+              "$ref": "#/$defs/AreaTooLarge"
+            },
+            {
+              "$ref": "#/$defs/PlaceNotBoundary"
+            },
+            {
+              "$ref": "#/$defs/UnsupportedRequirement"
             }
           ],
           "title": "Reason"
@@ -1250,6 +1308,26 @@
         "question"
       ],
       "title": "Phase",
+      "type": "object"
+    },
+    "PlaceNotBoundary": {
+      "description": "The place name does not resolve to an administrative boundary, so it has no area to import\n(ADR-0045 \u00a72). The geocoder's own words are in `NeedsUser.message`.",
+      "properties": {
+        "kind": {
+          "const": "place_not_boundary",
+          "default": "place_not_boundary",
+          "title": "Kind",
+          "type": "string"
+        },
+        "place": {
+          "title": "Place",
+          "type": "string"
+        }
+      },
+      "required": [
+        "place"
+      ],
+      "title": "PlaceNotBoundary",
       "type": "object"
     },
     "Quantity": {
@@ -1895,6 +1973,26 @@
         "tls_id"
       ],
       "title": "TlsTarget",
+      "type": "object"
+    },
+    "UnsupportedRequirement": {
+      "description": "The request needs something the network cannot hold, such as public transport stops\n(ADR-0045 \u00a75).",
+      "properties": {
+        "kind": {
+          "const": "unsupported_requirement",
+          "default": "unsupported_requirement",
+          "title": "Kind",
+          "type": "string"
+        },
+        "requirement": {
+          "title": "Requirement",
+          "type": "string"
+        }
+      },
+      "required": [
+        "requirement"
+      ],
+      "title": "UnsupportedRequirement",
       "type": "object"
     },
     "Usage": {

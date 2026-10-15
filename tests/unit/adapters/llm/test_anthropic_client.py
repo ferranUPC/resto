@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from eval.fixed_network_query_loader import FixedNetworkQueryLoader
@@ -19,6 +19,7 @@ from resto.adapters.llm.pricing import UnknownModelError
 from resto.adapters.persistence.memory import InMemoryResultRepository, InMemoryScenarioRepository
 from resto.application.ports.llm import AgentTask, Budget, StopReason, Tool
 from resto.application.tools.expert import EvidenceLedger, build_expert_tools, expert_context
+from resto.domain.value_objects.outcomes import Found, NetworkOutcome
 from resto.domain.value_objects.question import Mode
 from resto.domain.value_objects.tasks import ExpertTask
 from tests.unit.application._doubles import StubNetworkQuery
@@ -71,6 +72,7 @@ class ScriptedCompletions:
         return self._responses.pop(0)
 
 
+OUTCOME = cast("type[Any]", NetworkOutcome)  # a union is not a `type[T]` for mypy
 DUMMY_BUDGET = Budget(max_steps=5, max_tokens=256, max_seconds=30.0)
 DUMMY_TASK = AgentTask(system_prompt="be helpful", input={"goal": "test"})
 
@@ -87,6 +89,46 @@ def test_submits_a_valid_output_directly() -> None:
     assert run.output == Answer(text="done")
     assert run.usage.input_tokens == 10
     assert run.usage.output_tokens == 5
+
+
+def test_a_union_output_is_offered_under_an_object_root_and_comes_back_unwrapped() -> None:
+    complete = ScriptedCompletions(
+        completion(tool_calls=(tool_call("c1", "submit_output", {"outcome": {"id": "n1"}}),))
+    )
+    agent = OpenRouterToolAgent(CONFIG, complete=complete)
+
+    run = agent.run(DUMMY_TASK, tools=(), output=OUTCOME, budget=DUMMY_BUDGET)
+
+    parameters = complete.calls[0]["tools"][-1]["function"]["parameters"]
+    assert parameters["type"] == "object" and "anyOf" not in parameters
+    assert "anyOf" in parameters["properties"]["outcome"] and "$defs" in parameters
+    assert run.stop_reason is StopReason.OUTPUT
+    assert run.output == Found("n1")
+
+
+def test_a_union_submission_without_the_wrapper_field_gets_another_turn() -> None:
+    complete = ScriptedCompletions(
+        completion(tool_calls=(tool_call("c1", "submit_output", {"id": "n1"}),)),
+        completion(tool_calls=(tool_call("c2", "submit_output", {"outcome": {"id": "n1"}}),)),
+    )
+    agent = OpenRouterToolAgent(CONFIG, complete=complete)
+
+    run = agent.run(DUMMY_TASK, tools=(), output=OUTCOME, budget=DUMMY_BUDGET)
+
+    assert run.output == Found("n1")
+    assert [c.name for c in run.tool_calls] == ["submit_output", "submit_output"]
+
+
+def test_an_object_output_keeps_its_own_root_schema() -> None:
+    complete = ScriptedCompletions(
+        completion(tool_calls=(tool_call("c1", "submit_output", {"text": "ok"}),))
+    )
+    OpenRouterToolAgent(CONFIG, complete=complete).run(
+        DUMMY_TASK, tools=(), output=Answer, budget=DUMMY_BUDGET
+    )
+
+    parameters = complete.calls[0]["tools"][-1]["function"]["parameters"]
+    assert parameters["type"] == "object" and "text" in parameters["properties"]
 
 
 def test_calls_an_offered_tool_before_submitting() -> None:

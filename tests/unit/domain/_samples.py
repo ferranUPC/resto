@@ -89,15 +89,25 @@ from resto.domain.value_objects.mechanism import (
     StaticFileMechanism,
 )
 from resto.domain.value_objects.network_recipe import NetworkRecipe
-from resto.domain.value_objects.network_source import NetworkSource
+from resto.domain.value_objects.network_source import (
+    BBox,
+    GridNetwork,
+    PlaceName,
+    Polygon,
+    RandomNetwork,
+    SpiderNetwork,
+)
 from resto.domain.value_objects.outcomes import (
+    AreaTooLarge,
     DemandNotNamed,
     DemandNotObtainable,
     Found,
     FoundItem,
     NeedsUser,
     NetworkNotFound,
+    PlaceNotBoundary,
     SeveralCandidates,
+    UnsupportedRequirement,
     WindowMissing,
 )
 from resto.domain.value_objects.phase import Phase
@@ -159,6 +169,7 @@ from resto.domain.value_objects.traci_script import (
 )
 from resto.domain.value_objects.traci_script import SetSpeed as ScriptSetSpeed
 from tests.unit.domain._fixtures import (
+    area_recipe,
     artifact,
     demand_draft,
     demand_spec,
@@ -171,6 +182,7 @@ from tests.unit.domain._fixtures import (
     parsed_step,
     probe,
     scenario_draft,
+    square_ring,
     static_intervention,
     traci_script,
 )
@@ -400,6 +412,9 @@ SAMPLES: dict[type, Callable[[], object]] = {
     DemandNotObtainable: lambda: DemandNotObtainable("the 2019 Easter traffic"),
     NetworkNotFound: lambda: NetworkNotFound("Gran Via"),
     SeveralCandidates: lambda: SeveralCandidates(),
+    AreaTooLarge: lambda: AreaTooLarge(area_km2=101.0, limit_km2=10.0),
+    PlaceNotBoundary: lambda: PlaceNotBoundary("Plaça Catalunya"),
+    UnsupportedRequirement: lambda: UnsupportedRequirement("public transport stops"),
     ObtainDemandStep: lambda: ObtainDemandStep(
         network_id=FromStep(0), seed=1, demand_ref="weekday morning peak", depends_on=(0,)
     ),
@@ -452,8 +467,13 @@ SAMPLES: dict[type, Callable[[], object]] = {
     ReportSection: lambda: ReportSection(title="Findings", body="delay rises"),
     Claim: lambda: Claim(text="delay +12 %", evidence_refs=("r1",), value="12%"),
     # network
-    NetworkRecipe: file_recipe,
-    NetworkSource: lambda: NetworkSource(kind="place", value="Barcelona, Eixample"),
+    NetworkRecipe: area_recipe,
+    BBox: lambda: BBox(south=41.38, west=2.15, north=41.40, east=2.18),
+    Polygon: lambda: Polygon(ring=square_ring(), osm_id=347950),
+    PlaceName: lambda: PlaceName(query="Eixample, Barcelona"),
+    GridNetwork: lambda: GridNetwork(x_number=3, y_number=4),
+    SpiderNetwork: lambda: SpiderNetwork(arm_number=6, omit_center=True),
+    RandomNetwork: lambda: RandomNetwork(seed=42),
     SanityReport: good_sanity,
     ProbeReport: probe,
     RemoveEdge: lambda: RemoveEdge(edge_id="E07"),

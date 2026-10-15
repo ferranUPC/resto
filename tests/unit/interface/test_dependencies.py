@@ -1,6 +1,6 @@
 """The composition root: `build_run_study` wires the real object graph, and one scripted study runs
-through `RunStudy.execute` on a temporary SQLite database. Only the `ToolAgent` and the Network
-Author (not implemented yet, E6.1) are fake; the network guard of `conftest.py` stays on."""
+through `RunStudy.execute` on a temporary SQLite database. Only the `ToolAgent` is fake (the Network
+Author's model included); the network guard of `conftest.py` stays on."""
 
 from __future__ import annotations
 
@@ -17,7 +17,6 @@ from resto.domain.value_objects.answer_value import Measure, Quantity
 from resto.domain.value_objects.drafts import (
     ClaimDraft,
     ExpertNoteDrafts,
-    NetworkDraft,
     ReportDraft,
 )
 from resto.domain.value_objects.expert_answer import Basis, Evidence, EvidenceKind, ExpertAnswer
@@ -25,7 +24,6 @@ from resto.domain.value_objects.outcomes import Found, NetworkOutcome
 from resto.domain.value_objects.question import Intent, Question
 from resto.domain.value_objects.step_record import Usage
 from resto.domain.value_objects.study_plan import PlanStep
-from resto.domain.value_objects.tasks import NetworkTask, ObtainNetworkTask
 from resto.interface.dependencies import build_run_study
 from tests.unit._paths import DEV_NET
 from tests.unit.adapters.llm._fakes import call_tool
@@ -62,21 +60,14 @@ class ScriptedAgent:
         self.asked.append(output)
         if output is ExpertAnswer:
             call_tool(tools, "list_results", scenario_id="none")  # leaves q1 in the ledger
-        scripted: dict[type, Any] = {
+        scripted: dict[Any, Any] = {
             Question: QUESTION,
             ExpertAnswer: ANSWER,
             ExpertNoteDrafts: ExpertNoteDrafts(),
             ReportDraft: REPORT,
+            NetworkOutcome: Found(sample_network().network_id),
         }
         return AgentRun(scripted[output], (), Usage(), StopReason.OUTPUT)
-
-
-class NetworkAuthorStub:
-    def obtain(self, task: ObtainNetworkTask) -> AgentRun[NetworkOutcome]:
-        return AgentRun(Found(sample_network().network_id), (), Usage(), StopReason.OUTPUT)
-
-    def author(self, task: NetworkTask) -> AgentRun[NetworkDraft]:
-        raise NotImplementedError
 
 
 class NullTracer:
@@ -90,8 +81,8 @@ def test_the_real_graph_runs_one_scripted_study(tmp_path: Path) -> None:
         replace(sample_network(), net_xml=replace(sample_network().net_xml, path=DEV_NET))
     )
     agent = ScriptedAgent()
-    # The Network Author is a placeholder until E6.1; the rest of the graph is the real one.
-    run_study = _build(db, agent, tmp_path, network_author=NetworkAuthorStub())
+    # the whole graph is the real one: the Network Author runs on the same scripted model
+    run_study = _build(db, agent, tmp_path)
 
     study = run_study.execute("how many lanes does the network have?")
 

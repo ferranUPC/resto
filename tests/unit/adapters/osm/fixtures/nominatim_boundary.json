@@ -1,0 +1,16 @@
+[
+  {
+    "place_id": 1001,
+    "osm_type": "relation",
+    "osm_id": 347950,
+    "category": "boundary",
+    "type": "administrative",
+    "display_name": "Sant Gervasi, Barcelona",
+    "geojson": {
+      "type": "Polygon",
+      "coordinates": [
+        [[2.1500, 41.3900], [2.1600, 41.3900], [2.1600, 41.3980], [2.1500, 41.3980], [2.1500, 41.3900]]
+      ]
+    }
+  }
+]
