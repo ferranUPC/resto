@@ -10,6 +10,8 @@ import urllib.request
 
 from resto.application.ports.osm import ExternalServiceError
 
+DEFAULT_USER_AGENT = "resto-tfm/0.1 (research prototype; LLM agents for SUMO networks)"
+
 
 def request(
     service: str,

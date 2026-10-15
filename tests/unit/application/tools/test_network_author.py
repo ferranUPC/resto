@@ -130,21 +130,21 @@ def catalog(*networks: Network) -> NetworkCatalog:
     return NetworkCatalog(repository)
 
 
-def test_find_network_lists_the_stored_networks_whose_label_matches_the_name() -> None:
-    ctx = catalog(stored("a", "bcn/Eixample"), stored("b", "gracia"), stored("c", None))
+def test_find_network_lists_the_stored_networks_whose_label_is_the_name() -> None:
+    ctx = catalog(stored("a", "Eixample"), stored("b", "gracia"), stored("c", None))
 
-    result = find_network(ctx, name="eixample")
-
-    assert [c["network_id"] for c in result["candidates"]] == ["a"]
-    assert result["candidates"][0]["label"] == "bcn/Eixample"
-
-
-def test_find_network_matches_a_longer_request_that_names_a_stored_label() -> None:
-    ctx = catalog(stored("a", "eixample"))
-
-    result = find_network(ctx, name="Eixample with the train")
+    result = find_network(ctx, name=" eixample ")
 
     assert [c["network_id"] for c in result["candidates"]] == ["a"]
+    assert result["candidates"][0]["label"] == "Eixample"
+
+
+def test_find_network_does_not_match_a_label_that_only_contains_or_is_contained() -> None:
+    ctx = catalog(stored("a", "a"), stored("b", "bcn/eixample"), stored("c", "eixample"))
+
+    assert find_network(ctx, name="Eixample with the train") == {"candidates": []}
+    assert [c["network_id"] for c in find_network(ctx, name="eixample")["candidates"]] == ["c"]
+    assert [c["network_id"] for c in find_network(ctx, name="a")["candidates"]] == ["a"]
 
 
 def test_find_network_returns_nothing_when_no_label_matches() -> None:

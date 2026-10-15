@@ -17,8 +17,11 @@ Two things the tools alone cannot do are done here:
   to the model as feedback; an `ExternalServiceError` is not the model's to fix, so the tool still
   raises it for the model, remembers it, and the port raises it again once the run is over.
 
-A round is one repair cycle (edit, recompile, `sanity_check`). The task's `max_rounds` is told to
-the model; what stops a run is the `Budget` (calls, tokens, seconds), not a count of rounds.
+A round is one repair cycle (edit, recompile, `sanity_check`), counted here as one `sanity_check`
+call. The task's `max_rounds` is told to the model and also imposed in code: once that many rounds
+are spent, every further tool call is refused, and a draft that still fails the sanity check with
+nothing reported gets the failure added to its `unresolved[]`. The number of tool calls is limited
+separately, by the `Budget`.
 """
 
 from __future__ import annotations
@@ -49,7 +52,7 @@ from resto.application.tools.network_inspection import (
     build_network_inspection_tools,
 )
 from resto.domain.services.content_hash import short_hash
-from resto.domain.value_objects.drafts import NetworkDraft
+from resto.domain.value_objects.drafts import NetworkDraft, UnresolvedIssue
 from resto.domain.value_objects.outcomes import NetworkOutcome
 from resto.domain.value_objects.tasks import NetworkTask, ObtainNetworkTask
 
@@ -86,7 +89,9 @@ OBTAIN_PROMPT = (
     _COMMON
     + """
 Your task: resolve `network_ref`, the way the user named the network. Start with
-`find_network(name)`. Then choose exactly one ending:
+`find_network(name)`; `find_network` matches a label exactly, so pass the name of the network
+alone, without what the user wants in it ("Eixample", not "Eixample with the train"). Then
+choose exactly one ending:
 
   1. Found(id): one stored network is what the user means. Use the id `find_network` returned.
   2. A NetworkDraft: nothing stored matches and the network can be built. Build it:
@@ -177,6 +182,55 @@ def _surface_service_errors(
     return tuple(guard(t) for t in tools)
 
 
+@dataclass(slots=True)
+class _Rounds:
+    """The repair cycles one run has spent: each `sanity_check` call closes one."""
+
+    limit: int
+    spent: int = 0
+
+    @property
+    def exhausted(self) -> bool:
+        return self.spent >= self.limit
+
+
+def _limit_rounds(tools: Sequence[Tool], rounds: _Rounds) -> tuple[Tool, ...]:
+    def guard(tool: Tool) -> Tool:
+        def call(**kwargs: Any) -> Any:
+            if rounds.exhausted:
+                raise RuntimeError(
+                    f"the {rounds.limit} rounds are spent: call submit_output now with the "
+                    "network you have, listing in unresolved[] what is still wrong"
+                )
+            result = tool.fn(**kwargs)
+            if tool.name == "sanity_check":
+                rounds.spent += 1
+            return result
+
+        return replace(tool, fn=call)
+
+    return tuple(guard(t) for t in tools)
+
+
+def _report_exhaustion(run: AgentRun[Any], rounds: _Rounds, min_scc_ratio: float) -> AgentRun[Any]:
+    """A draft that spent every round and still fails the sanity check says so in `unresolved[]`,
+    whatever the model wrote there."""
+    draft = run.output
+    if not (
+        isinstance(draft, NetworkDraft)
+        and rounds.exhausted
+        and draft.is_silent_failure(min_scc_ratio)
+    ):
+        return run
+    issue = UnresolvedIssue(
+        "edge",
+        "*",
+        f"the {rounds.limit} rounds were spent and the sanity check still fails "
+        f"({draft.sanity_report})",
+    )
+    return replace(run, output=replace(draft, unresolved=(issue,)))
+
+
 @dataclass(frozen=True, slots=True)
 class NetworkAuthorPort:
     """`NetworkAuthorAgent` port (ADR-0025 §6) over the shared `ToolAgent`, with the collaborators
@@ -205,7 +259,7 @@ class NetworkAuthorPort:
         )
         agent_task = AgentTask(OBTAIN_PROMPT, _task_input(task, c.limits))
         # a union is not a `type[T]` for mypy; the real client builds its schema from it anyway
-        return self._run(agent_task, tools, cast("type[NetworkOutcome]", NetworkOutcome))
+        return self._run(agent_task, tools, cast("type[NetworkOutcome]", NetworkOutcome), task)
 
     def author(self, task: NetworkTask) -> AgentRun[NetworkDraft]:
         c = self.collaborators
@@ -224,7 +278,7 @@ class NetworkAuthorPort:
         shown.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(base.net_xml.path, shown)
         agent_input["base_net"] = artifact_json(replace(base.net_xml, path=shown))
-        return self._run(AgentTask(AUTHOR_PROMPT, agent_input), tools, NetworkDraft)
+        return self._run(AgentTask(AUTHOR_PROMPT, agent_input), tools, NetworkDraft, task)
 
     @property
     def _work_dir(self) -> Path:
@@ -234,9 +288,17 @@ class NetworkAuthorPort:
         c = self.collaborators
         return InspectionRun(open_network=c.open_network, prober=c.prober, out_dir=self._work_dir)
 
-    def _run(self, task: AgentTask, tools: Sequence[Tool], output: type[Any]) -> AgentRun[Any]:
+    def _run(
+        self,
+        agent_task: AgentTask,
+        tools: Sequence[Tool],
+        output: type[Any],
+        task: ObtainNetworkTask | NetworkTask,
+    ) -> AgentRun[Any]:
         failures: list[ExternalServiceError] = []
-        run = self.agent.run(task, _surface_service_errors(tools, failures), output, self.budget)
+        rounds = _Rounds(task.max_rounds)
+        guarded = _limit_rounds(_surface_service_errors(tools, failures), rounds)
+        run = self.agent.run(agent_task, guarded, output, self.budget)
         if failures:
             raise failures[0]
-        return run
+        return _report_exhaustion(run, rounds, task.min_scc_ratio)

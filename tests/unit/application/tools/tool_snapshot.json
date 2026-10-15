@@ -1203,7 +1203,7 @@
   ],
   "network_find": [
     {
-      "description": "List the stored networks whose label matches a name, case ignored. Returns `candidates`, each with its `network_id`, `label` and the network it `derived_from`. One candidate that is what the user means: answer Found with its id. None: build the network, or ask the user when it cannot be built. Several: ask the user which one.",
+      "description": "List the stored networks whose label is exactly the name, case ignored. Returns `candidates`, each with its `network_id`, `label` and the network it `derived_from`. One candidate that is what the user means: answer Found with its id. None: build the network, or ask the user when it cannot be built. Several: ask the user which one.",
       "input_schema": {
         "properties": {
           "name": {

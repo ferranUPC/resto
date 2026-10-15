@@ -19,7 +19,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, cast
 from xml.etree import ElementTree
 
 from pydantic import Field
@@ -141,10 +141,8 @@ def fetch_osm(
         request = BBox(south=bbox[0], west=bbox[1], north=bbox[2], east=bbox[3])
     elif polygon is not None:
         request = Polygon(tuple((lat, lon) for lat, lon in polygon))
-    elif place_name is not None:
-        request = PlaceName(place_name)
     else:
-        raise ValueError(_ONE_AREA)
+        request = PlaceName(cast("str", place_name))
     area = resolve_area(request, tuple(requirements), ctx.geocoder, ctx.limits)
     if isinstance(area, NeedsUser):
         return _needs_user(area)
@@ -161,6 +159,24 @@ def _build(ctx: ImportRun, key: str, state: _Import) -> Mapping[str, Any]:
         state.snapshot, None, options, ctx.out_dir / "imported" / short_hash(key)
     )
     ctx.imports[key] = state
+    # the edges are only known once the network is built, so the limit is checked here, for the
+    # import and for every cleanup that rebuilds it
+    edges = _edge_count(net.path)
+    if edges > ctx.limits.max_edges:
+        return _needs_user(
+            NeedsUser(
+                reason=AreaTooLarge(
+                    area_km2=area_km2(state.area),
+                    limit_km2=ctx.limits.max_area_km2,
+                    edges=edges,
+                    limit_edges=ctx.limits.max_edges,
+                ),
+                message=(
+                    f"The network has {edges} edges, above the limit of {ctx.limits.max_edges} "
+                    "for one import."
+                ),
+            )
+        )
     return {
         "source": asdict(state.area),
         "osm_snapshot": artifact_json(state.snapshot),
@@ -207,26 +223,7 @@ def netconvert(
     ] = DEFAULT_PROFILE,
 ) -> Mapping[str, Any]:
     state = _state(ctx, osm_snapshot)
-    profile_named(profile)
-    built = _build(ctx, osm_snapshot, replace(state, profile=profile, cleanups=Cleanups()))
-    # the edges are only known once the network is built, so the limit is checked here
-    edges = _edge_count(Path(built["net_artifact"]["path"]))
-    if edges > ctx.limits.max_edges:
-        return _needs_user(
-            NeedsUser(
-                reason=AreaTooLarge(
-                    area_km2=area_km2(state.area),
-                    limit_km2=ctx.limits.max_area_km2,
-                    edges=edges,
-                    limit_edges=ctx.limits.max_edges,
-                ),
-                message=(
-                    f"The network has {edges} edges, above the limit of {ctx.limits.max_edges} "
-                    "for one import."
-                ),
-            )
-        )
-    return built
+    return _build(ctx, osm_snapshot, replace(state, profile=profile, cleanups=Cleanups()))
 
 
 @tool(

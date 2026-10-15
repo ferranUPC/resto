@@ -49,16 +49,15 @@ class NetworkCatalog:
 
 
 def _matches(label: str, name: str) -> bool:
-    """A label answers a name when either holds the other, ignoring case: "Eixample" finds
-    "bcn/eixample" and a request "Eixample with the train" finds the label "eixample"."""
-    label, name = label.casefold().strip(), name.casefold().strip()
-    return bool(label) and bool(name) and (name in label or label in name)
+    """A label answers a name when they are the same ignoring case and surrounding spaces. A
+    partial match would let a short label ("a") answer almost any reference."""
+    return label.casefold().strip() == name.casefold().strip()
 
 
 @tool(
     name="find_network",
     description=(
-        "List the stored networks whose label matches a name, case ignored. Returns "
+        "List the stored networks whose label is exactly the name, case ignored. Returns "
         "`candidates`, each with its `network_id`, `label` and the network it `derived_from`. "
         "One candidate that is what the user means: answer Found with its id. None: build the "
         "network, or ask the user when it cannot be built. Several: ask the user which one."

@@ -14,13 +14,12 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode
 
-from resto.adapters.osm.http import request
+from resto.adapters.osm.http import DEFAULT_USER_AGENT, request
 from resto.application.ports.osm import ExternalServiceError, PlaceRejected
 from resto.domain.value_objects.network_source import MAX_POLYGON_VERTICES, PlaceName, Polygon
 
 SERVICE = "nominatim"
 DEFAULT_BASE_URL = "https://nominatim.openstreetmap.org"
-DEFAULT_USER_AGENT = "resto-tfm/0.1 (research prototype; LLM agents for SUMO networks)"
 DEFAULT_MIN_INTERVAL_S = 1.0
 DEFAULT_TIMEOUT_S = 30.0
 

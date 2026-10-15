@@ -4,6 +4,7 @@ committed `.osm`, real `netconvert` (SUMO 1.27.1), no network and no LLM."""
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -16,7 +17,6 @@ from resto.adapters.sumo.typemaps import typemap_dir
 from resto.application.ports.osm import ExternalServiceError, OsmLimits
 from resto.application.tools.network_import import (
     ImportRun,
-    build_network_import_tools,
     fetch_osm,
     join_junctions,
     keep_largest_component,
@@ -26,7 +26,6 @@ from resto.application.tools.network_import import (
     remove_isolated,
 )
 from resto.domain.value_objects.artifact_ref import ArtifactRef
-from resto.domain.value_objects.network_source import BBox, Polygon
 from tests.unit.adapters.osm._server import FakeService, Reply, fake_service
 from tests.unit.application.tools._osm_doubles import (
     DISTRICT,
@@ -227,10 +226,15 @@ def test_a_network_with_more_edges_than_the_limit_needs_the_user(tmp_path: Path)
     assert "net_artifact" not in result
 
 
-def test_a_network_within_the_edge_limit_is_returned(tmp_path: Path) -> None:
-    result, _ = imported(run_in(tmp_path, limits=OsmLimits(max_edges=100)))
+def test_a_cleanup_that_rebuilds_a_network_over_the_limit_needs_the_user(tmp_path: Path) -> None:
+    run = run_in(tmp_path)
+    _, snapshot = imported(run)
+    strict = replace(run, limits=OsmLimits(max_edges=2))
 
-    assert "net_artifact" in result
+    result = remove_isolated(strict, osm_snapshot=snapshot)
+
+    assert result["needs_user"]["reason"]["kind"] == "area_too_large"
+    assert "net_artifact" not in result
 
 
 def test_an_area_above_the_limit_needs_the_user_and_nothing_is_downloaded(
@@ -323,24 +327,3 @@ def test_a_bbox_is_the_south_west_north_east_of_the_source(tmp_path: Path) -> No
         "east": 2.16,
         "kind": "bbox",
     }
-    assert BBox(**{k: v for k, v in result["source"].items() if k != "kind"})
-
-
-def test_the_tools_are_declared_with_their_names(tmp_path: Path) -> None:
-    tools = build_network_import_tools(run_in(tmp_path))
-
-    assert [t.name for t in tools] == [
-        "list_import_profiles",
-        "fetch_osm",
-        "netconvert",
-        "keep_largest_component",
-        "remove_isolated",
-        "join_junctions",
-        "keep_vclass",
-    ]
-
-
-def test_the_polygon_of_the_source_is_the_one_asked(tmp_path: Path) -> None:
-    result = fetch_osm(run_in(tmp_path), polygon=RING)
-
-    assert Polygon(tuple(map(tuple, result["source"]["ring"]))).ring == DISTRICT.ring

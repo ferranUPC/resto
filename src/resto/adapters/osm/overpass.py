@@ -1,7 +1,9 @@
 """Overpass downloader: the OSM map inside a polygon, fetched once per polygon (ADR-0045).
 
 Our own client, not SUMO's `osmGet.py`: it needs no `SUMO_HOME` (ADR-0010). The filter is `poly:`
-with whole ways and their nodes; cutting to the polygon happens later, in `netconvert`."""
+with whole ways and their nodes; cutting to the polygon happens later, in `netconvert`. Roads and
+railways are both downloaded: the snapshot is keyed by the polygon alone and the import profile
+(`rail` needs the railways) is chosen afterwards."""
 
 from __future__ import annotations
 
@@ -10,7 +12,7 @@ import re
 from pathlib import Path
 from urllib.parse import urlencode
 
-from resto.adapters.osm.http import request
+from resto.adapters.osm.http import DEFAULT_USER_AGENT, request
 from resto.adapters.persistence.filesystem import artifact_ref
 from resto.application.ports.osm import ExternalServiceError, OsmLimits
 from resto.domain.services.content_hash import work_key
@@ -20,7 +22,6 @@ from resto.domain.value_objects.network_source import BBox, Polygon
 
 SERVICE = "overpass"
 DEFAULT_BASE_URL = "https://overpass-api.de/api/interpreter"
-DEFAULT_USER_AGENT = "resto-tfm/0.1 (research prototype; LLM agents for SUMO networks)"
 SNAPSHOT_KIND = "osm"
 _CLIENT_MARGIN_S = 15.0
 """Extra time the client waits beyond the query timeout the server enforces."""
@@ -71,7 +72,7 @@ class OverpassOsmSource:
         return (
             f"[out:xml][timeout:{self._limits.overpass_timeout_s}]"
             f"[maxsize:{self._limits.overpass_maxsize_bytes}];"
-            f'(way["highway"](poly:"{poly}"););(._;>;);out;'
+            f'(way["highway"](poly:"{poly}");way["railway"](poly:"{poly}"););(._;>;);out;'
         )
 
 

@@ -45,7 +45,8 @@ def test_the_query_filters_by_poly_in_lat_lon_and_takes_whole_ways(tmp_path: Pat
 
     query = _query(service)
     assert 'poly:"41.39 2.15 41.39 2.16 41.398 2.16 41.398 2.15"' in query
-    assert "highway" in query
+    assert 'way["highway"]' in query
+    assert 'way["railway"]' in query  # the rail profile needs them, the snapshot is per polygon
     assert "(._;>;)" in query
 
 

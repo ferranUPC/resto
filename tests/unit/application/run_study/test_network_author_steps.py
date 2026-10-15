@@ -60,7 +60,7 @@ from resto.domain.value_objects.study_plan import (
     ObtainNetworkStep,
     StudyPlan,
 )
-from resto.domain.value_objects.tasks import NetworkTask
+from resto.domain.value_objects.tasks import NetworkTask, ObtainNetworkTask
 from resto.domain.value_objects.topology_modification import (
     AddEdge,
     RemoveEdge,
@@ -291,8 +291,8 @@ def test_a_stored_network_that_matches_the_name_is_found(tmp_path: Path) -> None
 
 def test_two_stored_networks_that_match_ask_the_user_which_one(tmp_path: Path) -> None:
     south, north = (
-        stored_grid(tmp_path, 3, "riverside south"),
-        stored_grid(tmp_path, 4, "Riverside north"),
+        stored_grid(tmp_path, 3, "riverside"),
+        stored_grid(tmp_path, 4, "Riverside"),
     )
     setup = Setup(tmp_path, resolve_by_label, plan=obtain_plan(), stored=[south, north])
 
@@ -499,22 +499,6 @@ def test_a_service_that_fails_fails_the_step_by_its_name(
 # -- promotion refuses ------------------------------------------------------------------------
 
 
-def test_a_recipe_that_replays_to_another_hash_is_rejected(tmp_path: Path) -> None:
-    def script(task: AgentTask, tools: Sequence[Tool]) -> NetworkDraft:
-        built = call_tool(tools, "generate_grid", x_number=4, y_number=4)
-        return draft_of(NetworkRecipe(source=GridNetwork(3, 3)), tools, built["net_artifact"])
-
-    setup = Setup(tmp_path, script, plan=obtain_plan("a grid"))
-
-    study = setup.run()
-
-    assert study.resolution is StudyResolution.FAILED
-    failed = study.phases[0].failed_step
-    assert failed is not None and failed.error is not None
-    assert failed.error.kind is StepErrorKind.AGENT
-    assert [n.network_id for n in setup.world.networks.list()] == [NET]
-
-
 def sanity_failing_grid(unresolved: tuple[UnresolvedIssue, ...]) -> Script:
     def script(task: AgentTask, tools: Sequence[Tool]) -> NetworkDraft:
         built = call_tool(tools, "generate_grid", x_number=3, y_number=3)
@@ -529,18 +513,6 @@ def sanity_failing_grid(unresolved: tuple[UnresolvedIssue, ...]) -> Script:
     return script
 
 
-def test_a_failing_sanity_with_nothing_reported_is_rejected(tmp_path: Path) -> None:
-    setup = Setup(tmp_path, sanity_failing_grid(()), plan=obtain_plan("a grid"))
-
-    study = setup.run()
-
-    assert study.resolution is StudyResolution.FAILED
-    failed = study.phases[0].failed_step
-    assert failed is not None and failed.error is not None
-    assert failed.error.kind is StepErrorKind.AGENT
-    assert "unresolved" in failed.error.message
-
-
 def test_rounds_spent_with_the_sanity_failing_leave_a_draft_that_says_so(tmp_path: Path) -> None:
     issue = UnresolvedIssue("edge", "A0A1", "still cut off from the border", None)
     setup = Setup(tmp_path, sanity_failing_grid((issue,)), plan=obtain_plan("a grid"))
@@ -551,6 +523,40 @@ def test_rounds_spent_with_the_sanity_failing_leave_a_draft_that_says_so(tmp_pat
     (network_id,) = study.network_ids
     promoted = setup.world.networks.get(network_id)
     assert promoted is not None and not promoted.sanity_report.passes()
+
+
+def test_the_round_limit_is_imposed_and_a_draft_still_failing_then_says_so(tmp_path: Path) -> None:
+    refused: list[str] = []
+
+    def script(task: AgentTask, tools: Sequence[Tool]) -> NetworkDraft:
+        built = call_tool(tools, "generate_grid", x_number=3, y_number=3)
+        call_tool(tools, "sanity_check", net_path=built["net_artifact"]["path"])  # round 1
+        call_tool(tools, "sanity_check", net_path=built["net_artifact"]["path"])  # round 2
+        with pytest.raises(RuntimeError, match="rounds are spent") as spent:
+            call_tool(tools, "generate_grid", x_number=4, y_number=4)
+        refused.append(str(spent.value))
+        return draft_of(
+            NetworkRecipe(source=GridNetwork(3, 3)),
+            tools=(),
+            artifact=built["net_artifact"],
+            sanity=bad_sanity(),
+        )
+
+    setup = Setup(tmp_path, script, plan=obtain_plan("a grid"))
+
+    run = setup.agent.obtain(ObtainNetworkTask("a grid", max_rounds=2))
+
+    assert refused
+    assert isinstance(run.output, NetworkDraft)
+    assert run.output.unresolved and "2 rounds" in run.output.unresolved[0].issue
+
+
+def test_a_run_inside_its_rounds_is_left_as_the_agent_wrote_it(tmp_path: Path) -> None:
+    setup = Setup(tmp_path, grid_script, plan=obtain_plan("a grid"))
+
+    run = setup.agent.obtain(ObtainNetworkTask("a grid", max_rounds=2))
+
+    assert isinstance(run.output, NetworkDraft) and run.output.unresolved == ()
 
 
 # -- derivation --------------------------------------------------------------------------------

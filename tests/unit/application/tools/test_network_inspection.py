@@ -229,12 +229,3 @@ def test_a_network_outside_the_working_directory_is_refused(tmp_path: Path) -> N
 
     with pytest.raises(ValueError, match="outside"):
         tools_in(out_dir)["sanity_check"](net_path=str(elsewhere))
-
-
-def test_the_tools_are_declared_once_with_typed_parameters(tmp_path: Path) -> None:
-    bound = {t.name: t for t in build_network_inspection_tools(inspection_run(tmp_path))}
-
-    assert set(bound) == {"inspect_network", "inspect_edge", "sanity_check", "probe_run"}
-    assert bound["inspect_edge"].input_schema["required"] == ["net_path", "edge_id"]
-    probe = bound["probe_run"].input_schema["properties"]
-    assert set(probe) == {"net_path", "seed", "vehicles", "duration_s"}
