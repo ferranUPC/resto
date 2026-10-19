@@ -1,5 +1,6 @@
-"""Area-of-interest import tools (E6.1/04; ADR-0033, ADR-0045): a fake `OsmSource` serving a small
-committed `.osm`, real `netconvert` (SUMO 1.27.1), no network and no LLM."""
+"""Area-of-interest import tools (E6.1/04, E6.1/09; ADR-0033, ADR-0045, ADR-0046): a fake
+`OsmSource` serving a small committed `.osm`, a fake geocoder, real `netconvert` (SUMO 1.27.1), no
+network and no LLM."""
 
 from __future__ import annotations
 
@@ -13,7 +14,11 @@ import sumolib.net
 
 from resto.adapters.osm.overpass import OverpassOsmSource
 from resto.adapters.sumo.netconvert import SubprocessNetconvertRunner
+from resto.adapters.sumo.netxml import SumolibNetworkQuery
 from resto.adapters.sumo.typemaps import typemap_dir
+from resto.application.network_analysis import sanity_report
+from resto.application.osm_import import OWN_TYPEMAPS
+from resto.application.osm_map import Connectors, NetEdge
 from resto.application.ports.osm import ExternalServiceError, OsmLimits
 from resto.application.tools.network_import import (
     ImportRun,
@@ -22,14 +27,23 @@ from resto.application.tools.network_import import (
     keep_largest_component,
     keep_vclass,
     list_import_profiles,
+    list_streets,
+    locate_place,
     netconvert,
     remove_isolated,
+    select_streets,
+    verify_coverage,
 )
 from resto.domain.value_objects.artifact_ref import ArtifactRef
 from tests.unit.adapters.osm._server import FakeService, Reply, fake_service
 from tests.unit.application.tools._osm_doubles import (
+    CAMPUS_OSM,
+    CORRIDOR,
+    CORRIDOR_OSM,
     DISTRICT,
     DISTRICT_OSM,
+    EAST_END,
+    WEST_END,
     FakeGeocoder,
     FakeOsmSource,
 )
@@ -102,8 +116,11 @@ def test_the_options_hold_the_cut_with_longitude_first_and_absolute_typemaps(
     boundary = options[options.index("--keep-edges.in-geo-boundary") + 1]
     assert boundary.split()[0] == "2.15,41.39"
     typemaps = options[options.index("--type-files") + 1].split(",")
-    assert typemaps == [str(typemap_dir() / "osmNetconvert.typ.xml")]
-    assert all(Path(t).is_absolute() for t in typemaps)
+    assert typemaps == [
+        str(typemap_dir() / "osmNetconvert.typ.xml"),
+        str(OWN_TYPEMAPS / "restoServiceRoads.typ.xml"),
+    ]
+    assert all(Path(t).is_absolute() and Path(t).is_file() for t in typemaps)
 
 
 def test_a_second_request_for_the_same_area_does_not_download_again(tmp_path: Path) -> None:
@@ -247,8 +264,8 @@ def test_an_area_above_the_limit_needs_the_user_and_nothing_is_downloaded(
 
     needs = result["needs_user"]
     assert needs["reason"]["kind"] == "area_too_large"
-    assert needs["reason"]["limit_km2"] == 10.0
-    assert needs["reason"]["area_km2"] > 10.0
+    assert needs["reason"]["limit_km2"] == 25.0
+    assert needs["reason"]["area_km2"] > 25.0
     assert any("smaller area" in r for r in needs["recommendations"])
     assert osm.calls == []
 
@@ -327,3 +344,222 @@ def test_a_bbox_is_the_south_west_north_east_of_the_source(tmp_path: Path) -> No
         "east": 2.16,
         "kind": "bbox",
     }
+
+
+def test_a_service_street_stays_for_cars_but_a_driveway_and_a_parking_aisle_do_not(
+    tmp_path: Path,
+) -> None:
+    run = run_in(tmp_path, FakeOsmSource(CAMPUS_OSM))
+    fetched = fetch_osm(run, polygon=RING)
+    snapshot = fetched["osm_snapshot"]["content_hash"]
+
+    result = keep_vclass(run, osm_snapshot=snapshot, vclass="passenger")
+
+    ways = {edge.lstrip("-").split("#")[0] for edge in edges_of(result)}
+    assert {"200", "201"} <= ways, "the residential road and the named service street stay"
+    assert not ways & {"202", "203"}, "the driveway and the parking aisle are dropped"
+
+
+# -- locate, select, verify (E6.1/09, ADR-0046) ---------------------------------------------------
+
+DIAGONAL = {300, 303}
+"""The ways called "Avinguda Diagonal"; 301 is the same road as "Carretera Reial"."""
+CORRIDOR_WAYS = {300, 301, 302, 303, 304}
+"""The road with every name, the link and the square between its stretches."""
+CROSS_STREETS = {310, 311, 320}
+
+
+def corridor_run(tmp_path: Path, osm: FakeOsmSource | None = None) -> tuple[ImportRun, str]:
+    run = run_in(
+        tmp_path, osm or FakeOsmSource(CORRIDOR_OSM), FakeGeocoder(places=(WEST_END, EAST_END))
+    )
+    fetched = fetch_osm(run, bbox=[CORRIDOR.south, CORRIDOR.west, CORRIDOR.north, CORRIDOR.east])
+    return run, fetched["osm_snapshot"]["content_hash"]
+
+
+def osm_ways_of(result: Mapping[str, Any]) -> set[int]:
+    """The OSM ways a built network was made of, as `--output.original-names` records them."""
+    return {
+        w for edge in NetEdge.read_all(Path(result["net_artifact"]["path"])) for w in edge.osm_ways
+    }
+
+
+def built_from(run: ImportRun, selected: Mapping[str, Any]) -> Mapping[str, Any]:
+    return netconvert(run, osm_snapshot=selected["osm_snapshot"]["content_hash"])
+
+
+def test_a_located_place_gives_its_point_and_what_it_is(tmp_path: Path) -> None:
+    run = run_in(tmp_path, geocoder=FakeGeocoder(places=(WEST_END,)))
+
+    result = locate_place(run, query=" Hospital Broggi ")
+
+    assert (result["lat"], result["lon"]) == (WEST_END.lat, WEST_END.lon)
+    assert (result["category"], result["type"]) == ("amenity", "hospital")
+
+
+def test_a_place_the_geocoder_does_not_know_is_an_answer_not_a_failure(tmp_path: Path) -> None:
+    result = locate_place(run_in(tmp_path), query="Hospital Imaginari")
+
+    assert "Hospital Imaginari" in result["not_found"]
+
+
+def test_locating_with_the_geocoder_down_fails_by_its_name(tmp_path: Path) -> None:
+    with pytest.raises(ExternalServiceError, match="nominatim"):
+        locate_place(run_in(tmp_path, geocoder=FakeGeocoder(down=True)), query="Hospital Broggi")
+
+
+def test_the_streets_of_a_snapshot_show_a_road_that_changes_name_and_keeps_its_ref(
+    tmp_path: Path,
+) -> None:
+    run, snapshot = corridor_run(tmp_path)
+
+    listing = list_streets(run, osm_snapshot=snapshot)
+
+    rows = {(r["name"], r["ref"]): r for r in listing["streets"]}
+    # 0.028 degrees of longitude at lat 41.39
+    assert rows["Avinguda Diagonal", "N-340"]["length_m"] == pytest.approx(2336, abs=5)
+    assert rows["Carretera Reial", "N-340"]["extent"]["west"] == 2.1
+    assert rows["", ""]["classes"] == ["primary_link"]
+    assert listing["total"] == len(listing["streets"]) == 7
+
+
+def test_near_a_point_only_the_streets_that_pass_close_to_it_are_listed(tmp_path: Path) -> None:
+    run, snapshot = corridor_run(tmp_path)
+
+    listing = list_streets(run, osm_snapshot=snapshot, near=[41.3950, 2.1200], radius_m=100)
+
+    assert [r["name"] for r in listing["streets"]] == ["Carrer de Dalt"]
+
+
+@pytest.mark.parametrize(
+    ("names", "refs", "kept"),
+    [
+        pytest.param(["diagonal"], [], DIAGONAL, id="by-name"),
+        pytest.param([], ["n-340"], DIAGONAL | {301}, id="by-ref-across-the-new-name"),
+    ],
+)
+def test_a_selection_keeps_the_matching_streets_and_nothing_else(
+    tmp_path: Path, names: list[str], refs: list[str], kept: set[int]
+) -> None:
+    run, snapshot = corridor_run(tmp_path)
+
+    selected = select_streets(run, osm_snapshot=snapshot, names=names, refs=refs, connectors="none")
+
+    assert osm_ways_of(built_from(run, selected)) <= kept
+    assert selected["pieces"] == len(kept)  # nothing joins them without connectors
+    assert selected["connectors"] == []
+
+
+@pytest.mark.parametrize(
+    ("connectors", "pieces", "built"),
+    [
+        pytest.param("links", 2, {300, 301, 304}, id="links-only-the-ramp"),
+        pytest.param("all", 1, CORRIDOR_WAYS, id="all-the-square-too"),
+    ],
+)
+def test_connectors_join_the_pieces_and_the_network_keeps_the_largest(
+    tmp_path: Path, connectors: Connectors, pieces: int, built: set[int]
+) -> None:
+    run, snapshot = corridor_run(tmp_path)
+
+    selected = select_streets(
+        run, osm_snapshot=snapshot, names=["Diagonal"], refs=["N-340"], connectors=connectors
+    )
+    result = built_from(run, selected)
+
+    assert selected["pieces"] == pieces
+    assert osm_ways_of(result) == built
+    report = sanity_report(SumolibNetworkQuery(Path(result["net_artifact"]["path"])))
+    assert report.largest_scc_ratio == 1.0
+
+
+def test_the_whole_area_keeps_the_cross_streets_a_selection_drops(tmp_path: Path) -> None:
+    run, snapshot = corridor_run(tmp_path)
+
+    everything = netconvert(run, osm_snapshot=snapshot)
+    selected = select_streets(run, osm_snapshot=snapshot, names=["Diagonal"], refs=["N-340"])
+
+    assert osm_ways_of(everything) >= CROSS_STREETS
+    assert not CROSS_STREETS & osm_ways_of(built_from(run, selected))
+
+
+def test_a_selection_that_matches_nothing_says_so_and_points_to_the_listing(
+    tmp_path: Path,
+) -> None:
+    run, snapshot = corridor_run(tmp_path)
+
+    with pytest.raises(ValueError, match="list_streets"):
+        select_streets(run, osm_snapshot=snapshot, names=["Diagnal"])
+    with pytest.raises(ValueError, match="at least one"):
+        select_streets(run, osm_snapshot=snapshot, names=["  "])
+
+
+def test_a_selection_replays_to_the_same_hash_and_trying_it_again_downloads_nothing(
+    tmp_path: Path,
+) -> None:
+    osm = FakeOsmSource(CORRIDOR_OSM)
+    run, snapshot = corridor_run(tmp_path, osm)
+
+    selected = select_streets(run, osm_snapshot=snapshot, names=["Diagonal"], refs=["N-340"])
+    again = select_streets(run, osm_snapshot=snapshot, names=["Diagonal"], refs=["N-340"])
+    built = built_from(run, selected)
+
+    assert again["osm_snapshot"] == selected["osm_snapshot"]
+    assert osm.downloads == 1
+    derived = ArtifactRef(
+        Path(selected["osm_snapshot"]["path"]), selected["osm_snapshot"]["content_hash"], "osm"
+    )
+    replayed = SubprocessNetconvertRunner().build(
+        derived, None, built["netconvert_options"], tmp_path / "replay" / "x"
+    )
+    assert replayed.content_hash == built["net_artifact"]["content_hash"]
+    assert built["source"] == selected["source"]
+
+
+def test_coverage_shows_the_missing_stretch_and_the_place_the_network_does_not_reach(
+    tmp_path: Path,
+) -> None:
+    run, snapshot = corridor_run(tmp_path)
+    locate_place(run, query=WEST_END.query)
+    locate_place(run, query=EAST_END.query)
+    selected = select_streets(
+        run, osm_snapshot=snapshot, names=["Diagonal"], refs=["N-340"], connectors="links"
+    )
+    built_from(run, selected)
+
+    report = verify_coverage(run, osm_snapshot=selected["osm_snapshot"]["content_hash"])
+
+    assert report["components"] == 1
+    assert report["extent"]["west"] == 2.1 and report["extent"]["east"] == 2.13
+    (diagonal,) = [
+        s
+        for s in report["streets_with_missing_stretches"]
+        if s["ref"] == "N-340" and s["name"] == "Avinguda Diagonal"
+    ]
+    (gap,) = diagonal["missing"]
+    assert sorted(gap["ends"]) == [[41.39, 2.1315], [41.39, 2.15]]
+    places = {p["query"]: p for p in report["places"]}
+    assert places[WEST_END.query]["to_network_m"] < 50
+    assert places[EAST_END.query]["to_network_m"] > 1500
+
+
+def test_coverage_of_the_whole_corridor_reaches_both_places_and_misses_nothing(
+    tmp_path: Path,
+) -> None:
+    run, snapshot = corridor_run(tmp_path)
+    locate_place(run, query=WEST_END.query)
+    locate_place(run, query=EAST_END.query)
+    selected = select_streets(run, osm_snapshot=snapshot, names=["Diagonal"], refs=["N-340"])
+    built_from(run, selected)
+
+    report = verify_coverage(run, osm_snapshot=selected["osm_snapshot"]["content_hash"])
+
+    assert report["streets_with_missing_stretches"] == []
+    assert all(p["to_nearest_end_m"] < 50 for p in report["places"])
+
+
+def test_coverage_before_anything_was_built_says_what_to_call(tmp_path: Path) -> None:
+    run, snapshot = corridor_run(tmp_path)
+
+    with pytest.raises(ValueError, match="netconvert"):
+        verify_coverage(run, osm_snapshot=snapshot)

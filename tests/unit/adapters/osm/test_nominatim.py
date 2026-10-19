@@ -10,7 +10,7 @@ from urllib.parse import parse_qs, urlparse
 import pytest
 
 from resto.adapters.osm.nominatim import DEFAULT_USER_AGENT, NominatimGeocoder
-from resto.application.ports.osm import ExternalServiceError, PlaceRejected
+from resto.application.ports.osm import ExternalServiceError, LocatedPlace, PlaceRejected
 from resto.domain.value_objects.network_source import MAX_POLYGON_VERTICES, PlaceName
 from tests.unit.adapters.osm._server import FakeService, Reply, fake_service
 
@@ -179,5 +179,63 @@ def test_an_unreachable_service_names_nominatim(tmp_path: Path) -> None:
 
     with pytest.raises(ExternalServiceError) as raised:
         geocoder.resolve(PlaceName("Eixample"))
+
+    assert raised.value.service == "nominatim"
+
+
+# -- locating a point (ADR-0046) ----------------------------------------------------------------
+
+
+def test_a_point_of_interest_is_located_with_its_kind_and_name(tmp_path: Path) -> None:
+    with fake_service() as service:
+        service.answer(Reply.fixture("nominatim_hospital.json"))
+
+        place = _geocoder(service, tmp_path).locate("Hospital Broggi")
+
+    assert place == LocatedPlace(
+        query="Hospital Broggi",
+        lat=41.3852412,
+        lon=2.043679,
+        category="amenity",
+        type="hospital",
+        name="Hospital Sant Joan Despí Moisès Broggi",
+    )
+    query = parse_qs(urlparse(service.received[0].path).query)
+    assert query["q"] == ["Hospital Broggi"] and query["limit"] == ["1"]
+    assert "polygon_geojson" not in query
+
+
+def test_a_place_nominatim_does_not_know_is_located_as_nothing(tmp_path: Path) -> None:
+    with fake_service() as service:
+        service.answer(Reply.fixture("nominatim_empty.json"))
+
+        assert _geocoder(service, tmp_path).locate("Atlantis") is None
+
+
+def test_a_located_point_is_cached_apart_from_the_boundary_of_the_same_name(
+    tmp_path: Path,
+) -> None:
+    with fake_service() as service:
+        service.answer(
+            Reply.fixture("nominatim_hospital.json"), Reply.fixture("nominatim_boundary.json")
+        )
+        geocoder = _geocoder(service, tmp_path)
+
+        first = geocoder.locate("Sant Gervasi")
+        again = _geocoder(service, tmp_path).locate(" sant gervasi ")
+        polygon = geocoder.resolve(PlaceName("Sant Gervasi"))
+
+    assert again is not None and first is not None
+    assert (again.lat, again.lon) == (first.lat, first.lon)
+    assert polygon.osm_id == 347950
+    assert len(service.received) == 2
+
+
+def test_locating_with_a_failing_service_names_nominatim(tmp_path: Path) -> None:
+    with fake_service() as service:
+        service.answer(Reply(b"oops", status=503, content_type="text/plain"))
+
+        with pytest.raises(ExternalServiceError) as raised:
+            _geocoder(service, tmp_path).locate("Hospital Broggi")
 
     assert raised.value.service == "nominatim"

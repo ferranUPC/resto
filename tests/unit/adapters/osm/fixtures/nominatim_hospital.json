@@ -1,0 +1,13 @@
+[
+  {
+    "place_id": 1004,
+    "osm_type": "way",
+    "osm_id": 456,
+    "lat": "41.3852412",
+    "lon": "2.0436790",
+    "category": "amenity",
+    "type": "hospital",
+    "name": "Hospital Sant Joan Despí Moisès Broggi",
+    "display_name": "Hospital Sant Joan Despí Moisès Broggi, Sant Joan Despí, Baix Llobregat"
+  }
+]

@@ -22,6 +22,7 @@ from resto.adapters.sumo.netxml import SumolibNetworkQuery
 from resto.adapters.sumo.plain_edit import XmlPlainNetEditor
 from resto.adapters.sumo.runner import SubprocessSumoRunner
 from resto.adapters.sumo.typemaps import typemap_dir
+from resto.application.osm_map import NetEdge
 from resto.application.ports.llm import AgentTask, Budget, Tool
 from resto.application.ports.network_query import NetworkNotStored
 from resto.application.ports.osm import ExternalServiceError, OsmLimits
@@ -35,6 +36,7 @@ from resto.domain.value_objects.artifact_ref import ArtifactRef
 from resto.domain.value_objects.drafts import NetworkDraft, UnresolvedIssue
 from resto.domain.value_objects.network_recipe import NetworkRecipe
 from resto.domain.value_objects.network_source import (
+    BBox,
     GeneratedNetwork,
     GridNetwork,
     Polygon,
@@ -72,7 +74,10 @@ from tests.unit.adapters.llm._fakes import FakeToolAgent, call_tool
 from tests.unit.application._world import DESCRIBE, World, answers
 from tests.unit.application.run_study.test_obtain_steps import NETWORK_ONLY, _obtain_plan
 from tests.unit.application.tools._osm_doubles import (
+    CORRIDOR_OSM,
     DISTRICT,
+    EAST_END,
+    WEST_END,
     FakeGeocoder,
     FakeOsmSource,
 )
@@ -455,6 +460,67 @@ def test_a_requirement_the_network_cannot_hold_asks_the_user_and_downloads_nothi
     needs = study.phases[0].needs_user
     assert isinstance(needs, NeedsUser) and isinstance(needs.reason, UnsupportedRequirement)
     assert setup.osm.calls == []
+
+
+def corridor_script(task: AgentTask, tools: Sequence[Tool]) -> NetworkDraft:
+    """The Diagonal from the hospital to the square: locate both, download a box around them,
+    look at the streets, select the road by name and by ref, build it and check the coverage."""
+    west = call_tool(tools, "locate_place", query=WEST_END.query)
+    east = call_tool(tools, "locate_place", query=EAST_END.query)
+    margin = 0.005
+    box = [
+        min(west["lat"], east["lat"]) - margin,
+        min(west["lon"], east["lon"]) - margin,
+        max(west["lat"], east["lat"]) + margin,
+        max(west["lon"], east["lon"]) + margin,
+    ]
+    fetched = call_tool(tools, "fetch_osm", bbox=box)
+    downloaded = fetched["osm_snapshot"]["content_hash"]
+    streets = call_tool(
+        tools, "list_streets", osm_snapshot=downloaded, near=[west["lat"], west["lon"]]
+    )
+    assert {s["ref"] for s in streets["streets"]} >= {"N-340"}
+    selected = call_tool(
+        tools, "select_streets", osm_snapshot=downloaded, names=["Diagonal"], refs=["N-340"]
+    )
+    snapshot = selected["osm_snapshot"]
+    built = call_tool(tools, "netconvert", osm_snapshot=snapshot["content_hash"])
+    coverage = call_tool(tools, "verify_coverage", osm_snapshot=snapshot["content_hash"])
+    assert coverage["streets_with_missing_stretches"] == []
+    assert all(p["to_nearest_end_m"] < 50 for p in coverage["places"])
+    recipe = NetworkRecipe(
+        source=BBox(**{k: v for k, v in selected["source"].items() if k != "kind"}),
+        osm_snapshot=ref(snapshot),
+        netconvert_options=tuple(built["netconvert_options"]),
+    )
+    return draft_of(recipe, tools, built["net_artifact"])
+
+
+def test_a_corridor_is_located_selected_verified_and_promoted_from_its_selection(
+    tmp_path: Path,
+) -> None:
+    osm = FakeOsmSource(CORRIDOR_OSM)
+    setup = Setup(
+        tmp_path,
+        corridor_script,
+        plan=obtain_plan("the Diagonal from the Hospital Broggi to Francesc Macia"),
+        osm=osm,
+        geocoder=FakeGeocoder(places=(WEST_END, EAST_END)),
+    )
+
+    study = setup.run()
+
+    assert study.resolution is StudyResolution.COMPLETED
+    (network_id,) = study.network_ids
+    promoted = setup.world.networks.get(network_id)
+    assert promoted is not None and promoted.recipe.osm_snapshot is not None
+    assert promoted.recipe.osm_snapshot.path.name.startswith("selected-")
+    ways = {w for edge in NetEdge.read_all(promoted.net_xml.path) for w in edge.osm_ways}
+    assert ways == {300, 301, 302, 303, 304}, "the road, its link and its square; no cross street"
+    assert osm.downloads == 1
+    assert isinstance(promoted.recipe.source, BBox), "the box drawn from the located places"
+    assert promoted.recipe.source.west == pytest.approx(WEST_END.lon - 0.005)
+    assert promoted.recipe.source.east == pytest.approx(EAST_END.lon + 0.005)
 
 
 class DownOsm:

@@ -1,0 +1,9 @@
+<types xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/types_file.xsd">
+    <!-- SUMO's osmNetconvert.typ.xml allows only "delivery pedestrian bicycle" on highway=service, so
+         filtering by the vehicle class passenger (keep-edges.by-vclass) drops the public streets of campuses and industrial parks that
+         OSM tags as service. Passenger vehicles may use them, except driveways and parking aisles. The
+         `|` joins two keys of one way, as SUMO's own osmNetconvertRailUsage.typ.xml does. -->
+    <type id="highway.service" numLanes="1" speed="8.33" priority="1" oneway="false" disallow="rail rail_urban rail_electric rail_fast tram drone aircraft scooter container wheelchair subway cable_car ship"/>
+    <type id="highway.service|service.driveway" numLanes="1" speed="5.56" priority="1" oneway="false" disallow="all"/>
+    <type id="highway.service|service.parking_aisle" numLanes="1" speed="5.56" priority="1" oneway="false" disallow="all"/>
+</types>

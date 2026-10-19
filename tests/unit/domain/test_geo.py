@@ -1,10 +1,10 @@
-"""`area_km2`: the size of an area of interest, checked against worked figures."""
+"""`area_km2` and `distance_m`, checked against worked figures."""
 
 from __future__ import annotations
 
 import pytest
 
-from resto.domain.services.geo import area_km2
+from resto.domain.services.geo import area_km2, distance_m
 from resto.domain.value_objects.network_source import BBox, Polygon
 
 
@@ -30,3 +30,9 @@ def test_a_polygon_has_the_area_of_its_ring_whatever_the_direction() -> None:
     expected = 0.5 * 11.1195 * 11.1195
     assert area_km2(Polygon(triangle)) == pytest.approx(expected, rel=0.01)
     assert area_km2(Polygon(reversed_ring)) == pytest.approx(expected, rel=0.01)
+
+
+def test_a_degree_north_is_about_111_km_and_a_degree_east_less_away_from_the_equator() -> None:
+    assert distance_m((41.0, 2.0), (42.0, 2.0)) == pytest.approx(111_195, rel=0.001)
+    # cos(41.39 deg) = 0.7503
+    assert distance_m((41.39, 2.10), (41.39, 2.15)) == pytest.approx(4171, rel=0.01)

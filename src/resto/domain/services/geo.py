@@ -1,4 +1,5 @@
-"""Size of an area of interest, to refuse one too large before any download (ADR-0045 §6)."""
+"""Size of an area of interest, to refuse one too large before any download (ADR-0045 §6), and
+distances between points, for the coverage report (ADR-0046)."""
 
 from __future__ import annotations
 
@@ -16,6 +17,13 @@ def ring_of(area: BBox | Polygon) -> tuple[tuple[float, float], ...]:
         return area.ring
     s, w, n, e = area.south, area.west, area.north, area.east
     return ((s, w), (s, e), (n, e), (n, w), (s, w))
+
+
+def distance_m(a: tuple[float, float], b: tuple[float, float]) -> float:
+    """Distance in metres between two (lat, lon) points, on the same local projection as
+    `area_km2`: exact enough within a city."""
+    x_scale = math.cos(math.radians((a[0] + b[0]) / 2))
+    return 1000 * KM_PER_DEGREE * math.hypot((a[1] - b[1]) * x_scale, a[0] - b[0])
 
 
 def area_km2(area: BBox | Polygon) -> float:

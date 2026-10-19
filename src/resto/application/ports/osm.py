@@ -1,5 +1,6 @@
-"""OpenStreetMap access for the Network Author (ADR-0045): a geocoder that resolves a place name
-to a polygon, and a source that downloads the map inside a polygon once."""
+"""OpenStreetMap access for the Network Author (ADR-0045, ADR-0046): a geocoder that resolves a
+place name to a polygon or locates it as a point, and a source that downloads the map inside a
+polygon once."""
 
 from __future__ import annotations
 
@@ -36,7 +37,7 @@ class OsmLimits:
     """Limits on what is imported from OpenStreetMap. Initial values, to calibrate on
     GEN-LOCATIONS (ADR-0045 §6)."""
 
-    max_area_km2: float = 10.0
+    max_area_km2: float = 25.0
     max_edges: int = 25_000
     overpass_maxsize_bytes: int = 256 * 1024 * 1024
     overpass_timeout_s: int = 90
@@ -52,10 +53,29 @@ class OsmLimits:
             raise ValueError("overpass_timeout_s must be >= 1")
 
 
+@dataclass(frozen=True, slots=True)
+class LocatedPlace:
+    """Where a place or point of interest is (ADR-0046): its point, what OpenStreetMap says it is
+    (`category` and `type`, e.g. `amenity`/`hospital`) and the name the geocoder matched."""
+
+    query: str
+    lat: float
+    lon: float
+    category: str
+    type: str
+    name: str
+
+
 class Geocoder(Protocol):
     def resolve(self, place: PlaceName) -> Polygon:
         """The boundary of `place`; raises `PlaceRejected` when it is not an administrative
         boundary and `ExternalServiceError` when the service fails."""
+        ...
+
+    def locate(self, query: str) -> LocatedPlace | None:
+        """The best match for `query` as a point, of any kind (a hospital, a square, a street), or
+        `None` when the geocoder knows nothing by that name. Raises `ExternalServiceError` when
+        the service fails."""
         ...
 
 

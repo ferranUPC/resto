@@ -42,7 +42,7 @@ Building it showed four gaps:
    ends in `NeedsUser` with an explicit "unsupported requirement" reason, never ignored.
 6. **Size limit before downloading.** An area above the limit ends in `NeedsUser` with its own reason
    (`AreaTooLarge`, recommendation: pick a smaller area or a profile with fewer road classes). Initial values,
-   to calibrate on GEN-LOCATIONS: 10 km², about 25,000 edges, Overpass `maxsize` 256 MiB, `timeout` 90 s.
+   to calibrate on GEN-LOCATIONS: 25 km² (raised from 10 on 2026-10-16, after Sant Feliu de Llobregat at 11.9 km² was refused), about 25,000 edges, Overpass `maxsize` 256 MiB, `timeout` 90 s.
 7. **One download per area.** The OSM snapshot is stored as an artifact, keyed by the polygon's hash; a
    second request reuses it. A geocoder or Overpass failure is a failed step by name, not `NeedsUser`: the
    user cannot fix it.

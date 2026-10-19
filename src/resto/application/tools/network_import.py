@@ -1,4 +1,4 @@
-"""Tools that import an area of interest from OpenStreetMap (ADR-0033, ADR-0045).
+"""Tools that import an area of interest from OpenStreetMap (ADR-0033, ADR-0045, ADR-0046).
 
 The agent calls `fetch_osm` (area -> snapshot, once per polygon), `netconvert` (snapshot and
 profile -> a network cut to the polygon) and then the cleanups. The area and the cleanups chosen so
@@ -6,6 +6,11 @@ far live in `ImportRun`, keyed by the snapshot's `content_hash`, so the model ne
 polygon or a list of options. Every call that builds returns the full `netconvert_options`: those,
 the `source` and the `osm_snapshot` are the recipe, and replaying them gives the same
 `content_hash`.
+
+When the user wants some streets and not a whole area, the agent works in three steps
+(ADR-0046): it locates the places the user named (`locate_place`), selects the streets from the
+downloaded snapshot (`list_streets`, `select_streets`, which writes a derived snapshot the recipe
+replays from) and checks what it built (`verify_coverage`).
 
 What the code refuses, it refuses before any download and returns as `needs_user` (the agent turns
 it into a `NeedsUser`): an unsupported requirement, a place that is not a boundary, an area over the
@@ -16,6 +21,7 @@ name.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
@@ -34,11 +40,12 @@ from resto.application.osm_import import (
     profile_named,
     resolve_area,
 )
+from resto.application.osm_map import MAX_CONNECTOR_M, MAX_LISTED, Connectors, NetEdge, OsmMap
 from resto.application.ports.llm import Tool
-from resto.application.ports.osm import Geocoder, OsmLimits, OsmSource
+from resto.application.ports.osm import Geocoder, LocatedPlace, OsmLimits, OsmSource
 from resto.application.ports.sumo import NetconvertRunner
 from resto.application.tools.declaration import artifact_json, tool
-from resto.domain.services.content_hash import short_hash
+from resto.domain.services.content_hash import short_hash, work_key
 from resto.domain.services.geo import area_km2
 from resto.domain.value_objects.artifact_ref import ArtifactRef
 from resto.domain.value_objects.network_source import BBox, PlaceName, Polygon
@@ -51,6 +58,7 @@ class _Import:
     snapshot: ArtifactRef
     profile: str = DEFAULT_PROFILE
     cleanups: Cleanups = field(default_factory=Cleanups)
+    net: ArtifactRef | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,7 +67,8 @@ class ImportRun:
     of one agent run: each snapshot fetched, with its area, profile and cleanups. The dataclass is
     frozen but `imports` is filled as the tools run: the model names a snapshot by hash and the
     tools must remember what it chose between calls, so the state has to live somewhere; each
-    `obtain` builds its own `ImportRun`, so it never outlives or crosses a run."""
+    `obtain` builds its own `ImportRun`, so it never outlives or crosses a run. `located` holds
+    the places `locate_place` found, by query, for `verify_coverage`."""
 
     runner: NetconvertRunner
     osm: OsmSource
@@ -68,6 +77,7 @@ class ImportRun:
     typemap_dir: Path
     limits: OsmLimits = field(default_factory=OsmLimits)
     imports: dict[str, _Import] = field(default_factory=dict)
+    located: dict[str, LocatedPlace] = field(default_factory=dict)
 
 
 _ONE_AREA = "name the area with exactly one of bbox, polygon or place_name"
@@ -151,6 +161,111 @@ def fetch_osm(
     return {"source": asdict(area), "osm_snapshot": artifact_json(snapshot)}
 
 
+_SNAPSHOT = Annotated[
+    str, Field(description="`content_hash` of the snapshot `fetch_osm` returned.")
+]
+
+
+@tool(
+    name="locate_place",
+    description=(
+        "Find where a place or point of interest is (a hospital, a square, a station, an "
+        "address), so the area you download is drawn from data and not from memory. Returns its "
+        "`lat`, `lon` and what it is (`category`, `type`, `name`), or `not_found` when the "
+        "geocoder does not know it: then try another wording (the official name, with the city, "
+        "in Catalan or Spanish). `verify_coverage` reports how far the network ends from every "
+        "place located in this run."
+    ),
+)
+def locate_place(
+    ctx: ImportRun,
+    query: Annotated[
+        str,
+        Field(
+            description=(
+                "The place, with the city, e.g. 'Hospital Moisès Broggi, Sant Joan Despí' or "
+                "'Plaça de Francesc Macià, Barcelona'."
+            )
+        ),
+    ],
+) -> Mapping[str, Any]:
+    place = ctx.geocoder.locate(query.strip())
+    if place is None:
+        return {"not_found": f"the geocoder knows no place called {query!r}"}
+    ctx.located[place.query] = place
+    return asdict(place)
+
+
+@tool(
+    name="list_streets",
+    description=(
+        "The streets of a fetched snapshot, longest first: name, ref (e.g. 'N-340'), road "
+        "classes, total length and extent. Highways with no name and no ref are grouped by "
+        "class. Use it before `select_streets` to see how the streets the user named are "
+        "spelled, and whether the road changes name along the stretch. With `near`, only the "
+        f"streets that pass within `radius_m` of that point. At most {MAX_LISTED} rows."
+    ),
+)
+def list_streets(
+    ctx: ImportRun,
+    osm_snapshot: _SNAPSHOT,
+    near: Annotated[
+        list[float] | None,
+        Field(
+            min_length=2,
+            max_length=2,
+            description="[lat, lon] of a point, e.g. one `locate_place` returned.",
+        ),
+    ] = None,
+    radius_m: Annotated[
+        float, Field(ge=10, le=5000, description="Radius around `near`, in metres. Default 300.")
+    ] = 300.0,
+) -> Mapping[str, Any]:
+    osm = OsmMap.read(_state(ctx, osm_snapshot).snapshot.path)
+    point = (near[0], near[1]) if near is not None else None
+    streets = osm.streets(point, radius_m)
+    return {"streets": streets[:MAX_LISTED], "total": len(streets)}
+
+
+@tool(
+    name="select_streets",
+    description=(
+        "Keep only some streets of a fetched snapshot, before `netconvert`: every highway whose "
+        "name contains one of `names`, or whose ref is one of `refs` (a road that changes name "
+        "keeps its ref), plus the `connectors` you ask for. Writes a new snapshot and returns "
+        "its `osm_snapshot` and `source` for the recipe; build it with `netconvert` like any "
+        "other. Also returns what was kept and in how many `pieces`: more than one means gaps "
+        "a vehicle cannot cross. Fails when nothing matches; then check the names with "
+        "`list_streets`. Trying another selection downloads nothing."
+    ),
+)
+def select_streets(
+    ctx: ImportRun,
+    osm_snapshot: _SNAPSHOT,
+    names: Annotated[
+        list[str],
+        Field(description="Names or parts of names, any case, e.g. ['Avinguda Diagonal']."),
+    ] = [],  # noqa: B006 - never mutated; pydantic copies the default
+    refs: Annotated[list[str], Field(description="Road refs, any case, e.g. ['N-340'].")] = [],  # noqa: B006 - never mutated; pydantic copies the default
+    connectors: Annotated[
+        Connectors,
+        Field(
+            description=(
+                "Which other ways join the pieces of the selection: 'none'; 'links', only "
+                "`*_link` ramps; 'all', any road (links, squares and crossings with another "
+                f"name), at most {MAX_CONNECTOR_M:g} m long. Default 'all'."
+            )
+        ),
+    ] = "all",
+) -> Mapping[str, Any]:
+    state = _state(ctx, osm_snapshot)
+    key = work_key(json.dumps([osm_snapshot, sorted(names), sorted(refs), connectors]))
+    selected, summary = OsmMap.read(state.snapshot.path).select(names, refs, connectors)
+    derived = selected.write(ctx.out_dir / "osm" / f"selected-{key}.osm")
+    ctx.imports.setdefault(derived.content_hash, _Import(state.area, derived))
+    return {"source": asdict(state.area), "osm_snapshot": artifact_json(derived), **summary}
+
+
 def _build(ctx: ImportRun, key: str, state: _Import) -> Mapping[str, Any]:
     options = netconvert_options(
         profile_named(state.profile), state.area, ctx.typemap_dir, state.cleanups
@@ -158,6 +273,7 @@ def _build(ctx: ImportRun, key: str, state: _Import) -> Mapping[str, Any]:
     net = ctx.runner.build(
         state.snapshot, None, options, ctx.out_dir / "imported" / short_hash(key)
     )
+    state = replace(state, net=net)
     ctx.imports[key] = state
     # the edges are only known once the network is built, so the limit is checked here, for the
     # import and for every cleanup that rebuilds it
@@ -199,11 +315,6 @@ def _state(ctx: ImportRun, osm_snapshot: str) -> _Import:
     if state is None:
         raise ValueError(f"no snapshot {osm_snapshot!r} in this run: call fetch_osm first")
     return state
-
-
-_SNAPSHOT = Annotated[
-    str, Field(description="`content_hash` of the snapshot `fetch_osm` returned.")
-]
 
 
 @tool(
@@ -283,13 +394,36 @@ def keep_vclass(
     return _build(ctx, osm_snapshot, replace(state, cleanups=cleanups))
 
 
+@tool(
+    name="verify_coverage",
+    description=(
+        "Is the network you last built from a snapshot the one the user asked for? Returns its "
+        "extent; its connected components with their ends; the streets of the snapshot with "
+        "stretches that did not make it into the network (where they are and how long); and, "
+        "for every place `locate_place` found in this run, how far the network and its nearest "
+        "end are from it. Call it before you submit a network of selected streets; what it "
+        "shows and you cannot fix goes to unresolved[] with its numbers."
+    ),
+)
+def verify_coverage(ctx: ImportRun, osm_snapshot: _SNAPSHOT) -> Mapping[str, Any]:
+    state = _state(ctx, osm_snapshot)
+    if state.net is None:
+        raise ValueError(f"nothing was built from {osm_snapshot!r}: call netconvert first")
+    osm = OsmMap.read(state.snapshot.path)
+    return osm.coverage(NetEdge.read_all(state.net.path), list(ctx.located.values()))
+
+
 def build_network_import_tools(ctx: ImportRun) -> tuple[Tool, ...]:
     return (
+        locate_place.bind(ctx),
         list_import_profiles.bind(ctx),
         fetch_osm.bind(ctx),
+        list_streets.bind(ctx),
+        select_streets.bind(ctx),
         netconvert.bind(ctx),
         keep_largest_component.bind(ctx),
         remove_isolated.bind(ctx),
         join_junctions.bind(ctx),
         keep_vclass.bind(ctx),
+        verify_coverage.bind(ctx),
     )

@@ -1,4 +1,5 @@
-"""Nominatim geocoder: a place name to the polygon of its administrative boundary (ADR-0045 §2).
+"""Nominatim geocoder: a place name to the polygon of its administrative boundary (ADR-0045 §2),
+or a place of any kind to a point (ADR-0046).
 
 Follows the public usage policy: at most one request per second, a User-Agent that identifies the
 application, and results cached so a name is asked once."""
@@ -10,12 +11,13 @@ import json
 import math
 import threading
 import time
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode
 
 from resto.adapters.osm.http import DEFAULT_USER_AGENT, request
-from resto.application.ports.osm import ExternalServiceError, PlaceRejected
+from resto.application.ports.osm import ExternalServiceError, LocatedPlace, PlaceRejected
 from resto.domain.value_objects.network_source import MAX_POLYGON_VERTICES, PlaceName, Polygon
 
 SERVICE = "nominatim"
@@ -28,7 +30,7 @@ _Ring = list[tuple[float, float]]  # (lon, lat), as GeoJSON
 
 class NominatimGeocoder:
     """`Geocoder` over the Nominatim search API. `cache_dir` holds one JSON file per normalised
-    query; only successful resolutions are cached."""
+    query and kind of answer (boundary or point); only successful answers are cached."""
 
     def __init__(
         self,
@@ -48,23 +50,44 @@ class NominatimGeocoder:
         self._last_request_at: float | None = None
 
     def resolve(self, place: PlaceName) -> Polygon:
-        cache_file = self._cache_file(place)
+        cache_file = _cache_file(self._cache_dir, place.query)
         if cache_file.exists():
             cached = json.loads(cache_file.read_text())
             return Polygon(tuple((lat, lon) for lat, lon in cached["ring"]), cached["osm_id"])
-        polygon = self._lookup(place)
-        self._cache_dir.mkdir(parents=True, exist_ok=True)
-        cache_file.write_text(
-            json.dumps({"osm_id": polygon.osm_id, "ring": [list(p) for p in polygon.ring]})
-        )
+        results = self._search({"q": place.query, "polygon_geojson": 1})
+        polygon = _polygon_of(place.query, results)
+        self._store(cache_file, {"osm_id": polygon.osm_id, "ring": [list(p) for p in polygon.ring]})
         return polygon
 
-    def _cache_file(self, place: PlaceName) -> Path:
-        key = hashlib.sha256(" ".join(place.query.lower().split()).encode()).hexdigest()
-        return self._cache_dir / f"{key}.json"
+    def locate(self, query: str) -> LocatedPlace | None:
+        cache_file = _cache_file(self._cache_dir / "points", query)
+        if cache_file.exists():
+            return LocatedPlace(**json.loads(cache_file.read_text()))
+        results = self._search({"q": query})
+        if not results:
+            return None
+        top = results[0]
+        try:
+            place = LocatedPlace(
+                query=query,
+                lat=float(top["lat"]),
+                lon=float(top["lon"]),
+                category=str(top.get("category") or top.get("class") or ""),
+                type=str(top.get("type") or ""),
+                name=str(top.get("name") or top.get("display_name") or ""),
+            )
+        except (KeyError, TypeError, ValueError) as e:
+            raise ExternalServiceError(SERVICE, "a result has no usable lat and lon") from e
+        self._store(cache_file, asdict(place))
+        return place
 
-    def _lookup(self, place: PlaceName) -> Polygon:
-        query = urlencode({"q": place.query, "format": "jsonv2", "polygon_geojson": 1, "limit": 1})
+    def _store(self, cache_file: Path, answer: dict[str, Any]) -> None:
+        cache_file.parent.mkdir(parents=True, exist_ok=True)
+        cache_file.write_text(json.dumps(answer))
+
+    def _search(self, params: dict[str, Any]) -> list[Any]:
+        """The results of one search, best first, at most one."""
+        query = urlencode({**params, "format": "jsonv2", "limit": 1})
         with self._lock:  # one request at a time, spaced by the minimum interval
             self._wait_turn()
             try:
@@ -82,7 +105,7 @@ class NominatimGeocoder:
             raise ExternalServiceError(SERVICE, "the answer is not JSON") from e
         if not isinstance(results, list):
             raise ExternalServiceError(SERVICE, "the answer is not a list of results")
-        return _polygon_of(place.query, results)
+        return results
 
     def _wait_turn(self) -> None:
         if self._last_request_at is None:
@@ -90,6 +113,13 @@ class NominatimGeocoder:
         remaining = self._last_request_at + self.min_interval_s - time.monotonic()
         if remaining > 0:
             time.sleep(remaining)
+
+
+def _cache_file(folder: Path, query: str) -> Path:
+    """Boundaries sit at the top of the cache, where earlier runs stored them; points under
+    `points/`, so the same name can hold both."""
+    key = hashlib.sha256(" ".join(query.lower().split()).encode()).hexdigest()
+    return folder / f"{key}.json"
 
 
 def _polygon_of(query: str, results: list[Any]) -> Polygon:

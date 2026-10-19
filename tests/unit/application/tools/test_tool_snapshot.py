@@ -1,7 +1,8 @@
 """What every agent is given today: name, description and input schema of each network, Expert and
 Scenario Builder tool, stored once in `tool_snapshot.json` and asserted exactly (refactor r3).
-E6.1/02 added the Network Author's generated-network tools, E6.1/05 its inspection tools and
-E6.1/06 its plain-XML edit tools and E6.1/07 `find_network`, on purpose.
+E6.1/02 added the Network Author's generated-network tools, E6.1/05 its inspection tools,
+E6.1/06 its plain-XML edit tools, E6.1/07 `find_network` and E6.1/09 its locate, select and
+verify tools, on purpose.
 
 The declaration refactor must leave this file unchanged. Regenerate it only on purpose:
 

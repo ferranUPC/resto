@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<osm version="0.6" generator="hand-made for the E6.1/09 tests">
+  <node id="1" lat="41.3900" lon="2.1000"/>
+  <node id="2" lat="41.3900" lon="2.1100"/>
+  <node id="3" lat="41.3900" lon="2.1200"/>
+  <node id="4" lat="41.3900" lon="2.1205"/>
+  <node id="5" lat="41.3900" lon="2.1300"/>
+  <node id="6" lat="41.3900" lon="2.1315"/>
+  <node id="7" lat="41.3900" lon="2.1400"/>
+  <node id="8" lat="41.3900" lon="2.1500"/>
+  <node id="11" lat="41.3850" lon="2.1100"/>
+  <node id="12" lat="41.3950" lon="2.1100"/>
+  <node id="13" lat="41.3850" lon="2.1400"/>
+  <node id="14" lat="41.3950" lon="2.1400"/>
+  <node id="15" lat="41.3950" lon="2.1200"/>
+  <way id="301">
+    <nd ref="1"/><nd ref="2"/><nd ref="3"/>
+    <tag k="highway" v="primary"/>
+    <tag k="name" v="Carretera Reial"/>
+    <tag k="ref" v="N-340"/>
+  </way>
+  <way id="304">
+    <nd ref="3"/><nd ref="4"/>
+    <tag k="highway" v="primary_link"/>
+  </way>
+  <way id="300">
+    <nd ref="4"/><nd ref="5"/>
+    <tag k="highway" v="primary"/>
+    <tag k="name" v="Avinguda Diagonal"/>
+    <tag k="ref" v="N-340"/>
+  </way>
+  <way id="302">
+    <nd ref="5"/><nd ref="6"/>
+    <tag k="highway" v="primary"/>
+    <tag k="name" v="Plaça de Pius XII"/>
+  </way>
+  <way id="303">
+    <nd ref="6"/><nd ref="7"/><nd ref="8"/>
+    <tag k="highway" v="primary"/>
+    <tag k="name" v="Avinguda Diagonal"/>
+    <tag k="ref" v="N-340"/>
+  </way>
+  <way id="310">
+    <nd ref="11"/><nd ref="2"/><nd ref="12"/>
+    <tag k="highway" v="residential"/>
+    <tag k="name" v="Carrer de Muntaner"/>
+  </way>
+  <way id="311">
+    <nd ref="13"/><nd ref="7"/><nd ref="14"/>
+    <tag k="highway" v="residential"/>
+    <tag k="name" v="Carrer de Balmes"/>
+  </way>
+  <way id="320">
+    <nd ref="12"/><nd ref="15"/><nd ref="14"/>
+    <tag k="highway" v="residential"/>
+    <tag k="name" v="Carrer de Dalt"/>
+  </way>
+</osm>

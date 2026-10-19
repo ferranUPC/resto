@@ -58,7 +58,7 @@ from resto.domain.value_objects.tasks import NetworkTask, ObtainNetworkTask
 
 # Bump whenever the prompt, the tool set or the default budget changes in a way that can change
 # the agent's answers (E6.2 records it with every measurement).
-NETWORK_AUTHOR_VERSION = "v1"
+NETWORK_AUTHOR_VERSION = "v3"
 
 _COMMON = """\
 You are the Network Author of a SUMO traffic-simulation framework. You make sure a road network
@@ -101,7 +101,16 @@ choose exactly one ending:
          `netconvert` with the profile that keeps what the user asked for ("with the train" is
          the rail profile, "with bicycle lanes" the bicycle profile), then cleanups if the sanity
          check asks for them (`keep_largest_component`, `remove_isolated`, `join_junctions`,
-         `keep_vclass`).
+         `keep_vclass`). A whole district or box needs nothing more.
+       - only some streets ("the Diagonal from the Hospital Broggi to Francesc Macià"):
+         `locate_place` every place the user named and draw the box from those points, a few
+         hundred metres wider, never from memory; `fetch_osm` the box; `list_streets` near a
+         located point to see how the street is spelled and whether it changes name (then use
+         its ref); `select_streets`; `netconvert` the selected snapshot; `verify_coverage`.
+         A selection in more than one piece, a missing stretch or a place far from the
+         network's ends means a selection to try again (other names, a ref, other
+         connectors). What you cannot fix goes to unresolved[] with the numbers the coverage
+         report gave.
   3. NeedsUser(reason, message, candidates): the user must act. Use it when
        - two or more stored networks match: SeveralCandidates, with their ids as candidates;
        - nothing is stored and it cannot be built from the reference: NetworkNotFound;

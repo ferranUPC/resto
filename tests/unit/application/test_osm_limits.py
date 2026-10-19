@@ -10,7 +10,7 @@ from resto.application.ports.osm import OsmLimits
 def test_the_defaults_are_the_initial_values_of_the_adr() -> None:
     limits = OsmLimits()
 
-    assert limits.max_area_km2 == 10.0
+    assert limits.max_area_km2 == 25.0
     assert limits.max_edges == 25_000
     assert limits.overpass_maxsize_bytes == 256 * 1024 * 1024
     assert limits.overpass_timeout_s == 90

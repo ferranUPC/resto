@@ -31,40 +31,50 @@ from resto.domain.value_objects.outcomes import (
 
 @dataclass(frozen=True, slots=True)
 class ImportProfile:
-    """What the import keeps in the `.net.xml`: typemaps and `netconvert` options."""
+    """What the import keeps in the `.net.xml`: typemaps and `netconvert` options. `typemaps` are
+    resolved against the directory the caller gives (SUMO's); `own_typemaps` against `OWN_TYPEMAPS`
+    and come last, so they override SUMO's."""
 
     name: str
     description: str
     typemaps: tuple[str, ...]
     options: tuple[str, ...] = ()
+    own_typemaps: tuple[str, ...] = ()
 
 
 _BASE = "osmNetconvert.typ.xml"
+OWN_TYPEMAPS = Path(__file__).resolve().parent / "typemaps"
+_SERVICE_ROADS = ("restoServiceRoads.typ.xml",)
 
 PROFILES: tuple[ImportProfile, ...] = (
     ImportProfile(
         "roads",
-        "Roads, bicycle paths and footways as SUMO's default OSM typemap types them.",
+        "Roads, bicycle paths and footways as SUMO types them. Service streets (campuses, "
+        "industrial parks) are open to cars; driveways and parking aisles are not.",
         (_BASE,),
         ("--geometry.remove", "--roundabouts.guess"),
+        _SERVICE_ROADS,
     ),
     ImportProfile(
         "rail",
         "Roads plus railways, trams and subways, usable in both directions (BidiRail, RailUsage).",
         (_BASE, "osmNetconvertBidiRail.typ.xml", "osmNetconvertRailUsage.typ.xml"),
         ("--geometry.remove", "--roundabouts.guess"),
+        _SERVICE_ROADS,
     ),
     ImportProfile(
         "bicycle",
         "Roads plus bicycle lanes and tracks, with their directions.",
         (_BASE, "osmNetconvertBicycle.typ.xml"),
         ("--geometry.remove", "--roundabouts.guess", "--osm.bike-access"),
+        _SERVICE_ROADS,
     ),
     ImportProfile(
         "pedestrian",
         "Roads plus sidewalks and crossings.",
         (_BASE, "osmNetconvertPedestrians.typ.xml"),
         ("--geometry.remove", "--roundabouts.guess", "--osm.sidewalks", "--osm.crossings"),
+        _SERVICE_ROADS,
     ),
 )
 
@@ -108,11 +118,15 @@ class Cleanups:
 def netconvert_options(
     profile: ImportProfile, area: BBox | Polygon, typemap_dir: Path, cleanups: Cleanups
 ) -> tuple[str, ...]:
-    """The `netconvert` options of an import: typemaps, profile options, the cut to `area`
-    (`lon,lat` order, the reverse of Overpass), then the cleanups in a fixed order, so the same
-    choices always give the same recipe."""
-    typemaps = ",".join(str(typemap_dir / name) for name in profile.typemaps)
-    options = ["--type-files", typemaps, *profile.options]
+    """The `netconvert` options of an import: typemaps, profile options, the OSM ways each edge
+    comes from (`--output.original-names`, read by the coverage report, ADR-0046), the cut to
+    `area` (`lon,lat` order, the reverse of Overpass), then the cleanups in a fixed order, so the
+    same choices always give the same recipe."""
+    typemaps = ",".join(
+        [str(typemap_dir / name) for name in profile.typemaps]
+        + [str(OWN_TYPEMAPS / name) for name in profile.own_typemaps]
+    )
+    options = ["--type-files", typemaps, *profile.options, "--output.original-names"]
     options += ["--keep-edges.in-geo-boundary", _boundary(area)]
     if cleanups.largest_component:
         options += ["--keep-edges.components", "1"]

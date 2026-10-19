@@ -9,13 +9,31 @@ import shutil
 from pathlib import Path
 
 from resto.adapters.persistence.filesystem import artifact_ref
-from resto.application.ports.osm import ExternalServiceError, PlaceRejected
+from resto.application.ports.osm import ExternalServiceError, LocatedPlace, PlaceRejected
 from resto.domain.value_objects.artifact_ref import ArtifactRef
 from resto.domain.value_objects.network_source import BBox, PlaceName, Polygon
 
 DISTRICT_OSM = Path(__file__).parent / "fixtures" / "district.osm"
 """Two crossing roads inside the district, a road leaving it, an island road inside it that joins
 nothing, and a road far outside."""
+
+CAMPUS_OSM = Path(__file__).parent / "fixtures" / "campus.osm"
+"""A residential road crossed by a named service street, a driveway and a parking aisle."""
+
+CORRIDOR_OSM = Path(__file__).parent / "fixtures" / "corridor.osm"
+"""The Diagonal in small, along lat 41.39 from lon 2.100 to 2.150: a primary road called "Carretera
+Reial" (way 301) that becomes "Avinguda Diagonal" (300, 303), all three with `ref` N-340. An
+unnamed `primary_link` (304, 42 m) joins 301 to 300 and a square with another name ("Plaça de Pius
+XII", 302, 125 m) joins 300 to 303. Two cross streets (Muntaner 310, Balmes 311) and a street
+north of the corridor (Carrer de Dalt 320) close a loop away from it."""
+
+CORRIDOR = BBox(south=41.384, west=2.099, north=41.396, east=2.151)
+
+WEST_END = LocatedPlace("Hospital Broggi", 41.3901, 2.1001, "amenity", "hospital", "Hospital")
+"""Next to the west end of the corridor (node 1)."""
+
+EAST_END = LocatedPlace("Francesc Macià", 41.3901, 2.1499, "place", "square", "Francesc Macià")
+"""Next to the east end of the corridor (node 8)."""
 
 DISTRICT = Polygon(
     ((41.390, 2.150), (41.390, 2.160), (41.398, 2.160), (41.398, 2.150), (41.390, 2.150)),
@@ -24,12 +42,13 @@ DISTRICT = Polygon(
 
 
 class FakeOsmSource:
-    """Serves `DISTRICT_OSM` for any area; like the real source, an area already fetched is
-    returned from disk and `downloads` does not grow."""
+    """Serves `source` (`DISTRICT_OSM` by default) for any area; like the real source, an area
+    already fetched is returned from disk and `downloads` does not grow."""
 
-    def __init__(self) -> None:
+    def __init__(self, source: Path = DISTRICT_OSM) -> None:
         self.calls: list[BBox | Polygon] = []
         self.downloads = 0
+        self._source = source
 
     def fetch(self, area: BBox | Polygon, out_dir: Path) -> ArtifactRef:
         self.calls.append(area)
@@ -37,18 +56,25 @@ class FakeOsmSource:
         target = out_dir / f"osm-{key}.osm"
         if not target.exists():
             out_dir.mkdir(parents=True, exist_ok=True)
-            shutil.copy(DISTRICT_OSM, target)
+            shutil.copy(self._source, target)
             self.downloads += 1
         return artifact_ref(target, "osm")
 
 
 class FakeGeocoder:
+    """Resolves every boundary to `polygon` and locates only the `places` it was given."""
+
     def __init__(
-        self, polygon: Polygon = DISTRICT, rejection: str | None = None, down: bool = False
+        self,
+        polygon: Polygon = DISTRICT,
+        rejection: str | None = None,
+        down: bool = False,
+        places: tuple[LocatedPlace, ...] = (),
     ) -> None:
         self._polygon = polygon
         self._rejection = rejection
         self._down = down
+        self._places = {p.query: p for p in places}
         self.queries: list[str] = []
 
     def resolve(self, place: PlaceName) -> Polygon:
@@ -58,3 +84,9 @@ class FakeGeocoder:
         if self._rejection:
             raise PlaceRejected(place.query, self._rejection)
         return self._polygon
+
+    def locate(self, query: str) -> LocatedPlace | None:
+        self.queries.append(query)
+        if self._down:
+            raise ExternalServiceError("nominatim", "HTTP 503")
+        return self._places.get(query)
