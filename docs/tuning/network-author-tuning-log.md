@@ -360,3 +360,29 @@ half-sides). The pruning is `residential`, `service`, `living_street` and `uncla
   which is why the SCC stays under 0.95 (an open question of ADR-0047).
 - The pruned selection builds one component (the pieces count ignores direction and finds 2, so a stretch of the zone
   joins through a one-way link only).
+
+## 2026-10-19, the Diagonal with prompt `v5` (zones and drop available, first run with a transcript)
+
+Same request as `v4`. Work directory `~/resto-runs/adl-01`, `RESTO_LLM_MAX_OUTPUT_TOKENS=12500`, 3 rounds, `--online --gui`.
+Tool schemas inlined (no `$defs`) and `transcript.json` saved by the script.
+
+- **Cost:** $0.0284, 17 steps, 363,772 input and 29,711 output tokens. Stop `output`.
+- **Tools:** `find_network`, `list_import_profiles`, three `locate_place`, `fetch_osm` (box south 41.369, west 2.065,
+  north 41.397, east 2.151), `trace_corridor`, three `list_streets`, two `select_streets`, `netconvert`, `sanity_check`,
+  `verify_coverage`, `inspect_network`, `join_junctions`, `sanity_check`, `remove_isolated`, four `inspect_edge`,
+  `netconvert`, `sanity_check`, `verify_coverage` (refused: the 3 rounds were spent), `submit_output`.
+- **Result:** one component, 441 edges, 22,956 m, largest SCC 0.736 (below 0.95). Sant Just Desvern's centre is 1,039 m
+  from the network and the hospital 321 m. No ramp of the Sant Just link in it.
+- **`areas` never used.** The two `select_streets` calls are by name and ref (`Avinguda Diagonal` with its two lateral
+  lanes, `B-23`), one with `links` and `drop` of footways, paths and the like, one with `all`. The `drop` call was
+  well formed, so the nested schema is understood.
+- **Why, from the transcript:**
+  - The agent lists near Sant Just's centre (41.3858, 2.0758, 500 m), 1.2 km from the link (41.374, 2.0716).
+  - Every `list_streets` call opens with `footway` 104,644 m and `service` 45,544 m: unnamed rows group by class over
+    the whole snapshot, with or without `near`.
+  - It writes that a new selection "was no longer available" for lack of rounds, but a selection costs none
+    (ADR-0046 §7); the rounds went on `join_junctions`, `remove_isolated` and `netconvert`.
+  - Its last `unresolved[]` asks for `select_streets` "with the Sant Just Desvern street grid as area": it wants a zone
+    and does not see `areas` as the way to ask for it.
+- **Next:** ticket 12 (`list_streets` near counts only what is inside, `trace_corridor` suggests zones for unnamed
+  roads of the main hierarchy, prompt `v6`).
