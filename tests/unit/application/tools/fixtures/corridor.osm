@@ -13,6 +13,9 @@
   <node id="13" lat="41.3850" lon="2.1400"/>
   <node id="14" lat="41.3950" lon="2.1400"/>
   <node id="15" lat="41.3950" lon="2.1200"/>
+  <node id="16" lat="41.3903" lon="2.1400"/>
+  <node id="17" lat="41.3903" lon="2.1350"/>
+  <node id="18" lat="41.3903" lon="2.1450"/>
   <way id="301">
     <nd ref="1"/><nd ref="2"/><nd ref="3"/>
     <tag k="highway" v="primary"/>
@@ -45,8 +48,18 @@
     <tag k="highway" v="residential"/>
     <tag k="name" v="Carrer de Muntaner"/>
   </way>
+  <way id="305">
+    <nd ref="17"/><nd ref="16"/><nd ref="18"/>
+    <tag k="highway" v="secondary"/>
+    <tag k="name" v="Avinguda Diagonal"/>
+  </way>
+  <way id="306">
+    <nd ref="1"/><nd ref="15"/>
+    <tag k="highway" v="footway"/>
+    <tag k="name" v="Passeig de la Diagonal"/>
+  </way>
   <way id="311">
-    <nd ref="13"/><nd ref="7"/><nd ref="14"/>
+    <nd ref="13"/><nd ref="7"/><nd ref="16"/><nd ref="14"/>
     <tag k="highway" v="residential"/>
     <tag k="name" v="Carrer de Balmes"/>
   </way>

@@ -227,6 +227,7 @@ def test_a_located_point_is_cached_apart_from_the_boundary_of_the_same_name(
 
     assert again is not None and first is not None
     assert (again.lat, again.lon) == (first.lat, first.lon)
+    assert again.query == " sant gervasi ", "the answer names the query as it was asked"
     assert polygon.osm_id == 347950
     assert len(service.received) == 2
 

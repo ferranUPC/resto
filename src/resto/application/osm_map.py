@@ -1,28 +1,32 @@
 """An OpenStreetMap snapshot read as data, for the tools that look into it before and after
-`netconvert` (ADR-0046): list its streets, select some of them into a derived snapshot, and say how
-much of each street a built network kept and how far it ends from the places the user named.
+`netconvert` (ADR-0046). `OsmMap` lists the streets of a snapshot and selects some of them into a
+derived snapshot; `OsmMap.coverage` compares a built network with the snapshot it came from.
 
 A `.osm` file and a `.net.xml` are read with the stdlib XML parser, as `network_import` already
 counts the edges of a `.net.xml`; no port stands in front of them.
 
 - **A street** is the highways that share a `name` and a `ref`; highways with neither are grouped
   by their class (`primary_link`, `service`).
-- **A selection** keeps the highways whose name contains one of the given names, or whose `ref`
-  is one of the given refs, plus the connectors the caller asks for (`CONNECTORS`).
-- **A piece** is a set of ways joined by shared nodes. Its ends are the two points farthest apart,
-  found in two sweeps (exact on a corridor, close enough on anything else).
+- **A selection** keeps the roads whose name contains one of the given names, or whose `ref` is
+  one of the given refs, plus the connectors the caller asks for (`Connectors`). Footways, paths,
+  cycleways and the like are never selected, whatever their name, and nothing but highways is
+  kept: the rail profile finds no railway in a selection.
+- **A piece** is a set of ways joined by shared nodes, whatever their direction. Its ends are the
+  two points farthest apart, found in two sweeps (exact on a corridor, close enough on anything
+  else).
 """
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import heapq
 import re
 from collections import defaultdict
-from collections.abc import Iterable, Sequence
+from collections.abc import Hashable, Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal, get_args
+from typing import Any, Generic, Literal, TypeVar
 from xml.etree import ElementTree
 
 from resto.application.ports.osm import LocatedPlace
@@ -30,22 +34,21 @@ from resto.domain.services.geo import distance_m
 from resto.domain.value_objects.artifact_ref import ArtifactRef
 
 Point = tuple[float, float]  # (lat, lon)
+StreetKey = tuple[str, str, str]  # (name, ref, class); the class only when name and ref are empty
 
 Connectors = Literal["none", "links", "all"]
 """Which other ways a selection adds: none; the `*_link` ways that join two pieces of it; or any
 road that joins two pieces of it (links, squares and crossings that carry another name)."""
 
-CONNECTORS: tuple[str, ...] = get_args(Connectors)
-
 MAX_CONNECTOR_M = 300.0
-"""Longest chain of other ways a connector may be: a square or a large crossing, not a detour
+"""Longest path of other ways a connector may be: a square or a large crossing, not a detour
 through the next street."""
 
 _NOT_ROADS = frozenset(
     {"footway", "path", "cycleway", "pedestrian", "steps", "bridleway", "corridor", "track"}
     | {"platform", "proposed", "construction", "elevator"}
 )
-"""Highway classes that never join two carriageways for a car, so never a connector."""
+"""Highway classes a car never drives on: never selected and never a connector."""
 
 MAX_LISTED = 40
 """Rows a listing returns at most, longest first; the rest are counted."""
@@ -65,11 +68,15 @@ class OsmWay:
         return frozenset(r.strip().casefold() for r in self.ref.split(";") if r.strip())
 
     @property
-    def street(self) -> tuple[str, str, str]:
+    def street(self) -> StreetKey:
         """The key of the street the way belongs to (see the module docstring)."""
         if self.name or self.ref:
             return (self.name, self.ref, "")
         return ("", "", self.highway)
+
+    @property
+    def is_road(self) -> bool:
+        return self.highway not in _NOT_ROADS
 
 
 @dataclass(frozen=True, slots=True)
@@ -82,6 +89,25 @@ class Piece:
 
     def as_json(self) -> dict[str, Any]:
         return {"length_m": round(self.length_m), "ends": [_rounded(p) for p in self.ends]}
+
+
+K = TypeVar("K", bound=Hashable)
+
+
+class _Joined(Generic[K]):
+    """Which keys end up joined (union-find with path halving)."""
+
+    def __init__(self) -> None:
+        self._parent: dict[K, K] = {}
+
+    def root(self, key: K) -> K:
+        while self._parent.setdefault(key, key) != key:
+            self._parent[key] = self._parent[self._parent[key]]
+            key = self._parent[key]
+        return key
+
+    def join(self, a: K, b: K) -> None:
+        self._parent[self.root(b)] = self.root(a)
 
 
 @dataclass(frozen=True, slots=True)
@@ -117,10 +143,25 @@ class NetEdge:
             )
         return tuple(edges)
 
+    @staticmethod
+    def junctions(edges: Iterable[NetEdge]) -> list[str]:
+        return sorted({j for e in edges for j in (e.from_junction, e.to_junction)})
+
+    @staticmethod
+    def components(edges: Sequence[NetEdge]) -> list[list[NetEdge]]:
+        """Edges grouped by shared junctions, whatever their direction, largest first."""
+        joined: _Joined[str] = _Joined()
+        for edge in edges:
+            joined.join(edge.from_junction, edge.to_junction)
+        groups: dict[str, list[NetEdge]] = defaultdict(list)
+        for edge in edges:
+            groups[joined.root(edge.from_junction)].append(edge)
+        return sorted(groups.values(), key=lambda g: (-len(g), min(e.id for e in g)))
+
 
 class OsmMap:
-    """The nodes and highways of one `.osm` snapshot. Railways and other elements are kept only
-    so the whole file can be filtered and written again."""
+    """The nodes and highways of one `.osm` snapshot. The parsed file is kept whole, so a
+    selection can be written again with the same elements in the same order."""
 
     def __init__(self, root: ElementTree.Element) -> None:
         self._root = root
@@ -147,20 +188,26 @@ class OsmMap:
         return OsmMap(ElementTree.parse(snapshot).getroot())
 
     def length_m(self, way: OsmWay) -> float:
-        points = [self.nodes[n] for n in way.nodes if n in self.nodes]
+        points = self._points([way])
         return sum(distance_m(a, b) for a, b in zip(points, points[1:], strict=False))
+
+    def _points(self, ways: Iterable[OsmWay]) -> list[Point]:
+        return [self.nodes[n] for w in ways for n in w.nodes if n in self.nodes]
+
+    def _by_street(self, ways: Iterable[OsmWay]) -> dict[StreetKey, list[OsmWay]]:
+        streets: dict[StreetKey, list[OsmWay]] = defaultdict(list)
+        for way in ways:
+            streets[way.street].append(way)
+        return streets
 
     # -- listing ----------------------------------------------------------------------------
 
     def streets(self, near: Point | None = None, radius_m: float = 0.0) -> list[dict[str, Any]]:
         """Every street with a node within `radius_m` of `near` (every street when `near` is
         None): name, ref, classes, total length and extent, longest first."""
-        groups: dict[tuple[str, str, str], list[OsmWay]] = defaultdict(list)
-        for way in self.ways.values():
-            groups[way.street].append(way)
         rows = []
-        for (name, ref, _), ways in groups.items():
-            points = [self.nodes[n] for w in ways for n in w.nodes if n in self.nodes]
+        for (name, ref, _), ways in self._by_street(self.ways.values()).items():
+            points = self._points(ways)
             if not points:
                 continue
             if near is not None and min(distance_m(near, p) for p in points) > radius_m:
@@ -181,8 +228,8 @@ class OsmMap:
     def select(
         self, names: Sequence[str], refs: Sequence[str], connectors: Connectors
     ) -> tuple[OsmMap, dict[str, Any]]:
-        """The snapshot with only the matching highways and the connectors asked for, and a
-        summary of what was kept.
+        """The snapshot with only the matching roads and the connectors asked for, and a summary
+        of what was kept.
 
         Raises:
             ValueError: nothing to match, or nothing matches.
@@ -194,21 +241,23 @@ class OsmMap:
         matched = {
             w.id
             for w in self.ways.values()
-            if any(n in w.name.casefold() for n in wanted_names) or w.refs & wanted_refs
+            if w.is_road
+            and (any(n in w.name.casefold() for n in wanted_names) or w.refs & wanted_refs)
         }
         if not matched:
             raise ValueError(
-                f"no highway in the snapshot has a name containing any of {list(names)} or a "
+                f"no road in the snapshot has a name containing any of {list(names)} or a "
                 f"ref in {list(refs)}: call list_streets to see the names and refs there are, "
                 "or try another spelling"
             )
-        joining = self._connectors(matched, connectors)
-        kept = matched | joining
-        pieces = self.pieces(kept)
+        spans = self._connectors(matched, connectors)
+        selected = self._only(matched, spans)
+        joining = [selected.ways[w] for w in sorted(spans)]
+        pieces = selected.pieces(selected.ways)
         summary = {
             "streets": [
                 {"name": name, "ref": ref, "length_m": round(length)}
-                for (name, ref, _), length in self._lengths_by_street(matched).items()
+                for (name, ref, _), length in selected._lengths([selected.ways[w] for w in matched])
             ],
             "connectors": [
                 {
@@ -217,19 +266,20 @@ class OsmMap:
                     "class": cls or None,
                     "length_m": round(length),
                 }
-                for (name, ref, cls), length in self._lengths_by_street(joining).items()
+                for (name, ref, cls), length in selected._lengths(joining)
             ][:MAX_LISTED],
             "pieces": len(pieces),
             "largest_pieces": [p.as_json() for p in pieces[:5]],
         }
-        return self._only(kept), summary
+        return selected, summary
 
-    def _connectors(self, selected: set[int], connectors: Connectors) -> set[int]:
-        """The other ways on a path shorter than `MAX_CONNECTOR_M` between two pieces of the
-        selection: a multi-source shortest path from every selected node, labelled with its
-        piece; an arc whose two ends were reached from different pieces closes such a path."""
+    def _connectors(self, selected: set[int], connectors: Connectors) -> dict[int, set[int]]:
+        """The other roads on a path of at most `MAX_CONNECTOR_M` between two pieces of the
+        selection, each with the nodes of it the path uses: a shortest path from every selected
+        node at once, labelled with its piece; an arc whose two ends were reached from different
+        pieces closes such a path."""
         if connectors == "none":
-            return set()
+            return {}
         piece_of = {
             n: i
             for i, p in enumerate(self.pieces(selected))
@@ -238,7 +288,7 @@ class OsmMap:
         }
         arcs: dict[int, list[tuple[int, float, int]]] = defaultdict(list)
         for way in self.ways.values():
-            if way.id in selected or way.highway in _NOT_ROADS:
+            if way.id in selected or not way.is_road:
                 continue
             if connectors == "links" and not way.highway.endswith("_link"):
                 continue
@@ -260,41 +310,61 @@ class OsmMap:
                 if total <= MAX_CONNECTOR_M and total < distance.get(nxt, float("inf")):
                     distance[nxt], label[nxt], came_from[nxt] = total, label[node], (node, way_id)
                     heapq.heappush(queue, (total, nxt))
-        found: set[int] = set()
+        spans: dict[int, set[int]] = defaultdict(set)
         for a in sorted(arcs):
             for b, length, way_id in arcs[a]:
                 if a not in label or b not in label or label[a] == label[b]:
                     continue
                 if distance[a] + length + distance[b] <= MAX_CONNECTOR_M:
-                    found.add(way_id)
+                    spans[way_id] |= {a, b}
                     for end in (a, b):
                         while end in came_from:
-                            end, step = came_from[end]
-                            found.add(step)
-        return found
+                            previous, step = came_from[end]
+                            spans[step] |= {previous, end}
+                            end = previous
+        return dict(spans)
 
-    def _lengths_by_street(self, way_ids: Iterable[int]) -> dict[tuple[str, str, str], float]:
-        lengths: dict[tuple[str, str, str], float] = defaultdict(float)
-        for way_id in way_ids:
-            way = self.ways[way_id]
-            lengths[way.street] += self.length_m(way)
-        return dict(sorted(lengths.items(), key=lambda item: -item[1]))
+    def _lengths(self, ways: Iterable[OsmWay]) -> list[tuple[StreetKey, float]]:
+        """Total length per street, longest first."""
+        lengths = {
+            key: sum(self.length_m(w) for w in group)
+            for key, group in self._by_street(ways).items()
+        }
+        return sorted(lengths.items(), key=lambda item: -item[1])
 
-    def _only(self, way_ids: set[int]) -> OsmMap:
-        """A copy holding the ways `way_ids` and their nodes, in the original order, and the
-        elements that are neither nodes, ways nor relations (bounds, notes)."""
-        nodes = {n for w in way_ids for n in self.ways[w].nodes}
+    def _only(self, way_ids: set[int], spans: dict[int, set[int]]) -> OsmMap:
+        """A copy holding the ways `way_ids` whole, the connectors of `spans` cut to the stretch
+        between the first and last node their paths use, and the nodes of both, in the original
+        order. Elements that are neither nodes, ways nor relations (bounds, notes) stay."""
+        ways: dict[int, ElementTree.Element] = {}
+        for element in self._root.iter("way"):
+            way_id = int(element.get("id", "0"))
+            if way_id in way_ids:
+                ways[way_id] = element
+            elif way_id in spans:
+                ways[way_id] = self._cut(element, spans[way_id])
+        nodes = {int(nd.get("ref", "0")) for way in ways.values() for nd in way.iter("nd")}
         root = ElementTree.Element(self._root.tag, self._root.attrib)
         for element in self._root:
             if element.tag == "node":
-                keep = int(element.get("id", "0")) in nodes
+                if int(element.get("id", "0")) in nodes:
+                    root.append(element)
             elif element.tag == "way":
-                keep = int(element.get("id", "0")) in way_ids
-            else:
-                keep = element.tag != "relation"
-            if keep:
+                if int(element.get("id", "0")) in ways:
+                    root.append(ways[int(element.get("id", "0"))])
+            elif element.tag != "relation":
                 root.append(element)
         return OsmMap(root)
+
+    def _cut(self, way: ElementTree.Element, used: set[int]) -> ElementTree.Element:
+        refs = [int(nd.get("ref", "0")) for nd in way.iter("nd")]
+        first = min(i for i, ref in enumerate(refs) if ref in used)
+        last = max(i for i, ref in enumerate(refs) if ref in used)
+        cut = copy.deepcopy(way)
+        for i, nd in enumerate(list(cut.iter("nd"))):
+            if not first <= i <= last:
+                cut.remove(nd)
+        return cut
 
     def write(self, target: Path) -> ArtifactRef:
         """Writes the snapshot to `target` and returns it as an `osm` artifact. The same map
@@ -310,33 +380,20 @@ class OsmMap:
 
     def pieces(self, way_ids: Iterable[int]) -> list[Piece]:
         """The ways grouped by shared nodes, longest piece first."""
-        parent: dict[int, int] = {}
-
-        def root(x: int) -> int:
-            while parent.setdefault(x, x) != x:
-                parent[x] = parent[parent[x]]
-                x = parent[x]
-            return x
-
+        joined: _Joined[int] = _Joined()
         ids = sorted(way_ids)
         for way_id in ids:
             first, *rest = self.ways[way_id].nodes
             for node in rest:
-                parent[root(node)] = root(first)
-        groups: dict[int, set[int]] = defaultdict(set)
+                joined.join(first, node)
+        groups: dict[int, list[OsmWay]] = defaultdict(list)
         for way_id in ids:
-            groups[root(self.ways[way_id].nodes[0])].add(way_id)
+            groups[joined.root(self.ways[way_id].nodes[0])].append(self.ways[way_id])
         pieces = [
             Piece(
-                ways=frozenset(ways),
-                length_m=sum(self.length_m(self.ways[w]) for w in ways),
-                ends=_ends(
-                    [
-                        self.nodes[n]
-                        for n in _sorted_nodes(self.ways[w] for w in ways)
-                        if n in self.nodes
-                    ]
-                ),
+                ways=frozenset(w.id for w in ways),
+                length_m=sum(self.length_m(w) for w in ways),
+                ends=_ends(sorted(set(self._points(ways)))),
             )
             for ways in groups.values()
         ]
@@ -345,13 +402,18 @@ class OsmMap:
     def coverage(self, edges: Sequence[NetEdge], places: Sequence[LocatedPlace]) -> dict[str, Any]:
         """What a network built from this snapshot covers: its extent, its connected
         components with their ends, the stretches of each street that did not make it into the
-        network, and how far the network is from every place located in the run."""
-        where = {j: p for j in _junctions(edges) if (p := self._junction_point(j)) is not None}
-        components = _components(edges)
+        network, and how far the network is from every place located in the run.
+
+        An import keeps the largest component, so a gap between two stretches of a street
+        shows as the stretch that is missing, not as a second component."""
+        where = {
+            j: p for j in NetEdge.junctions(edges) if (p := self._junction_point(j)) is not None
+        }
+        components = NetEdge.components(edges)
         rows: list[dict[str, Any]] = []
         ends: list[Point] = []
         for members in components[:5]:
-            points = [where[j] for j in _junctions(members) if j in where]
+            points = [where[j] for j in NetEdge.junctions(members) if j in where]
             component_ends = _ends(points) if points else ()
             ends.extend(component_ends)
             rows.append(
@@ -386,13 +448,11 @@ class OsmMap:
         return None
 
     def _missing(self, edges: Sequence[NetEdge]) -> list[dict[str, Any]]:
+        """The named streets with ways no edge was built from, most missing first, at most 10."""
         built = {w for e in edges for w in e.osm_ways}
-        streets: dict[tuple[str, str, str], list[OsmWay]] = defaultdict(list)
-        for way in self.ways.values():
-            if way.name or way.ref:
-                streets[way.street].append(way)
+        named = (w for w in self.ways.values() if w.name or w.ref)
         rows = []
-        for (name, ref, _), ways in streets.items():
+        for (name, ref, _), ways in self._by_street(named).items():
             missing = [w.id for w in ways if w.id not in built]
             if not missing:
                 continue
@@ -408,32 +468,6 @@ class OsmMap:
             }
             rows.append((-lost, name, ref, row))
         return [row for *_, row in sorted(rows, key=lambda r: r[:3])[:10]]
-
-
-def _sorted_nodes(ways: Iterable[OsmWay]) -> list[int]:
-    return sorted({n for w in ways for n in w.nodes})
-
-
-def _junctions(edges: Sequence[NetEdge]) -> list[str]:
-    return sorted({e.from_junction for e in edges} | {e.to_junction for e in edges})
-
-
-def _components(edges: Sequence[NetEdge]) -> list[list[NetEdge]]:
-    """Edges grouped by shared junctions, ignoring direction, largest first."""
-    parent: dict[str, str] = {}
-
-    def root(x: str) -> str:
-        while parent.setdefault(x, x) != x:
-            parent[x] = parent[parent[x]]
-            x = parent[x]
-        return x
-
-    for edge in edges:
-        parent[root(edge.to_junction)] = root(edge.from_junction)
-    groups: dict[str, list[NetEdge]] = defaultdict(list)
-    for edge in edges:
-        groups[root(edge.from_junction)].append(edge)
-    return sorted(groups.values(), key=lambda g: (-len(g), min(e.id for e in g)))
 
 
 def _ends(points: Sequence[Point]) -> tuple[Point, Point]:

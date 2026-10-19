@@ -37,8 +37,9 @@ on 2026-10-19 showed why:
 3. **The download is the whole area again.** `fetch_osm` has no street filter. The name matching, the escaping and
    the "nothing matches" error moved to `select_streets`, which needs no regex for Overpass.
 4. **A selection is a derived snapshot.** `select_streets` reads the downloaded `.osm` and writes a new one with
-   the highways whose `name` contains one of the given names (case-insensitive), or whose `ref` is one of the given
-   refs, plus connectors, and the nodes they use. The derived file is an `ArtifactRef` of kind `osm` with its own
+   the roads whose `name` contains one of the given names (case-insensitive), or whose `ref` is one of the given
+   refs, plus connectors, and the nodes they use. Footways, paths, cycleways and the like are never selected,
+   whatever their name, and only highways are kept, so a selection holds no railway for the rail profile. The derived file is an `ArtifactRef` of kind `osm` with its own
    `content_hash`; the recipe stores it as `osm_snapshot` and replays from it like any snapshot. The selection is
    not written into `netconvert_options`: the recipe keeps saying "this snapshot, these options", and
    `NetworkRecipe`, `NetworkDraft` and `SanityReport` do not change. The same selection of the same snapshot gives
@@ -47,12 +48,16 @@ on 2026-10-19 showed why:
    a path of at most 300 m between two pieces of the selection (pieces are ways joined by shared nodes). `links`
    considers only `*_link` ways; `all` any road (footways, paths, cycleways and the like never join two
    carriageways for a car, so they are left out). The 300 m bound keeps a square and a large crossing and leaves
-   out a detour through the next street. `select_streets` returns how many pieces the selection has, so a gap is
-   visible before `netconvert` runs.
+   out a detour through the next street. A connector is cut to the stretch between the first and last of its nodes
+   the path uses, so a cross street that joins a lateral lane to the main road brings its 30 m, not its whole
+   length. `select_streets` returns how many pieces the selection has, so a gap is visible before `netconvert` runs.
+   Pieces ignore direction: a selection in one piece can still fail the strongly connected check, which stays
+   with `sanity_check`.
 6. **The coverage report reads the built network against its snapshot.** It is text, because the default model
    reads no images, and it reports the extent, the connected components with their ends, the stretches of each
    street of the snapshot that are not in the network, and the distance from every located place to the network
-   and to its nearest end. To know which OSM ways an edge was built from, every import now passes
+   and to its nearest end. An import keeps the largest component, so a gap between two stretches of a street shows
+   as the stretch that is missing, not as a second component. To know which OSM ways an edge was built from, every import now passes
    `--output.original-names`, which writes them as an `origId` parameter of each lane. It changes the `.net.xml`
    (and so the `content_hash`) of new imports; stored recipes keep their options and replay as they were.
 7. **Rounds are unchanged.** A round is still one `sanity_check` call. Locating, listing, selecting and verifying

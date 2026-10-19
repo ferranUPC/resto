@@ -50,7 +50,7 @@ class NominatimGeocoder:
         self._last_request_at: float | None = None
 
     def resolve(self, place: PlaceName) -> Polygon:
-        cache_file = _cache_file(self._cache_dir, place.query)
+        cache_file = self._cache_file(self._cache_dir, place.query)
         if cache_file.exists():
             cached = json.loads(cache_file.read_text())
             return Polygon(tuple((lat, lon) for lat, lon in cached["ring"]), cached["osm_id"])
@@ -60,9 +60,10 @@ class NominatimGeocoder:
         return polygon
 
     def locate(self, query: str) -> LocatedPlace | None:
-        cache_file = _cache_file(self._cache_dir / "points", query)
+        cache_file = self._cache_file(self._cache_dir / "points", query)
         if cache_file.exists():
-            return LocatedPlace(**json.loads(cache_file.read_text()))
+            # the cache key ignores case and spacing; the answer names the query as asked
+            return LocatedPlace(**{**json.loads(cache_file.read_text()), "query": query})
         results = self._search({"q": query})
         if not results:
             return None
@@ -80,6 +81,12 @@ class NominatimGeocoder:
             raise ExternalServiceError(SERVICE, "a result has no usable lat and lon") from e
         self._store(cache_file, asdict(place))
         return place
+
+    def _cache_file(self, folder: Path, query: str) -> Path:
+        """Boundaries sit at the top of the cache, where earlier runs stored them; points under
+        `points/`, so the same name can hold both."""
+        key = hashlib.sha256(" ".join(query.lower().split()).encode()).hexdigest()
+        return folder / f"{key}.json"
 
     def _store(self, cache_file: Path, answer: dict[str, Any]) -> None:
         cache_file.parent.mkdir(parents=True, exist_ok=True)
@@ -113,13 +120,6 @@ class NominatimGeocoder:
         remaining = self._last_request_at + self.min_interval_s - time.monotonic()
         if remaining > 0:
             time.sleep(remaining)
-
-
-def _cache_file(folder: Path, query: str) -> Path:
-    """Boundaries sit at the top of the cache, where earlier runs stored them; points under
-    `points/`, so the same name can hold both."""
-    key = hashlib.sha256(" ".join(query.lower().split()).encode()).hexdigest()
-    return folder / f"{key}.json"
 
 
 def _polygon_of(query: str, results: list[Any]) -> Polygon:

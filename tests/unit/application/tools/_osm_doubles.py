@@ -24,8 +24,10 @@ CORRIDOR_OSM = Path(__file__).parent / "fixtures" / "corridor.osm"
 """The Diagonal in small, along lat 41.39 from lon 2.100 to 2.150: a primary road called "Carretera
 Reial" (way 301) that becomes "Avinguda Diagonal" (300, 303), all three with `ref` N-340. An
 unnamed `primary_link` (304, 42 m) joins 301 to 300 and a square with another name ("Plaça de Pius
-XII", 302, 125 m) joins 300 to 303. Two cross streets (Muntaner 310, Balmes 311) and a street
-north of the corridor (Carrer de Dalt 320) close a loop away from it."""
+XII", 302, 125 m) joins 300 to 303. A lateral lane, also "Avinguda Diagonal" but with no ref
+(305, lat 41.3903), touches the main road only through the 33 m of Balmes between them. A footway
+named "Passeig de la Diagonal" (306) leaves the west end. Two cross streets (Muntaner 310, Balmes
+311) and a street north of the corridor (Carrer de Dalt 320) close a loop away from it."""
 
 CORRIDOR = BBox(south=41.384, west=2.099, north=41.396, east=2.151)
 

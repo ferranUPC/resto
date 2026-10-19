@@ -18,7 +18,7 @@ from resto.adapters.sumo.netxml import SumolibNetworkQuery
 from resto.adapters.sumo.typemaps import typemap_dir
 from resto.application.network_analysis import sanity_report
 from resto.application.osm_import import OWN_TYPEMAPS
-from resto.application.osm_map import Connectors, NetEdge
+from resto.application.osm_map import Connectors, NetEdge, OsmMap
 from resto.application.ports.osm import ExternalServiceError, OsmLimits
 from resto.application.tools.network_import import (
     ImportRun,
@@ -362,11 +362,11 @@ def test_a_service_street_stays_for_cars_but_a_driveway_and_a_parking_aisle_do_n
 
 # -- locate, select, verify (E6.1/09, ADR-0046) ---------------------------------------------------
 
-DIAGONAL = {300, 303}
-"""The ways called "Avinguda Diagonal"; 301 is the same road as "Carretera Reial"."""
-CORRIDOR_WAYS = {300, 301, 302, 303, 304}
-"""The road with every name, the link and the square between its stretches."""
-CROSS_STREETS = {310, 311, 320}
+DIAGONAL = {300, 303, 305}
+"""The roads called "Avinguda Diagonal", the lateral lane included; 301 is the same road as
+"Carretera Reial", and the footway 306 is no road."""
+CORRIDOR_WAYS = {300, 301, 302, 303, 304, 305}
+"""The road with every name, its lateral lane, the link and the square between its stretches."""
 
 
 def corridor_run(tmp_path: Path, osm: FakeOsmSource | None = None) -> tuple[ImportRun, str]:
@@ -420,7 +420,7 @@ def test_the_streets_of_a_snapshot_show_a_road_that_changes_name_and_keeps_its_r
     assert rows["Avinguda Diagonal", "N-340"]["length_m"] == pytest.approx(2336, abs=5)
     assert rows["Carretera Reial", "N-340"]["extent"]["west"] == 2.1
     assert rows["", ""]["classes"] == ["primary_link"]
-    assert listing["total"] == len(listing["streets"]) == 7
+    assert listing["total"] == len(listing["streets"]) == 9
 
 
 def test_near_a_point_only_the_streets_that_pass_close_to_it_are_listed(tmp_path: Path) -> None:
@@ -428,14 +428,14 @@ def test_near_a_point_only_the_streets_that_pass_close_to_it_are_listed(tmp_path
 
     listing = list_streets(run, osm_snapshot=snapshot, near=[41.3950, 2.1200], radius_m=100)
 
-    assert [r["name"] for r in listing["streets"]] == ["Carrer de Dalt"]
+    assert {r["name"] for r in listing["streets"]} == {"Carrer de Dalt", "Passeig de la Diagonal"}
 
 
 @pytest.mark.parametrize(
     ("names", "refs", "kept"),
     [
         pytest.param(["diagonal"], [], DIAGONAL, id="by-name"),
-        pytest.param([], ["n-340"], DIAGONAL | {301}, id="by-ref-across-the-new-name"),
+        pytest.param([], ["n-340"], {300, 301, 303}, id="by-ref-across-the-new-name"),
     ],
 )
 def test_a_selection_keeps_the_matching_streets_and_nothing_else(
@@ -453,8 +453,8 @@ def test_a_selection_keeps_the_matching_streets_and_nothing_else(
 @pytest.mark.parametrize(
     ("connectors", "pieces", "built"),
     [
-        pytest.param("links", 2, {300, 301, 304}, id="links-only-the-ramp"),
-        pytest.param("all", 1, CORRIDOR_WAYS, id="all-the-square-too"),
+        pytest.param("links", 3, {300, 301, 304}, id="links-only-the-ramp"),
+        pytest.param("all", 1, CORRIDOR_WAYS | {311}, id="all-the-square-and-a-crossing-too"),
     ],
 )
 def test_connectors_join_the_pieces_and_the_network_keeps_the_largest(
@@ -479,8 +479,23 @@ def test_the_whole_area_keeps_the_cross_streets_a_selection_drops(tmp_path: Path
     everything = netconvert(run, osm_snapshot=snapshot)
     selected = select_streets(run, osm_snapshot=snapshot, names=["Diagonal"], refs=["N-340"])
 
-    assert osm_ways_of(everything) >= CROSS_STREETS
-    assert not CROSS_STREETS & osm_ways_of(built_from(run, selected))
+    assert osm_ways_of(everything) >= {310, 311, 320}
+    assert not {306, 310, 320} & osm_ways_of(built_from(run, selected))
+
+
+def test_a_connector_keeps_only_the_stretch_that_joins_the_pieces(tmp_path: Path) -> None:
+    run, snapshot = corridor_run(tmp_path)
+
+    selected = select_streets(run, osm_snapshot=snapshot, names=["Diagonal"], refs=["N-340"])
+
+    balmes = OsmMap.read(Path(selected["osm_snapshot"]["path"])).ways[311]
+    assert balmes.nodes == (7, 16), "the 33 m between the road and its lateral lane, not the street"
+    junctions = {
+        j
+        for e in NetEdge.read_all(Path(built_from(run, selected)["net_artifact"]["path"]))
+        for j in (e.from_junction, e.to_junction)
+    }
+    assert not junctions & {"13", "14"}
 
 
 def test_a_selection_that_matches_nothing_says_so_and_points_to_the_listing(

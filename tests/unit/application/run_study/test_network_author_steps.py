@@ -516,7 +516,7 @@ def test_a_corridor_is_located_selected_verified_and_promoted_from_its_selection
     assert promoted is not None and promoted.recipe.osm_snapshot is not None
     assert promoted.recipe.osm_snapshot.path.name.startswith("selected-")
     ways = {w for edge in NetEdge.read_all(promoted.net_xml.path) for w in edge.osm_ways}
-    assert ways == {300, 301, 302, 303, 304}, "the road, its link and its square; no cross street"
+    assert ways == {300, 301, 302, 303, 304, 305, 311}, "road, lateral, link, square, crossing"
     assert osm.downloads == 1
     assert isinstance(promoted.recipe.source, BBox), "the box drawn from the located places"
     assert promoted.recipe.source.west == pytest.approx(WEST_END.lon - 0.005)

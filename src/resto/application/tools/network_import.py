@@ -64,11 +64,12 @@ class _Import:
 @dataclass(frozen=True, slots=True)
 class ImportRun:
     """What the import tools are bound to (the `ctx` the model never sees). `imports` is the state
-    of one agent run: each snapshot fetched, with its area, profile and cleanups. The dataclass is
-    frozen but `imports` is filled as the tools run: the model names a snapshot by hash and the
-    tools must remember what it chose between calls, so the state has to live somewhere; each
-    `obtain` builds its own `ImportRun`, so it never outlives or crosses a run. `located` holds
-    the places `locate_place` found, by query, for `verify_coverage`."""
+    of one agent run: each snapshot fetched or selected, with its area, profile, cleanups and the
+    last network built from it. The dataclass is frozen but `imports` is filled as the tools run:
+    the model names a snapshot by hash and the tools must remember what it chose between calls,
+    so the state has to live somewhere; each `obtain` builds its own `ImportRun`, so it never
+    outlives or crosses a run. `located` holds the places `locate_place` found, by query, for
+    `verify_coverage`."""
 
     runner: NetconvertRunner
     osm: OsmSource
@@ -162,7 +163,8 @@ def fetch_osm(
 
 
 _SNAPSHOT = Annotated[
-    str, Field(description="`content_hash` of the snapshot `fetch_osm` returned.")
+    str,
+    Field(description="`content_hash` of a snapshot `fetch_osm` or `select_streets` returned."),
 ]
 
 

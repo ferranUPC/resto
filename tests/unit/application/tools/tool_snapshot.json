@@ -1298,7 +1298,7 @@
             "type": "array"
           },
           "osm_snapshot": {
-            "description": "`content_hash` of the snapshot `fetch_osm` returned.",
+            "description": "`content_hash` of a snapshot `fetch_osm` or `select_streets` returned.",
             "type": "string"
           },
           "radius_m": {
@@ -1336,7 +1336,7 @@
             "type": "array"
           },
           "osm_snapshot": {
-            "description": "`content_hash` of the snapshot `fetch_osm` returned.",
+            "description": "`content_hash` of a snapshot `fetch_osm` or `select_streets` returned.",
             "type": "string"
           },
           "refs": {
@@ -1359,7 +1359,7 @@
       "input_schema": {
         "properties": {
           "osm_snapshot": {
-            "description": "`content_hash` of the snapshot `fetch_osm` returned.",
+            "description": "`content_hash` of a snapshot `fetch_osm` or `select_streets` returned.",
             "type": "string"
           },
           "profile": {
@@ -1379,7 +1379,7 @@
       "input_schema": {
         "properties": {
           "osm_snapshot": {
-            "description": "`content_hash` of the snapshot `fetch_osm` returned.",
+            "description": "`content_hash` of a snapshot `fetch_osm` or `select_streets` returned.",
             "type": "string"
           }
         },
@@ -1395,7 +1395,7 @@
       "input_schema": {
         "properties": {
           "osm_snapshot": {
-            "description": "`content_hash` of the snapshot `fetch_osm` returned.",
+            "description": "`content_hash` of a snapshot `fetch_osm` or `select_streets` returned.",
             "type": "string"
           }
         },
@@ -1411,7 +1411,7 @@
       "input_schema": {
         "properties": {
           "osm_snapshot": {
-            "description": "`content_hash` of the snapshot `fetch_osm` returned.",
+            "description": "`content_hash` of a snapshot `fetch_osm` or `select_streets` returned.",
             "type": "string"
           }
         },
@@ -1427,7 +1427,7 @@
       "input_schema": {
         "properties": {
           "osm_snapshot": {
-            "description": "`content_hash` of the snapshot `fetch_osm` returned.",
+            "description": "`content_hash` of a snapshot `fetch_osm` or `select_streets` returned.",
             "type": "string"
           },
           "vclass": {
@@ -1460,7 +1460,7 @@
       "input_schema": {
         "properties": {
           "osm_snapshot": {
-            "description": "`content_hash` of the snapshot `fetch_osm` returned.",
+            "description": "`content_hash` of a snapshot `fetch_osm` or `select_streets` returned.",
             "type": "string"
           }
         },
