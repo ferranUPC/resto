@@ -49,6 +49,10 @@ from resto.application.osm_map import (
     Connectors,
     NetEdge,
     OsmMap,
+    Point,
+    Unreached,
+    extent,
+    rounded,
 )
 from resto.application.ports.llm import Tool
 from resto.application.ports.osm import Geocoder, LocatedPlace, OsmLimits, OsmSource
@@ -315,37 +319,29 @@ def trace_corridor(
     ] = [],  # noqa: B006 - never mutated; pydantic copies the default
 ) -> Mapping[str, Any]:
     state = _state(ctx, osm_snapshot)
-    area = state.area
     start, end = (from_point[0], from_point[1]), (to_point[0], to_point[1])
     for point in (start, end):
-        if inside_by_m(area, point) < EDGE_MARGIN_M:
-            return _not_reached(point, "outside the fetched area", area, (start, end))
+        if inside_by_m(state.area, point) < EDGE_MARGIN_M:
+            return _not_reached(point, "outside the fetched area", state.area, (start, end))
     traced = OsmMap.read(state.snapshot.path).trace(start, end, prefer)
-    if "not_reached" in traced:
-        point = traced["not_reached"]["point"]
-        return _not_reached((point[0], point[1]), "no drivable path", area, (start, end))
+    if isinstance(traced, Unreached):
+        return _not_reached(traced.point, "no drivable path", state.area, (start, end))
     return traced
 
 
 def _not_reached(
-    point: tuple[float, float],
-    reason: str,
-    area: BBox | Polygon,
-    points: tuple[tuple[float, float], ...],
+    point: Point, reason: str, area: BBox | Polygon, points: tuple[Point, ...]
 ) -> Mapping[str, Any]:
-    """The box to fetch: the points with `EDGE_MARGIN_M` around them, joined to the area."""
-    around = bbox_around(points, EDGE_MARGIN_M)
-    box = bbox_around([*ring_of(area), (around.south, around.west), (around.north, around.east)], 0)
+    """The box to fetch: the area, grown to hold the points with `EDGE_MARGIN_M` around them and
+    10 m more, so that rounding its edges (under a metre) never puts a point back within the
+    margin and the next trace asks for the same box again."""
+    around = bbox_around(points, EDGE_MARGIN_M + 10)
+    corners = [(around.south, around.west), (around.north, around.east)]
     return {
         "not_reached": {
-            "point": [round(point[0], 5), round(point[1], 5)],
+            "point": rounded(point),
             "reason": reason,
-            "fetch": {
-                "south": round(box.south, 5),
-                "west": round(box.west, 5),
-                "north": round(box.north, 5),
-                "east": round(box.east, 5),
-            },
+            "fetch": extent([*ring_of(area), *corners]),
         }
     }
 

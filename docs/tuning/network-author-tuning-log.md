@@ -232,8 +232,8 @@ from the Hospital Broggi (41.37402, 2.07157) to Francesc Macià (41.3925, 2.1441
   ramp, 1,812 m of B-23, 802 m of links to the lateral, then 3,389 m of Diagonal. The start is 8 m from the
   hospital and the end 1 m from the square.
 - **The same snapshot through the tool, with the `v3` run's box (south 41.377).** The hospital lies outside the box,
-  so the tool traces nothing. It answers `not_reached`, "outside the fetched area", and asks to fetch south 41.37132,
-  west 2.0646, north 41.4, east 2.1477 (22 km², under the 25 km² limit). With a box that holds the hospital (south
+  so the tool traces nothing. It answers `not_reached`, "outside the fetched area", and asks to fetch south 41.37123,
+  west 2.0646, north 41.4, east 2.14782 (22 km², under the 25 km² limit). With a box that holds the hospital (south
   41.369) the answer is the one above.
 - **The suggested selection built.** `select_streets` with that selection gives 3 pieces (the largest 18.7 km, from
   Macià to past Sant Just). `netconvert` keeps one component that reaches Macià (10 m to its nearest end). Its

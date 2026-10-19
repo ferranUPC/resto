@@ -689,3 +689,22 @@ def test_a_point_no_road_takes_to_the_other_has_no_drivable_path(tmp_path: Path)
 
     assert traced["not_reached"]["point"] == island
     assert traced["not_reached"]["reason"] == "no drivable path"
+    assert traced["not_reached"]["fetch"]["north"] == DIAGONAL_AREA.north, "nothing more to fetch"
+
+
+def test_the_box_a_point_outside_asks_for_holds_it_once_fetched(tmp_path: Path) -> None:
+    run, snapshot = b23_run(tmp_path)
+    near_the_edge = [41.3715, 2.0718]  # 167 m from the south edge
+
+    box = trace_corridor(
+        run, osm_snapshot=snapshot, from_point=near_the_edge, to_point=[MACIA.lat, MACIA.lon]
+    )["not_reached"]["fetch"]
+    wider = fetch_osm(run, bbox=[box["south"], box["west"], box["north"], box["east"]])
+    again = trace_corridor(
+        run,
+        osm_snapshot=wider["osm_snapshot"]["content_hash"],
+        from_point=near_the_edge,
+        to_point=[MACIA.lat, MACIA.lon],
+    )
+
+    assert "route" in again

@@ -4,11 +4,12 @@ of each road and the streets the user named. The tool around it is tested in
 
 from __future__ import annotations
 
+from typing import Any
 from xml.etree import ElementTree
 
 import pytest
 
-from resto.application.osm_map import OsmMap
+from resto.application.osm_map import OsmMap, Unreached
 from tests.unit.application.tools._osm_doubles import DIAGONAL_B23_OSM, HOSPITAL, MACIA
 
 H = (HOSPITAL.lat, HOSPITAL.lon)
@@ -33,15 +34,20 @@ def way(way_id: int, nodes: tuple[int, ...], **tags: str) -> str:
     return f'<way id="{way_id}">{refs}{tagged}</way>'
 
 
-def streets_of(trace: dict[str, object]) -> list[str]:
-    return [segment["name"] or segment["ref"] for segment in trace["route"]]  # type: ignore[attr-defined, index]
+def found(trace: dict[str, Any] | Unreached) -> dict[str, Any]:
+    assert not isinstance(trace, Unreached), trace
+    return trace
+
+
+def streets_of(trace: dict[str, Any] | Unreached) -> list[str]:
+    return [segment["name"] or segment["ref"] for segment in found(trace)["route"]]
 
 
 def test_by_time_the_corridor_takes_the_motorway_and_by_length_the_slow_decoy() -> None:
     osm = OsmMap.read(DIAGONAL_B23_OSM)
 
-    by_time = osm.trace(H, P)
-    by_length = osm.trace(H, P, by="length")
+    by_time = found(osm.trace(H, P))
+    by_length = found(osm.trace(H, P, by="length"))
 
     assert "B-23" in streets_of(by_time) and "Carretera Reial" not in streets_of(by_time)
     assert streets_of(by_length) == ["Carretera Reial"]
@@ -74,14 +80,14 @@ def test_a_road_is_only_driven_in_the_directions_it_allows(
 ) -> None:
     osm = map_of(way(1, (1, 2), **tags))
 
-    assert ("route" in osm.trace(A, B)) is forward
-    assert ("route" in osm.trace(B, A)) is backward
+    assert (osm.trace(A, B) != Unreached(A)) is forward
+    assert (osm.trace(B, A) != Unreached(B)) is backward
 
 
 def test_a_point_no_road_can_take_it_to_the_other_has_no_drivable_path() -> None:
     osm = map_of(way(1, (1, 2), highway="residential", oneway="yes"))
 
-    assert osm.trace(B, A) == {"not_reached": {"point": list(B), "reason": "no drivable path"}}
+    assert osm.trace(B, A) == Unreached(B)
 
 
 @pytest.mark.parametrize(
@@ -117,3 +123,13 @@ def test_a_street_the_user_named_wins_a_near_tie() -> None:
 
     assert streets_of(osm.trace(A, B)) == ["Carrer Gran"]
     assert streets_of(osm.trace(A, B, prefer=["carrer del mig"])) == ["Carrer del Mig"]
+
+
+def test_a_street_the_user_named_is_suggested_however_short_its_stretch() -> None:
+    osm = OsmMap.read(DIAGONAL_B23_OSM)
+
+    plain = found(osm.trace(H, P))["suggested_selection"]
+    named = found(osm.trace(H, P, prefer=["baix llobregat"]))["suggested_selection"]
+
+    assert plain["names"] == ["Avinguda Diagonal"]
+    assert named["names"] == ["Avinguda Diagonal", "Avinguda del Baix Llobregat"]
