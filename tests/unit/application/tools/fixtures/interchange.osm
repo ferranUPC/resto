@@ -24,6 +24,9 @@
   <!-- residential and service streets inside the zone -->
   <node id="43" lat="41.3762" lon="2.0728"/>
   <node id="45" lat="41.3762" lon="2.0715"/>
+  <!-- an unnamed motorway_link far from the junction (E6.1/12) -->
+  <node id="61" lat="41.3920" lon="2.0600"/>
+  <node id="62" lat="41.3925" lon="2.0612"/>
   <!-- a residential street with the same name, far away -->
   <node id="51" lat="41.3900" lon="2.0700"/>
   <node id="52" lat="41.3900" lon="2.0710"/>
@@ -66,6 +69,7 @@
     <nd ref="43"/><nd ref="45"/>
     <tag k="highway" v="service"/>
   </way>
+  <way id="804"><nd ref="61"/><nd ref="62"/><tag k="highway" v="motorway_link"/></way>
   <way id="803">
     <nd ref="51"/><nd ref="52"/>
     <tag k="highway" v="residential"/>

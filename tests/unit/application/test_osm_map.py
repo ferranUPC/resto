@@ -9,7 +9,8 @@ from xml.etree import ElementTree
 
 import pytest
 
-from resto.application.osm_map import OsmMap, Unreached
+from resto.application.osm_map import MAX_ZONE_M, MIN_ZONE_M, OsmMap, Unreached
+from resto.domain.services.geo import distance_m
 from tests.unit.application.tools._osm_doubles import DIAGONAL_B23_OSM, HOSPITAL, MACIA
 
 H = (HOSPITAL.lat, HOSPITAL.lon)
@@ -133,3 +134,98 @@ def test_a_street_the_user_named_is_suggested_however_short_its_stretch() -> Non
 
     assert plain["names"] == ["Avinguda Diagonal"]
     assert named["names"] == ["Avinguda Diagonal", "Avinguda del Baix Llobregat"]
+
+
+# -- zones suggested by a trace (E6.1/12) -----------------------------------------------------
+
+
+def chain(*stretches: tuple[int, int, dict[str, str]]) -> OsmMap:
+    """Nodes 1 to 40 along lat 41.39, 0.0005 degrees of longitude (about 42 m) apart, and a way
+    for each (first node, last node, tags) that runs through the nodes between them."""
+    nodes = "".join(
+        f'<node id="{i}" lat="41.39" lon="{2.1 + 0.0005 * i:.4f}"/>' for i in range(1, 41)
+    )
+    ways = "".join(
+        way(1000 + i, tuple(range(first, last + 1)), **tags)
+        for i, (first, last, tags) in enumerate(stretches)
+    )
+    return OsmMap(ElementTree.fromstring(f"<osm>{nodes}{ways}</osm>"))
+
+
+def trace_ends(osm: OsmMap, first: int, last: int) -> dict[str, Any]:
+    return found(osm.trace(osm.nodes[first], osm.nodes[last]))["suggested_selection"]
+
+
+def test_an_unnamed_ramp_on_the_route_is_suggested_as_a_zone_that_holds_it() -> None:
+    osm = OsmMap.read(DIAGONAL_B23_OSM)
+
+    suggested = found(osm.trace(H, P))["suggested_selection"]
+
+    (zone,) = suggested["areas"]
+    ramp = osm.ways[402]
+    assert all(
+        distance_m(tuple(zone["near"]), osm.nodes[n]) <= zone["radius_m"] for n in ramp.nodes
+    )
+    assert 10 <= zone["radius_m"] <= 5000
+    assert suggested["names"] == ["Avinguda Diagonal"] and suggested["refs"] == ["B-23"]
+
+
+def test_a_stretch_of_a_service_road_is_not_suggested_as_a_zone() -> None:
+    osm = chain(
+        (1, 3, {"highway": "service"}),
+        (3, 6, {"highway": "primary", "name": "Avinguda"}),
+        (6, 8, {"highway": "residential"}),
+    )
+
+    assert trace_ends(osm, 1, 8)["areas"] == []
+
+
+def test_two_unnamed_stretches_close_to_each_other_give_one_zone() -> None:
+    osm = chain(
+        (1, 4, {"highway": "trunk_link"}),
+        (4, 5, {"highway": "primary", "name": "Pont"}),
+        (5, 8, {"highway": "primary_link"}),
+    )
+
+    assert len(trace_ends(osm, 1, 8)["areas"]) == 1
+
+
+def test_two_unnamed_stretches_far_apart_give_two_zones() -> None:
+    osm = chain(
+        (1, 4, {"highway": "trunk_link"}),
+        (4, 30, {"highway": "primary", "name": "Avinguda"}),
+        (30, 34, {"highway": "primary_link"}),
+    )
+
+    assert len(trace_ends(osm, 1, 34)["areas"]) == 2
+
+
+def test_the_radius_of_a_zone_stays_within_what_list_streets_accepts() -> None:
+    tiny = chain((1, 2, {"highway": "motorway_link"}), (2, 5, {"highway": "primary", "name": "A"}))
+    nodes = "".join(
+        f'<node id="{i}" lat="41.39" lon="{2.0 + 0.02 * i:.4f}"/>' for i in range(1, 11)
+    )
+    ref = "".join(f'<nd ref="{i}"/>' for i in range(1, 11))
+    huge = OsmMap(
+        ElementTree.fromstring(
+            f'<osm>{nodes}<way id="1">{ref}<tag k="highway" v="trunk"/></way></osm>'
+        )
+    )
+
+    for osm, last in ((tiny, 5), (huge, 10)):
+        (zone,) = trace_ends(osm, 1, last)["areas"]
+        assert MIN_ZONE_M <= zone["radius_m"] <= MAX_ZONE_M
+
+
+def test_a_route_with_only_named_or_ref_roads_has_no_zones_and_the_same_suggestion() -> None:
+    osm = chain(
+        (1, 5, {"highway": "primary", "name": "Avinguda"}),
+        (5, 9, {"highway": "motorway", "ref": "B-23"}),
+    )
+
+    assert trace_ends(osm, 1, 9) == {
+        "names": ["Avinguda"],
+        "refs": ["B-23"],
+        "connectors": "links",
+        "areas": [],
+    }

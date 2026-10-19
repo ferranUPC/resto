@@ -46,6 +46,8 @@ from resto.application.osm_map import (
     MAX_CONNECTOR_M,
     MAX_LISTED,
     MAX_SNAP_M,
+    MAX_ZONE_M,
+    MIN_ZONE_M,
     Area,
     Connectors,
     DropRule,
@@ -224,7 +226,9 @@ def locate_place(
         "classes, total length and extent. Highways with no name and no ref are grouped by "
         "class. Use it before `select_streets` to see how the streets the user named are "
         "spelled, and whether the road changes name along the stretch. With `near`, only the "
-        f"streets that pass within `radius_m` of that point. At most {MAX_LISTED} rows."
+        "streets that pass within `radius_m` of that point, each counted only for the stretch "
+        "inside that circle (what a zone of `select_streets` keeps): the unnamed rows show "
+        f"what is there, not what the whole snapshot holds. At most {MAX_LISTED} rows."
     ),
 )
 def list_streets(
@@ -239,7 +243,12 @@ def list_streets(
         ),
     ] = None,
     radius_m: Annotated[
-        float, Field(ge=10, le=5000, description="Radius around `near`, in metres. Default 300.")
+        float,
+        Field(
+            ge=MIN_ZONE_M,
+            le=MAX_ZONE_M,
+            description="Radius around `near`, in metres. Default 300.",
+        ),
     ] = 300.0,
 ) -> Mapping[str, Any]:
     osm = OsmMap.read(_state(ctx, osm_snapshot).snapshot.path)
@@ -249,7 +258,9 @@ def list_streets(
 
 
 _NEAR = Field(min_length=2, max_length=2, description="[lat, lon] of the centre of the zone.")
-_RADIUS = Field(ge=10, le=5000, description="Radius of the zone in metres. Default 300.")
+_RADIUS = Field(
+    ge=MIN_ZONE_M, le=MAX_ZONE_M, description="Radius of the zone in metres. Default 300."
+)
 
 
 class AreaArg(TypedDict):
@@ -369,7 +380,9 @@ _POINT = Field(min_length=2, max_length=2, description="[lat, lon], e.g. from `l
         "the way, or has only a ref (a motorway): the trace follows it anyway. Returns its "
         "stretches (`route`), `total_m`, `minutes`, where each point was put on a road "
         "(`snapped`), the first and last point on the suggested streets (`joins_at`, "
-        "`leaves_at`) and `suggested_selection`, to pass as it is to `select_streets`. Returns "
+        "`leaves_at`) and `suggested_selection`, to pass as it is to `select_streets`: besides "
+        "names and refs it has `areas`, one zone for each stretch of the route on roads with "
+        "neither (ramps, roundabouts), which a name or a ref does not keep. Returns "
         "`not_reached` with the box to `fetch_osm` instead when a point is outside the fetched "
         f"area or less than {EDGE_MARGIN_M:g} m from its edge, or when no road joins the two "
         f"points (a point more than {MAX_SNAP_M:g} m from any road that does)."

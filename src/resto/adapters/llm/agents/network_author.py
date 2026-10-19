@@ -58,7 +58,7 @@ from resto.domain.value_objects.tasks import NetworkTask, ObtainNetworkTask
 
 # Bump whenever the prompt, the tool set or the default budget changes in a way that can change
 # the agent's answers (E6.2 records it with every measurement).
-NETWORK_AUTHOR_VERSION = "v5"
+NETWORK_AUTHOR_VERSION = "v6"
 
 _COMMON = """\
 You are the Network Author of a SUMO traffic-simulation framework. You make sure a road network
@@ -68,7 +68,9 @@ How you work. Every tool that builds a network returns a `net_artifact` (path an
 what the recipe needs (`source`, `osm_snapshot`, `netconvert_options`, `modification`). Never type a
 path, a hash or a polygon yourself: use exactly what a tool returned. A round is one repair cycle:
 change the network, recompile, then call `sanity_check` on the result. You have at most
-`max_rounds` rounds; the number of tool calls is limited separately.
+`max_rounds` rounds; the number of tool calls is limited separately. Selecting, listing, locating
+and verifying cost no round: only the repair cycle does, so try another selection before you give
+up on one.
 
 You finish by calling submit_output. A NetworkDraft is:
   - recipe: {source | base_network_id, osm_snapshot, netconvert_options, plain_edits}. It must
@@ -114,7 +116,13 @@ choose exactly one ending:
          roundabout with everything that reaches it, a neighbourhood), `locate_place` its
          point, `list_streets` near it, and `select_streets` with that zone in `areas`; then
          `drop` by class (`residential`, `service`) and by name what is left over. Keep
-         selecting by name, or tracing, for a long stretch.
+         selecting by name, or tracing, for a long stretch. If `suggested_selection` has
+         `areas`, pass them as they are. The entrances and exits of a municipality to a road
+         are the link where the road reaches the municipality, not its centre: find it with
+         `trace_corridor` or with a place of the request near it, never with the centre of the
+         municipality. For example:
+           select_streets(refs=["B-23"], areas=[{"near": [41.374, 2.0716], "radius_m": 500}],
+                          drop=[{"classes": ["residential", "service"]}])
          A selection in more than one piece, a missing stretch or a place far from the
          network's ends means a selection to try again (other names, a ref, other
          connectors). What you cannot fix goes to unresolved[] with the numbers the coverage

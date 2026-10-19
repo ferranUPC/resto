@@ -1285,7 +1285,7 @@
       "name": "fetch_osm"
     },
     {
-      "description": "The streets of a fetched snapshot, longest first: name, ref (e.g. 'N-340'), road classes, total length and extent. Highways with no name and no ref are grouped by class. Use it before `select_streets` to see how the streets the user named are spelled, and whether the road changes name along the stretch. With `near`, only the streets that pass within `radius_m` of that point. At most 40 rows.",
+      "description": "The streets of a fetched snapshot, longest first: name, ref (e.g. 'N-340'), road classes, total length and extent. Highways with no name and no ref are grouped by class. Use it before `select_streets` to see how the streets the user named are spelled, and whether the road changes name along the stretch. With `near`, only the streets that pass within `radius_m` of that point, each counted only for the stretch inside that circle (what a zone of `select_streets` keeps): the unnamed rows show what is there, not what the whole snapshot holds. At most 40 rows.",
       "input_schema": {
         "properties": {
           "near": {
@@ -1303,8 +1303,8 @@
           },
           "radius_m": {
             "description": "Radius around `near`, in metres. Default 300.",
-            "maximum": 5000,
-            "minimum": 10,
+            "maximum": 5000.0,
+            "minimum": 10.0,
             "type": "number"
           }
         },
@@ -1316,7 +1316,7 @@
       "name": "list_streets"
     },
     {
-      "description": "Find the road a car takes between two points of a fetched snapshot (the quickest, from the speed limits), and which streets to select to keep it. A road often changes name on the way, or has only a ref (a motorway): the trace follows it anyway. Returns its stretches (`route`), `total_m`, `minutes`, where each point was put on a road (`snapped`), the first and last point on the suggested streets (`joins_at`, `leaves_at`) and `suggested_selection`, to pass as it is to `select_streets`. Returns `not_reached` with the box to `fetch_osm` instead when a point is outside the fetched area or less than 300 m from its edge, or when no road joins the two points (a point more than 500 m from any road that does).",
+      "description": "Find the road a car takes between two points of a fetched snapshot (the quickest, from the speed limits), and which streets to select to keep it. A road often changes name on the way, or has only a ref (a motorway): the trace follows it anyway. Returns its stretches (`route`), `total_m`, `minutes`, where each point was put on a road (`snapped`), the first and last point on the suggested streets (`joins_at`, `leaves_at`) and `suggested_selection`, to pass as it is to `select_streets`: besides names and refs it has `areas`, one zone for each stretch of the route on roads with neither (ramps, roundabouts), which a name or a ref does not keep. Returns `not_reached` with the box to `fetch_osm` instead when a point is outside the fetched area or less than 300 m from its edge, or when no road joins the two points (a point more than 500 m from any road that does).",
       "input_schema": {
         "properties": {
           "from_point": {
@@ -1378,8 +1378,8 @@
                 },
                 "radius_m": {
                   "description": "Radius of the zone in metres. Default 300.",
-                  "maximum": 5000,
-                  "minimum": 10,
+                  "maximum": 5000.0,
+                  "minimum": 10.0,
                   "type": "number"
                 }
               },
@@ -1429,8 +1429,8 @@
                 },
                 "radius_m": {
                   "description": "Radius of the zone in metres. Default 300.",
-                  "maximum": 5000,
-                  "minimum": 10,
+                  "maximum": 5000.0,
+                  "minimum": 10.0,
                   "type": "number"
                 },
                 "refs": {

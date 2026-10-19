@@ -26,11 +26,12 @@ from __future__ import annotations
 import copy
 import hashlib
 import heapq
+import math
 import re
 from collections import defaultdict
 from collections.abc import Hashable, Iterable, Sequence, Set
 from dataclasses import dataclass
-from itertools import groupby, pairwise
+from itertools import combinations, groupby, pairwise
 from pathlib import Path
 from typing import Any, Generic, Literal, TypeVar
 from xml.etree import ElementTree
@@ -93,6 +94,21 @@ next district."""
 SUGGESTED_SHARE = 0.1
 """Share of a trace a street must cover to be suggested for the selection; the access road from
 a building does not."""
+
+MIN_ZONE_M = 10.0
+MAX_ZONE_M = 5000.0
+"""Smallest and largest `radius_m` of a zone (`list_streets`, `select_streets`)."""
+
+ZONE_MARGIN_M = 50.0
+"""What a zone a trace suggests adds to the reach of its stretch, so that the ends and the
+junctions next to them are inside."""
+
+_MAIN_CLASSES = frozenset(
+    {"motorway", "trunk", "primary", "secondary", "tertiary"}
+    | {"motorway_link", "trunk_link", "primary_link", "secondary_link", "tertiary_link"}
+)
+"""Classes whose unnamed stretches a trace suggests as a zone: the access to a building
+(`service`, `residential`, `living_street`, `unclassified`) does not deserve one."""
 
 _MPH = 1.609344
 _MAXSPEED = re.compile(r"(\d+(?:\.\d+)?)\s*(mph)?")
@@ -304,8 +320,7 @@ class OsmMap:
         return OsmMap(ElementTree.parse(snapshot).getroot())
 
     def length_m(self, way: OsmWay) -> float:
-        points = self._points([way])
-        return sum(distance_m(a, b) for a, b in zip(points, points[1:], strict=False))
+        return _path_m(self._points([way]))
 
     def _points(self, ways: Iterable[OsmWay]) -> list[Point]:
         return [self.nodes[n] for w in ways for n in w.nodes if n in self.nodes]
@@ -320,24 +335,34 @@ class OsmMap:
 
     def streets(self, near: Point | None = None, radius_m: float = 0.0) -> list[dict[str, Any]]:
         """Every street with a node within `radius_m` of `near` (every street when `near` is
-        None): name, ref, classes, total length and extent, longest first."""
+        None): name, ref, classes, length and extent, longest first. With `near`, a way counts
+        only for its stretch between the first and the last node inside, the stretch a zone
+        keeps (`select`)."""
+        area = Area(near, radius_m) if near is not None else None
         rows = []
         for (name, ref, _), ways in self._by_street(self.ways.values()).items():
-            points = self._points(ways)
-            if not points:
-                continue
-            if near is not None and min(distance_m(near, p) for p in points) > radius_m:
+            stretches = [(w, s) for w in ways if (s := self._stretch(w, area))]
+            if not stretches:
                 continue
             rows.append(
                 {
                     "name": name,
                     "ref": ref,
-                    "classes": sorted({w.highway for w in ways}),
-                    "length_m": round(sum(self.length_m(w) for w in ways)),
-                    "extent": extent(points),
+                    "classes": sorted({w.highway for w, _ in stretches}),
+                    "length_m": round(sum(_path_m(s) for _, s in stretches)),
+                    "extent": extent([p for _, s in stretches for p in s]),
                 }
             )
         return sorted(rows, key=lambda r: (-r["length_m"], r["name"], r["ref"]))
+
+    def _stretch(self, way: OsmWay, area: Area | None) -> list[Point]:
+        """The points of the way, or those between its first and last node inside `area`; empty
+        when it has no node there."""
+        points = [(n, self.nodes[n]) for n in way.nodes if n in self.nodes]
+        if area is not None:
+            inside = [i for i, (_, p) in enumerate(points) if area.holds(p)]
+            points = points[inside[0] : inside[-1] + 1] if inside else []
+        return [p for _, p in points]
 
     # -- selecting --------------------------------------------------------------------------
 
@@ -718,11 +743,13 @@ class OsmMap:
             "suggested_selection": selection,
         }
 
-    @staticmethod
-    def _suggested(steps: Sequence[_Step], total_m: float, terms: Sequence[str]) -> dict[str, Any]:
+    def _suggested(
+        self, steps: Sequence[_Step], total_m: float, terms: Sequence[str]
+    ) -> dict[str, Any]:
         """The streets to select to keep a trace: by name those that cover `SUGGESTED_SHARE` of
-        it; by ref those that do and carry no name somewhere or several names; and the streets
-        of the user's `terms` the trace touches."""
+        it; by ref those that do and carry no name somewhere or several names; the streets of
+        the user's `terms` the trace touches; and a zone for each stretch of roads with neither
+        name nor ref (ramps, roundabouts), whatever its share."""
         by_name: dict[str, float] = defaultdict(float)
         by_ref: dict[str, float] = defaultdict(float)
         names_of_ref: dict[str, set[str]] = defaultdict(set)
@@ -745,7 +772,34 @@ class OsmMap:
             if _matches(step.way, terms, frozenset()) and step.way.name not in names:
                 names.append(step.way.name)
             refs += [r for r in step.way.tagged_refs if r.casefold() in terms and r not in refs]
-        return {"names": names, "refs": refs, "connectors": "links"}
+        return {
+            "names": names,
+            "refs": refs,
+            "connectors": "links",
+            "areas": [z.as_json() for z in self._zones(steps)],
+        }
+
+    def _zones(self, steps: Sequence[_Step]) -> list[Area]:
+        """One circle for each run of consecutive steps on unnamed, ref-less roads of the main
+        classes, around its points; circles that overlap become one that holds both."""
+        groups: list[list[Point]] = []
+        for unnamed, run in groupby(steps, key=_is_unnamed_main):
+            if unnamed:
+                stretch = list(run)
+                groups.append([self.nodes[stretch[0].start]] + [self.nodes[s.end] for s in stretch])
+        circles = [(_circle(points), points) for points in groups]
+        merged = True
+        while merged:
+            merged = False
+            for i, j in combinations(range(len(circles)), 2):
+                (a, points_a), (b, points_b) = circles[i], circles[j]
+                if distance_m(a.near, b.near) <= a.radius_m + b.radius_m:
+                    points = points_a + points_b
+                    circles[i] = (_circle(points), points)
+                    del circles[j]
+                    merged = True
+                    break
+        return [circle for circle, _ in circles]
 
     # -- pieces and coverage ----------------------------------------------------------------
 
@@ -882,6 +936,23 @@ def _matches(way: OsmWay, names: Sequence[str], refs: Set[str]) -> bool:
     """Whether the way's name contains one of `names` or it has one of `refs` (both
     casefolded)."""
     return any(n in way.name.casefold() for n in names) or bool(way.refs & refs)
+
+
+def _is_unnamed_main(step: _Step) -> bool:
+    return not step.way.name and not step.way.ref and step.way.highway in _MAIN_CLASSES
+
+
+def _circle(points: Sequence[Point]) -> Area:
+    """The circle around the middle of the points' box that holds them all, with a margin;
+    `radius_m` stays within `MIN_ZONE_M` and `MAX_ZONE_M`."""
+    lats, lons = [p[0] for p in points], [p[1] for p in points]
+    centre = ((min(lats) + max(lats)) / 2, (min(lons) + max(lons)) / 2)
+    reach = max(distance_m(centre, p) for p in points) + ZONE_MARGIN_M
+    return Area(centre, min(MAX_ZONE_M, max(MIN_ZONE_M, math.ceil(reach))))
+
+
+def _path_m(points: Sequence[Point]) -> float:
+    return sum(distance_m(a, b) for a, b in pairwise(points))
 
 
 def _ends(points: Sequence[Point]) -> tuple[Point, Point]:

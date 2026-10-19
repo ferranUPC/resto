@@ -386,3 +386,21 @@ Tool schemas inlined (no `$defs`) and `transcript.json` saved by the script.
     and does not see `areas` as the way to ask for it.
 - **Next:** ticket 12 (`list_streets` near counts only what is inside, `trace_corridor` suggests zones for unnamed
   roads of the main hierarchy, prompt `v6`).
+
+## 2026-10-19, reaching the zone (ticket 12, no model, $0)
+
+Prompt `v6`; `list_streets` near counts the stretch inside the radius; `trace_corridor` suggests `areas`. Checked on
+`osm-b26b4bfed6818bbd.osm` (the `v4` and `v5` snapshot).
+
+- **`trace_corridor` from the B-23 (41.37666, 2.0782) to Sant Just (41.3858, 2.0758).** The route takes 95 m of
+  motorway, the 434 m `motorway_link`, 126 m of unnamed `primary`, a 65 m `primary_link` and then named streets. The
+  suggestion has one zone, centre (41.37703, 2.07478), 248 m, that holds the ramp and the unnamed `primary` after it.
+  `select_streets` with the suggestion as given keeps 9 `motorway_link` ways (24 to 288 m each).
+- **From the Broggi (41.37402, 2.07157) to Sant Just's centre.** Three zones (85, 72 and 69 m): the unnamed
+  stretch at the hospital and the two roundabouts of the junction. Their selection has 6 pieces; the ramps are in it,
+  the pieces are for the agent to read in `largest_pieces`.
+- **`list_streets` near the hospital (41.374, 2.0716, 500 m).** 45 streets. The unnamed rows are now `footway` 4,609 m,
+  `service` 2,463 m and `motorway_link` 2,088 m, the length inside the circle; before they were 104,644 m and 45,544 m
+  for the whole snapshot. The B-23 shows 1,560 m.
+- **Open:** the first run of `v6` is the maintainer's. When it is done, note here which `select_streets` calls
+  it made with `areas` and `drop`, and whether it passed the suggested `areas` as they came.

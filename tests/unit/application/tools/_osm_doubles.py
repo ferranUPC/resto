@@ -52,7 +52,8 @@ INTERCHANGE_OSM = Path(__file__).parent / "fixtures" / "interchange.osm"
 no name (501, 502), two unnamed `primary` roundabouts (601, 602) and four unnamed `motorway_link`
 (701 to 704) that leave and enter the carriageways through them. A tertiary "Carrer de Sant Just"
 (603) leaves R2 and crosses the edge of `INTERCHANGE_ZONE`; "Carrer del Mig" is a residential (801)
-that ends in an unnamed service street (802) inside the zone, and another (803) 1.7 km north."""
+that ends in an unnamed service street (802) inside the zone, and another (803) 1.7 km north. An
+unnamed `motorway_link` (804) 2 km away from the junction groups with the four ramps by class."""
 
 INTERCHANGE_BOX = BBox(south=41.370, west=2.055, north=41.395, east=2.085)
 

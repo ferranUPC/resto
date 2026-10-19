@@ -618,6 +618,7 @@ def test_the_corridor_follows_the_road_where_it_changes_name_and_suggests_both(
         "names": ["Avinguda Diagonal"],
         "refs": ["B-23"],
         "connectors": "links",
+        "areas": [{"near": [41.37615, 2.0725], "radius_m": 95}],
     }
     assert traced["joins_at"] == [41.3763, 2.073], "where the ramp enters the B-23 (node E)"
     assert traced["leaves_at"] == [MACIA.lat, MACIA.lon]
@@ -656,7 +657,7 @@ def test_the_suggested_selection_builds_one_network_that_reaches_the_hospital(
 
     assert selected["pieces"] == 1
     assert len(NetEdge.components(NetEdge.read_all(Path(built["net_artifact"]["path"])))) == 1
-    assert osm_ways_of(built) == {403, 404, 405, 406}
+    assert osm_ways_of(built) == {402, 403, 404, 405, 406}, "the ramp comes with its zone"
     assert network_to_place_m(built, HOSPITAL) < 300
 
 
@@ -895,3 +896,42 @@ def test_the_zone_and_the_pruning_by_class_build_a_network_with_the_four_ramps(
     assert not SMALL_STREETS & built
     net = Path(result["net_artifact"]["path"])
     assert len(NetEdge.components(NetEdge.read_all(net))) == 1
+
+
+# -- reaching the zone (E6.1/12) -------------------------------------------------------------
+
+
+def test_near_a_point_an_unnamed_class_counts_only_the_stretch_inside_the_radius(
+    tmp_path: Path,
+) -> None:
+    run, snapshot = interchange_run(tmp_path)
+    osm = OsmMap.read(INTERCHANGE_OSM)
+    ramps_m = round(sum(osm.length_m(osm.ways[w]) for w in RAMPS))
+    both_m = ramps_m + round(osm.length_m(osm.ways[804]))
+
+    near = list_streets(run, osm_snapshot=snapshot, **INTERCHANGE_ZONE)
+    everywhere = list_streets(run, osm_snapshot=snapshot)
+
+    row = {(r["name"], r["ref"], tuple(r["classes"])): r for r in near["streets"]}
+    links = row["", "", ("motorway_link",)]
+    assert links["length_m"] == pytest.approx(ramps_m, abs=1)
+    assert links["extent"]["north"] < 41.38, "the link 2 km away is not in the extent"
+    whole = {(r["name"], r["ref"], tuple(r["classes"])): r for r in everywhere["streets"]}
+    assert whole["", "", ("motorway_link",)]["length_m"] == pytest.approx(both_m, abs=1)
+    assert whole["", "", ("motorway_link",)]["extent"]["north"] > 41.39
+
+
+def test_near_a_point_a_named_street_counts_the_stretch_the_zone_would_keep(
+    tmp_path: Path,
+) -> None:
+    run, snapshot = interchange_run(tmp_path)
+    full = OsmMap.read(INTERCHANGE_OSM)
+
+    listing = list_streets(run, osm_snapshot=snapshot, **INTERCHANGE_ZONE)
+    selected = select_streets(run, osm_snapshot=snapshot, areas=[INTERCHANGE_ZONE])
+
+    listed = next(r for r in listing["streets"] if r["name"] == "Carrer de Sant Just")
+    kept = OsmMap.read(Path(selected["osm_snapshot"]["path"]))
+    assert listed["length_m"] == round(kept.length_m(kept.ways[603]))
+    assert listed["length_m"] < full.length_m(full.ways[603])
+    assert next(r for r in listing["streets"] if r["name"] == "Carrer del Mig")["length_m"] < 300
