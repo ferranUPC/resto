@@ -14,6 +14,10 @@ counts the edges of a `.net.xml`; no port stands in front of them.
 - **A piece** is a set of ways joined by shared nodes, whatever their direction. Its ends are the
   two points farthest apart, found in two sweeps (exact on a corridor, close enough on anything
   else).
+- **A trace** is the quickest road between two points (`OsmMap.trace`): the roads of the snapshot
+  as a graph with one arc per pair of consecutive nodes, in the directions the way allows, each
+  costing its length over its speed. It reads the road the way a driver would, whatever names it
+  takes on the way, and tells which streets to select to keep it.
 """
 
 from __future__ import annotations
@@ -23,8 +27,9 @@ import hashlib
 import heapq
 import re
 from collections import defaultdict
-from collections.abc import Hashable, Iterable, Sequence
+from collections.abc import Hashable, Iterable, Sequence, Set
 from dataclasses import dataclass
+from itertools import groupby, pairwise
 from pathlib import Path
 from typing import Any, Generic, Literal, TypeVar
 from xml.etree import ElementTree
@@ -53,6 +58,45 @@ _NOT_ROADS = frozenset(
 MAX_LISTED = 40
 """Rows a listing returns at most, longest first; the rest are counted."""
 
+DEFAULT_KMH = {
+    "motorway": 120.0,
+    "trunk": 100.0,
+    "primary": 50.0,
+    "secondary": 40.0,
+    "tertiary": 30.0,
+    "unclassified": 25.0,
+    "residential": 20.0,
+    "service": 15.0,
+    "living_street": 10.0,
+    "motorway_link": 60.0,
+    "trunk_link": 50.0,
+    "primary_link": 40.0,
+    "secondary_link": 35.0,
+    "tertiary_link": 25.0,
+}
+"""Speed of a road with no numeric `maxspeed`, by class, in km/h. It falls with every step down
+the classes, so that a trace prefers the higher road when the two are equally long. SUMO's own
+typemap is no use here: it gives trunk, primary and secondary roads the same 100 km/h."""
+
+UNKNOWN_KMH = 20.0
+"""Speed of a road whose class is not in `DEFAULT_KMH`."""
+
+PREFERRED_COST = 0.8
+"""What a road the user named costs in a trace, as a share of its time: the named street wins
+when two roads take about as long."""
+
+MAX_SNAP_M = 500.0
+"""Farthest a trace moves a point to put it on a road: a hospital's grounds or a square, not the
+next district."""
+
+SUGGESTED_SHARE = 0.1
+"""Share of a trace a street must cover to be suggested for the selection; the access road from
+a building does not."""
+
+_MPH = 1.609344
+_MAXSPEED = re.compile(r"(\d+(?:\.\d+)?)\s*(mph)?")
+_ONE_WAY_CLASSES = frozenset({"motorway", "motorway_link"})
+
 
 @dataclass(frozen=True, slots=True)
 class OsmWay:
@@ -61,11 +105,24 @@ class OsmWay:
     highway: str
     name: str
     ref: str
+    oneway: int = 0
+    """1 when the way is driven only along its nodes, -1 only against them, 0 both ways."""
+    maxspeed_kmh: float | None = None
+
+    @property
+    def tagged_refs(self) -> tuple[str, ...]:
+        """The `ref` tag holds several refs separated by ';' (e.g. 'N-340;B-23')."""
+        return tuple(r.strip() for r in self.ref.split(";") if r.strip())
 
     @property
     def refs(self) -> frozenset[str]:
-        """The `ref` tag holds several refs separated by ';' (e.g. 'N-340;B-23')."""
-        return frozenset(r.strip().casefold() for r in self.ref.split(";") if r.strip())
+        return frozenset(r.casefold() for r in self.tagged_refs)
+
+    @property
+    def speed_kmh(self) -> float:
+        if self.maxspeed_kmh is not None:
+            return self.maxspeed_kmh
+        return DEFAULT_KMH.get(self.highway, UNKNOWN_KMH)
 
     @property
     def street(self) -> StreetKey:
@@ -181,6 +238,8 @@ class OsmMap:
                 highway=tags["highway"],
                 name=tags.get("name", ""),
                 ref=tags.get("ref", ""),
+                oneway=_oneway(tags),
+                maxspeed_kmh=_maxspeed(tags.get("maxspeed", "")),
             )
 
     @staticmethod
@@ -239,10 +298,7 @@ class OsmMap:
         if not wanted_names and not wanted_refs:
             raise ValueError("give at least one name or ref to select")
         matched = {
-            w.id
-            for w in self.ways.values()
-            if w.is_road
-            and (any(n in w.name.casefold() for n in wanted_names) or w.refs & wanted_refs)
+            w.id for w in self.ways.values() if w.is_road and _matches(w, wanted_names, wanted_refs)
         }
         if not matched:
             raise ValueError(
@@ -376,6 +432,140 @@ class OsmMap:
         partial.replace(target)
         return ArtifactRef(target.resolve(), hashlib.sha256(body).hexdigest(), "osm")
 
+    # -- tracing ----------------------------------------------------------------------------
+
+    def trace(
+        self,
+        start: Point,
+        end: Point,
+        prefer: Sequence[str] = (),
+        by: Literal["time", "length"] = "time",
+    ) -> dict[str, Any]:
+        """The quickest road from `start` to `end` (the shortest with `by="length"`): its
+        stretches, how long it is, where each point was put on a road, and the streets to select
+        to keep it, with the first and last node on them. The roads whose name contains one of
+        `prefer` or whose ref is one of them cost `PREFERRED_COST` of their time.
+
+        Each point goes to the nearest node from which a car can reach the other point, at most
+        `MAX_SNAP_M` away; when there is none, the trace is `not_reached` at that point.
+
+        Raises:
+            ValueError: both points go to the same node.
+        """
+        arcs = self._driving_arcs()
+        back: dict[int, list[int]] = defaultdict(list)
+        for node, out in arcs.items():
+            for nxt, _, _ in out:
+                back[nxt].append(node)
+        near_end = [
+            n for n in set(arcs) | set(back) if distance_m(end, self.nodes[n]) <= MAX_SNAP_M
+        ]
+        if not near_end:
+            return _not_reached(end)
+        source = min(
+            _reachable(near_end, back), key=lambda n: (distance_m(start, self.nodes[n]), n)
+        )
+        if distance_m(start, self.nodes[source]) > MAX_SNAP_M:
+            return _not_reached(start)
+        names = [p.strip().casefold() for p in prefer if p.strip()]
+        steps = self._quickest(source, end, arcs, by, names)
+        if not steps:
+            raise ValueError(
+                f"both points are nearest to the same node {_rounded(self.nodes[source])}: "
+                "give two places apart"
+            )
+        return self._corridor(steps, start, end, names)
+
+    def _driving_arcs(self) -> dict[int, list[tuple[int, OsmWay, float]]]:
+        """For every node of a road, the next node a car can drive to, by which way, how far."""
+        arcs: dict[int, list[tuple[int, OsmWay, float]]] = defaultdict(list)
+        for way in self.ways.values():
+            if not way.is_road:
+                continue
+            for a, b in pairwise(way.nodes):
+                if a in self.nodes and b in self.nodes:
+                    length = distance_m(self.nodes[a], self.nodes[b])
+                    if way.oneway >= 0:
+                        arcs[a].append((b, way, length))
+                    if way.oneway <= 0:
+                        arcs[b].append((a, way, length))
+        return arcs
+
+    def _quickest(
+        self,
+        source: int,
+        end: Point,
+        arcs: dict[int, list[tuple[int, OsmWay, float]]],
+        by: Literal["time", "length"],
+        prefer: Sequence[str],
+    ) -> list[_Step]:
+        """Dijkstra from `source` to every node it reaches; the steps to the one nearest `end`."""
+        preferred = set(prefer)
+
+        def cost(way: OsmWay, length: float) -> float:
+            spent = length if by == "length" else length / way.speed_kmh
+            return spent * (PREFERRED_COST if _matches(way, prefer, preferred) else 1.0)
+
+        spent: dict[int, float] = {source: 0.0}
+        came_from: dict[int, _Step] = {}
+        queue = [(0.0, source)]
+        while queue:
+            reached, node = heapq.heappop(queue)
+            if reached > spent[node]:
+                continue
+            for nxt, way, length in arcs.get(node, ()):
+                total = reached + cost(way, length)
+                if total < spent.get(nxt, float("inf")):
+                    spent[nxt], came_from[nxt] = total, _Step(node, nxt, way, length)
+                    heapq.heappush(queue, (total, nxt))
+        target = min(spent, key=lambda n: distance_m(end, self.nodes[n]))
+        steps = []
+        while target in came_from:
+            steps.append(came_from[target])
+            target = came_from[target].start
+        return steps[::-1]
+
+    def _corridor(
+        self, steps: list[_Step], start: Point, end: Point, prefer: Sequence[str]
+    ) -> dict[str, Any]:
+        total = sum(s.length_m for s in steps)
+        selection = _suggested(steps, total, prefer)
+        names = [n.casefold() for n in selection["names"]]
+        refs = {r.casefold() for r in selection["refs"]}
+        on_selection = [s for s in steps if _matches(s.way, names, refs)]
+        route = []
+        for (name, ref, highway), group in groupby(
+            steps, key=lambda s: (s.way.name, s.way.ref, s.way.highway)
+        ):
+            stretch = list(group)
+            route.append(
+                {
+                    "name": name,
+                    "ref": ref,
+                    "class": highway,
+                    "length_m": round(sum(s.length_m for s in stretch)),
+                    "from": _rounded(self.nodes[stretch[0].start]),
+                    "to": _rounded(self.nodes[stretch[-1].end]),
+                }
+            )
+        return {
+            "route": route,
+            "total_m": round(total),
+            # metres over km/h, times 3.6 / 60, is minutes
+            "minutes": round(sum(s.length_m / s.way.speed_kmh for s in steps) * 0.06, 1),
+            "snapped": [
+                {
+                    "point": _rounded(point),
+                    "node_at": _rounded(self.nodes[node]),
+                    "distance_m": round(distance_m(point, self.nodes[node])),
+                }
+                for point, node in ((start, steps[0].start), (end, steps[-1].end))
+            ],
+            "joins_at": _rounded(self.nodes[on_selection[0].start]) if on_selection else None,
+            "leaves_at": _rounded(self.nodes[on_selection[-1].end]) if on_selection else None,
+            "suggested_selection": selection,
+        }
+
     # -- pieces and coverage ----------------------------------------------------------------
 
     def pieces(self, way_ids: Iterable[int]) -> list[Piece]:
@@ -468,6 +658,88 @@ class OsmMap:
             }
             rows.append((-lost, name, ref, row))
         return [row for *_, row in sorted(rows, key=lambda r: r[:3])[:10]]
+
+
+@dataclass(frozen=True, slots=True)
+class _Step:
+    """One arc of a trace: from node `start` to node `end` along `way`."""
+
+    start: int
+    end: int
+    way: OsmWay
+    length_m: float
+
+
+def _matches(way: OsmWay, names: Sequence[str], refs: Set[str]) -> bool:
+    """Whether the way's name contains one of `names` or it has one of `refs` (both
+    casefolded)."""
+    return any(n in way.name.casefold() for n in names) or bool(way.refs & refs)
+
+
+def _oneway(tags: dict[str, str]) -> int:
+    value = tags.get("oneway", "")
+    if value == "-1":
+        return -1
+    if value in ("yes", "1", "true"):
+        return 1
+    if value == "no":
+        return 0
+    return int(tags.get("junction") == "roundabout" or tags["highway"] in _ONE_WAY_CLASSES)
+
+
+def _maxspeed(value: str) -> float | None:
+    """km/h from a `maxspeed` tag: '50' or '30 mph'; None for anything else ('signals')."""
+    match = _MAXSPEED.fullmatch(value.strip())
+    if match is None:
+        return None
+    return float(match[1]) * (_MPH if match[2] else 1.0)
+
+
+def _reachable(targets: Iterable[int], back: dict[int, list[int]]) -> set[int]:
+    """The nodes from which a car reaches one of `targets`, the targets included."""
+    seen = set(targets)
+    stack = list(seen)
+    while stack:
+        for previous in back.get(stack.pop(), ()):
+            if previous not in seen:
+                seen.add(previous)
+                stack.append(previous)
+    return seen
+
+
+def _suggested(steps: Sequence[_Step], total_m: float, prefer: Sequence[str]) -> dict[str, Any]:
+    """The streets to select to keep a trace: by name those that cover `SUGGESTED_SHARE` of it;
+    by ref those that do and carry no name somewhere or several names; and the streets of
+    `prefer` the trace touches."""
+    by_name: dict[str, float] = defaultdict(float)
+    by_ref: dict[str, float] = defaultdict(float)
+    names_of_ref: dict[str, set[str]] = defaultdict(set)
+    for step in steps:
+        if step.way.name:
+            by_name[step.way.name] += step.length_m
+        for ref in step.way.tagged_refs:
+            by_ref[ref] += step.length_m
+            names_of_ref[ref].add(step.way.name)
+    enough = SUGGESTED_SHARE * total_m
+    names = [n for n, length in _longest(by_name) if length >= enough]
+    refs = [
+        r
+        for r, length in _longest(by_ref)
+        if length >= enough and ("" in names_of_ref[r] or len(names_of_ref[r]) > 1)
+    ]
+    for step in steps:
+        if any(p in step.way.name.casefold() for p in prefer) and step.way.name not in names:
+            names.append(step.way.name)
+        refs += [r for r in step.way.tagged_refs if r.casefold() in prefer and r not in refs]
+    return {"names": names, "refs": refs, "connectors": "links"}
+
+
+def _longest(lengths: dict[str, float]) -> list[tuple[str, float]]:
+    return sorted(lengths.items(), key=lambda item: (-item[1], item[0]))
+
+
+def _not_reached(point: Point) -> dict[str, Any]:
+    return {"not_reached": {"point": _rounded(point), "reason": "no drivable path"}}
 
 
 def _ends(points: Sequence[Point]) -> tuple[Point, Point]:

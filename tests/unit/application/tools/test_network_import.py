@@ -1,4 +1,4 @@
-"""Area-of-interest import tools (E6.1/04, E6.1/09; ADR-0033, ADR-0045, ADR-0046): a fake
+"""Area-of-interest import tools (E6.1/04, E6.1/09, E6.1/10; ADR-0033, ADR-0045, ADR-0046): a fake
 `OsmSource` serving a small committed `.osm`, a fake geocoder, real `netconvert` (SUMO 1.27.1), no
 network and no LLM."""
 
@@ -32,17 +32,23 @@ from resto.application.tools.network_import import (
     netconvert,
     remove_isolated,
     select_streets,
+    trace_corridor,
     verify_coverage,
 )
+from resto.domain.services.geo import distance_m
 from resto.domain.value_objects.artifact_ref import ArtifactRef
 from tests.unit.adapters.osm._server import FakeService, Reply, fake_service
 from tests.unit.application.tools._osm_doubles import (
     CAMPUS_OSM,
     CORRIDOR,
     CORRIDOR_OSM,
+    DIAGONAL_AREA,
+    DIAGONAL_B23_OSM,
     DISTRICT,
     DISTRICT_OSM,
     EAST_END,
+    HOSPITAL,
+    MACIA,
     WEST_END,
     FakeGeocoder,
     FakeOsmSource,
@@ -578,3 +584,108 @@ def test_coverage_before_anything_was_built_says_what_to_call(tmp_path: Path) ->
 
     with pytest.raises(ValueError, match="netconvert"):
         verify_coverage(run, osm_snapshot=snapshot)
+
+
+def b23_run(tmp_path: Path) -> tuple[ImportRun, str]:
+    run = run_in(tmp_path, FakeOsmSource(DIAGONAL_B23_OSM), FakeGeocoder(places=(HOSPITAL, MACIA)))
+    area = DIAGONAL_AREA
+    fetched = fetch_osm(run, bbox=[area.south, area.west, area.north, area.east])
+    return run, fetched["osm_snapshot"]["content_hash"]
+
+
+def hospital_to_macia(run: ImportRun, snapshot: str) -> Mapping[str, Any]:
+    return trace_corridor(
+        run,
+        osm_snapshot=snapshot,
+        from_point=[HOSPITAL.lat, HOSPITAL.lon],
+        to_point=[MACIA.lat, MACIA.lon],
+    )
+
+
+def test_the_corridor_follows_the_road_where_it_changes_name_and_suggests_both(
+    tmp_path: Path,
+) -> None:
+    run, snapshot = b23_run(tmp_path)
+
+    traced = hospital_to_macia(run, snapshot)
+
+    assert traced["suggested_selection"] == {
+        "names": ["Avinguda Diagonal"],
+        "refs": ["B-23"],
+        "connectors": "links",
+    }
+    assert traced["joins_at"] == [41.3763, 2.073], "where the ramp enters the B-23 (node E)"
+    assert traced["leaves_at"] == [MACIA.lat, MACIA.lon]
+    assert [s["class"] for s in traced["route"]] == [
+        "tertiary",
+        "motorway_link",
+        "motorway",
+        "primary",
+        "primary",
+    ]
+    assert traced["total_m"] == pytest.approx(6600, abs=50)
+    start, end = traced["snapped"]
+    assert start["node_at"] == [41.3745, 2.072] and start["distance_m"] < 30
+    assert end["distance_m"] == 0
+
+
+def network_to_place_m(result: Mapping[str, Any], place: Any) -> float:
+    """How close the OSM ways a built network was made of come to a place, node by node (the
+    test environment has no pyproj to read the lanes back into degrees)."""
+    osm = OsmMap.read(DIAGONAL_B23_OSM)
+    return min(
+        distance_m((place.lat, place.lon), osm.nodes[n])
+        for way in osm_ways_of(result)
+        for n in osm.ways[way].nodes
+    )
+
+
+def test_the_suggested_selection_builds_one_network_that_reaches_the_hospital(
+    tmp_path: Path,
+) -> None:
+    run, snapshot = b23_run(tmp_path)
+    traced = hospital_to_macia(run, snapshot)
+
+    selected = select_streets(run, osm_snapshot=snapshot, **traced["suggested_selection"])
+    built = built_from(run, selected)
+
+    assert selected["pieces"] == 1
+    assert len(NetEdge.components(NetEdge.read_all(Path(built["net_artifact"]["path"])))) == 1
+    assert osm_ways_of(built) == {403, 404, 405, 406}
+    assert network_to_place_m(built, HOSPITAL) < 300
+
+
+@pytest.mark.parametrize(
+    "outside",
+    [
+        pytest.param([41.3650, 2.0718], id="south-of-the-area"),
+        pytest.param([41.3715, 2.0718], id="within-the-margin-of-its-edge"),
+    ],
+)
+def test_a_point_outside_the_fetched_area_asks_for_a_box_that_holds_it(
+    tmp_path: Path, outside: list[float]
+) -> None:
+    run, snapshot = b23_run(tmp_path)
+
+    traced = trace_corridor(
+        run, osm_snapshot=snapshot, from_point=outside, to_point=[MACIA.lat, MACIA.lon]
+    )
+
+    missing = traced["not_reached"]
+    assert missing["point"] == outside
+    assert missing["reason"] == "outside the fetched area"
+    box = missing["fetch"]
+    assert box["south"] < outside[0] - 0.002, "the point and a margin around it"
+    assert (box["west"], box["north"], box["east"]) == (2.06, 41.398, 2.15), "and the area"
+
+
+def test_a_point_no_road_takes_to_the_other_has_no_drivable_path(tmp_path: Path) -> None:
+    run, snapshot = b23_run(tmp_path)
+    island = [41.3942, 2.0720]
+
+    traced = trace_corridor(
+        run, osm_snapshot=snapshot, from_point=island, to_point=[MACIA.lat, MACIA.lon]
+    )
+
+    assert traced["not_reached"]["point"] == island
+    assert traced["not_reached"]["reason"] == "no drivable path"

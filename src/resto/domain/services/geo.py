@@ -1,9 +1,11 @@
-"""Size of an area of interest, to refuse one too large before any download (ADR-0045 §6), and
-distances between points, for the coverage report (ADR-0046)."""
+"""Size of an area of interest, to refuse one too large before any download (ADR-0045 §6),
+distances between points, for the coverage report (ADR-0046), and how far a point lies inside an
+area, for the corridor trace (E6.1/10)."""
 
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 
 from resto.domain.value_objects.network_source import BBox, Polygon
 
@@ -24,6 +26,36 @@ def distance_m(a: tuple[float, float], b: tuple[float, float]) -> float:
     `area_km2`: exact enough within a city."""
     x_scale = math.cos(math.radians((a[0] + b[0]) / 2))
     return 1000 * KM_PER_DEGREE * math.hypot((a[1] - b[1]) * x_scale, a[0] - b[0])
+
+
+def inside_by_m(area: BBox | Polygon, point: tuple[float, float]) -> float:
+    """How far `point` lies inside `area`, in metres: its distance to the border, negative when it
+    is outside. On the same local projection as `distance_m`."""
+    x_scale = math.cos(math.radians(point[0]))
+    ring = [((lon - point[1]) * x_scale, lat - point[0]) for lat, lon in ring_of(area)]
+    inside = False
+    border = math.inf
+    for (x1, y1), (x2, y2) in zip(ring, ring[1:], strict=False):
+        if (y1 > 0) != (y2 > 0) and x1 + (x2 - x1) * -y1 / (y2 - y1) > 0:
+            inside = not inside
+        dx, dy = x2 - x1, y2 - y1
+        along = max(0.0, min(1.0, -(x1 * dx + y1 * dy) / (dx * dx + dy * dy or 1.0)))
+        border = min(border, math.hypot(x1 + along * dx, y1 + along * dy))
+    depth = 1000 * KM_PER_DEGREE * border
+    return depth if inside else -depth
+
+
+def bbox_around(points: Sequence[tuple[float, float]], margin_m: float) -> BBox:
+    """The smallest box holding `points` with `margin_m` more on every side."""
+    lats, lons = [p[0] for p in points], [p[1] for p in points]
+    margin_lat = margin_m / (1000 * KM_PER_DEGREE)
+    margin_lon = margin_lat / math.cos(math.radians(max(abs(min(lats)), abs(max(lats)))))
+    return BBox(
+        south=min(lats) - margin_lat,
+        west=min(lons) - margin_lon,
+        north=max(lats) + margin_lat,
+        east=max(lons) + margin_lon,
+    )
 
 
 def area_km2(area: BBox | Polygon) -> float:

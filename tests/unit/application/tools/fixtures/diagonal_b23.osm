@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<osm version="0.6" generator="hand-made for the E6.1/10 tests">
+  <node id="1" lat="41.3745" lon="2.0720"/>
+  <node id="2" lat="41.3760" lon="2.0720"/>
+  <node id="3" lat="41.3763" lon="2.0730"/>
+  <node id="10" lat="41.3758" lon="2.0650"/>
+  <node id="11" lat="41.3830" lon="2.0890"/>
+  <node id="12" lat="41.3900" lon="2.1050"/>
+  <node id="13" lat="41.3832" lon="2.0887"/>
+  <node id="14" lat="41.3766" lon="2.0728"/>
+  <node id="15" lat="41.3905" lon="2.1100"/>
+  <node id="16" lat="41.3912" lon="2.1250"/>
+  <node id="17" lat="41.3925" lon="2.1440"/>
+  <node id="18" lat="41.3800" lon="2.1000"/>
+  <node id="20" lat="41.3940" lon="2.0700"/>
+  <node id="21" lat="41.3940" lon="2.0740"/>
+  <way id="401">
+    <nd ref="1"/><nd ref="2"/>
+    <tag k="highway" v="tertiary"/>
+    <tag k="name" v="Avinguda del Baix Llobregat"/>
+  </way>
+  <way id="402">
+    <nd ref="2"/><nd ref="3"/>
+    <tag k="highway" v="motorway_link"/>
+  </way>
+  <way id="403">
+    <nd ref="10"/><nd ref="3"/><nd ref="11"/><nd ref="12"/>
+    <tag k="highway" v="motorway"/>
+    <tag k="ref" v="B-23"/>
+    <tag k="maxspeed" v="80"/>
+  </way>
+  <way id="404">
+    <nd ref="12"/><nd ref="13"/><nd ref="14"/><nd ref="10"/>
+    <tag k="highway" v="motorway"/>
+    <tag k="ref" v="B-23"/>
+    <tag k="maxspeed" v="80"/>
+  </way>
+  <way id="405">
+    <nd ref="12"/><nd ref="15"/>
+    <tag k="highway" v="primary"/>
+    <tag k="name" v="Avinguda Diagonal"/>
+    <tag k="ref" v="B-23"/>
+    <tag k="maxspeed" v="50"/>
+  </way>
+  <way id="406">
+    <nd ref="15"/><nd ref="16"/><nd ref="17"/>
+    <tag k="highway" v="primary"/>
+    <tag k="name" v="Avinguda Diagonal"/>
+    <tag k="maxspeed" v="50"/>
+  </way>
+  <way id="407">
+    <nd ref="1"/><nd ref="18"/><nd ref="17"/>
+    <tag k="highway" v="primary"/>
+    <tag k="name" v="Carretera Reial"/>
+    <tag k="ref" v="N-340"/>
+    <tag k="maxspeed" v="30"/>
+  </way>
+  <way id="408">
+    <nd ref="20"/><nd ref="21"/>
+    <tag k="highway" v="residential"/>
+    <tag k="name" v="Carrer de l'Illa"/>
+  </way>
+</osm>

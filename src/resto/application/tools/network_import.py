@@ -10,7 +10,9 @@ the `source` and the `osm_snapshot` are the recipe, and replaying them gives the
 When the user wants some streets and not a whole area, the agent works in three steps
 (ADR-0046): it locates the places the user named (`locate_place`), selects the streets from the
 downloaded snapshot (`list_streets`, `select_streets`, which writes a derived snapshot the recipe
-replays from) and checks what it built (`verify_coverage`).
+replays from) and checks what it built (`verify_coverage`). For a corridor between two places,
+`trace_corridor` finds the road between them and suggests the selection that keeps it, whatever
+names the road takes on the way.
 
 What the code refuses, it refuses before any download and returns as `needs_user` (the agent turns
 it into a `NeedsUser`): an unsupported requirement, a place that is not a boundary, an area over the
@@ -40,13 +42,20 @@ from resto.application.osm_import import (
     profile_named,
     resolve_area,
 )
-from resto.application.osm_map import MAX_CONNECTOR_M, MAX_LISTED, Connectors, NetEdge, OsmMap
+from resto.application.osm_map import (
+    MAX_CONNECTOR_M,
+    MAX_LISTED,
+    MAX_SNAP_M,
+    Connectors,
+    NetEdge,
+    OsmMap,
+)
 from resto.application.ports.llm import Tool
 from resto.application.ports.osm import Geocoder, LocatedPlace, OsmLimits, OsmSource
 from resto.application.ports.sumo import NetconvertRunner
 from resto.application.tools.declaration import artifact_json, tool
 from resto.domain.services.content_hash import short_hash, work_key
-from resto.domain.services.geo import area_km2
+from resto.domain.services.geo import area_km2, bbox_around, inside_by_m, ring_of
 from resto.domain.value_objects.artifact_ref import ArtifactRef
 from resto.domain.value_objects.network_source import BBox, PlaceName, Polygon
 from resto.domain.value_objects.outcomes import AreaTooLarge, NeedsUser
@@ -82,6 +91,10 @@ class ImportRun:
 
 
 _ONE_AREA = "name the area with exactly one of bbox, polygon or place_name"
+
+EDGE_MARGIN_M = 300.0
+"""How far inside the fetched area a point must be for `trace_corridor` to trust the roads
+around it: closer to the edge, the road the trace needs may have been cut off."""
 
 
 def _needs_user(needs: NeedsUser) -> Mapping[str, Any]:
@@ -268,6 +281,75 @@ def select_streets(
     return {"source": asdict(state.area), "osm_snapshot": artifact_json(derived), **summary}
 
 
+_POINT = Field(min_length=2, max_length=2, description="[lat, lon], e.g. from `locate_place`.")
+
+
+@tool(
+    name="trace_corridor",
+    description=(
+        "Find the road a car takes between two points of a fetched snapshot (the quickest, from "
+        "the speed limits), and which streets to select to keep it. A road often changes name on "
+        "the way, or has only a ref (a motorway): the trace follows it anyway. Returns its "
+        "stretches (`route`), `total_m`, `minutes`, where each point was put on a road "
+        "(`snapped`), the first and last point on the suggested streets (`joins_at`, "
+        "`leaves_at`) and `suggested_selection`, to pass as it is to `select_streets`. Returns "
+        "`not_reached` with the box to `fetch_osm` instead when a point is outside the fetched "
+        f"area or less than {EDGE_MARGIN_M:g} m from its edge, or when no road joins the two "
+        f"points (a point more than {MAX_SNAP_M:g} m from any road that does)."
+    ),
+)
+def trace_corridor(
+    ctx: ImportRun,
+    osm_snapshot: _SNAPSHOT,
+    from_point: Annotated[list[float], _POINT],
+    to_point: Annotated[list[float], _POINT],
+    prefer: Annotated[
+        list[str],
+        Field(
+            description=(
+                "Streets the user named, as names or parts of names (any case) or refs, e.g. "
+                "['Avinguda Diagonal', 'B-23']: when two roads take about as long, the trace "
+                "keeps to these, and the suggested selection includes the ones it touches."
+            )
+        ),
+    ] = [],  # noqa: B006 - never mutated; pydantic copies the default
+) -> Mapping[str, Any]:
+    state = _state(ctx, osm_snapshot)
+    area = state.area
+    start, end = (from_point[0], from_point[1]), (to_point[0], to_point[1])
+    for point in (start, end):
+        if inside_by_m(area, point) < EDGE_MARGIN_M:
+            return _not_reached(point, "outside the fetched area", area, (start, end))
+    traced = OsmMap.read(state.snapshot.path).trace(start, end, prefer)
+    if "not_reached" in traced:
+        point = traced["not_reached"]["point"]
+        return _not_reached((point[0], point[1]), "no drivable path", area, (start, end))
+    return traced
+
+
+def _not_reached(
+    point: tuple[float, float],
+    reason: str,
+    area: BBox | Polygon,
+    points: tuple[tuple[float, float], ...],
+) -> Mapping[str, Any]:
+    """The box to fetch: the points with `EDGE_MARGIN_M` around them, joined to the area."""
+    around = bbox_around(points, EDGE_MARGIN_M)
+    box = bbox_around([*ring_of(area), (around.south, around.west), (around.north, around.east)], 0)
+    return {
+        "not_reached": {
+            "point": [round(point[0], 5), round(point[1], 5)],
+            "reason": reason,
+            "fetch": {
+                "south": round(box.south, 5),
+                "west": round(box.west, 5),
+                "north": round(box.north, 5),
+                "east": round(box.east, 5),
+            },
+        }
+    }
+
+
 def _build(ctx: ImportRun, key: str, state: _Import) -> Mapping[str, Any]:
     options = netconvert_options(
         profile_named(state.profile), state.area, ctx.typemap_dir, state.cleanups
@@ -421,6 +503,7 @@ def build_network_import_tools(ctx: ImportRun) -> tuple[Tool, ...]:
         list_import_profiles.bind(ctx),
         fetch_osm.bind(ctx),
         list_streets.bind(ctx),
+        trace_corridor.bind(ctx),
         select_streets.bind(ctx),
         netconvert.bind(ctx),
         keep_largest_component.bind(ctx),

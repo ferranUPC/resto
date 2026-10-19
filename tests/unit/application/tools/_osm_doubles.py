@@ -37,6 +37,23 @@ WEST_END = LocatedPlace("Hospital Broggi", 41.3901, 2.1001, "amenity", "hospital
 EAST_END = LocatedPlace("Francesc Macià", 41.3901, 2.1499, "place", "square", "Francesc Macià")
 """Next to the east end of the corridor (node 8)."""
 
+DIAGONAL_B23_OSM = Path(__file__).parent / "fixtures" / "diagonal_b23.osm"
+"""The Diagonal that continues as the B-23. A tertiary "Avinguda del Baix Llobregat" (401, 167 m)
+leaves the hospital (node 1) to a `motorway_link` (402) that enters the eastbound carriageway at
+node 3 (E). The B-23 is a motorway with `ref` and no name, two one-way carriageways (403 east, 404
+west) at 80 km/h that meet at both ends. At node 12 it becomes "Avinguda Diagonal" with `ref` B-23
+(405) and then "Avinguda Diagonal" alone (406), at 50 km/h, up to the square (node 17). A decoy
+"Carretera Reial" `ref` N-340 (407) goes straight from the hospital to the square: about 260 m
+shorter, but at 30 km/h. "Carrer de l'Illa" (408) joins nothing."""
+
+DIAGONAL_AREA = BBox(south=41.370, west=2.060, north=41.398, east=2.150)
+
+HOSPITAL = LocatedPlace("Hospital Broggi", 41.3743, 2.0718, "amenity", "hospital", "Hospital")
+"""About 20 m from the start of the access road (node 1) and 250 m from E."""
+
+MACIA = LocatedPlace("Francesc Macià", 41.3925, 2.1440, "place", "square", "Francesc Macià")
+"""At the end of the Diagonal (node 17)."""
+
 DISTRICT = Polygon(
     ((41.390, 2.150), (41.390, 2.160), (41.398, 2.160), (41.398, 2.150), (41.390, 2.150)),
     osm_id=7,

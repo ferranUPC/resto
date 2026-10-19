@@ -1316,6 +1316,49 @@
       "name": "list_streets"
     },
     {
+      "description": "Find the road a car takes between two points of a fetched snapshot (the quickest, from the speed limits), and which streets to select to keep it. A road often changes name on the way, or has only a ref (a motorway): the trace follows it anyway. Returns its stretches (`route`), `total_m`, `minutes`, where each point was put on a road (`snapped`), the first and last point on the suggested streets (`joins_at`, `leaves_at`) and `suggested_selection`, to pass as it is to `select_streets`. Returns `not_reached` with the box to `fetch_osm` instead when a point is outside the fetched area or less than 300 m from its edge, or when no road joins the two points (a point more than 500 m from any road that does).",
+      "input_schema": {
+        "properties": {
+          "from_point": {
+            "description": "[lat, lon], e.g. from `locate_place`.",
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          },
+          "osm_snapshot": {
+            "description": "`content_hash` of a snapshot `fetch_osm` or `select_streets` returned.",
+            "type": "string"
+          },
+          "prefer": {
+            "description": "Streets the user named, as names or parts of names (any case) or refs, e.g. ['Avinguda Diagonal', 'B-23']: when two roads take about as long, the trace keeps to these, and the suggested selection includes the ones it touches.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "to_point": {
+            "description": "[lat, lon], e.g. from `locate_place`.",
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          }
+        },
+        "required": [
+          "osm_snapshot",
+          "from_point",
+          "to_point"
+        ],
+        "type": "object"
+      },
+      "name": "trace_corridor"
+    },
+    {
       "description": "Keep only some streets of a fetched snapshot, before `netconvert`: every highway whose name contains one of `names`, or whose ref is one of `refs` (a road that changes name keeps its ref), plus the `connectors` you ask for. Writes a new snapshot and returns its `osm_snapshot` and `source` for the recipe; build it with `netconvert` like any other. Also returns what was kept and in how many `pieces`: more than one means gaps a vehicle cannot cross. Fails when nothing matches; then check the names with `list_streets`. Trying another selection downloads nothing.",
       "input_schema": {
         "properties": {

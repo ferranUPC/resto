@@ -218,3 +218,30 @@ filter of `fetch_osm`, which ADR-0046 replaced; it never reached a commit. Numbe
 
 Prompt `v3` (ticket 09, ADR-0046) adds `locate_place`, `list_streets`, `select_streets` and `verify_coverage`. Its
 first run on the same request is the manual acceptance check of ticket 09 and goes here when it is made.
+
+## 2026-10-19, `trace_corridor` on the snapshots of the Diagonal runs (no LLM)
+
+Ticket 10 adds `trace_corridor` and prompt `v4`. The run of `v3` (`~/resto-runs/adl-01`) put in `unresolved[]` that
+the Diagonal "does not exist in OSM" west of Zona Universitària. There the road continues as the B-23, whose ways carry
+`ref=B-23` and no name, so a selection by name missed it. The check below calls the tool on the stored snapshots,
+from the Hospital Broggi (41.37402, 2.07157) to Francesc Macià (41.3925, 2.1441), with no model.
+
+- **`osm-900faa27efcb7d01.osm`, the `v3` run.** `OsmMap.trace` takes 0.3 s and suggests `names=["Avinguda
+  Diagonal"]`, `refs=["B-23"]`, `connectors="links"`, with `joins_at` (41.3764, 2.07716), the B-23 exit for Sant
+  Just. The road is 7,048 m long and takes 7.6 minutes: about 630 m of access streets from the hospital, a 416 m
+  ramp, 1,812 m of B-23, 802 m of links to the lateral, then 3,389 m of Diagonal. The start is 8 m from the
+  hospital and the end 1 m from the square.
+- **The same snapshot through the tool, with the `v3` run's box (south 41.377).** The hospital lies outside the box,
+  so the tool traces nothing. It answers `not_reached`, "outside the fetched area", and asks to fetch south 41.37132,
+  west 2.0646, north 41.4, east 2.1477 (22 km², under the 25 km² limit). With a box that holds the hospital (south
+  41.369) the answer is the one above.
+- **The suggested selection built.** `select_streets` with that selection gives 3 pieces (the largest 18.7 km, from
+  Macià to past Sant Just). `netconvert` keeps one component that reaches Macià (10 m to its nearest end). Its
+  nearest junction is 321 m from the hospital (`verify_coverage` measures to junctions). The network still runs west
+  to lon 2.0576, past the hospital. Cutting the recipe to the corridor needs an ADR and is out of scope.
+- **`osm-8787bda10fe6452e.osm`, the narrow download.** `OsmMap.trace` alone puts the start on a road 316 m from the
+  hospital and takes the N-340 (Carretera Reial, Carrer de Laureà Miró), as the ticket expected. The box of that
+  download is not stored with it. Ticket 10 reports that it left the hospital out, and with such a box the tool
+  answers `not_reached` before tracing, so the agent fetches again instead of selecting the N-340.
+
+The run of `v4` with the model is the maintainer's, with a budget announced first (`docs/llm-cost-policy.md`).
