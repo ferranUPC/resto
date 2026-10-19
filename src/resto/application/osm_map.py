@@ -8,9 +8,10 @@ counts the edges of a `.net.xml`; no port stands in front of them.
 - **A street** is the highways that share a `name` and a `ref`; highways with neither are grouped
   by their class (`primary_link`, `service`).
 - **A selection** keeps the roads whose name contains one of the given names, or whose `ref` is
-  one of the given refs, plus the connectors the caller asks for (`Connectors`). Footways, paths,
-  cycleways and the like are never selected, whatever their name, and nothing but highways is
-  kept: the rail profile finds no railway in a selection.
+  one of the given refs, and every road with a node in one of the given areas (cut to the stretch
+  inside), plus the connectors the caller asks for (`Connectors`), minus what the drop rules
+  remove (ADR-0047). Footways, paths, cycleways and the like are never selected, whatever their
+  name, and nothing but highways is kept: the rail profile finds no railway in a selection.
 - **A piece** is a set of ways joined by shared nodes, whatever their direction. Its ends are the
   two points farthest apart, found in two sweeps (exact on a corridor, close enough on anything
   else).
@@ -169,6 +170,37 @@ class OsmWay:
 
 
 @dataclass(frozen=True, slots=True)
+class Area:
+    """A circle: the same `near` and `radius_m` that `OsmMap.streets` takes."""
+
+    near: Point
+    radius_m: float
+
+    def holds(self, point: Point) -> bool:
+        return distance_m(self.near, point) <= self.radius_m
+
+    def as_json(self) -> dict[str, Any]:
+        return {"near": rounded(self.near), "radius_m": round(self.radius_m)}
+
+
+@dataclass(frozen=True, slots=True)
+class DropRule:
+    """Roads a selection gives up: those whose name contains one of `names`, whose ref is one of
+    `refs` or whose `highway` class is one of `classes`; inside `area` only, when it has one."""
+
+    names: tuple[str, ...] = ()
+    refs: tuple[str, ...] = ()
+    classes: tuple[str, ...] = ()
+    area: Area | None = None
+
+    def as_json(self) -> dict[str, Any]:
+        row: dict[str, Any] = {"names": list(self.names), "refs": list(self.refs)}
+        row["classes"] = list(self.classes)
+        row["area"] = self.area.as_json() if self.area else None
+        return row
+
+
+@dataclass(frozen=True, slots=True)
 class Piece:
     """Ways joined by shared nodes: how long they are and where they end."""
 
@@ -310,35 +342,62 @@ class OsmMap:
     # -- selecting --------------------------------------------------------------------------
 
     def select(
-        self, names: Sequence[str], refs: Sequence[str], connectors: Connectors
+        self,
+        names: Sequence[str],
+        refs: Sequence[str],
+        connectors: Connectors,
+        areas: Sequence[Area] = (),
+        drop: Sequence[DropRule] = (),
     ) -> tuple[OsmMap, dict[str, Any]]:
-        """The snapshot with only the matching roads and the connectors asked for, and a summary
-        of what was kept.
+        """The snapshot with only the matching roads, the roads inside `areas` (cut to the stretch
+        inside), the connectors asked for and none of what `drop` removes, and a summary of what
+        was kept. What a rule removes does not come back as a connector.
 
         Raises:
-            ValueError: nothing to match, or nothing matches.
+            ValueError: nothing to match, a rule with no criterion, or nothing left.
         """
         wanted_names = [n.strip().casefold() for n in names if n.strip()]
         wanted_refs = {r.strip().casefold() for r in refs if r.strip()}
-        if not wanted_names and not wanted_refs:
-            raise ValueError("give at least one name or ref to select")
+        if not wanted_names and not wanted_refs and not areas:
+            raise ValueError("give at least one name, ref or area to select")
+        rules = [_normalized(rule) for rule in drop]
         matched = {
             w.id for w in self.ways.values() if w.is_road and _matches(w, wanted_names, wanted_refs)
         }
-        if not matched:
+        inside = {id_: self._inside(area) for id_, area in enumerate(areas)}
+        cuts = self._area_cuts(inside, matched)
+        if not matched and not cuts:
             raise ValueError(
                 f"no road in the snapshot has a name containing any of {list(names)} or a "
-                f"ref in {list(refs)}: call list_streets to see the names and refs there are, "
-                "or try another spelling"
+                f"ref in {list(refs)}, or lies in the areas given: call list_streets to see "
+                "the names and refs there are, or try another spelling or area"
             )
-        spans = self._connectors(matched, connectors)
-        selected = self._only(matched, spans)
+        conserved = self._only(matched, cuts)
+        banned_by = [self._removed_by(rule) for rule in rules]
+        banned = set().union(*banned_by)
+        removed = [ids & conserved.ways.keys() for ids in banned_by]
+        gone = banned & conserved.ways.keys()
+        kept = matched - gone
+        kept_cuts = {w: nodes for w, nodes in cuts.items() if w not in gone}
+        if not kept and not kept_cuts:
+            raise ValueError("the drop rules remove every road of the selection: relax them")
+        base = self._only(kept, kept_cuts)
+        spans = self._connectors(base, banned, connectors)
+        selected = self._only(kept, {**kept_cuts, **spans})
         joining = [selected.ways[w] for w in sorted(spans)]
         pieces = selected.pieces(selected.ways)
         summary = {
             "streets": [
                 {"name": name, "ref": ref, "length_m": round(length)}
-                for (name, ref, _), length in selected._lengths([selected.ways[w] for w in matched])
+                for (name, ref, _), length in selected._lengths([selected.ways[w] for w in kept])
+            ],
+            "areas": [
+                self._contribution(area, selected, kept_cuts, inside[i])
+                for i, area in enumerate(areas)
+            ],
+            "dropped": [
+                {**rule.as_json(), **conserved._size([conserved.ways[w] for w in removed[i]])}
+                for i, rule in enumerate(rules)
             ],
             "connectors": [
                 {
@@ -354,22 +413,78 @@ class OsmMap:
         }
         return selected, summary
 
-    def _connectors(self, selected: set[int], connectors: Connectors) -> dict[int, set[int]]:
-        """The other roads on a path of at most `MAX_CONNECTOR_M` between two pieces of the
-        selection, each with the nodes of it the path uses: a shortest path from every selected
-        node at once, labelled with its piece; an arc whose two ends were reached from different
-        pieces closes such a path."""
+    def _inside(self, area: Area) -> dict[int, set[int]]:
+        """For every road with a node in `area`, the nodes of it that are."""
+        found: dict[int, set[int]] = {}
+        for way in self.ways.values():
+            if not way.is_road:
+                continue
+            nodes = {n for n in way.nodes if n in self.nodes and area.holds(self.nodes[n])}
+            if nodes:
+                found[way.id] = nodes
+        return found
+
+    def _area_cuts(
+        self, inside: dict[int, dict[int, set[int]]], matched: set[int]
+    ) -> dict[int, set[int]]:
+        """The roads of the areas that no name or ref keeps whole, each with its nodes inside any
+        area. A road with one node inside has no stretch to keep."""
+        cuts: dict[int, set[int]] = defaultdict(set)
+        for found in inside.values():
+            for way_id, nodes in found.items():
+                if way_id not in matched:
+                    cuts[way_id] |= nodes
+        return {
+            w: nodes
+            for w, nodes in sorted(cuts.items())
+            if len({i for i, n in enumerate(self.ways[w].nodes) if n in nodes}) > 1
+        }
+
+    def _removed_by(self, rule: DropRule) -> set[int]:
+        """Every road of the snapshot the rule removes; a road is in the area when any node of
+        the whole road is."""
+        names = list(rule.names)
+        refs = set(rule.refs)
+        inside = self._inside(rule.area) if rule.area else None
+        return {
+            w.id
+            for w in self.ways.values()
+            if (_matches(w, names, refs) or w.highway in rule.classes)
+            and (inside is None or w.id in inside)
+        }
+
+    def _contribution(
+        self, area: Area, selected: OsmMap, cuts: dict[int, set[int]], inside: dict[int, set[int]]
+    ) -> dict[str, Any]:
+        """What the area added to the selection: its roads that no name or ref kept, by class."""
+        ways = [selected.ways[w] for w in sorted(cuts) if w in inside]
+        by_class = {
+            cls: selected._size([w for w in ways if w.highway == cls])
+            for cls in sorted({w.highway for w in ways})
+        }
+        return {**area.as_json(), **selected._size(ways), "by_class": by_class}
+
+    def _size(self, ways: Sequence[OsmWay]) -> dict[str, Any]:
+        return {"ways": len(ways), "length_m": round(sum(self.length_m(w) for w in ways))}
+
+    def _connectors(
+        self, base: OsmMap, banned: set[int], connectors: Connectors
+    ) -> dict[int, set[int]]:
+        """The other roads on a path of at most `MAX_CONNECTOR_M` between two pieces of `base`
+        (the selection so far), each with the nodes of it the path uses: a shortest path from
+        every node of `base` at once, labelled with its piece; an arc whose two ends were reached
+        from different pieces closes such a path. A road in `banned` is never one."""
         if connectors == "none":
             return {}
         piece_of = {
             n: i
-            for i, p in enumerate(self.pieces(selected))
+            for i, p in enumerate(base.pieces(base.ways))
             for w in p.ways
-            for n in self.ways[w].nodes
+            for n in base.ways[w].nodes
         }
         arcs: dict[int, list[tuple[int, float, int]]] = defaultdict(list)
         for way in self.ways.values():
-            if way.id in selected or not way.is_road:
+            if way.id in base.ways or way.id in banned or not way.is_road:
                 continue
             if connectors == "links" and not way.highway.endswith("_link"):
                 continue
@@ -747,6 +862,20 @@ class Unreached:
     the other point."""
 
     point: Point
+
+
+def _normalized(rule: DropRule) -> DropRule:
+    """The rule with blanks removed and names, refs and classes casefolded.
+
+    Raises:
+        ValueError: it has no name, ref or class to match.
+    """
+    names = tuple(n.strip().casefold() for n in rule.names if n.strip())
+    refs = tuple(r.strip().casefold() for r in rule.refs if r.strip())
+    classes = tuple(c.strip().casefold() for c in rule.classes if c.strip())
+    if not (names or refs or classes):
+        raise ValueError("a drop rule needs at least one name, ref or class to remove")
+    return DropRule(names, refs, classes, rule.area)
 
 
 def _matches(way: OsmWay, names: Sequence[str], refs: Set[str]) -> bool:

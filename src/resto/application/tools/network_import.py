@@ -27,7 +27,7 @@ import json
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
-from typing import Annotated, Any, cast
+from typing import Annotated, Any, NotRequired, TypedDict, cast
 from xml.etree import ElementTree
 
 from pydantic import Field
@@ -46,7 +46,9 @@ from resto.application.osm_map import (
     MAX_CONNECTOR_M,
     MAX_LISTED,
     MAX_SNAP_M,
+    Area,
     Connectors,
+    DropRule,
     NetEdge,
     OsmMap,
     Point,
@@ -246,16 +248,58 @@ def list_streets(
     return {"streets": streets[:MAX_LISTED], "total": len(streets)}
 
 
+_NEAR = Field(min_length=2, max_length=2, description="[lat, lon] of the centre of the zone.")
+_RADIUS = Field(ge=10, le=5000, description="Radius of the zone in metres. Default 300.")
+
+
+class AreaArg(TypedDict):
+    """A zone: every road with a node within `radius_m` of `near`."""
+
+    near: Annotated[list[float], _NEAR]
+    radius_m: NotRequired[Annotated[float, _RADIUS]]
+
+
+class DropArg(TypedDict):
+    """A rule: removes the roads that match any of its criteria, inside its zone when it has one."""
+
+    names: NotRequired[Annotated[list[str], Field(description="Names or parts of names.")]]
+    refs: NotRequired[Annotated[list[str], Field(description="Road refs.")]]
+    classes: NotRequired[
+        Annotated[list[str], Field(description="Highway classes, e.g. ['residential', 'service'].")]
+    ]
+    near: NotRequired[Annotated[list[float], _NEAR]]
+    radius_m: NotRequired[Annotated[float, _RADIUS]]
+
+
+def _area(near: list[float], radius_m: float | None) -> Area:
+    return Area((near[0], near[1]), 300.0 if radius_m is None else radius_m)
+
+
+def _drop_rule(rule: DropArg) -> DropRule:
+    near = rule.get("near")
+    return DropRule(
+        names=tuple(rule.get("names", ())),
+        refs=tuple(rule.get("refs", ())),
+        classes=tuple(rule.get("classes", ())),
+        area=_area(near, rule.get("radius_m")) if near is not None else None,
+    )
+
+
 @tool(
     name="select_streets",
     description=(
         "Keep only some streets of a fetched snapshot, before `netconvert`: every highway whose "
         "name contains one of `names`, or whose ref is one of `refs` (a road that changes name "
-        "keeps its ref), plus the `connectors` you ask for. Writes a new snapshot and returns "
-        "its `osm_snapshot` and `source` for the recipe; build it with `netconvert` like any "
-        "other. Also returns what was kept and in how many `pieces`: more than one means gaps "
-        "a vehicle cannot cross. Fails when nothing matches; then check the names with "
-        "`list_streets`. Trying another selection downloads nothing."
+        "keeps its ref), plus every road in the `areas` you give (cut to the stretch inside the "
+        "zone), plus the `connectors` you ask for, minus what the `drop` rules remove (a "
+        "removed road never comes back as a connector). Use names and refs for a stretch you "
+        "know; use an area for a place you want in full detail (a motorway junction, a "
+        "roundabout, a municipality's accesses), then drop the classes or streets you do not "
+        "want. Writes a new snapshot and returns its `osm_snapshot` and `source` for the "
+        "recipe; build it with `netconvert` like any other. Also returns what was kept, what "
+        "each area added, what each rule removed (0 when nothing) and in how many `pieces`: "
+        "more than one means gaps a vehicle cannot cross. Fails when nothing matches; then "
+        "check the names with `list_streets`. Trying another selection downloads nothing."
     ),
 )
 def select_streets(
@@ -276,10 +320,39 @@ def select_streets(
             )
         ),
     ] = "all",
+    areas: Annotated[
+        list[AreaArg],
+        Field(
+            description=(
+                "Zones to keep whole: every road with a node inside, cut to the stretch "
+                "inside. The same `near` and `radius_m` as `list_streets`."
+            )
+        ),
+    ] = [],  # noqa: B006 - never mutated; pydantic copies the default
+    drop: Annotated[
+        list[DropArg],
+        Field(
+            description=(
+                "Rules that remove roads from the selection. With `near` (and `radius_m`) a "
+                "rule removes only inside that zone. A rule with no name, ref or class is an "
+                "error."
+            )
+        ),
+    ] = [],  # noqa: B006 - never mutated; pydantic copies the default
 ) -> Mapping[str, Any]:
     state = _state(ctx, osm_snapshot)
-    key = work_key(json.dumps([osm_snapshot, sorted(names), sorted(refs), connectors]))
-    selected, summary = OsmMap.read(state.snapshot.path).select(names, refs, connectors)
+    zones = [_area(a["near"], a.get("radius_m")) for a in areas]
+    rules = [_drop_rule(rule) for rule in drop]
+    recipe: list[Any] = [osm_snapshot, sorted(names), sorted(refs), connectors]
+    if zones or rules:  # a selection without them keeps the key it always had
+        recipe += [
+            sorted(json.dumps(zone.as_json(), sort_keys=True) for zone in zones),
+            sorted(json.dumps(rule.as_json(), sort_keys=True) for rule in rules),
+        ]
+    key = work_key(json.dumps(recipe))
+    selected, summary = OsmMap.read(state.snapshot.path).select(
+        names, refs, connectors, zones, rules
+    )
     derived = selected.write(ctx.out_dir / "osm" / f"selected-{key}.osm")
     ctx.imports.setdefault(derived.content_hash, _Import(state.area, derived))
     return {"source": asdict(state.area), "osm_snapshot": artifact_json(derived), **summary}

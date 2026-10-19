@@ -7,7 +7,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import replace
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 import sumolib.net
@@ -21,6 +21,8 @@ from resto.application.osm_import import OWN_TYPEMAPS
 from resto.application.osm_map import Connectors, NetEdge, OsmMap
 from resto.application.ports.osm import ExternalServiceError, OsmLimits
 from resto.application.tools.network_import import (
+    AreaArg,
+    DropArg,
     ImportRun,
     fetch_osm,
     join_junctions,
@@ -48,6 +50,9 @@ from tests.unit.application.tools._osm_doubles import (
     DISTRICT_OSM,
     EAST_END,
     HOSPITAL,
+    INTERCHANGE_BOX,
+    INTERCHANGE_OSM,
+    INTERCHANGE_ZONE,
     MACIA,
     WEST_END,
     FakeGeocoder,
@@ -708,3 +713,185 @@ def test_the_box_a_point_outside_asks_for_holds_it_once_fetched(tmp_path: Path) 
     )
 
     assert "route" in again
+
+
+# -- zones and drop rules (E6.1/11, ADR-0047) -----------------------------------------------
+
+MOTORWAY = {501, 502}
+RAMPS = {701, 702, 703, 704}
+ROUNDABOUTS = {601, 602}
+JUNCTION = MOTORWAY | RAMPS | ROUNDABOUTS
+SMALL_STREETS = {801, 802}
+"""The residential and the service street inside the zone; 803 is the residential far from it."""
+
+NO_SMALL_STREETS = ["residential", "service", "living_street", "unclassified"]
+
+
+def interchange_run(tmp_path: Path) -> tuple[ImportRun, str]:
+    run = run_in(tmp_path, FakeOsmSource(INTERCHANGE_OSM))
+    box = INTERCHANGE_BOX
+    fetched = fetch_osm(run, bbox=[box.south, box.west, box.north, box.east])
+    return run, fetched["osm_snapshot"]["content_hash"]
+
+
+def in_zone(**rule: Any) -> DropArg:
+    """A drop rule that works only inside `INTERCHANGE_ZONE`."""
+    return cast(DropArg, {**rule, **INTERCHANGE_ZONE})
+
+
+def ways_of(selected: Mapping[str, Any]) -> set[int]:
+    return set(OsmMap.read(Path(selected["osm_snapshot"]["path"])).ways)
+
+
+def test_a_ref_selection_leaves_out_the_unnamed_link_the_zone_brings(tmp_path: Path) -> None:
+    run, snapshot = interchange_run(tmp_path)
+
+    by_ref = select_streets(run, osm_snapshot=snapshot, refs=["B-23"])
+    with_zone = select_streets(run, osm_snapshot=snapshot, refs=["B-23"], areas=[INTERCHANGE_ZONE])
+
+    assert ways_of(by_ref) == MOTORWAY, "the run v4 of 2026-10-19: no ramp, no roundabout"
+    assert ways_of(with_zone) == JUNCTION | SMALL_STREETS | {603}
+    assert with_zone["pieces"] == 1
+    by_class = with_zone["areas"][0]["by_class"]
+    assert {cls: row["ways"] for cls, row in by_class.items()} == {
+        "motorway_link": 4,
+        "primary": 2,
+        "residential": 1,
+        "service": 1,
+        "tertiary": 1,
+    }
+    assert with_zone["areas"][0]["ways"] == 9
+
+
+def test_a_zone_alone_is_a_selection(tmp_path: Path) -> None:
+    run, snapshot = interchange_run(tmp_path)
+
+    selected = select_streets(run, osm_snapshot=snapshot, areas=[INTERCHANGE_ZONE])
+
+    assert ways_of(selected) >= JUNCTION
+
+
+def test_a_road_that_crosses_the_edge_of_the_zone_is_cut_to_the_stretch_inside(
+    tmp_path: Path,
+) -> None:
+    run, snapshot = interchange_run(tmp_path)
+
+    selected = select_streets(run, osm_snapshot=snapshot, refs=["B-23"], areas=[INTERCHANGE_ZONE])
+
+    derived = OsmMap.read(Path(selected["osm_snapshot"]["path"]))
+    assert derived.ways[603].nodes == (22, 31)
+    assert not {32, 33} & set(derived.nodes), "the nodes outside the zone are not in the snapshot"
+
+
+def test_drop_removes_the_classes_inside_the_zone_and_leaves_the_homonym_outside(
+    tmp_path: Path,
+) -> None:
+    run, snapshot = interchange_run(tmp_path)
+    classes = ["residential", "service"]
+
+    inside = select_streets(
+        run,
+        osm_snapshot=snapshot,
+        names=["Carrer del Mig"],
+        refs=["B-23"],
+        areas=[INTERCHANGE_ZONE],
+        drop=[in_zone(classes=classes)],
+    )
+    everywhere = select_streets(
+        run,
+        osm_snapshot=snapshot,
+        names=["Carrer del Mig"],
+        refs=["B-23"],
+        areas=[INTERCHANGE_ZONE],
+        drop=[{"classes": classes}],
+    )
+
+    assert ways_of(inside) == JUNCTION | {603, 803}
+    assert ways_of(everywhere) == JUNCTION | {603}
+    assert inside["dropped"][0]["ways"] == 2
+    assert everywhere["dropped"][0]["ways"] == 3
+
+
+def test_what_drop_removes_does_not_return_as_a_connector_and_the_pieces_show_the_cut(
+    tmp_path: Path,
+) -> None:
+    run, snapshot = interchange_run(tmp_path)
+    refs, names = ["B-23"], ["Sant Just"]
+
+    joined = select_streets(run, osm_snapshot=snapshot, refs=refs, names=names)
+    cut = select_streets(
+        run,
+        osm_snapshot=snapshot,
+        refs=refs,
+        names=names,
+        drop=[{"classes": ["motorway_link"]}],
+    )
+
+    assert joined["pieces"] == 1
+    assert {703, 602} <= ways_of(joined)
+    assert cut["pieces"] == 2
+    assert not RAMPS & ways_of(cut)
+
+
+def test_a_rule_without_criteria_or_a_selection_without_anything_is_an_error(
+    tmp_path: Path,
+) -> None:
+    run, snapshot = interchange_run(tmp_path)
+
+    with pytest.raises(ValueError, match="at least one name, ref or class"):
+        select_streets(run, osm_snapshot=snapshot, refs=["B-23"], drop=[{}])
+    with pytest.raises(ValueError, match="at least one name, ref or class"):
+        select_streets(run, osm_snapshot=snapshot, refs=["B-23"], drop=[{"classes": [" "]}])
+    with pytest.raises(ValueError, match="name, ref or area"):
+        select_streets(run, osm_snapshot=snapshot, drop=[{"classes": ["service"]}])
+    with pytest.raises(ValueError, match="remove every road"):
+        select_streets(run, osm_snapshot=snapshot, refs=["B-23"], drop=[{"refs": ["b-23"]}])
+
+
+def test_a_rule_that_removes_nothing_reports_zero(tmp_path: Path) -> None:
+    run, snapshot = interchange_run(tmp_path)
+
+    selected = select_streets(
+        run, osm_snapshot=snapshot, refs=["B-23"], drop=[{"classes": ["residential"]}]
+    )
+
+    assert ways_of(selected) == MOTORWAY
+    assert selected["dropped"][0]["ways"] == 0
+    assert selected["dropped"][0]["length_m"] == 0
+
+
+def test_the_same_selection_in_another_order_gives_the_same_hash(tmp_path: Path) -> None:
+    run, snapshot = interchange_run(tmp_path)
+    far: AreaArg = {"near": [41.3900, 2.0705], "radius_m": 200}
+    rules: list[DropArg] = [in_zone(classes=["service"]), {"names": ["Mig"]}]
+
+    one = select_streets(
+        run, osm_snapshot=snapshot, refs=["B-23"], areas=[INTERCHANGE_ZONE, far], drop=rules
+    )
+    other = select_streets(
+        run, osm_snapshot=snapshot, refs=["B-23"], areas=[far, INTERCHANGE_ZONE], drop=rules[::-1]
+    )
+
+    assert one["osm_snapshot"]["content_hash"] == other["osm_snapshot"]["content_hash"]
+    assert one["osm_snapshot"]["path"] == other["osm_snapshot"]["path"]
+
+
+def test_the_zone_and_the_pruning_by_class_build_a_network_with_the_four_ramps(
+    tmp_path: Path,
+) -> None:
+    run, snapshot = interchange_run(tmp_path)
+
+    selected = select_streets(
+        run,
+        osm_snapshot=snapshot,
+        refs=["B-23"],
+        areas=[INTERCHANGE_ZONE],
+        drop=[in_zone(classes=NO_SMALL_STREETS)],
+    )
+    result = built_from(run, selected)
+
+    built = osm_ways_of(result)
+    assert built >= RAMPS | ROUNDABOUTS
+    assert not SMALL_STREETS & built
+    net = Path(result["net_artifact"]["path"])
+    assert len(NetEdge.components(NetEdge.read_all(net))) == 1

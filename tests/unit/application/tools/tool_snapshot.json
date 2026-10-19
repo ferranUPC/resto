@@ -1359,9 +1359,84 @@
       "name": "trace_corridor"
     },
     {
-      "description": "Keep only some streets of a fetched snapshot, before `netconvert`: every highway whose name contains one of `names`, or whose ref is one of `refs` (a road that changes name keeps its ref), plus the `connectors` you ask for. Writes a new snapshot and returns its `osm_snapshot` and `source` for the recipe; build it with `netconvert` like any other. Also returns what was kept and in how many `pieces`: more than one means gaps a vehicle cannot cross. Fails when nothing matches; then check the names with `list_streets`. Trying another selection downloads nothing.",
+      "description": "Keep only some streets of a fetched snapshot, before `netconvert`: every highway whose name contains one of `names`, or whose ref is one of `refs` (a road that changes name keeps its ref), plus every road in the `areas` you give (cut to the stretch inside the zone), plus the `connectors` you ask for, minus what the `drop` rules remove (a removed road never comes back as a connector). Use names and refs for a stretch you know; use an area for a place you want in full detail (a motorway junction, a roundabout, a municipality's accesses), then drop the classes or streets you do not want. Writes a new snapshot and returns its `osm_snapshot` and `source` for the recipe; build it with `netconvert` like any other. Also returns what was kept, what each area added, what each rule removed (0 when nothing) and in how many `pieces`: more than one means gaps a vehicle cannot cross. Fails when nothing matches; then check the names with `list_streets`. Trying another selection downloads nothing.",
       "input_schema": {
+        "$defs": {
+          "AreaArg": {
+            "description": "A zone: every road with a node within `radius_m` of `near`.",
+            "properties": {
+              "near": {
+                "description": "[lat, lon] of the centre of the zone.",
+                "items": {
+                  "type": "number"
+                },
+                "maxItems": 2,
+                "minItems": 2,
+                "type": "array"
+              },
+              "radius_m": {
+                "description": "Radius of the zone in metres. Default 300.",
+                "maximum": 5000,
+                "minimum": 10,
+                "type": "number"
+              }
+            },
+            "required": [
+              "near"
+            ],
+            "type": "object"
+          },
+          "DropArg": {
+            "description": "A rule: removes the roads that match any of its criteria, inside its zone when it has one.",
+            "properties": {
+              "classes": {
+                "description": "Highway classes, e.g. ['residential', 'service'].",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "names": {
+                "description": "Names or parts of names.",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "near": {
+                "description": "[lat, lon] of the centre of the zone.",
+                "items": {
+                  "type": "number"
+                },
+                "maxItems": 2,
+                "minItems": 2,
+                "type": "array"
+              },
+              "radius_m": {
+                "description": "Radius of the zone in metres. Default 300.",
+                "maximum": 5000,
+                "minimum": 10,
+                "type": "number"
+              },
+              "refs": {
+                "description": "Road refs.",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "type": "object"
+          }
+        },
         "properties": {
+          "areas": {
+            "description": "Zones to keep whole: every road with a node inside, cut to the stretch inside. The same `near` and `radius_m` as `list_streets`.",
+            "items": {
+              "$ref": "#/$defs/AreaArg"
+            },
+            "type": "array"
+          },
           "connectors": {
             "description": "Which other ways join the pieces of the selection: 'none'; 'links', only `*_link` ramps; 'all', any road (links, squares and crossings with another name), at most 300 m long. Default 'all'.",
             "enum": [
@@ -1370,6 +1445,13 @@
               "all"
             ],
             "type": "string"
+          },
+          "drop": {
+            "description": "Rules that remove roads from the selection. With `near` (and `radius_m`) a rule removes only inside that zone. A rule with no name, ref or class is an error.",
+            "items": {
+              "$ref": "#/$defs/DropArg"
+            },
+            "type": "array"
           },
           "names": {
             "description": "Names or parts of names, any case, e.g. ['Avinguda Diagonal'].",

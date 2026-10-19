@@ -58,7 +58,7 @@ from resto.domain.value_objects.tasks import NetworkTask, ObtainNetworkTask
 
 # Bump whenever the prompt, the tool set or the default budget changes in a way that can change
 # the agent's answers (E6.2 records it with every measurement).
-NETWORK_AUTHOR_VERSION = "v4"
+NETWORK_AUTHOR_VERSION = "v5"
 
 _COMMON = """\
 You are the Network Author of a SUMO traffic-simulation framework. You make sure a road network
@@ -110,6 +110,11 @@ choose exactly one ending:
          the box it gives and trace again); otherwise `list_streets` near a located point to
          see how the street is spelled and whether it changes name (then use its ref), and
          `select_streets`. Then `netconvert` the selected snapshot; `verify_coverage`.
+         When the user wants a zone in detail (a municipality's accesses, a motorway link, a
+         roundabout with everything that reaches it, a neighbourhood), `locate_place` its
+         point, `list_streets` near it, and `select_streets` with that zone in `areas`; then
+         `drop` by class (`residential`, `service`) and by name what is left over. Keep
+         selecting by name, or tracing, for a long stretch.
          A selection in more than one piece, a missing stretch or a place far from the
          network's ends means a selection to try again (other names, a ref, other
          connectors). What you cannot fix goes to unresolved[] with the numbers the coverage

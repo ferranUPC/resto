@@ -10,6 +10,7 @@ from pathlib import Path
 
 from resto.adapters.persistence.filesystem import artifact_ref
 from resto.application.ports.osm import ExternalServiceError, LocatedPlace, PlaceRejected
+from resto.application.tools.network_import import AreaArg
 from resto.domain.value_objects.artifact_ref import ArtifactRef
 from resto.domain.value_objects.network_source import BBox, PlaceName, Polygon
 
@@ -45,6 +46,18 @@ west) at 80 km/h that meet at both ends. At node 12 it becomes "Avinguda Diagona
 (405) and then "Avinguda Diagonal" alone (406), at 50 km/h, up to the square (node 17). A decoy
 "Carretera Reial" `ref` N-340 (407) goes straight from the hospital to the square: about 260 m
 shorter, but at 30 km/h. "Carrer de l'Illa" (408) joins nothing."""
+
+INTERCHANGE_OSM = Path(__file__).parent / "fixtures" / "interchange.osm"
+"""The B-23 with the link to a town, as it is in OSM: two one-way carriageways with `ref` B-23 and
+no name (501, 502), two unnamed `primary` roundabouts (601, 602) and four unnamed `motorway_link`
+(701 to 704) that leave and enter the carriageways through them. A tertiary "Carrer de Sant Just"
+(603) leaves R2 and crosses the edge of `INTERCHANGE_ZONE`; "Carrer del Mig" is a residential (801)
+that ends in an unnamed service street (802) inside the zone, and another (803) 1.7 km north."""
+
+INTERCHANGE_BOX = BBox(south=41.370, west=2.055, north=41.395, east=2.085)
+
+INTERCHANGE_ZONE: AreaArg = {"near": [41.3750, 2.0700], "radius_m": 300}
+"""Holds the junction, the ramps and 603 up to node 31; node 32 is 375 m away."""
 
 DIAGONAL_AREA = BBox(south=41.370, west=2.060, north=41.398, east=2.150)
 

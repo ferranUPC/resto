@@ -2,12 +2,13 @@
 
 - Status: living document, started 2026-10-15
 - Purpose: record each real run of the Network Author with the prompt version it used, its cost and
-  the result. Same role as the [Composer's log](composer-tuning-log.md).
+  the result, and every test made without a model along the way (checks on stored snapshots,
+  experiments from a code review), with its numbers. Same role as the [Composer's log](composer-tuning-log.md).
 - Related: E6.1 ticket 08 (`.scratch/e6-1-network-author-minimal/issues/08-real-path-golden-path-and-dev-run.md`).
 
 Running total spent: **about $0.27** (first run $0.0048, the six costed runs of 2026-10-15 add $0.2128, experiment
-12 adds $0.0243, the two Diagonal runs of 2026-10-19 add $0.018; the run that ended in a 502 printed no cost and is
-not counted).
+12 adds $0.0243, the two Diagonal runs of 2026-10-19 add $0.018, the `v4` run of 2026-10-19 adds $0.0147; the run
+that ended in a 502 printed no cost and is not counted).
 
 ## 2026-10-15, Network Author `v1`, first manual run
 
@@ -216,8 +217,26 @@ filter of `fetch_osm`, which ADR-0046 replaced; it never reached a commit. Numbe
   was drawn from memory, its east edge at 2.152 when Francesc Macià is near 2.143. The snapshot of that run is in
   `~/resto-runs/adl-01/author/osm/`.
 
-Prompt `v3` (ticket 09, ADR-0046) adds `locate_place`, `list_streets`, `select_streets` and `verify_coverage`. Its
-first run on the same request is the manual acceptance check of ticket 09 and goes here when it is made.
+Prompt `v3` (ticket 09, ADR-0046) adds `locate_place`, `list_streets`, `select_streets` and `verify_coverage`.
+
+## 2026-10-19, the Diagonal with prompt `v3`
+
+Same request, work directory `~/resto-runs/adl-01`. This entry was written after the fact, from ticket 10 and the
+files the run left. The cost, the number of steps and the tool sequence were not noted at the time, so they are
+missing here and the running total does not include this run.
+
+- **Result:** the network ends at Zona Universitària (41.38194, 2.10305). The agent selected by name and put in
+  `unresolved[]` that the stretch to Sant Just "does not exist in OSM".
+- **Cause:** at Zona Universitària the Diagonal continues as the B-23. Six ways carry both `name=Avinguda Diagonal`
+  and `ref=B-23` (372 m); the 31 ways of the B-23 beyond them have no name (8,516 m). Selecting
+  `["Avinguda Diagonal"]` with `["B-23"]` and `links` on `osm-900faa27efcb7d01.osm` gives one piece of 18.7 km that
+  reaches the Sant Just exit (41.3764, 2.07716).
+- **Box:** south 41.377, so the hospital (41.37402) was outside it. A narrower download
+  (`osm-8787bda10fe6452e.osm`) leaves the hospital by the N-340, not the B-23.
+- **Files:** six snapshots and six selections between 13:09 and 13:56. The selections at 13:09, 13:49 and 13:55 hold
+  the Diagonal with its laterals and the six Diagonal/B-23 ways in one piece. The one at 13:11 adds Carretera Reial
+  (N-340) and Avinguda de Cornellà (C-245) and has 4 pieces.
+- **Next:** ticket 10, below.
 
 ## 2026-10-19, `trace_corridor` on the snapshots of the Diagonal runs (no LLM)
 
@@ -243,5 +262,101 @@ from the Hospital Broggi (41.37402, 2.07157) to Francesc Macià (41.3925, 2.1441
   hospital and takes the N-340 (Carretera Reial, Carrer de Laureà Miró), as the ticket expected. The box of that
   download is not stored with it. Ticket 10 reports that it left the hospital out, and with such a box the tool
   answers `not_reached` before tracing, so the agent fetches again instead of selecting the N-340.
+- **The narrow download's suggestion built.** On `osm-8787bda10fe6452e.osm` the trace suggests `names=["Avinguda
+  Diagonal", "Carretera Reial"]`, `refs=["N-340"]`. `select` with it and `links` gives 5 pieces. The largest (10.2 km)
+  ends at Zona Universitària, 2,770 m from the hospital. The trace goes through an unnamed `trunk_link` of 764 m,
+  longer than the 300 m a connector may be (`MAX_CONNECTOR_M`), so the selection does not join there. Open point:
+  a trace through a long unnamed link gives a selection that the link does not join.
+
+### The box `not_reached` asks for (code review of ticket 10, no model, $0)
+
+- **Hypothesis (spec reviewer):** the box held each point with exactly 300 m around it. Rounding its edges to 5
+  decimals can move an edge about half a metre toward the point, and the tool rejects a point less than 300 m from the
+  edge. So the box it proposes could fail its own check, and the agent would fetch the same box again and again.
+- **Test:** 2,000 random points between lat 41.370 and 41.380 and lon 2.07 and 2.14, near the south edge of the `v3`
+  box (south 41.377), each paired with Francesc Macià. For each pair, the proposed box was built and the check run on
+  it again.
+- **Result before the fix:** 989 of the 2,000 proposed boxes failed their own check (the reviewer got 973 on its own
+  sample). The real hospital passed only because it was 300.23 m inside the box.
+- **Fix (commit `00f2baf`):** the box holds the points with 310 m around them. On the same 2,000 points, none fail.
+  The test `test_the_box_a_point_outside_asks_for_holds_it_once_fetched` fetches the proposed box and traces again.
+- **Effect on the real case:** the box for the hospital is now south 41.37123, east 2.14782 (22 km²).
 
 The run of `v4` with the model is the maintainer's, with a budget announced first (`docs/llm-cost-policy.md`).
+
+## 2026-10-19, the Diagonal with prompt `v4`
+
+Same request as `v2` and `v3`, plus "the entrances and exits of Sant Just Desvern to that part of the Diagonal".
+Work directory `~/resto-runs/adl-01`, `RESTO_LLM_MAX_OUTPUT_TOKENS=8192`, 3 rounds, `--online --gui`.
+
+- **Cost:** $0.0147, 14 steps, 230,531 input and 14,560 output tokens. Stop `output`.
+- **Tools:** `find_network`, two `locate_place`, `fetch_osm` (`osm-b26b4bfed6818bbd.osm`, box south 41.3695, west
+  2.0656, north 41.397, east 2.1508), `trace_corridor`, two `list_streets`, `select_streets`, `netconvert`,
+  `verify_coverage`, `sanity_check`, `inspect_network`, `join_junctions`, `sanity_check`, a second `select_streets`
+  with `all`, `netconvert`, `sanity_check`, `verify_coverage` (refused: the 3 rounds were spent), `submit_output`.
+- **Result:** one component from Francesc Macià to the B-23 west of Sant Just, 331 edges, largest SCC 0.777 (below
+  0.95). `join_junctions` lowered it to 0.67. The draft has three `unresolved[]`: the SCC, 636 m of Diagonal east of
+  Macià, and the 30 m of Carrer de Calvet.
+- **What the user saw:** none of the Sant Just entrances and exits are in the network.
+- **Selections:** `selected-959e77b57caa6465.osm` (187 ways) holds the Diagonal, both laterals, the B-23 (`ref`) and
+  the links between them. `selected-4d3495a165d24510.osm` (200 ways) adds the streets around Macià that `all` joins.
+  Neither holds a way that leaves the corridor toward Sant Just.
+- **Cause (no model, on the stored snapshot):** the Sant Just interchange is four unnamed `motorway_link` ways on the
+  B-23 between lon 2.067 and 2.077 (`28117160`, `28117165`, `28117172`, `28117177`; 146 m to 483 m). Followed through
+  other unnamed ways they make 2,223 m of `motorway_link` and 299 m of unnamed `primary`, and reach Avinguda Ricardo
+  Bofill i Levy and Avinguda del Baix Llobregat. `select_streets` cannot reach them: a way with no name and no ref
+  matches no `names` or `refs`, and a connector must join two pieces of the selection within 300 m, while a ramp
+  leaves the selection and ends on a street that is not in it. `verify_coverage` compares the network with the
+  selected snapshot, not with the downloaded one, so it reports nothing missing. The agent wrote "the B-23 Sant Just
+  Desvern accesses" in its rationale, but it selected only the B-23 itself.
+- **Do the ramps lower the SCC ratio? (no model, same snapshot):** no, they close loops. Following the ways'
+  direction through the unnamed ways only, the exit `28117160` leads back to the entry `28117165`, and the exit
+  `28117172` to the entry `28117177`, without using the B-23. Once selected, the four ramps fall in the largest SCC.
+  Only the first stretch of a named street the ramps lead to, cut where the selection ends, stays out of it.
+- **Does the trace find the accesses? (no model, same snapshot, `prefer=["B-23", "Avinguda Diagonal"]`):** yes, but
+  the selection it suggests loses them. B-23 point used: (41.37976, 2.085).
+  - B-23 to Sant Just (geocoded centre): 2,784 m, takes the 434 m `motorway_link` at 2.07707, then Ricardo Bofill,
+    Carretera Reial and the Rambla de Sant Just. Suggested: `names=["Rambla de Sant Just", "Carretera Reial"]`,
+    `refs=["B-23"]`. The ramp has no name and no ref, so the suggestion drops it.
+  - B-23 to the Broggi: 1,641 m, the 354 m ramp and 99 m of unnamed `primary`. Suggested: only `refs=["B-23"]`.
+  - Broggi to the B-23: 4,065 m. It enters by the 416 m ramp, leaves at 2.0919 and enters again at 2.097, because
+    the point snapped to the westbound carriageway. Suggested: only `refs=["B-23"]`.
+  - Sant Just to the B-23: 4,184 m by the N-340 and the C-245 to the Esplugues entrance. Suggested: four names
+    (all of Carretera Reial and Laureà Miró, not only the traced stretch) and three refs.
+  - Same gap as the open point of ticket 10 (the 764 m `trunk_link`): the trace knows the ways it drives, the
+    selection only names and refs.
+- **A box around the interchange, pruned (no model, same snapshot, same `netconvert` options as the run):** the
+  maintainer's idea. Keep the corridor selection (`selected-4d3495a165d24510.osm`) and add every road of a box around
+  the two B-23 roundabouts (41.3755, 2.0731 and 41.3768, 2.0726): south 41.3735, west 2.0655, north 41.38, east
+  2.08. A way counts as inside when one of its nodes is, and it is kept whole (not cut at the box).
+  - Corridor only: 442 edges, SCC 0.785, none of the four ramps.
+  - Plus every road in the box: +250 ways, 936 edges, SCC 0.771, all four ramps. Most of what it adds is
+    residential streets of Sant Just and 37 unnamed `service` ways.
+  - Plus the box without `residential`, `service`, `living_street` and `unclassified`: +99 ways, 589 edges, SCC
+    0.847, all four ramps. Left to prune: Carretera Reial whole (40 ways, because ways are not cut at the box),
+    Rambla de Modolell, Carrer Major.
+- **Next:** a way to select the ramps that leave the selection near a point, up to the first named road. To be
+  decided. Options under discussion instead: `select_streets` keeps the ways of a trace; or a box kept whole and
+  pruned.
+
+## 2026-10-19, zone and pruning in `select_streets` (ticket 11, no model, $0)
+
+Same snapshot as the `v4` run (`osm-b26b4bfed6818bbd.osm`, box south 41.3695, west 2.0656, north 41.397, east 2.1508).
+`names=["Avinguda Diagonal"]`, `refs=["B-23"]`, `connectors="all"` gives the 200 ways of `selected-4d3495a165d24510.osm`,
+so that is the selection of the run. Built with the default `netconvert` options through the tools. The zone is a
+circle, not the box of the earlier test: centre (41.37675, 2.07275), 650 m, which holds the box (361 m by 600 m
+half-sides). The pruning is `residential`, `service`, `living_street` and `unclassified` in that zone.
+
+| Selection | Ways | Edges | SCC | Ramps | Pieces |
+|---|---|---|---|---|---|
+| Corridor only | 200 | 439 | 0.777 | 0 of 4 | 1 |
+| + zone | 527 | 1,039 | 0.752 | 4 of 4 | 3 |
+| + zone, pruned | 313 | 601 | 0.810 | 4 of 4 | 2 |
+
+- The zone adds 327 ways (25,358 m). The pruning removes 214 of them (17,264 m).
+- Carretera Reial: 34 of its 56 ways stay, 3 of them cut at the edge of the zone, 2,024 m of 2,631 m. In the earlier box
+  test it entered whole (40 ways).
+- 9 ways of the 313 are cut at the edge of the zone. Each is an edge that enters or leaves and does not come back,
+  which is why the SCC stays under 0.95 (an open question of ADR-0047).
+- The pruned selection builds one component (the pieces count ignores direction and finds 2, so a stretch of the zone
+  joins through a one-way link only).
