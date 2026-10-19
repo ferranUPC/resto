@@ -15,8 +15,10 @@ Overpass fail by name, so the request must be answerable with a generated networ
 from __future__ import annotations
 
 import argparse
+import json
 import subprocess
 import sys
+from dataclasses import asdict
 from pathlib import Path
 
 from resto.adapters.llm.agents.network_author import NetworkAuthorCollaborators, NetworkAuthorPort
@@ -124,6 +126,20 @@ def main() -> int:
             print(f"  tool {call.name}")
             if call.result_summary.startswith(("validation failed", "invalid", "error")):
                 print(f"    {call.result_summary[:600]}")
+        transcript = args.work / "transcript.json"
+        transcript.write_text(
+            json.dumps(
+                {
+                    "request": args.network_ref,
+                    "steps": [asdict(step) for step in run.steps],
+                    "tool_calls": [asdict(call) for call in run.tool_calls],
+                },
+                indent=2,
+                default=str,
+                ensure_ascii=False,
+            )
+        )
+        print(f"transcript: {transcript}")
         print(f"outcome: {run.output}")
         if run.output is not None and hasattr(run.output, "net_artifact"):
             claimed = run.output.net_artifact

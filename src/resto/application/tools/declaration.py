@@ -121,10 +121,30 @@ def _normalize(schema: dict[str, Any]) -> dict[str, Any]:
     Drops `title`, `default` and `additionalProperties: true` (the schema default), and renders an
     optional parameter as its plain type instead of `anyOf` with `null`.
     """
-    cleaned = _clean(schema)
+    cleaned = _clean(_inlined(schema))
     assert isinstance(cleaned, dict)
     cleaned.setdefault("properties", {})
     return cleaned
+
+
+def _inlined(schema: dict[str, Any]) -> dict[str, Any]:
+    """The schema with every `$ref` replaced by the definition it names and `$defs` removed: a
+    model reads a nested parameter better when its fields are where it looks for them."""
+    definitions = schema.get("$defs", {})
+
+    def resolve(node: Any) -> Any:
+        if isinstance(node, list):
+            return [resolve(item) for item in node]
+        if not isinstance(node, dict):
+            return node
+        if "$ref" in node:
+            target = definitions[node["$ref"].rsplit("/", 1)[-1]]
+            return resolve({**target, **{k: v for k, v in node.items() if k != "$ref"}})
+        return {key: resolve(value) for key, value in node.items() if key != "$defs"}
+
+    resolved = resolve(schema)
+    assert isinstance(resolved, dict)
+    return resolved
 
 
 def _clean(node: Any) -> Any:
