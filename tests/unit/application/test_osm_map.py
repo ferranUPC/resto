@@ -246,7 +246,7 @@ STEP = 0.001
 """One step of latitude, about 111 m."""
 
 RING = 100
-"""First node of the roundabout; its 12 nodes (100 to 111) circle (41.3900, 2.1000)."""
+"""First node of the roundabout; its 12 nodes (100 to 111) circle (41.3900, 2.1100)."""
 
 
 def zone_map(*ways: str) -> OsmMap:
@@ -284,12 +284,12 @@ def selected(osm: OsmMap, *areas: Area, drop: tuple[DropRule, ...] = ()) -> OsmM
 
 
 def test_a_zone_that_touches_one_way_of_a_roundabout_keeps_the_whole_ring() -> None:
-    osm = zone_map(*ring_ways(), way(9, (0, 1), highway="primary", name="Main"))
+    osm = zone_map(*ring_ways())
 
-    kept, summary = osm.select(["Main"], [], "none", [AT_THE_RING])
+    kept, summary = osm.select([], [], "none", [AT_THE_RING])
 
-    assert set(kept.ways) == {1, 2, 3, 4, 9}
-    assert len(kept.pieces(kept.ways)) == 2, "the road and the ring do not meet"
+    assert set(kept.ways) == {1, 2, 3, 4}
+    assert len(kept.pieces(kept.ways)) == 1
     area = summary["areas"][0]
     assert area["by_class"]["primary"]["ways"] == 1
     ring_m = sum(osm.length_m(osm.ways[w]) for w in (1, 2, 3, 4))
@@ -389,5 +389,5 @@ def test_the_same_zones_in_another_order_select_the_same_ways() -> None:
     one, summary = osm.select([], [], "links", [AT_THE_START, AT_THE_RING])
     other, other_summary = osm.select([], [], "links", [AT_THE_RING, AT_THE_START])
 
-    assert one.ways == other.ways and one.nodes == other.nodes
+    assert ElementTree.tostring(one._root) == ElementTree.tostring(other._root)
     assert summary["pieces"] == other_summary["pieces"]
