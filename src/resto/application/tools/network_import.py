@@ -229,7 +229,7 @@ def locate_place(
         "streets that pass within `radius_m` of that point, each counted only for the stretch "
         "inside that circle (what a zone of `select_streets` keeps): the unnamed rows show "
         "what is there, not what the whole snapshot holds; selecting a zone also completes the "
-        f"ramps and roundabouts it touches. At most {MAX_LISTED} rows."
+        f"ramps it touches, and a selection the roundabouts it touches. At most {MAX_LISTED} rows."
     ),
 )
 def list_streets(
@@ -303,8 +303,9 @@ def _drop_rule(rule: DropArg) -> DropRule:
         "Keep only some streets of a fetched snapshot, before `netconvert`: every highway whose "
         "name contains one of `names`, or whose ref is one of `refs` (a road that changes name "
         "keeps its ref), plus every road in the `areas` you give (cut to the stretch inside the "
-        "zone; the ramps and roundabouts it touches are kept whole, and `areas[].completed` "
-        "counts what that added outside the circle), plus the `connectors` you ask for, minus "
+        "zone; the ramps it touches are kept whole, and `areas[].completed` counts what that "
+        "added outside the circle; any roundabout a selected road touches is kept whole too), "
+        "plus the `connectors` you ask for, minus "
         "what the `drop` rules remove (a "
         "removed road never comes back as a connector). Use names and refs for a stretch you "
         "know; use an area for a place you want in full detail (a motorway junction, a "

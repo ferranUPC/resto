@@ -10,9 +10,10 @@ counts the edges of a `.net.xml`; no port stands in front of them.
 - **A selection** keeps the roads whose name contains one of the given names, or whose `ref` is
   one of the given refs, and every road with a node in one of the given areas (cut to the stretch
   inside), plus the connectors the caller asks for (`Connectors`), minus what the drop rules
-  remove (ADR-0047). A zone keeps whole the roundabouts and the ramps (`*_link`) it touches
-  (E6.1/13). Footways, paths, cycleways and the like are never selected, whatever their name, and
-  nothing but highways is kept: the rail profile finds no railway in a selection.
+  remove (ADR-0047). A selection keeps whole the roundabouts any of its roads touches, and a zone
+  the ramps (`*_link`) it touches (E6.1/13). Footways, paths, cycleways and the like are never
+  selected, whatever their name, and nothing but highways is kept: the rail profile finds no
+  railway in a selection.
 - **A piece** is a set of ways joined by shared nodes, whatever their direction. Its ends are the
   two points farthest apart, found in two sweeps (exact on a corridor, close enough on anything
   else).
@@ -119,6 +120,7 @@ _MAIN_CLASSES = frozenset(
 _MPH = 1.609344
 _MAXSPEED = re.compile(r"(\d+(?:\.\d+)?)\s*(mph)?")
 _ONE_WAY_CLASSES = frozenset({"motorway", "motorway_link"})
+_ROUNDABOUTS = frozenset({"roundabout", "circular"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -132,7 +134,8 @@ class OsmWay:
     """1 when the way is driven only along its nodes, -1 only against them, 0 both ways."""
     maxspeed_kmh: float | None = None
     roundabout: bool = False
-    """The way is (a part of) a roundabout: `junction=roundabout`."""
+    """The way is (a part of) a roundabout: `junction=roundabout` or `junction=circular`, a
+    traffic circle without priority rules."""
 
     @staticmethod
     def tagged(way_id: int, nodes: tuple[int, ...], tags: dict[str, str]) -> OsmWay:
@@ -144,7 +147,7 @@ class OsmWay:
             ref=tags.get("ref", ""),
             oneway=OsmWay._oneway(tags),
             maxspeed_kmh=OsmWay._maxspeed(tags.get("maxspeed", "")),
-            roundabout=tags.get("junction") == "roundabout",
+            roundabout=tags.get("junction") in _ROUNDABOUTS,
         )
 
     @staticmethod
@@ -419,11 +422,14 @@ class OsmMap:
         completions = [
             self._completion(area, ways, banned) for area, ways in zip(areas, touched, strict=True)
         ]
-        completed = set().union(*completions) - kept
+        stretches = self._only(set(), kept_cuts)
+        on_selection = {n for w in kept for n in self.ways[w].nodes}
+        on_selection |= {n for w in stretches.ways.values() for n in w.nodes}
+        rings = self._rings(set().union(*touched), on_selection, banned)
+        completed = (set().union(*completions) | rings) - kept
         base = self._only(kept | completed, kept_cuts)
         spans = self._connectors(base, banned, connectors)
         selected = self._only(kept | completed, {**kept_cuts, **spans})
-        stretches = self._only(set(), kept_cuts)
         joining = [selected.ways[w] for w in sorted(spans)]
         pieces = selected.pieces(selected.ways)
         summary = {
@@ -523,18 +529,21 @@ class OsmMap:
         roundabout of every way of `touched` that is one, and every `*_link` way of `touched`
         whole, followed along the `*_link` ways that continue it up to `MAX_LINK_REACH_M` outside
         the zone. A way in `banned` is never one."""
-        found = self._rings(touched, banned) | self._link_chains(area, touched, banned)
+        found = self._rings(touched, set(), banned) | self._link_chains(area, touched, banned)
         return {w: self._outside_m(self.ways[w], area) for w in found}
 
-    def _rings(self, touched: set[int], banned: set[int]) -> set[int]:
-        """The roundabout ways joined by shared nodes to a roundabout way of `touched`."""
+    def _rings(self, touched: set[int], nodes: set[int], banned: set[int]) -> set[int]:
+        """The roundabout ways joined by shared nodes to a roundabout way of `touched` or to a
+        roundabout way with a node in `nodes` (those of the roads already selected)."""
         at_node: dict[int, list[int]] = defaultdict(list)
         for way in self.ways.values():
             if way.roundabout and way.is_road and way.id not in banned:
                 for node in way.nodes:
                     at_node[node].append(way.id)
+        rings = {w: self.ways[w] for ids in at_node.values() for w in ids}
         found: set[int] = set()
         pending = [w for w in sorted(touched) if self.ways[w].roundabout]
+        pending += [w for w, ring in sorted(rings.items()) if nodes.intersection(ring.nodes)]
         while pending:
             way_id = pending.pop()
             if way_id in found:

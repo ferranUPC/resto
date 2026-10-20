@@ -391,3 +391,32 @@ def test_the_same_zones_in_another_order_select_the_same_ways() -> None:
 
     assert ElementTree.tostring(one._root) == ElementTree.tostring(other._root)
     assert summary["pieces"] == other_summary["pieces"]
+
+
+def test_a_road_selected_by_name_keeps_whole_the_circular_junction_it_meets() -> None:
+    # the ring of Plaça de Pius XII is `junction=circular` and no zone touches it
+    circular = [
+        way(k, nodes, highway="primary_link", junction="circular")
+        for k, nodes in enumerate(
+            [(100, 101, 102, 103), (103, 104, 105, 106), (106, 107, 108, 109), (109, 110, 111, 100)]
+        )
+    ]
+    main = [
+        way(9, (12, 11, 10), highway="primary", name="Main"),
+        way(8, (10, 100), highway="primary", name="Main"),
+    ]
+    osm = zone_map(*circular, *main)
+
+    kept, summary = osm.select(["Main"], [], "none")
+
+    assert set(kept.ways) == {0, 1, 2, 3, 8, 9}
+    assert len(kept.pieces(kept.ways)) == 1
+    assert summary["pieces"] == 1
+
+
+def test_a_roundabout_the_selection_does_not_touch_stays_out() -> None:
+    osm = zone_map(*ring_ways(), way(9, (0, 1), highway="primary", name="Main"))
+
+    kept, _ = osm.select(["Main"], [], "none")
+
+    assert set(kept.ways) == {9}

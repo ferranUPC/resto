@@ -457,3 +457,27 @@ Checked on `osm-79d3b53980107a73.osm` with the selection of the `v6` network: `n
   ramp or roundabout.
 - **Open:** the first run of `v7` is the maintainer's. Note here whether it passes the suggested `areas` and which
   pieces it ends with.
+
+### Addendum, the roundabout of Plaça de Pius XII (maintainer's capture, sea side)
+
+The cut roundabout the maintainer saw is not the N-340 one: it is Plaça de Pius XII, 4.5 km east of the hospital
+at (41.3872, 2.1227), 12 `primary_link` ways tagged `junction=circular`. With the first version of the rule only 6
+of the 12 entered (the connectors took what lay between two pieces), and no zone touches it. Two changes:
+
+- `junction=circular` counts as a roundabout (`OsmWay.roundabout`).
+- A roundabout is kept whole when any road of the selection touches it (a way kept by name or ref, or the stretch of
+  a zone), not only when a zone does. `drop` still wins. Ramps are still completed from zones only.
+
+Same selection and snapshot as above:
+
+| | ways | pieces (m) | largest SCC |
+| --- | --- | --- | --- |
+| Before (`select` of `v6`) | 234 | 4 (21,588; 1,677; 82; 11) | 0.626 |
+| Zone rule only | 236 | 4 (21,784; 1,677; 82; 11) | 0.790 |
+| Plus `circular` and rings met by the selection | 240 | 3 (23,568; 82; 11) | 0.742 |
+
+- **Pius XII:** 12 of 12 ways in the selection. The 1,677 m piece joins the main one; the 3 pieces are now the same
+  as in the `v6` run.
+- **The SCC falls** from 0.790 to 0.742 and there is one zero-length edge. More roundabouts of the Diagonal (48 ways
+  of 258 in the snapshot) now come whole, and their one-way rings add edges that the rest of the network does not
+  let a vehicle leave. Not investigated; the next step is to look at which edges stay out of the largest component.
