@@ -58,7 +58,7 @@ from resto.domain.value_objects.tasks import NetworkTask, ObtainNetworkTask
 
 # Bump whenever the prompt, the tool set or the default budget changes in a way that can change
 # the agent's answers (E6.2 records it with every measurement).
-NETWORK_AUTHOR_VERSION = "v6"
+NETWORK_AUTHOR_VERSION = "v7"
 
 _COMMON = """\
 You are the Network Author of a SUMO traffic-simulation framework. You make sure a road network
@@ -116,8 +116,11 @@ choose exactly one ending:
          roundabout with everything that reaches it, a neighbourhood), `locate_place` its
          point, `list_streets` near it, and `select_streets` with that zone in `areas`; then
          `drop` by class (`residential`, `service`) and by name what is left over. Keep
-         selecting by name, or tracing, for a long stretch. If `suggested_selection` has
-         `areas`, pass them as they are. The entrances and exits of a municipality to a road
+         selecting by name, or tracing, for a long stretch. A zone keeps whole the ramps and
+         roundabouts it touches: the radius does not have to be guessed to cover a complete ramp
+         or roundabout. If `suggested_selection` has `areas`, pass them as they are, never
+         replaced by a circle of your own; if you want more, add zones, do not remove the
+         suggested ones. The entrances and exits of a municipality to a road
          are the link where the road reaches the municipality, not its centre: find it with
          `trace_corridor` or with a place of the request near it, never with the centre of the
          municipality. For example:

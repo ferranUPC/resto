@@ -432,3 +432,28 @@ first attempt failed before any model cost: Overpass answered 502.
   and reports the SCC. Honest, and the cause is not a missing prune tool but the cut ramp.
 - **Next:** ticket 13 (a zone keeps whole the roundabouts and ramps it touches; prompt `v7` says not to replace the
   suggested `areas` with a circle of its own).
+
+## 2026-10-20, whole ramps and roundabouts (ticket 13, no model, $0)
+
+Prompt `v7`; a zone keeps whole the roundabouts and `*_link` ramps it touches (`MAX_LINK_REACH_M` = 600 m).
+Checked on `osm-79d3b53980107a73.osm` with the selection of the `v6` network: `names=["Avinguda Diagonal"]`,
+`refs=["B-23"]`, `connectors="links"`, one zone of 500 m at (41.374, 2.0716), `drop` of `residential` and `service`.
+
+| | ways | pieces (m) | largest SCC |
+| --- | --- | --- | --- |
+| Before (`select` of `v6`) | 234 | 4 (21,588; 1,677; 82; 11) | 0.626 |
+| After | 236 | 4 (21,784; 1,677; 82; 11) | 0.790 |
+
+- **Ramps.** The `motorway_link` ways 28117160 and 28117177 are whole now (they reached 538 and 535 m from the
+  centre). `areas[0].completed` reports 5 ways and 196 m outside the circle.
+- **Roundabout.** The 3-way tertiary roundabout the circle cuts (ways 1495903560, 281855897, 540228143, up to 517 m)
+  is whole now.
+- **The roundabout at 552 to 589 m does not enter.** It is a separate 7-way `primary` ring of the N-340 (ways
+  28984318, 163315630, 163315634, 163315636, 281855887, 281855896, 1395794521): none of its nodes is inside the
+  circle and it shares no node with the ring the circle touches, so no zone touches it. The ticket's check expected it;
+  the rule as written does not add it. If it must be in, the zone has to be larger or the agent has to ask for it.
+- **Numbers differ from the `v6` run** (245 ways, 3 pieces, 0.714): the reproduction applies the selection alone, with
+  no cleanups after `netconvert`. The 4 pieces after are the same as before the change; the extra piece is not a cut
+  ramp or roundabout.
+- **Open:** the first run of `v7` is the maintainer's. Note here whether it passes the suggested `areas` and which
+  pieces it ends with.

@@ -4,12 +4,21 @@ of each road and the streets the user named. The tool around it is tested in
 
 from __future__ import annotations
 
+import math
 from typing import Any
 from xml.etree import ElementTree
 
 import pytest
 
-from resto.application.osm_map import MAX_ZONE_M, MIN_ZONE_M, OsmMap, Unreached
+from resto.application.osm_map import (
+    MAX_LINK_REACH_M,
+    MAX_ZONE_M,
+    MIN_ZONE_M,
+    Area,
+    DropRule,
+    OsmMap,
+    Unreached,
+)
 from resto.domain.services.geo import distance_m
 from tests.unit.application.tools._osm_doubles import DIAGONAL_B23_OSM, HOSPITAL, MACIA
 
@@ -229,3 +238,156 @@ def test_a_route_with_only_named_or_ref_roads_has_no_zones_and_the_same_suggesti
         "connectors": "links",
         "areas": [],
     }
+
+
+# -- whole ramps and roundabouts (E6.1/13) ---------------------------------------------------
+
+STEP = 0.001
+"""One step of latitude, about 111 m."""
+
+RING = 100
+"""First node of the roundabout; its 12 nodes (100 to 111) circle (41.3900, 2.1000)."""
+
+
+def zone_map(*ways: str) -> OsmMap:
+    """A road of nodes 0 to 12 going north from (41.39, 2.10), 111 m apart, a ring of 12 nodes 55 m
+    around (41.3900, 2.1100) (nodes 100 to 111) and the given ways."""
+    line = "".join(f'<node id="{i}" lat="{41.39 + i * STEP}" lon="2.1"/>' for i in range(13))
+    ring = "".join(
+        f'<node id="{RING + i}" lat="{41.39 + 0.0005 * math.sin(i * math.pi / 6)}" '
+        f'lon="{2.11 + 0.0007 * math.cos(i * math.pi / 6)}"/>'
+        for i in range(12)
+    )
+    return OsmMap(ElementTree.fromstring(f"<osm>{line}{ring}{''.join(ways)}</osm>"))
+
+
+AT_THE_START = Area((41.39, 2.1), 150.0)
+"""Holds nodes 0 and 1 of the road."""
+
+AT_THE_RING = Area(
+    (41.39 + 0.0005 * math.sin(math.pi / 4), 2.11 + 0.0007 * math.cos(math.pi / 4)), 25.0
+)
+"""Holds nodes 101 and 102 of the ring, both of the first way, and nothing else."""
+
+
+def ring_ways(*, first: int = 1, **tags: str) -> list[str]:
+    """The ring as four ways of three nodes each, the last closing it."""
+    nodes = [RING + i for i in range(12)] + [RING]
+    return [
+        way(first + k, tuple(nodes[3 * k : 3 * k + 4]), highway="primary", junction="roundabout")
+        for k in range(4)
+    ]
+
+
+def selected(osm: OsmMap, *areas: Area, drop: tuple[DropRule, ...] = ()) -> OsmMap:
+    return osm.select([], [], "none", areas, drop)[0]
+
+
+def test_a_zone_that_touches_one_way_of_a_roundabout_keeps_the_whole_ring() -> None:
+    osm = zone_map(*ring_ways(), way(9, (0, 1), highway="primary", name="Main"))
+
+    kept, summary = osm.select(["Main"], [], "none", [AT_THE_RING])
+
+    assert set(kept.ways) == {1, 2, 3, 4, 9}
+    assert len(kept.pieces(kept.ways)) == 2, "the road and the ring do not meet"
+    area = summary["areas"][0]
+    assert area["by_class"]["primary"]["ways"] == 1
+    ring_m = sum(osm.length_m(osm.ways[w]) for w in (1, 2, 3, 4))
+    inside_m = distance_m(osm.nodes[RING + 1], osm.nodes[RING + 2])
+    assert area["completed"]["ways"] == 4
+    assert area["completed"]["length_m"] == pytest.approx(ring_m - inside_m, abs=1)
+
+
+def test_a_ramp_cut_in_the_middle_is_kept_whole() -> None:
+    osm = zone_map(way(1, tuple(range(7)), highway="motorway_link"))
+
+    kept, summary = osm.select([], [], "none", [AT_THE_START])
+
+    assert kept.ways[1].nodes == tuple(range(7))
+    assert summary["areas"][0]["completed"]["ways"] == 1
+    inside = summary["areas"][0]["by_class"]["motorway_link"]["length_m"]
+    assert inside == pytest.approx(111, abs=2), "by_class counts the stretch inside"
+
+
+def test_a_ramp_that_continues_in_other_links_is_followed_up_to_the_reach() -> None:
+    # outside the zone: 111 m of the first, then 222 m each: 111, 333, 555 and 777 m
+    osm = zone_map(
+        way(1, (0, 1, 2), highway="motorway_link"),
+        way(2, (2, 3, 4), highway="motorway_link"),
+        way(3, (4, 5, 6), highway="motorway_link"),
+        way(4, (6, 7, 8), highway="motorway_link"),
+    )
+
+    kept = selected(osm, AT_THE_START)
+
+    assert set(kept.ways) == {1, 2, 3}
+    assert 555 <= MAX_LINK_REACH_M < 777
+
+
+def test_a_chain_of_764_m_does_not_come_in_whole() -> None:
+    osm = zone_map(
+        way(1, (0, 1, 2), highway="trunk_link"),
+        way(2, tuple(range(2, 9)), highway="trunk_link"),
+    )
+
+    kept = selected(osm, AT_THE_START)
+
+    assert set(kept.ways) == {1}
+
+
+def test_a_road_of_another_class_is_still_cut_and_a_ramp_out_of_the_zone_stays_out() -> None:
+    osm = zone_map(
+        way(1, tuple(range(7)), highway="primary", name="Main"),
+        way(2, tuple(range(7, 10)), highway="tertiary"),
+        way(3, tuple(range(10, 13)), highway="motorway_link"),
+    )
+
+    kept = selected(osm, AT_THE_START)
+
+    assert set(kept.ways) == {1}
+    assert kept.ways[1].nodes == (0, 1)
+
+
+def test_what_drop_removes_does_not_come_back_as_a_ramp_or_a_roundabout() -> None:
+    osm = zone_map(
+        *ring_ways(),
+        way(9, tuple(range(7)), highway="motorway_link"),
+        way(10, (8, 9), highway="primary", name="Main"),
+    )
+    around_the_ring = Area((41.39, 2.11), 200.0)
+
+    no_links = osm.select(
+        ["Main"], [], "none", [AT_THE_START], [DropRule(classes=("motorway_link",))]
+    )[0]
+    no_ring = osm.select(
+        ["Main"], [], "none", [AT_THE_RING], [DropRule(classes=("primary",), area=around_the_ring)]
+    )[0]
+
+    assert 9 not in no_links.ways
+    assert not {1, 2, 3, 4} & set(no_ring.ways)
+
+
+def test_a_roundabout_is_completed_with_the_ways_no_rule_removes() -> None:
+    osm = zone_map(*ring_ways())
+    third_arm = Area(
+        (41.39 + 0.0005 * math.sin(7 * math.pi / 6), 2.11 + 0.0007 * math.cos(7 * math.pi / 6)),
+        10.0,
+    )
+
+    kept = selected(osm, AT_THE_RING, drop=(DropRule(classes=("primary",), area=third_arm),))
+
+    assert set(kept.ways) == {1, 2, 4}
+
+
+def test_the_same_zones_in_another_order_select_the_same_ways() -> None:
+    osm = zone_map(
+        *ring_ways(),
+        way(9, (0, 1, 2), highway="motorway_link"),
+        way(10, (2, 3, 4), highway="motorway_link"),
+    )
+
+    one, summary = osm.select([], [], "links", [AT_THE_START, AT_THE_RING])
+    other, other_summary = osm.select([], [], "links", [AT_THE_RING, AT_THE_START])
+
+    assert one.ways == other.ways and one.nodes == other.nodes
+    assert summary["pieces"] == other_summary["pieces"]

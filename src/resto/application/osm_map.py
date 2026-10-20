@@ -10,8 +10,9 @@ counts the edges of a `.net.xml`; no port stands in front of them.
 - **A selection** keeps the roads whose name contains one of the given names, or whose `ref` is
   one of the given refs, and every road with a node in one of the given areas (cut to the stretch
   inside), plus the connectors the caller asks for (`Connectors`), minus what the drop rules
-  remove (ADR-0047). Footways, paths, cycleways and the like are never selected, whatever their
-  name, and nothing but highways is kept: the rail profile finds no railway in a selection.
+  remove (ADR-0047). A zone keeps whole the roundabouts and the ramps (`*_link`) it touches
+  (E6.1/13). Footways, paths, cycleways and the like are never selected, whatever their name, and
+  nothing but highways is kept: the rail profile finds no railway in a selection.
 - **A piece** is a set of ways joined by shared nodes, whatever their direction. Its ends are the
   two points farthest apart, found in two sweeps (exact on a corridor, close enough on anything
   else).
@@ -50,6 +51,11 @@ road that joins two pieces of it (links, squares and crossings that carry anothe
 MAX_CONNECTOR_M = 300.0
 """Longest path of other ways a connector may be: a square or a large crossing, not a detour
 through the next street."""
+
+MAX_LINK_REACH_M = 600.0
+"""Farthest, counted outside the zone, that a zone follows a chain of `*_link` ways from the one it
+touches: more than the 434 m ramp of the Sant Just exit, less than a 764 m `trunk_link` that is
+a road of its own."""
 
 _NOT_ROADS = frozenset(
     {"footway", "path", "cycleway", "pedestrian", "steps", "bridleway", "corridor", "track"}
@@ -125,6 +131,8 @@ class OsmWay:
     oneway: Literal[-1, 0, 1] = 0
     """1 when the way is driven only along its nodes, -1 only against them, 0 both ways."""
     maxspeed_kmh: float | None = None
+    roundabout: bool = False
+    """The way is (a part of) a roundabout: `junction=roundabout`."""
 
     @staticmethod
     def tagged(way_id: int, nodes: tuple[int, ...], tags: dict[str, str]) -> OsmWay:
@@ -136,6 +144,7 @@ class OsmWay:
             ref=tags.get("ref", ""),
             oneway=OsmWay._oneway(tags),
             maxspeed_kmh=OsmWay._maxspeed(tags.get("maxspeed", "")),
+            roundabout=tags.get("junction") == "roundabout",
         )
 
     @staticmethod
@@ -406,9 +415,15 @@ class OsmMap:
         kept_cuts = {w: nodes for w, nodes in cuts.items() if w not in gone}
         if not kept and not kept_cuts:
             raise ValueError("the drop rules remove every road of the selection: relax them")
-        base = self._only(kept, kept_cuts)
+        touched = [set(found) - matched - banned for found in inside.values()]
+        completions = [
+            self._completion(area, ways, banned) for area, ways in zip(areas, touched, strict=True)
+        ]
+        completed = set().union(*completions) - kept
+        base = self._only(kept | completed, kept_cuts)
         spans = self._connectors(base, banned, connectors)
-        selected = self._only(kept, {**kept_cuts, **spans})
+        selected = self._only(kept | completed, {**kept_cuts, **spans})
+        stretches = self._only(set(), kept_cuts)
         joining = [selected.ways[w] for w in sorted(spans)]
         pieces = selected.pieces(selected.ways)
         summary = {
@@ -417,7 +432,7 @@ class OsmMap:
                 for (name, ref, _), length in selected._lengths([selected.ways[w] for w in kept])
             ],
             "areas": [
-                self._contribution(area, selected, kept_cuts, inside[i])
+                self._contribution(area, stretches, kept_cuts, inside[i], completions[i], kept)
                 for i, area in enumerate(areas)
             ],
             "dropped": [
@@ -479,15 +494,89 @@ class OsmMap:
         }
 
     def _contribution(
-        self, area: Area, selected: OsmMap, cuts: dict[int, set[int]], inside: dict[int, set[int]]
+        self,
+        area: Area,
+        stretches: OsmMap,
+        cuts: dict[int, set[int]],
+        inside: dict[int, set[int]],
+        completion: dict[int, float],
+        whole: set[int],
     ) -> dict[str, Any]:
-        """What the area added to the selection: its roads that no name or ref kept, by class."""
-        ways = [selected.ways[w] for w in sorted(cuts) if w in inside]
+        """What the area added to the selection: its roads that no name or ref kept, by class and
+        cut to the stretch inside (`stretches`), and apart what it completed outside its circle."""
+        ways = [stretches.ways[w] for w in sorted(cuts) if w in inside]
         by_class = {
-            cls: selected._size([w for w in ways if w.highway == cls])
+            cls: stretches._size([w for w in ways if w.highway == cls])
             for cls in sorted({w.highway for w in ways})
         }
-        return {**area.as_json(), **selected._size(ways), "by_class": by_class}
+        added = [m for w, m in completion.items() if w not in whole and m > 0]
+        completed = {"ways": len(added), "length_m": round(sum(added))}
+        return {
+            **area.as_json(),
+            **stretches._size(ways),
+            "by_class": by_class,
+            "completed": completed,
+        }
+
+    def _completion(self, area: Area, touched: set[int], banned: set[int]) -> dict[int, float]:
+        """The ways a zone completes, each with the metres of it outside the zone: the whole
+        roundabout of every way of `touched` that is one, and every `*_link` way of `touched`
+        whole, followed along the `*_link` ways that continue it up to `MAX_LINK_REACH_M` outside
+        the zone. A way in `banned` is never one."""
+        found = self._rings(touched, banned) | self._link_chains(area, touched, banned)
+        return {w: self._outside_m(self.ways[w], area) for w in found}
+
+    def _rings(self, touched: set[int], banned: set[int]) -> set[int]:
+        """The roundabout ways joined by shared nodes to a roundabout way of `touched`."""
+        at_node: dict[int, list[int]] = defaultdict(list)
+        for way in self.ways.values():
+            if way.roundabout and way.is_road and way.id not in banned:
+                for node in way.nodes:
+                    at_node[node].append(way.id)
+        found: set[int] = set()
+        pending = [w for w in sorted(touched) if self.ways[w].roundabout]
+        while pending:
+            way_id = pending.pop()
+            if way_id in found:
+                continue
+            found.add(way_id)
+            pending.extend(w for n in self.ways[way_id].nodes for w in at_node[n])
+        return found
+
+    def _link_chains(self, area: Area, touched: set[int], banned: set[int]) -> set[int]:
+        """Every `*_link` way of `touched`, and the `*_link` ways that continue one from an end
+        node, while the metres outside `area` along the chain, this way included, stay within
+        `MAX_LINK_REACH_M`: a shortest path over the ways, so the order does not matter."""
+        links = {
+            w.id: w
+            for w in self.ways.values()
+            if w.highway.endswith("_link") and w.is_road and w.id not in banned
+        }
+        at_end: dict[int, list[int]] = defaultdict(list)
+        for way in links.values():
+            at_end[way.nodes[0]].append(way.id)
+            at_end[way.nodes[-1]].append(way.id)
+        reach = {w: self._outside_m(links[w], area) for w in sorted(touched) if w in links}
+        queue = [(m, w) for w, m in reach.items()]
+        heapq.heapify(queue)
+        while queue:
+            metres, way_id = heapq.heappop(queue)
+            if metres > reach[way_id]:
+                continue
+            for end in (links[way_id].nodes[0], links[way_id].nodes[-1]):
+                for nxt in at_end[end]:
+                    total = metres + self._outside_m(links[nxt], area)
+                    if total <= MAX_LINK_REACH_M and total < reach.get(nxt, float("inf")):
+                        reach[nxt] = total
+                        heapq.heappush(queue, (total, nxt))
+        return set(reach)
+
+    def _outside_m(self, way: OsmWay, area: Area) -> float:
+        """Metres of the way on pairs of consecutive nodes that are not both inside `area`."""
+        points = [self.nodes[n] for n in way.nodes if n in self.nodes]
+        return sum(
+            distance_m(a, b) for a, b in pairwise(points) if not (area.holds(a) and area.holds(b))
+        )
 
     def _size(self, ways: Sequence[OsmWay]) -> dict[str, Any]:
         return {"ways": len(ways), "length_m": round(sum(self.length_m(w) for w in ways))}
