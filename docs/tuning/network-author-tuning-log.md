@@ -404,3 +404,31 @@ Prompt `v6`; `list_streets` near counts the stretch inside the radius; `trace_co
   for the whole snapshot. The B-23 shows 1,560 m.
 - **Open:** the first run of `v6` is the maintainer's. When it is done, note here which `select_streets` calls
   it made with `areas` and `drop`, and whether it passed the suggested `areas` as they came.
+
+## 2026-10-20, the Diagonal with prompt `v6` (first run that reaches the zone)
+
+Same request as `v4` and `v5`. `~/resto-runs/adl-01`, `RESTO_LLM_MAX_OUTPUT_TOKENS=12500`, 3 rounds, `--online --gui`. The
+first attempt failed before any model cost: Overpass answered 502.
+
+- **Cost:** about $0.055 (estimated: the script's output was lost; 701,176 input and 59,876 output tokens, scaled
+  from the `v5` run's price). 23 steps, 39 tool calls.
+- **Result:** one network, largest SCC 0.714 (below 0.95), `verify_coverage` never run (the 3 rounds were spent). The
+  selection has 245 ways in 3 pieces (23,611 m, 82 m and 11 m).
+- **`areas` used from the first selection.** `trace_corridor` suggested `names=["Avinguda Diagonal (lateral mar)",
+  "Avinguda Diagonal"]`, `refs=["B-23"]` and two zones: 303 m at (41.37462, 2.07527), around the Sant Just link, and
+  333 m at (41.3813, 2.09977), around the 567 m unnamed `trunk_link`. The agent passed them as they came in the first
+  `select_streets`. From call 16 it added its own circle (500 m at the hospital, 41.374, 2.0716) and in call 32, the
+  network it submitted, it kept only that circle with `drop` of `residential` and `service`. The transcript has no
+  text between calls and keeps 500 characters of each result, so the reason is not there.
+- **What is wrong in the network (maintainer's screenshots, checked on `selected-7df8481019f22605.osm`):**
+  - The Sant Just exit from the B-23 is cut. The `motorway_link` ways 28117160 and 28117177 end at 422 and 488 m from
+    the circle's centre, and the rest of the ramp up to the B-23 (about 550 m) is outside. `_connectors` skips ways
+    already in the selection, so the missing stretch is never added.
+  - The roundabout east of the hospital is an arc. Its ways at 552 to 589 m from the centre are not kept, those below
+    500 m are. 5 ways of the selection are cut by the circle's edge.
+  - The B-23 exit towards Mataró that rejoins the lateral lane is in the network. Not a defect; leaving it out would
+    ask for more selection rules.
+- **`unresolved[]`:** asks for `prune_edges_without_outgoing_connection` and `remove_disconnected_pieces_after_selection`,
+  and reports the SCC. Honest, and the cause is not a missing prune tool but the cut ramp.
+- **Next:** ticket 13 (a zone keeps whole the roundabouts and ramps it touches; prompt `v7` says not to replace the
+  suggested `areas` with a circle of its own).
