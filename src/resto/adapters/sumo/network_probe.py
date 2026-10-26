@@ -82,7 +82,7 @@ def _draw_trips(
         if len(trips) == vehicles:
             break
         origin, destination = rng.sample(edges, 2)
-        if query.shortest_path(origin, destination):
+        if query.shortest_path(origin, destination, "passenger"):
             trips.append((round(rng.uniform(0.0, spread_s), 2), origin, destination))
     return sorted(trips)
 

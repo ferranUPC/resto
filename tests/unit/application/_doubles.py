@@ -40,7 +40,9 @@ class StubNetworkQuery:
     def get_neighbours(self, edge_id: str) -> Sequence[str]:
         raise AssertionError("not used")
 
-    def shortest_path(self, from_edge: str, to_edge: str) -> Sequence[str]:
+    def shortest_path(
+        self, from_edge: str, to_edge: str, vclass: str | None = None
+    ) -> Sequence[str]:
         raise AssertionError("not used")
 
     def edges_in_bbox(self, bbox: tuple[float, float, float, float]) -> Sequence[str]:

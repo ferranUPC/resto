@@ -6,7 +6,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from resto.adapters.persistence.filesystem import artifact_ref
-from resto.adapters.sumo.network_probe import SumoNetworkProber
+from resto.adapters.sumo.network_probe import SumoNetworkProber, _draw_trips
 from resto.adapters.sumo.netxml import SumolibNetworkQuery
 from resto.application.ports.sumo import RunOutput
 from resto.domain.value_objects.artifact_ref import ArtifactRef
@@ -62,3 +62,21 @@ def test_a_probe_report_carries_collisions_unarrived_vehicles_and_the_hot_edges(
     assert report.not_arrived == 1
     assert report.hot_edges == ("A0A1",)  # 120 s of waiting; A1A2 stays under the threshold
     assert report.evidence.kind == "statistics"
+
+
+class _TwoEdgeQuery:
+    """Two passenger edges whose only path crosses an edge closed to passenger: the path exists
+    for a router that ignores the vehicle class and not for one that honours it."""
+
+    def edge_ids(self) -> list[str]:
+        return ["a", "b"]
+
+    def get_edge(self, edge_id: str) -> dict[str, object]:
+        return {"allows": ["passenger"]}
+
+    def shortest_path(self, from_edge: str, to_edge: str, vclass: str | None = None) -> list[str]:
+        return [] if vclass == "passenger" else [from_edge, "service", to_edge]
+
+
+def test_a_pair_whose_only_path_crosses_an_edge_closed_to_passenger_is_not_drawn() -> None:
+    assert _draw_trips(_TwoEdgeQuery(), seed=0, vehicles=3, spread_s=100.0) == []  # type: ignore[arg-type]
