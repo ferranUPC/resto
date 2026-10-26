@@ -75,23 +75,35 @@ DISTRICT = Polygon(
 
 
 class FakeOsmSource:
-    """Serves `source` (`DISTRICT_OSM` by default) for any area; like the real source, an area
-    already fetched is returned from disk and `downloads` does not grow."""
+    """Serves `source` (`DISTRICT_OSM` by default) for any area, and `road` (`CORRIDOR_OSM`) for the
+    line of any road; like the real source, what was already fetched is returned from disk and
+    `downloads` does not grow."""
 
-    def __init__(self, source: Path = DISTRICT_OSM) -> None:
+    def __init__(self, source: Path = DISTRICT_OSM, road: Path = CORRIDOR_OSM) -> None:
         self.calls: list[BBox | Polygon] = []
+        self.road_calls: list[tuple[str, BBox]] = []
         self.downloads = 0
         self._source = source
+        self._road = road
 
     def fetch(self, area: BBox | Polygon, out_dir: Path) -> ArtifactRef:
         self.calls.append(area)
-        key = hashlib.sha256(json.dumps(repr(area)).encode()).hexdigest()[:16]
-        target = out_dir / f"osm-{key}.osm"
+        return self._serve(self._source, out_dir / f"osm-{_key(area)}.osm")
+
+    def fetch_road(self, ref: str, area: BBox, out_dir: Path) -> ArtifactRef:
+        self.road_calls.append((ref, area))
+        return self._serve(self._road, out_dir / f"road-{_key((ref, area))}.osm")
+
+    def _serve(self, source: Path, target: Path) -> ArtifactRef:
         if not target.exists():
-            out_dir.mkdir(parents=True, exist_ok=True)
-            shutil.copy(self._source, target)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy(source, target)
             self.downloads += 1
         return artifact_ref(target, "osm")
+
+
+def _key(value: object) -> str:
+    return hashlib.sha256(json.dumps(repr(value)).encode()).hexdigest()[:16]
 
 
 class FakeGeocoder:

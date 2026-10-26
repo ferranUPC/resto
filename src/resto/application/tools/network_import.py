@@ -7,6 +7,10 @@ polygon or a list of options. Every call that builds returns the full `netconver
 the `source` and the `osm_snapshot` are the recipe, and replaying them gives the same
 `content_hash`.
 
+For a stretch of a road between two places, `fetch_road` downloads the line of the road by its
+ref first and then only a band along it (ADR-0050): the box of a 48 km motorway is a thousand
+km², the band of 400 m around it under twenty.
+
 When the user wants some streets and not a whole area, the agent works in three steps
 (ADR-0046): it locates the places the user named (`locate_place`), selects the streets from the
 downloaded snapshot (`list_streets`, `select_streets`, which writes a derived snapshot the recipe
@@ -42,10 +46,12 @@ from resto.application.osm_import import (
     netconvert_options,
     profile_named,
     resolve_area,
+    unsupported_requirement,
 )
 from resto.application.osm_map import (
     MAX_CONNECTOR_M,
     MAX_LISTED,
+    MAX_ROAD_SNAP_M,
     MAX_SNAP_M,
     MAX_ZONE_M,
     MIN_ZONE_M,
@@ -68,8 +74,11 @@ from resto.domain.services.geo import (
     MAX_MARGIN_PCT,
     area_km2,
     bbox_around,
+    distance_m,
     inside_by_m,
+    path_m,
     ring_of,
+    road_band,
 )
 from resto.domain.value_objects.artifact_ref import ArtifactRef
 from resto.domain.value_objects.network_source import BBox, PlaceName, Polygon
@@ -110,6 +119,21 @@ _ONE_AREA = "name the area with exactly one of bbox, polygon or place_name"
 EDGE_MARGIN_M = 300.0
 """How far inside the fetched area a point must be for `trace_corridor` to trust the roads
 around it: closer to the edge, the road the trace needs may have been cut off."""
+
+
+DEFAULT_HALF_WIDTH_M = 200.0
+"""Half width of the band `fetch_road` downloads when the agent names none: both carriageways and
+the service roads beside them (ADR-0050)."""
+
+MIN_HALF_WIDTH_M = 25.0
+"""Narrowest half band `fetch_road` accepts: one carriageway and its shoulder."""
+
+MAX_HALF_WIDTH_M = 1000.0
+"""Widest half band `fetch_road` accepts: what lies beside the road, not the next town."""
+
+ROAD_BOX_MARGIN_M = MAX_ROAD_SNAP_M + 1000.0
+"""What the box of the line of a road adds around its two points: as far as a point is moved onto
+the road, and a kilometre more for the road to bend away from them."""
 
 
 def _needs_user(needs: NeedsUser) -> Mapping[str, Any]:
@@ -204,9 +228,101 @@ def fetch_osm(
     return {"source": asdict(area), "osm_snapshot": artifact_json(snapshot)}
 
 
+_POINT = Field(min_length=2, max_length=2, description="[lat, lon], e.g. from `locate_place`.")
+
+
+@tool(
+    name="fetch_road",
+    description=(
+        "Download a stretch of a road between two points, by its `ref` (e.g. 'A-2'), as a band "
+        "of `half_width_m` on each side of the road, its ends lengthened by as much: the area is "
+        "the band, not the box of the two points, so a long interurban stretch fits the size "
+        "limit. Each point is moved onto the road (at most "
+        f"{MAX_ROAD_SNAP_M:g} m), so the towns at the ends of the stretch will do. The "
+        "default band keeps both carriageways and the service roads beside them; what else falls "
+        "inside (town streets) is pruned afterwards with `select_streets` and `drop`. Returns the "
+        "`source` and the `osm_snapshot` for the recipe and the `road` it followed (`length_m`, "
+        "`snapped`, `area_km2`), `not_reached` with its reason when no road there has that "
+        "ref, a point is too far from it or no stretch of it joins the two, or `needs_user` "
+        "like `fetch_osm`; then no area was downloaded."
+    ),
+)
+def fetch_road(
+    ctx: ImportRun,
+    ref: Annotated[str, Field(description="The road's ref, e.g. 'A-2' ('A2' finds it too).")],
+    from_point: Annotated[list[float], _POINT],
+    to_point: Annotated[list[float], _POINT],
+    half_width_m: Annotated[
+        float,
+        Field(
+            ge=MIN_HALF_WIDTH_M,
+            le=MAX_HALF_WIDTH_M,
+            description=(
+                f"Metres of the band on each side of the road. Default {DEFAULT_HALF_WIDTH_M:g}."
+            ),
+        ),
+    ] = DEFAULT_HALF_WIDTH_M,
+    requirements: Annotated[
+        list[str],
+        Field(description="What else the user asked for, in their words, e.g. ['bus stops']."),
+    ] = [],  # noqa: B006 - never mutated; pydantic copies the default
+) -> Mapping[str, Any]:
+    start, end = (from_point[0], from_point[1]), (to_point[0], to_point[1])
+    unsupported = unsupported_requirement(tuple(requirements))
+    if unsupported is not None:
+        return _needs_user(unsupported)
+    # the road is at least as long as the straight line, so its band is at least this large
+    apart_m = distance_m(start, end)
+    least_km2 = 2 * half_width_m * apart_m / 1e6
+    if least_km2 > ctx.limits.max_area_km2:
+        return _needs_user(
+            NeedsUser(
+                reason=AreaTooLarge(area_km2=least_km2, limit_km2=ctx.limits.max_area_km2),
+                message=(
+                    f"A band of {2 * half_width_m:g} m along the {apart_m / 1000:.1f} "
+                    f"km between the two points is at least {least_km2:.1f} km², above the limit "
+                    f"of {ctx.limits.max_area_km2:g} km² for one import. Nothing was downloaded."
+                ),
+            )
+        )
+    road = ctx.osm.fetch_road(
+        ref, bbox_around((start, end), ROAD_BOX_MARGIN_M), ctx.out_dir / "osm"
+    )
+    line = OsmMap.read(road.path).road_line(ref, start, end)
+    if isinstance(line, Unreached):
+        return {"not_reached": {"point": rounded(line.point), "reason": line.reason}}
+    area = resolve_area(road_band(line, half_width_m), (), ctx.geocoder, ctx.limits, margin_pct=0)
+    if isinstance(area, NeedsUser):
+        return _needs_user(area)
+    snapshot = ctx.osm.fetch(area, ctx.out_dir / "osm")
+    ctx.imports[snapshot.content_hash] = _Import(area, snapshot)
+    return {
+        "source": asdict(area),
+        "osm_snapshot": artifact_json(snapshot),
+        "road": {
+            "ref": ref,
+            "length_m": round(path_m(line)),
+            "snapped": [
+                {
+                    "point": rounded(point),
+                    "node_at": rounded(node),
+                    "distance_m": round(distance_m(point, node)),
+                }
+                for point, node in ((start, line[0]), (end, line[-1]))
+            ],
+            "half_width_m": half_width_m,
+            "area_km2": round(area_km2(area), 2),
+        },
+    }
+
+
 _SNAPSHOT = Annotated[
     str,
-    Field(description="`content_hash` of a snapshot `fetch_osm` or `select_streets` returned."),
+    Field(
+        description=(
+            "`content_hash` of a snapshot `fetch_osm`, `fetch_road` or `select_streets` returned."
+        )
+    ),
 ]
 
 
@@ -331,7 +447,10 @@ def _drop_rule(rule: DropArg) -> DropRule:
         "removed road never comes back as a connector). Use names and refs for a stretch you "
         "know; use an area for a place you want in full detail (a motorway junction, a "
         "roundabout, a municipality's accesses), then drop the classes or streets you do not "
-        "want. Writes a new snapshot and returns its `osm_snapshot` and `source` for the "
+        "want. With no names, refs or areas, every road is kept and `drop` alone prunes "
+        "(the band of `fetch_road` without its town streets: drop "
+        "`residential` and `living_street`). "
+        "Writes a new snapshot and returns its `osm_snapshot` and `source` for the "
         "recipe; build it with `netconvert` like any other. Also returns what was kept, what "
         "each area added, what each rule removed (0 when nothing) and in how many `pieces`: "
         "more than one means gaps a vehicle cannot cross. Fails when nothing matches; then "
@@ -392,9 +511,6 @@ def select_streets(
     derived = selected.write(ctx.out_dir / "osm" / f"selected-{key}.osm")
     ctx.imports.setdefault(derived.content_hash, _Import(state.area, derived))
     return {"source": asdict(state.area), "osm_snapshot": artifact_json(derived), **summary}
-
-
-_POINT = Field(min_length=2, max_length=2, description="[lat, lon], e.g. from `locate_place`.")
 
 
 @tool(
@@ -609,6 +725,7 @@ def build_network_import_tools(ctx: ImportRun) -> tuple[Tool, ...]:
         locate_place.bind(ctx),
         list_import_profiles.bind(ctx),
         fetch_osm.bind(ctx),
+        fetch_road.bind(ctx),
         list_streets.bind(ctx),
         trace_corridor.bind(ctx),
         select_streets.bind(ctx),

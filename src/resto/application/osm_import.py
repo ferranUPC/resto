@@ -2,7 +2,8 @@
 
 - `resolve_area`: from the request to a `BBox` or `Polygon`, or a `NeedsUser` when the request
   cannot be met (unsupported requirement, place that is not a boundary, area above the size
-  limit). It runs before any download.
+  limit). It runs before any download; `unsupported_requirement` is its first check alone, for a
+  road whose area is known only after its line is downloaded.
 - The catalogue of import profiles and the `netconvert` options an import is built with: the
   profile, the cut to the polygon, and the cleanups. The options are what the recipe stores, so
   they are a pure function of the profile, the area and the cleanups.
@@ -157,6 +158,21 @@ _TRANSIT = re.compile(
 )
 
 
+def unsupported_requirement(requirements: tuple[str, ...]) -> NeedsUser | None:
+    """The `NeedsUser` for the first requirement no import can meet (public transport stops and
+    lines, ADR-0045 §5), or None."""
+    for requirement in requirements:
+        if _TRANSIT.search(requirement):
+            return NeedsUser(
+                reason=UnsupportedRequirement(requirement),
+                message=(
+                    f"The request needs {requirement!r}, but public transport stops and lines are "
+                    "not part of the network file the import produces."
+                ),
+            )
+    return None
+
+
 def resolve_area(
     area: AreaOfInterest,
     requirements: tuple[str, ...],
@@ -169,15 +185,9 @@ def resolve_area(
     Never downloads.
 
     Raises `ExternalServiceError` when the geocoder fails: the user cannot fix that."""
-    for requirement in requirements:
-        if _TRANSIT.search(requirement):
-            return NeedsUser(
-                reason=UnsupportedRequirement(requirement),
-                message=(
-                    f"The request needs {requirement!r}, but public transport stops and lines are "
-                    "not part of the network file the import produces."
-                ),
-            )
+    unsupported = unsupported_requirement(requirements)
+    if unsupported is not None:
+        return unsupported
     if isinstance(area, PlaceName):
         try:
             area = geocoder.resolve(area)

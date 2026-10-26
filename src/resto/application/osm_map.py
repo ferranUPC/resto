@@ -21,6 +21,10 @@ counts the edges of a `.net.xml`; no port stands in front of them.
   as a graph with one arc per pair of consecutive nodes, in the directions the way allows, each
   costing its length over its speed. It reads the road the way a driver would, whatever names it
   takes on the way, and tells which streets to select to keep it.
+- **The line of a road** is the chain of the ways that carry its ref between two points
+  (`OsmMap.road_line`), shortest by length and in either direction: only its shape matters, for the
+  band a stretch of road is downloaded as (E6.1/15). A ref matches whatever its case, hyphens
+  and spaces ("A2" is "A-2", not "A-21").
 """
 
 from __future__ import annotations
@@ -31,7 +35,7 @@ import heapq
 import math
 import re
 from collections import defaultdict
-from collections.abc import Hashable, Iterable, Sequence, Set
+from collections.abc import Callable, Hashable, Iterable, Sequence, Set
 from dataclasses import dataclass
 from itertools import combinations, groupby, pairwise
 from pathlib import Path
@@ -39,7 +43,7 @@ from typing import Any, Generic, Literal, TypeVar
 from xml.etree import ElementTree
 
 from resto.application.ports.osm import LocatedPlace
-from resto.domain.services.geo import distance_m
+from resto.domain.services.geo import distance_m, path_m
 from resto.domain.value_objects.artifact_ref import ArtifactRef
 
 Point = tuple[float, float]  # (lat, lon)
@@ -97,6 +101,14 @@ when two roads take about as long."""
 MAX_SNAP_M = 500.0
 """Farthest a trace moves a point to put it on a road: a hospital's grounds or a square, not the
 next district."""
+
+MAX_ROAD_SNAP_M = 5000.0
+"""Farthest a point is moved onto the road whose line it asks for: the user names the towns at the
+ends of a stretch, and a motorway passes a few kilometres from a town's centre."""
+
+MAX_ROAD_GAP_M = 300.0
+"""Longest gap the line of a road crosses between two of its ways: a ramp or a roundabout with no
+ref, as OSM maps a motorway through a junction, not the next road."""
 
 SUGGESTED_SHARE = 0.1
 """Share of a trace a street must cover to be suggested for the selection; the access road from
@@ -178,6 +190,11 @@ class OsmWay:
     @property
     def refs(self) -> frozenset[str]:
         return frozenset(r.casefold() for r in self.tagged_refs)
+
+    @property
+    def ref_keys(self) -> frozenset[str]:
+        """Its refs as `road_line` compares them: letters and digits only ("a2" for "A-2")."""
+        return frozenset(_ref_key(r) for r in self.tagged_refs)
 
     @property
     def speed_kmh(self) -> float:
@@ -332,7 +349,7 @@ class OsmMap:
         return OsmMap(ElementTree.parse(snapshot).getroot())
 
     def length_m(self, way: OsmWay) -> float:
-        return _path_m(self._points([way]))
+        return path_m(self._points([way]))
 
     def _points(self, ways: Iterable[OsmWay]) -> list[Point]:
         return [self.nodes[n] for w in ways for n in w.nodes if n in self.nodes]
@@ -361,7 +378,7 @@ class OsmMap:
                     "name": name,
                     "ref": ref,
                     "classes": sorted({w.highway for w, _ in stretches}),
-                    "length_m": round(sum(_path_m(s) for _, s in stretches)),
+                    "length_m": round(sum(path_m(s) for _, s in stretches)),
                     "extent": extent([p for _, s in stretches for p in s]),
                 }
             )
@@ -388,18 +405,23 @@ class OsmMap:
     ) -> tuple[OsmMap, dict[str, Any]]:
         """The snapshot with only the matching roads, the roads inside `areas` (cut to the stretch
         inside), the connectors asked for and none of what `drop` removes, and a summary of what
-        was kept. What a rule removes does not come back as a connector.
+        was kept. With no names, refs or areas, every road matches and `drop` prunes them (the
+        band of a road without its town streets). What a rule removes does not come back as a
+        connector.
 
         Raises:
-            ValueError: nothing to match, a rule with no criterion, or nothing left.
+            ValueError: nothing to match or drop, a rule with no criterion, or nothing left.
         """
         wanted_names = [n.strip().casefold() for n in names if n.strip()]
         wanted_refs = {r.strip().casefold() for r in refs if r.strip()}
-        if not wanted_names and not wanted_refs and not areas:
-            raise ValueError("give at least one name, ref or area to select")
+        every_road = not wanted_names and not wanted_refs and not areas
+        if every_road and not drop:
+            raise ValueError("give at least one name, ref, area or drop rule to select")
         rules = [_normalized(rule) for rule in drop]
         matched = {
-            w.id for w in self.ways.values() if w.is_road and _matches(w, wanted_names, wanted_refs)
+            w.id
+            for w in self.ways.values()
+            if w.is_road and (every_road or _matches(w, wanted_names, wanted_refs))
         }
         inside = {id_: self._inside(area) for id_, area in enumerate(areas)}
         cuts = self._area_cuts(inside, matched)
@@ -436,7 +458,7 @@ class OsmMap:
             "streets": [
                 {"name": name, "ref": ref, "length_m": round(length)}
                 for (name, ref, _), length in selected._lengths([selected.ways[w] for w in kept])
-            ],
+            ][:MAX_LISTED],
             "areas": [
                 self._contribution(area, stretches, kept_cuts, inside[i], completions[i], kept)
                 for i, area in enumerate(areas)
@@ -782,19 +804,8 @@ class OsmMap:
             spent = step.length_m if by == "length" else step.minutes
             return spent * (PREFERRED_COST if _matches(step.way, terms, refs) else 1.0)
 
-        spent: dict[int, float] = {source: 0.0}
-        came_from: dict[int, _Step] = {}
-        queue = [(0.0, source)]
-        while queue:
-            reached, node = heapq.heappop(queue)
-            if reached > spent[node]:
-                continue
-            for step in arcs.get(node, ()):
-                total = reached + cost(step)
-                if total < spent.get(step.end, float("inf")):
-                    spent[step.end], came_from[step.end] = total, step
-                    heapq.heappush(queue, (total, step.end))
-        target = min(spent, key=lambda n: distance_m(end, self.nodes[n]))
+        came_from = _search(source, arcs, cost)
+        target = min({source, *came_from}, key=lambda n: distance_m(end, self.nodes[n]))
         steps = []
         while target in came_from:
             steps.append(came_from[target])
@@ -898,6 +909,66 @@ class OsmMap:
                     merged = True
                     break
         return [circle for circle, _ in circles]
+
+    # -- the line of a road -----------------------------------------------------------------
+
+    def road_line(self, ref: str, start: Point, end: Point) -> list[Point] | Unreached:
+        """The points of the road with `ref` from the node nearest `start` to the node nearest
+        `end`, the shortest way along its ways, crossing the gaps of up to `MAX_ROAD_GAP_M`
+        between them. `Unreached`, with its reason, at `start` when no road has that ref, at a
+        point more than `MAX_ROAD_SNAP_M` from the road or on the same node as the other, and at
+        `end` when no chain of its ways reaches it."""
+        key = _ref_key(ref)
+        ways = [w for w in self.ways.values() if w.is_road and key in w.ref_keys]
+        nodes = sorted({n for w in ways for n in w.nodes if n in self.nodes})
+        if not nodes:
+            return Unreached(start, f"no road in the snapshot has the ref {ref!r}")
+        snapped = []
+        for point in (start, end):
+            nearest = min(nodes, key=lambda n: (distance_m(point, self.nodes[n]), n))
+            if distance_m(point, self.nodes[nearest]) > MAX_ROAD_SNAP_M:
+                return Unreached(point, f"more than {MAX_ROAD_SNAP_M:g} m from the {ref}")
+            snapped.append(nearest)
+        source, target = snapped
+        if source == target:
+            return Unreached(end, f"on the same point of the {ref} as the other: give two apart")
+        came_from = _search(source, self._road_arcs(ways), lambda arc: arc.length_m)
+        if target not in came_from:
+            return Unreached(end, f"no stretch of the {ref} joins it to the other point")
+        path = [target]
+        while path[-1] != source:
+            path.append(came_from[path[-1]].start)
+        return [self.nodes[n] for n in reversed(path)]
+
+    def _road_arcs(self, ways: Sequence[OsmWay]) -> dict[int, list[_Arc]]:
+        """Both directions of every pair of consecutive nodes of `ways`, and from each dead end an
+        arc to the nearest node of every other piece of them within `MAX_ROAD_GAP_M`: to the
+        other carriageway, and also across its own gap."""
+        arcs: dict[int, list[_Arc]] = defaultdict(list)
+        joined: _Joined[int] = _Joined()
+
+        def link(a: int, b: int) -> None:
+            length = distance_m(self.nodes[a], self.nodes[b])
+            arcs[a].append(_Arc(a, b, length))
+            arcs[b].append(_Arc(b, a, length))
+
+        for w in ways:
+            for a, b in pairwise(n for n in w.nodes if n in self.nodes):
+                link(a, b)
+                joined.join(a, b)
+        pieces: dict[int, list[int]] = defaultdict(list)
+        for node in sorted(arcs):
+            pieces[joined.root(node)].append(node)
+        for end in [n for n in sorted(arcs) if len({a.end for a in arcs[n]}) == 1]:
+            for piece, members in pieces.items():
+                if piece == joined.root(end):
+                    continue
+                nearest = min(
+                    members, key=lambda n: (distance_m(self.nodes[end], self.nodes[n]), n)
+                )
+                if distance_m(self.nodes[end], self.nodes[nearest]) <= MAX_ROAD_GAP_M:
+                    link(end, nearest)
+        return arcs
 
     # -- pieces and coverage ----------------------------------------------------------------
 
@@ -1010,10 +1081,46 @@ class _Step:
 
 @dataclass(frozen=True, slots=True)
 class Unreached:
-    """A trace that could not start or end: no road within `MAX_SNAP_M` of `point` joins it to
-    the other point."""
+    """A trace or a road line that could not start or end at `point`: for a trace, no road within
+    `MAX_SNAP_M` of it joins it to the other point; for a road line, `reason` says why."""
 
     point: Point
+    reason: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class _Arc:
+    """One arc of the line of a road: between consecutive nodes of its ways, or across a gap."""
+
+    start: int
+    end: int
+    length_m: float
+
+
+_A = TypeVar("_A", _Step, _Arc)
+
+
+def _search(source: int, arcs: dict[int, list[_A]], cost: Callable[[_A], float]) -> dict[int, _A]:
+    """Dijkstra from `source`: for every other node it reaches, the arc of the cheapest way in."""
+    spent: dict[int, float] = {source: 0.0}
+    came_from: dict[int, _A] = {}
+    queue = [(0.0, source)]
+    while queue:
+        reached, node = heapq.heappop(queue)
+        if reached > spent[node]:
+            continue
+        for arc in arcs.get(node, ()):
+            total = reached + cost(arc)
+            if total < spent.get(arc.end, math.inf):
+                spent[arc.end], came_from[arc.end] = total, arc
+                heapq.heappush(queue, (total, arc.end))
+    return came_from
+
+
+def _ref_key(ref: str) -> str:
+    """A ref without case or anything but its letters and digits: "A-2", "a 2" and "A2" are one
+    road, "A-21" another. `overpass._ref_pattern` downloads by the same rule."""
+    return "".join(re.findall(r"[0-9a-z]+", ref.casefold()))
 
 
 def _normalized(rule: DropRule) -> DropRule:
@@ -1047,10 +1154,6 @@ def _circle(points: Sequence[Point]) -> Area:
     centre = ((min(lats) + max(lats)) / 2, (min(lons) + max(lons)) / 2)
     reach = max(distance_m(centre, p) for p in points) + ZONE_MARGIN_M
     return Area(centre, min(MAX_ZONE_M, max(MIN_ZONE_M, math.ceil(reach))))
-
-
-def _path_m(points: Sequence[Point]) -> float:
-    return sum(distance_m(a, b) for a, b in pairwise(points))
 
 
 def _ends(points: Sequence[Point]) -> tuple[Point, Point]:

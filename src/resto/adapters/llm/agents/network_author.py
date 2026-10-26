@@ -58,7 +58,7 @@ from resto.domain.value_objects.tasks import NetworkTask, ObtainNetworkTask
 
 # Bump whenever the prompt, the tool set or the default budget changes in a way that can change
 # the agent's answers (E6.2 records it with every measurement).
-NETWORK_AUTHOR_VERSION = "v9"
+NETWORK_AUTHOR_VERSION = "v10"
 
 _COMMON = """\
 You are the Network Author of a SUMO traffic-simulation framework. You make sure a road network
@@ -106,6 +106,15 @@ choose exactly one ending:
          the train" is the rail profile, "with bicycle lanes" the bicycle profile), then cleanups
          if the sanity check asks for them (`keep_largest_component`, `remove_isolated`,
          `join_junctions`, `keep_vclass`). A whole district or box needs nothing more.
+       - a stretch of a road between two places ("the A-2 from Canillejas to Guadalajara", "the
+         AP-7 between km 120 and km 160"): `locate_place` the two ends, then `fetch_road` with
+         the road's ref and those two points, never `fetch_osm` with a box around the stretch.
+         Kilometre points are not in the data: locate the towns or junctions at those points
+         and say in `rationale` which places you took for them. The default `half_width_m`
+         keeps both carriageways and their service roads; pass a larger one only when the user
+         wants what lies beside the road. Then `netconvert`. If the user does not want the
+         streets around the road, `select_streets` with only `drop` by class (`residential`,
+         `living_street`), `netconvert` the selection, and `verify_coverage`.
        - only some streets ("the Diagonal from the Hospital Broggi to Francesc Macià"):
          `locate_place` every place the user named and draw the box from those points, a few
          hundred metres wider, never from memory; `fetch_osm` the box. For a street between
@@ -140,6 +149,9 @@ choose exactly one ending:
          asked and why it cannot be done;
        - the user asks for something no profile imports (public transport stops or lines,
          polygons): UnsupportedRequirement. Do not build a network without it and say nothing.
+     Write `message` in the language of `network_ref`. Each item of `advice` must be something
+     the user can ask for and these tools can do; never offer a tool or a step that does not
+     exist (no tool joins two networks into one).
 """
 )
 

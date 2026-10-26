@@ -1,6 +1,6 @@
 """OpenStreetMap access for the Network Author (ADR-0045, ADR-0046): a geocoder that resolves a
 place name to a polygon or locates it as a point, and a source that downloads the map inside a
-polygon once."""
+polygon once, or the line of one road by its ref."""
 
 from __future__ import annotations
 
@@ -84,4 +84,11 @@ class OsmSource(Protocol):
         """The `.osm` snapshot of `area` in `out_dir`, keyed by the polygon's hash: asking again
         for the same polygon returns the stored file without a new download. Raises
         `ExternalServiceError` when the service fails."""
+        ...
+
+    def fetch_road(self, ref: str, area: BBox, out_dir: Path) -> ArtifactRef:
+        """The `.osm` snapshot of the highways inside `area` whose `ref` is `ref` (whatever its
+        case, hyphens and spaces), with their nodes: the line a road band is drawn around
+        (ADR-0050). Stored once per ref and box, like `fetch`. Raises `ExternalServiceError`
+        when the service fails."""
         ...

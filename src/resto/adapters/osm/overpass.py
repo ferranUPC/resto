@@ -3,7 +3,10 @@
 Our own client, not SUMO's `osmGet.py`: it needs no `SUMO_HOME` (ADR-0010). The filter is `poly:`
 with whole ways and their nodes; cutting to the polygon happens later, in `netconvert`. Roads and
 railways are both downloaded: the snapshot is keyed by the polygon alone and the import profile
-(`rail` needs the railways) is chosen afterwards."""
+(`rail` needs the railways) is chosen afterwards.
+
+The line of a road (`fetch_road`, ADR-0050) is a lighter query: only the highways whose `ref` is
+that road's, inside a box, so the band around it can be drawn before the area is downloaded."""
 
 from __future__ import annotations
 
@@ -50,7 +53,15 @@ class OverpassOsmSource:
 
     def fetch(self, area: BBox | Polygon, out_dir: Path) -> ArtifactRef:
         ring = ring_of(area)
-        target = out_dir / f"osm-{_polygon_key(ring)}.osm"
+        return self._download(self._query(ring), out_dir / f"osm-{_polygon_key(ring)}.osm")
+
+    def fetch_road(self, ref: str, area: BBox, out_dir: Path) -> ArtifactRef:
+        pattern = _ref_pattern(ref)
+        box = ",".join(format_coordinate(v) for v in (area.south, area.west, area.north, area.east))
+        query = f'{self._header()}way["highway"]["ref"~"{pattern}",i]({box});(._;>;);out;'
+        return self._download(query, out_dir / f"road-{work_key(json.dumps([pattern, box]))}.osm")
+
+    def _download(self, query: str, target: Path) -> ArtifactRef:
         if target.exists():
             return artifact_ref(target, SNAPSHOT_KIND)
         body = request(
@@ -58,10 +69,10 @@ class OverpassOsmSource:
             self._base_url,
             user_agent=self._user_agent,
             timeout_s=self._client_timeout_s,
-            data=urlencode({"data": self._query(ring)}).encode(),
+            data=urlencode({"data": query}).encode(),
         )
         _check_answer(body)
-        out_dir.mkdir(parents=True, exist_ok=True)
+        target.parent.mkdir(parents=True, exist_ok=True)
         partial = target.with_suffix(".osm.part")
         partial.write_bytes(body)
         partial.replace(target)  # a half-written snapshot is never mistaken for a stored one
@@ -72,10 +83,27 @@ class OverpassOsmSource:
             f"{format_coordinate(lat)} {format_coordinate(lon)}" for lat, lon in ring[:-1]
         )
         return (
-            f"[out:xml][timeout:{self._limits.overpass_timeout_s}]"
-            f"[maxsize:{self._limits.overpass_maxsize_bytes}];"
+            f"{self._header()}"
             f'(way["highway"](poly:"{poly}");way["railway"](poly:"{poly}"););(._;>;);out;'
         )
+
+    def _header(self) -> str:
+        return (
+            f"[out:xml][timeout:{self._limits.overpass_timeout_s}]"
+            f"[maxsize:{self._limits.overpass_maxsize_bytes}];"
+        )
+
+
+def _ref_pattern(ref: str) -> str:
+    """A regular expression (case-insensitive in the query) for one ref in the `ref` tag, which
+    may hold several separated by ';': its letters and digits, with anything else between and
+    around them, so "A2" finds "A-2" but not "A-21". `OsmMap.road_line` compares refs by the same
+    rule (`_ref_key`)."""
+    parts = re.findall(r"[a-z]+|[0-9]+", ref.casefold())
+    if not parts:
+        raise ValueError(f"the ref {ref!r} has no letter or digit")
+    other = "[^0-9a-z;]*"
+    return f"^(.*;)?{other}" + other.join(parts) + f"{other}(;.*)?$"
 
 
 def _polygon_key(ring: tuple[tuple[float, float], ...]) -> str:

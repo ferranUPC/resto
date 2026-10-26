@@ -25,6 +25,7 @@ from resto.application.tools.network_import import (
     DropArg,
     ImportRun,
     fetch_osm,
+    fetch_road,
     join_junctions,
     keep_largest_component,
     keep_vclass,
@@ -37,7 +38,7 @@ from resto.application.tools.network_import import (
     trace_corridor,
     verify_coverage,
 )
-from resto.domain.services.geo import area_km2, distance_m, expand_area
+from resto.domain.services.geo import area_km2, distance_m, expand_area, inside_by_m
 from resto.domain.value_objects.artifact_ref import ArtifactRef
 from resto.domain.value_objects.network_source import Polygon
 from tests.unit.adapters.osm._server import FakeService, Reply, fake_service
@@ -882,8 +883,8 @@ def test_a_rule_without_criteria_or_a_selection_without_anything_is_an_error(
         select_streets(run, osm_snapshot=snapshot, refs=["B-23"], drop=[{}])
     with pytest.raises(ValueError, match="at least one name, ref or class"):
         select_streets(run, osm_snapshot=snapshot, refs=["B-23"], drop=[{"classes": [" "]}])
-    with pytest.raises(ValueError, match="name, ref or area"):
-        select_streets(run, osm_snapshot=snapshot, drop=[{"classes": ["service"]}])
+    with pytest.raises(ValueError, match="name, ref, area or drop rule"):
+        select_streets(run, osm_snapshot=snapshot)
     with pytest.raises(ValueError, match="remove every road"):
         select_streets(run, osm_snapshot=snapshot, refs=["B-23"], drop=[{"refs": ["b-23"]}])
 
@@ -974,3 +975,110 @@ def test_near_a_point_a_named_street_counts_the_stretch_the_zone_would_keep(
     assert listed["length_m"] == round(kept.length_m(kept.ways[603]))
     assert listed["length_m"] < full.length_m(full.ways[603])
     assert next(r for r in listing["streets"] if r["name"] == "Carrer del Mig")["length_m"] < 300
+
+
+# -- a stretch of road as a corridor (E6.1/15, ADR-0050) -----------------------------------------
+
+WEST, EAST = [WEST_END.lat, WEST_END.lon], [EAST_END.lat, EAST_END.lon]
+
+
+def road_run(tmp_path: Path, limits: OsmLimits | None = None) -> tuple[ImportRun, FakeOsmSource]:
+    osm = FakeOsmSource(CORRIDOR_OSM, road=CORRIDOR_OSM)
+    return run_in(tmp_path, osm, limits=limits), osm
+
+
+def test_a_road_is_downloaded_as_the_band_along_its_line_not_as_a_box(tmp_path: Path) -> None:
+    run, osm = road_run(tmp_path)
+
+    result = fetch_road(run, ref="N-340", from_point=WEST, to_point=EAST, half_width_m=100)
+
+    (band,) = osm.calls
+    assert isinstance(band, Polygon), "the band, not the box of the points"
+    assert result["source"] == asdict(band)
+    assert osm.road_calls[0][0] == "N-340"
+    road = result["road"]
+    # lon 2.100 to 2.150 at lat 41.39 is 4.17 km; the band is 0.2 km wide and 0.2 km longer
+    assert road["length_m"] == pytest.approx(4174, abs=10)
+    assert road["area_km2"] == pytest.approx(4.374 * 0.2, abs=0.02)
+    assert road["half_width_m"] == 100
+    # 0.0001 degrees north and east of the ends: 11 m and 8 m
+    assert [s["distance_m"] for s in road["snapped"]] == [14, 14]
+    for lat, lon in ((41.3900, 2.1000), (41.3900, 2.1500)):
+        assert inside_by_m(band, (lat, lon)) >= 99
+
+
+def test_the_band_of_a_road_is_built_like_any_snapshot(tmp_path: Path) -> None:
+    run, _ = road_run(tmp_path)
+    fetched = fetch_road(run, ref="N-340", from_point=WEST, to_point=EAST, half_width_m=100)
+
+    built = netconvert(run, osm_snapshot=fetched["osm_snapshot"]["content_hash"])
+
+    assert {300, 301, 303} <= osm_ways_of(built)
+    assert 320 not in osm_ways_of(built), "Carrer de Dalt is 550 m north, outside the band"
+
+
+def test_two_points_too_far_apart_for_any_band_download_nothing(tmp_path: Path) -> None:
+    run, osm = road_run(tmp_path)
+    far = [WEST_END.lat + 0.9, WEST_END.lon]  # 100 km north: a band of 0.4 km is 40 km2
+
+    result = fetch_road(run, ref="N-340", from_point=WEST, to_point=far)
+
+    reason = result["needs_user"]["reason"]
+    assert reason["kind"] == "area_too_large"
+    assert reason["area_km2"] == pytest.approx(40, rel=0.01)
+    assert osm.downloads == 0 and osm.road_calls == []
+
+
+def test_a_band_above_the_limit_downloads_only_the_line(tmp_path: Path) -> None:
+    # the straight band is 0.83 km2, the band with its ends 0.87 km2
+    run, osm = road_run(tmp_path, OsmLimits(max_area_km2=0.85))
+
+    result = fetch_road(run, ref="N-340", from_point=WEST, to_point=EAST, half_width_m=100)
+
+    assert result["needs_user"]["reason"]["kind"] == "area_too_large"
+    assert osm.downloads == 1 and osm.calls == []
+
+
+def test_a_public_transport_requirement_stops_a_road_before_any_download(tmp_path: Path) -> None:
+    run, osm = road_run(tmp_path)
+
+    result = fetch_road(
+        run, ref="N-340", from_point=WEST, to_point=EAST, requirements=["bus stops"]
+    )
+
+    assert result["needs_user"]["reason"]["kind"] == "unsupported_requirement"
+    assert osm.downloads == 0
+
+
+def test_a_place_far_from_the_road_is_not_reached_and_no_area_is_downloaded(
+    tmp_path: Path,
+) -> None:
+    run, osm = road_run(tmp_path)
+    far = [WEST_END.lat + 0.06, WEST_END.lon]  # 6.7 km north of the road
+
+    result = fetch_road(run, ref="N-340", from_point=far, to_point=EAST, half_width_m=100)
+
+    assert result["not_reached"]["point"] == [round(far[0], 5), round(far[1], 5)]
+    assert "N-340" in result["not_reached"]["reason"]
+    assert osm.calls == []
+
+
+def test_a_ref_no_road_has_is_not_reached_and_no_area_is_downloaded(tmp_path: Path) -> None:
+    run, osm = road_run(tmp_path)
+
+    result = fetch_road(run, ref="A-2", from_point=WEST, to_point=EAST)
+
+    assert "'A-2'" in result["not_reached"]["reason"]
+    assert osm.calls == []
+
+
+def test_the_band_of_a_road_loses_its_town_streets_with_drop_alone(tmp_path: Path) -> None:
+    run, _ = road_run(tmp_path)
+    fetched = fetch_road(run, ref="N-340", from_point=WEST, to_point=EAST)
+    snapshot = fetched["osm_snapshot"]["content_hash"]
+
+    pruned = select_streets(run, osm_snapshot=snapshot, drop=[{"classes": ["residential"]}])
+    built = netconvert(run, osm_snapshot=pruned["osm_snapshot"]["content_hash"])
+
+    assert {300, 301, 303} <= osm_ways_of(built)
+    assert not {310, 311} & osm_ways_of(built), "Muntaner and Balmes are residential"

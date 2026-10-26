@@ -1,14 +1,15 @@
 """Size of an area of interest, to refuse one too large before any download (ADR-0045 §6),
 distances between points, for the coverage report (ADR-0046), and how far a point lies inside an
-area, for the corridor trace (E6.1/10), and an area grown by a margin, so the import keeps whole the
-streets along its edge (E6.1/14)."""
+area, for the corridor trace (E6.1/10), an area grown by a margin, so the import keeps whole the
+streets along its edge (E6.1/14), the band along a road that a stretch of it is downloaded as
+(E6.1/15), and the length of a line."""
 
 from __future__ import annotations
 
 import math
 from collections.abc import Sequence
 
-from resto.domain.value_objects.network_source import BBox, Polygon
+from resto.domain.value_objects.network_source import MAX_POLYGON_VERTICES, BBox, Polygon
 
 KM_PER_DEGREE = 2 * math.pi * 6371.0 / 360.0
 """Length of one degree of latitude on a sphere of radius 6371 km."""
@@ -33,6 +34,11 @@ def distance_m(a: tuple[float, float], b: tuple[float, float]) -> float:
     `area_km2`: exact enough within a city."""
     x_scale = math.cos(math.radians((a[0] + b[0]) / 2))
     return 1000 * KM_PER_DEGREE * math.hypot((a[1] - b[1]) * x_scale, a[0] - b[0])
+
+
+def path_m(points: Sequence[tuple[float, float]]) -> float:
+    """Length in metres of the line through `points`, in order."""
+    return sum(distance_m(a, b) for a, b in zip(points, points[1:], strict=False))
 
 
 def inside_by_m(area: BBox | Polygon, point: tuple[float, float]) -> float:
@@ -105,6 +111,104 @@ def expand_area(area: BBox | Polygon, margin_pct: float) -> BBox | Polygon:
     grown = _offset(hull, margin_lat)
     ring = tuple((_round_coordinate(y), _round_coordinate(x / x_scale)) for x, y in grown)
     return Polygon(ring=(*ring, ring[0]), osm_id=area.osm_id)
+
+
+def road_band(line: Sequence[tuple[float, float]], half_width_m: float) -> Polygon:
+    """The band of `half_width_m` on each side of `line` (the (lat, lon) points of a road), its
+    ends lengthened by as much: the area to download for a stretch of road (ADR-0050). Every point
+    of the line ends at least `half_width_m` inside, except near a bend sharper than 120°.
+
+    The line is simplified first (Douglas-Peucker), with a tolerance that starts at a tenth of the
+    half width and doubles until the band fits in `MAX_POLYGON_VERTICES`; the band is widened by
+    the farthest the simplification moved a point, so the points it drops stay `half_width_m`
+    inside. Each corner is where the two moved sides meet (at most twice the width away, for a
+    bend sharper than 120°), so a hairpin tighter than the half width may cross itself on its
+    inner side; a road a car drives at speed has none."""
+    if half_width_m <= 0:
+        raise ValueError("half_width_m must be positive")
+    mean_lat = sum(lat for lat, _ in line) / len(line) if line else 0.0
+    x_scale = math.cos(math.radians(mean_lat))
+    metres = 1000 * KM_PER_DEGREE
+    plane = [(lon * x_scale * metres, lat * metres) for lat, lon in line]
+    plane = [p for i, p in enumerate(plane) if i == 0 or p != plane[i - 1]]
+    if len(plane) < 2:
+        raise ValueError("a corridor needs a line of at least two points apart")
+    tolerance = half_width_m / 10
+    kept, moved = _simplified(plane, tolerance)
+    while len(kept) > MAX_POLYGON_VERTICES // 2:
+        tolerance *= 2
+        kept, moved = _simplified(plane, tolerance)
+    kept = [
+        _beyond(kept[1], kept[0], half_width_m),
+        *kept[1:-1],
+        _beyond(kept[-2], kept[-1], half_width_m),
+    ]
+    width = half_width_m + moved
+    band = _side(kept, width) + _side(kept, -width)[::-1]
+    ring = tuple(
+        (_round_coordinate(y / metres), _round_coordinate(x / (x_scale * metres))) for x, y in band
+    )
+    return Polygon(ring=(*ring, ring[0]))
+
+
+def _simplified(
+    points: Sequence[tuple[float, float]], tolerance: float
+) -> tuple[list[tuple[float, float]], float]:
+    """Douglas-Peucker on a plane: the points kept, in order, and the farthest a dropped point is
+    from the simplified line."""
+    keep = {0, len(points) - 1}
+    moved = 0.0
+    spans = [(0, len(points) - 1)]
+    while spans:
+        first, last = spans.pop()
+        if last - first < 2:
+            continue
+        far, index = max(
+            (_to_segment(points[i], points[first], points[last]), i) for i in range(first + 1, last)
+        )
+        if far > tolerance:
+            keep.add(index)
+            spans += [(first, index), (index, last)]
+        else:
+            moved = max(moved, far)
+    return [points[i] for i in sorted(keep)], moved
+
+
+def _to_segment(p: tuple[float, float], a: tuple[float, float], b: tuple[float, float]) -> float:
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    along = max(
+        0.0, min(1.0, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / (dx * dx + dy * dy or 1.0))
+    )
+    return math.hypot(p[0] - a[0] - along * dx, p[1] - a[1] - along * dy)
+
+
+def _beyond(
+    previous: tuple[float, float], end: tuple[float, float], distance: float
+) -> tuple[float, float]:
+    """`end` moved `distance` further along the direction from `previous`."""
+    dx, dy = end[0] - previous[0], end[1] - previous[1]
+    length = math.hypot(dx, dy)
+    return end[0] + dx / length * distance, end[1] + dy / length * distance
+
+
+def _side(points: Sequence[tuple[float, float]], width: float) -> list[tuple[float, float]]:
+    """The line moved `width` to its left (to its right when negative), each corner where the two
+    moved segments meet, at most twice the width away."""
+    normals = []
+    for (x1, y1), (x2, y2) in zip(points, points[1:], strict=False):
+        length = math.hypot(x2 - x1, y2 - y1)
+        normals.append((-(y2 - y1) / length, (x2 - x1) / length))
+    moved = []
+    for i, (x, y) in enumerate(points):
+        before, after = normals[max(0, i - 1)], normals[min(i, len(normals) - 1)]
+        bx, by = before[0] + after[0], before[1] + after[1]
+        norm = math.hypot(bx, by)
+        if norm < 1e-9:  # the road turns back on itself: keep the side it came along
+            bx, by, norm = before[0], before[1], 1.0
+        bx, by = bx / norm, by / norm
+        reach = width / max(0.5, bx * before[0] + by * before[1])
+        moved.append((x + bx * reach, y + by * reach))
+    return moved
 
 
 def format_coordinate(degrees: float) -> str:

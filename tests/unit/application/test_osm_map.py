@@ -1,5 +1,6 @@
 """`OsmMap.trace`, the road between two points of a snapshot (E6.1/10): one-way roads, the speed
-of each road and the streets the user named. The tool around it is tested in
+of each road and the streets the user named; and `OsmMap.road_line`, the line of a road by its ref
+that a corridor is drawn around (E6.1/15). The tools around them are tested in
 `tools/test_network_import.py`."""
 
 from __future__ import annotations
@@ -12,6 +13,8 @@ import pytest
 
 from resto.application.osm_map import (
     MAX_LINK_REACH_M,
+    MAX_ROAD_GAP_M,
+    MAX_ROAD_SNAP_M,
     MAX_ZONE_M,
     MIN_ZONE_M,
     Area,
@@ -20,7 +23,14 @@ from resto.application.osm_map import (
     Unreached,
 )
 from resto.domain.services.geo import distance_m
-from tests.unit.application.tools._osm_doubles import DIAGONAL_B23_OSM, HOSPITAL, MACIA
+from tests.unit.application.tools._osm_doubles import (
+    CORRIDOR_OSM,
+    DIAGONAL_B23_OSM,
+    EAST_END,
+    HOSPITAL,
+    MACIA,
+    WEST_END,
+)
 
 H = (HOSPITAL.lat, HOSPITAL.lon)
 P = (MACIA.lat, MACIA.lon)
@@ -420,3 +430,113 @@ def test_a_roundabout_the_selection_does_not_touch_stays_out() -> None:
     kept, _ = osm.select(["Main"], [], "none")
 
     assert set(kept.ways) == {9}
+
+
+W, E = (WEST_END.lat, WEST_END.lon), (EAST_END.lat, EAST_END.lon)
+
+
+def line_of(line: list[tuple[float, float]] | Unreached) -> list[tuple[float, float]]:
+    assert not isinstance(line, Unreached), line
+    return line
+
+
+@pytest.mark.parametrize("ref", ["N-340", "n340", "N 340"])
+def test_the_line_of_a_road_crosses_the_short_gaps_its_ref_leaves(ref: str) -> None:
+    osm = OsmMap.read(CORRIDOR_OSM)
+
+    line = line_of(osm.road_line(ref, W, E))
+
+    # 301, the 42 m link with no ref, 300, the 125 m square with no ref, 303
+    expected = [1, 2, 3, 4, 5, 6, 7, 8]
+    assert line == [osm.nodes[n] for n in expected]
+
+
+def test_the_line_runs_from_the_point_nearest_the_first_place() -> None:
+    osm = OsmMap.read(CORRIDOR_OSM)
+
+    line = line_of(osm.road_line("N-340", E, W))
+
+    assert line[0] == osm.nodes[8] and line[-1] == osm.nodes[1]
+
+
+def test_a_place_farther_than_the_snap_from_the_road_is_unreached() -> None:
+    osm = OsmMap.read(CORRIDOR_OSM)
+    far = (W[0] + (MAX_ROAD_SNAP_M + 500) / 111_195, W[1])
+
+    unreached = osm.road_line("N-340", far, E)
+
+    assert isinstance(unreached, Unreached) and unreached.point == far
+    assert "from the N-340" in unreached.reason
+
+
+def test_a_gap_longer_than_the_road_may_have_is_not_crossed() -> None:
+    gap_deg = (MAX_ROAD_GAP_M + 100) / (111_195 * math.cos(math.radians(A[0])))
+    c = (A[0], B[1] + gap_deg)
+    nodes = (
+        f'<node id="1" lat="{A[0]}" lon="{A[1]}"/><node id="2" lat="{B[0]}" lon="{B[1]}"/>'
+        f'<node id="3" lat="{c[0]}" lon="{c[1]}"/>'
+        f'<node id="4" lat="{c[0]}" lon="{c[1] + 0.01}"/>'
+    )
+    roads = way(1, (1, 2), highway="motorway", ref="A-2") + way(
+        2, (3, 4), highway="motorway", ref="A-2"
+    )
+    osm = OsmMap(ElementTree.fromstring(f"<osm>{nodes}{roads}</osm>"))
+    end = osm.nodes[4]
+
+    unreached = osm.road_line("A-2", A, end)
+
+    assert isinstance(unreached, Unreached) and unreached.point == end
+    assert "no stretch of the A-2" in unreached.reason
+
+
+def test_a_ref_no_road_has_is_unreached_and_named() -> None:
+    unreached = OsmMap.read(CORRIDOR_OSM).road_line("A-2", W, E)
+
+    assert isinstance(unreached, Unreached) and unreached.point == W
+    assert "'A-2'" in unreached.reason
+
+
+def test_two_points_on_the_same_node_of_the_road_are_unreached() -> None:
+    unreached = OsmMap.read(CORRIDOR_OSM).road_line("N-340", W, (W[0], W[1] + 0.0001))
+
+    assert isinstance(unreached, Unreached)
+    assert "same point" in unreached.reason
+
+
+def test_each_carriageway_crosses_its_own_gap_and_not_only_to_the_other() -> None:
+    # two carriageways 30 m apart, each cut by a 150 m gap at the same place
+    def lon(m: float) -> float:
+        return 2.1 + m / (111_195 * math.cos(math.radians(41.39)))
+
+    north, south = 41.39 + 15 / 111_195, 41.39 - 15 / 111_195
+    xs = (0, 1000, 1150, 2000)
+    nodes = "".join(
+        f'<node id="{base + i}" lat="{lat}" lon="{lon(x)}"/>'
+        for base, lat in ((10, north), (20, south))
+        for i, x in enumerate(xs)
+    )
+    roads = "".join(
+        way(base, (base, base + 1), highway="motorway", ref="A-2")
+        + way(base + 1, (base + 2, base + 3), highway="motorway", ref="A-2")
+        for base in (10, 20)
+    )
+    osm = OsmMap(ElementTree.fromstring(f"<osm>{nodes}{roads}</osm>"))
+
+    line = line_of(osm.road_line("A-2", osm.nodes[10], osm.nodes[13]))
+
+    assert line[0] == osm.nodes[10] and line[-1] == osm.nodes[13]
+
+
+def test_a_selection_with_only_drop_rules_keeps_every_other_road() -> None:
+    osm = OsmMap.read(CORRIDOR_OSM)
+
+    kept, summary = osm.select([], [], "none", drop=[DropRule(classes=("residential",))])
+
+    # the N-340, its link and square, the lateral lane; no residential street and no footway
+    assert set(kept.ways) == {300, 301, 302, 303, 304, 305}
+    assert summary["dropped"][0]["ways"] == 3
+
+
+def test_a_selection_with_nothing_to_keep_or_drop_is_an_error() -> None:
+    with pytest.raises(ValueError, match="drop"):
+        OsmMap.read(CORRIDOR_OSM).select([], [], "none")

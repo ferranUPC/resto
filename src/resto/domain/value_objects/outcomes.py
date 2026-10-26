@@ -107,7 +107,10 @@ class AreaTooLarge:
             return (
                 "Split the area into smaller ones, or import only the road classes the study needs."
             )
-        return "Pick a smaller area, or an import profile with fewer road classes."
+        return (
+            "Pick a smaller area; for a stretch of a road, download only a band along it "
+            "(`fetch_road`). The import profile does not change the area."
+        )
 
 
 @dataclass(frozen=True, slots=True)

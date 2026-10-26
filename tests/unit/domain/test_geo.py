@@ -1,10 +1,14 @@
-"""`area_km2`, `distance_m`, `inside_by_m`, `bbox_around` and `expand_area`, on worked figures."""
+"""`area_km2`, `distance_m`, `inside_by_m`, `bbox_around`, `expand_area` and `road_band`, on worked
+figures."""
 
 from __future__ import annotations
+
+import math
 
 import pytest
 
 from resto.domain.services.geo import (
+    KM_PER_DEGREE,
     MAX_MARGIN_PCT,
     area_km2,
     bbox_around,
@@ -12,8 +16,9 @@ from resto.domain.services.geo import (
     expand_area,
     format_coordinate,
     inside_by_m,
+    road_band,
 )
-from resto.domain.value_objects.network_source import BBox, Polygon
+from resto.domain.value_objects.network_source import MAX_POLYGON_VERTICES, BBox, Polygon
 
 
 def test_a_one_degree_box_on_the_equator_is_about_12364_km2() -> None:
@@ -169,3 +174,57 @@ def test_a_coordinate_is_written_with_up_to_seven_decimals_and_no_exponent(
 def test_a_margin_out_of_range_is_refused(margin: float) -> None:
     with pytest.raises(ValueError, match="margin_pct"):
         expand_area(TOOTHED, margin)
+
+
+def _east(lat: float, lon: float, km: float) -> tuple[float, float]:
+    return lat, lon + km / (KM_PER_DEGREE * math.cos(math.radians(lat)))
+
+
+def _north(lat: float, lon: float, km: float) -> tuple[float, float]:
+    return lat + km / KM_PER_DEGREE, lon
+
+
+def test_the_band_along_a_straight_road_is_a_band_of_twice_its_half_width() -> None:
+    start = (40.5, -3.5)
+    line = [_east(*start, km) for km in range(11)]
+
+    band = road_band(line, 200)
+
+    # 10 km of road, each end lengthened by the half width: (10 + 0.4) km by 0.4 km
+    assert area_km2(band) == pytest.approx(10.4 * 0.4, rel=0.02)
+    for point in line:
+        assert inside_by_m(band, point) >= 199
+
+
+def test_the_band_follows_a_bend_and_keeps_the_road_inside_by_its_half_width() -> None:
+    corner = _east(40.5, -3.5, 5)
+    line = [_east(40.5, -3.5, km / 2) for km in range(11)]
+    line += [_north(*corner, km / 2) for km in range(1, 11)]
+
+    band = road_band(line, 200)
+
+    for point in line:
+        assert inside_by_m(band, point) >= 199
+    # far from the corner a point of the bend's box is outside: a band, not the hull
+    assert inside_by_m(band, _north(*_east(40.5, -3.5, 1), 4)) < 0
+
+
+def test_a_winding_road_of_thousands_of_points_fits_in_a_polygon() -> None:
+    # 40 km east with a 300 m wave every 2 km
+    line = []
+    for i in range(5001):
+        km = 40 * i / 5000
+        lat, lon = _east(40.5, -3.5, km)
+        line.append((lat + 0.3 * math.sin(km * math.pi) / KM_PER_DEGREE, lon))
+
+    band = road_band(line, 200)
+
+    assert len(band.ring) - 1 <= MAX_POLYGON_VERTICES
+    assert band.ring[0] == band.ring[-1]
+    for point in line[::50]:
+        assert inside_by_m(band, point) >= 199
+
+
+def test_a_band_needs_two_points_apart() -> None:
+    with pytest.raises(ValueError, match="two"):
+        road_band([(40.5, -3.5), (40.5, -3.5)], 200)

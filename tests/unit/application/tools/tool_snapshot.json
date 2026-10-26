@@ -1291,6 +1291,55 @@
       "name": "fetch_osm"
     },
     {
+      "description": "Download a stretch of a road between two points, by its `ref` (e.g. 'A-2'), as a band of `half_width_m` on each side of the road, its ends lengthened by as much: the area is the band, not the box of the two points, so a long interurban stretch fits the size limit. Each point is moved onto the road (at most 5000 m), so the towns at the ends of the stretch will do. The default band keeps both carriageways and the service roads beside them; what else falls inside (town streets) is pruned afterwards with `select_streets` and `drop`. Returns the `source` and the `osm_snapshot` for the recipe and the `road` it followed (`length_m`, `snapped`, `area_km2`), `not_reached` with its reason when no road there has that ref, a point is too far from it or no stretch of it joins the two, or `needs_user` like `fetch_osm`; then no area was downloaded.",
+      "input_schema": {
+        "properties": {
+          "from_point": {
+            "description": "[lat, lon], e.g. from `locate_place`.",
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          },
+          "half_width_m": {
+            "description": "Metres of the band on each side of the road. Default 200.",
+            "maximum": 1000.0,
+            "minimum": 25.0,
+            "type": "number"
+          },
+          "ref": {
+            "description": "The road's ref, e.g. 'A-2' ('A2' finds it too).",
+            "type": "string"
+          },
+          "requirements": {
+            "description": "What else the user asked for, in their words, e.g. ['bus stops'].",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "to_point": {
+            "description": "[lat, lon], e.g. from `locate_place`.",
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          }
+        },
+        "required": [
+          "ref",
+          "from_point",
+          "to_point"
+        ],
+        "type": "object"
+      },
+      "name": "fetch_road"
+    },
+    {
       "description": "The streets of a fetched snapshot, longest first: name, ref (e.g. 'N-340'), road classes, total length and extent. Highways with no name and no ref are grouped by class. Use it before `select_streets` to see how the streets the user named are spelled, and whether the road changes name along the stretch. With `near`, only the streets that pass within `radius_m` of that point, each counted only for the stretch inside that circle (what a zone of `select_streets` keeps): the unnamed rows show what is there, not what the whole snapshot holds; selecting a zone also completes the ramps it touches, and a selection the roundabouts it touches. At most 40 rows.",
       "input_schema": {
         "properties": {
@@ -1304,7 +1353,7 @@
             "type": "array"
           },
           "osm_snapshot": {
-            "description": "`content_hash` of a snapshot `fetch_osm` or `select_streets` returned.",
+            "description": "`content_hash` of a snapshot `fetch_osm`, `fetch_road` or `select_streets` returned.",
             "type": "string"
           },
           "radius_m": {
@@ -1335,7 +1384,7 @@
             "type": "array"
           },
           "osm_snapshot": {
-            "description": "`content_hash` of a snapshot `fetch_osm` or `select_streets` returned.",
+            "description": "`content_hash` of a snapshot `fetch_osm`, `fetch_road` or `select_streets` returned.",
             "type": "string"
           },
           "prefer": {
@@ -1365,7 +1414,7 @@
       "name": "trace_corridor"
     },
     {
-      "description": "Keep only some streets of a fetched snapshot, before `netconvert`: every highway whose name contains one of `names`, or whose ref is one of `refs` (a road that changes name keeps its ref), plus every road in the `areas` you give (cut to the stretch inside the zone; the ramps it touches are kept whole, and `areas[].completed` counts what that added outside the circle; any roundabout a selected road touches is kept whole too), plus the `connectors` you ask for, minus what the `drop` rules remove (a removed road never comes back as a connector). Use names and refs for a stretch you know; use an area for a place you want in full detail (a motorway junction, a roundabout, a municipality's accesses), then drop the classes or streets you do not want. Writes a new snapshot and returns its `osm_snapshot` and `source` for the recipe; build it with `netconvert` like any other. Also returns what was kept, what each area added, what each rule removed (0 when nothing) and in how many `pieces`: more than one means gaps a vehicle cannot cross. Fails when nothing matches; then check the names with `list_streets`. Trying another selection downloads nothing.",
+      "description": "Keep only some streets of a fetched snapshot, before `netconvert`: every highway whose name contains one of `names`, or whose ref is one of `refs` (a road that changes name keeps its ref), plus every road in the `areas` you give (cut to the stretch inside the zone; the ramps it touches are kept whole, and `areas[].completed` counts what that added outside the circle; any roundabout a selected road touches is kept whole too), plus the `connectors` you ask for, minus what the `drop` rules remove (a removed road never comes back as a connector). Use names and refs for a stretch you know; use an area for a place you want in full detail (a motorway junction, a roundabout, a municipality's accesses), then drop the classes or streets you do not want. With no names, refs or areas, every road is kept and `drop` alone prunes (the band of `fetch_road` without its town streets: drop `residential` and `living_street`). Writes a new snapshot and returns its `osm_snapshot` and `source` for the recipe; build it with `netconvert` like any other. Also returns what was kept, what each area added, what each rule removed (0 when nothing) and in how many `pieces`: more than one means gaps a vehicle cannot cross. Fails when nothing matches; then check the names with `list_streets`. Trying another selection downloads nothing.",
       "input_schema": {
         "properties": {
           "areas": {
@@ -1459,7 +1508,7 @@
             "type": "array"
           },
           "osm_snapshot": {
-            "description": "`content_hash` of a snapshot `fetch_osm` or `select_streets` returned.",
+            "description": "`content_hash` of a snapshot `fetch_osm`, `fetch_road` or `select_streets` returned.",
             "type": "string"
           },
           "refs": {
@@ -1482,7 +1531,7 @@
       "input_schema": {
         "properties": {
           "osm_snapshot": {
-            "description": "`content_hash` of a snapshot `fetch_osm` or `select_streets` returned.",
+            "description": "`content_hash` of a snapshot `fetch_osm`, `fetch_road` or `select_streets` returned.",
             "type": "string"
           },
           "profile": {
@@ -1502,7 +1551,7 @@
       "input_schema": {
         "properties": {
           "osm_snapshot": {
-            "description": "`content_hash` of a snapshot `fetch_osm` or `select_streets` returned.",
+            "description": "`content_hash` of a snapshot `fetch_osm`, `fetch_road` or `select_streets` returned.",
             "type": "string"
           }
         },
@@ -1518,7 +1567,7 @@
       "input_schema": {
         "properties": {
           "osm_snapshot": {
-            "description": "`content_hash` of a snapshot `fetch_osm` or `select_streets` returned.",
+            "description": "`content_hash` of a snapshot `fetch_osm`, `fetch_road` or `select_streets` returned.",
             "type": "string"
           }
         },
@@ -1534,7 +1583,7 @@
       "input_schema": {
         "properties": {
           "osm_snapshot": {
-            "description": "`content_hash` of a snapshot `fetch_osm` or `select_streets` returned.",
+            "description": "`content_hash` of a snapshot `fetch_osm`, `fetch_road` or `select_streets` returned.",
             "type": "string"
           }
         },
@@ -1550,7 +1599,7 @@
       "input_schema": {
         "properties": {
           "osm_snapshot": {
-            "description": "`content_hash` of a snapshot `fetch_osm` or `select_streets` returned.",
+            "description": "`content_hash` of a snapshot `fetch_osm`, `fetch_road` or `select_streets` returned.",
             "type": "string"
           },
           "vclass": {
@@ -1583,7 +1632,7 @@
       "input_schema": {
         "properties": {
           "osm_snapshot": {
-            "description": "`content_hash` of a snapshot `fetch_osm` or `select_streets` returned.",
+            "description": "`content_hash` of a snapshot `fetch_osm`, `fetch_road` or `select_streets` returned.",
             "type": "string"
           }
         },

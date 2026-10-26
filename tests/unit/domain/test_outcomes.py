@@ -28,6 +28,8 @@ REASONS = (
 def test_area_too_large_names_both_areas_and_advises_a_smaller_one() -> None:
     reason = AreaTooLarge(area_km2=101.0, limit_km2=10.0)
     assert "smaller area" in reason.recommendation
+    assert "fetch_road" in reason.recommendation, "a road comes as a band, not as a box"
+    assert "does not change the area" in reason.recommendation, "a profile is no way out"
     with pytest.raises(ValueError, match="limit_km2"):
         AreaTooLarge(area_km2=5.0, limit_km2=10.0)
 

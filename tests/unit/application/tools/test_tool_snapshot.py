@@ -2,7 +2,7 @@
 Scenario Builder tool, stored once in `tool_snapshot.json` and asserted exactly (refactor r3).
 E6.1/02 added the Network Author's generated-network tools, E6.1/05 its inspection tools,
 E6.1/06 its plain-XML edit tools, E6.1/07 `find_network`, E6.1/09 its locate, select and
-verify tools and E6.1/10 `trace_corridor`, on purpose.
+verify tools, E6.1/10 `trace_corridor` and E6.1/15 `fetch_road`, on purpose.
 
 The declaration refactor must leave this file unchanged. Regenerate it only on purpose:
 

@@ -1,4 +1,5 @@
-"""`OverpassOsmSource` against a loopback server with saved responses (ADR-0045 §3, §7)."""
+"""`OverpassOsmSource` against a loopback server with saved responses (ADR-0045 §3, §7), for an area
+and for the line of a road (ADR-0050)."""
 
 from __future__ import annotations
 
@@ -172,3 +173,57 @@ def test_the_overpass_timeout_of_the_limits_bounds_the_client_wait_too(
             source.fetch(AREA, tmp_path)
 
     assert raised.value.service == "overpass"
+
+
+ROAD_BOX = BBox(south=40.4, west=-3.65, north=40.6612345, east=-3.1)
+
+
+def test_a_road_is_asked_for_by_its_ref_whatever_its_hyphen_inside_the_box(
+    tmp_path: Path,
+) -> None:
+    with fake_service() as service:
+        service.answer(OSM)
+
+        snapshot = _source(service).fetch_road("A2", ROAD_BOX, tmp_path)
+
+    query = _query(service)
+    other = "[^0-9a-z;]*"
+    pattern = f"^(.*;)?{other}a{other}2{other}(;.*)?$"
+    assert f'way["highway"]["ref"~"{pattern}",i](40.4,-3.65,40.6612345,-3.1)' in query
+    assert "railway" not in query
+    assert "(._;>;)" in query
+    assert snapshot.kind == "osm"
+
+
+def test_a_road_is_downloaded_once_per_ref_and_box_and_apart_from_the_areas(
+    tmp_path: Path,
+) -> None:
+    with fake_service() as service:
+        service.answer(OSM)
+        source = _source(service)
+
+        first = source.fetch_road("A-2", ROAD_BOX, tmp_path)
+        again = source.fetch_road("a 2", ROAD_BOX, tmp_path)
+        other = source.fetch_road("A-3", ROAD_BOX, tmp_path)
+        area = source.fetch(ROAD_BOX, tmp_path)
+
+    assert again == first
+    assert len(service.received) == 3
+    assert len({first.path, other.path, area.path}) == 3
+
+
+def test_a_ref_with_no_letter_or_digit_is_refused_before_any_query(tmp_path: Path) -> None:
+    with fake_service() as service, pytest.raises(ValueError, match="ref"):
+        _source(service).fetch_road(" - ", ROAD_BOX, tmp_path)
+
+    assert service.received == []
+
+
+def test_a_failing_road_download_names_overpass_and_stores_nothing(tmp_path: Path) -> None:
+    with fake_service() as service:
+        service.answer(Reply(b"too busy", status=429, content_type="text/plain"))
+
+        with pytest.raises(ExternalServiceError):
+            _source(service).fetch_road("A-2", ROAD_BOX, tmp_path)
+
+    assert list(tmp_path.iterdir()) == []

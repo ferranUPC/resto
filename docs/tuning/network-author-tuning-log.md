@@ -595,3 +595,30 @@ alrededor." `~/resto-runs/adl-06`, `RESTO_LLM_MAX_OUTPUT_TOKENS=8196`, 3 rounds,
 - **The message is in English** although the request is in Spanish; step 4 drafted it in Spanish.
 - **Open:** whether a corridor (a road by `ref` between two points, with its service roads) is in scope for E6.1, and
   with which limit: the area of a box measures a district, not a road.
+
+## 2026-10-26, the A-2 as a band (E6.1 ticket 15, no model, $0)
+
+Real Nominatim and Overpass, `netconvert` with the `roads` profile, through the tools themselves (`locate_place`,
+`fetch_road`, `netconvert`, `select_streets`) from a script in the session's scratchpad, work directory
+`~/resto-runs/adl-06-check`. The two ends: "Canillejas, Madrid" (40.4416, -3.6093) and "Guadalajara, Guadalajara,
+España" (40.6327, -3.1646), the city and not the province of the `adl-06` run.
+
+- **`fetch_road(ref="A2", half_width_m=200)`:** the ref "A2" finds the ways tagged `A-2` (300 ways in the line's
+  snapshot). The ends were moved 888 m and 931 m onto the road. The line is 45.9 km long, the band 20.31 km² in 82
+  vertices, the snapshot of the band 3.7 MB. The `adl-06` boxes were 1,261 and 2,639 km².
+- **The whole band:** 9,550 edges and 728 km of edges, `through_traffic_ratio` 0.939, 34 zero-length edges,
+  `largest_scc_ratio` 0.442, `all_reachable_from_fringe` false, so `passes` is false. The 156 `motorway` ways of the A-2 in the band (93.8 km, both carriageways) are all in
+  the network.
+- **Without the town streets** (`select_streets` with only `drop` of `residential` and `living_street`: 761 ways,
+  117 km removed): 198 pieces in the selection, and the largest component kept by `netconvert` has 2,608 edges and
+  342 km of edges, `through_traffic_ratio` 0.980, no zero-length edge, `all_reachable_from_fringe` false, so
+  `passes` is false too. The 156 ways of the A-2 are still all in it.
+  What is left, by OSM length: `motorway` 103 km, `service` 83, `motorway_link` 46, `tertiary` 44, `trunk_link` 25,
+  `unclassified` 13, `primary` 10, `secondary` 8.
+- **After the code review** (each dead end now bridges to every other piece within 300 m, and the Overpass pattern
+  takes any separator between the letters and digits of the ref) the check was run again: a new download of the
+  line (36 s), the same line and the same band, snapshot and networks as above.
+- **Open:** the first run of `v10` with the model is the maintainer's. Note whether the agent goes to `fetch_road`
+  without a `fetch_osm` box first, which places it takes for km 8 and km 56, the language of a `NeedsUser`, and
+  whether the `service` ways it keeps are the A-2's service roads or the industrial parks beside it (no class tells
+  them apart).
