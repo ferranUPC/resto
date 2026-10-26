@@ -10,6 +10,8 @@ same runner and the plain XML editor. Nothing here touches the network until an 
 
 from __future__ import annotations
 
+import os
+from collections.abc import Mapping
 from dataclasses import replace
 from pathlib import Path
 from typing import NoReturn
@@ -21,7 +23,7 @@ from resto.adapters.llm.agents.network_author import NetworkAuthorCollaborators,
 from resto.adapters.llm.agents.scenario_builder import ScenarioBuilderPort
 from resto.adapters.llm.config import RoundsConfig
 from resto.adapters.osm.nominatim import NominatimGeocoder
-from resto.adapters.osm.overpass import OverpassOsmSource
+from resto.adapters.osm.overpass import DEFAULT_BASE_URL, OverpassOsmSource
 from resto.adapters.persistence.memory import InMemoryStudyRepository
 from resto.adapters.persistence.sqlite.repositories import SqliteDatabase
 from resto.adapters.sumo.demand import SumoDemandTools
@@ -126,6 +128,22 @@ def build_event_bus(
     return bus
 
 
+OVERPASS_URLS_ENV = "RESTO_OVERPASS_URLS"
+
+
+def overpass_urls(env: Mapping[str, str] | None = None) -> list[str]:
+    """The Overpass endpoints, comma-separated in `RESTO_OVERPASS_URLS`; the public instance
+    by default. With several, each attempt of a download goes to the next one."""
+    value = (os.environ if env is None else env).get(OVERPASS_URLS_ENV, "")
+    return [u.strip() for u in value.split(",") if u.strip()] or [DEFAULT_BASE_URL]
+
+
+def build_overpass_source(
+    limits: OsmLimits, env: Mapping[str, str] | None = None
+) -> OverpassOsmSource:
+    return OverpassOsmSource(base_url=overpass_urls(env), limits=limits)
+
+
 def build_run_study(
     *,
     db: SqliteDatabase,
@@ -158,7 +176,7 @@ def build_run_study(
             editor=plain_editor,
             prober=SumoNetworkProber(SubprocessSumoRunner()),
             open_network=SumolibNetworkQuery,
-            osm=OverpassOsmSource(limits=osm_limits),
+            osm=build_overpass_source(osm_limits),
             geocoder=NominatimGeocoder(out_dir / "network" / "geocoder"),
             typemap_dir=typemap_dir(),
             out_dir=out_dir / "network" / "author",
