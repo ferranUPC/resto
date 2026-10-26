@@ -6,7 +6,9 @@ from __future__ import annotations
 import hashlib
 import json
 import shutil
+from collections.abc import Sequence
 from pathlib import Path
+from xml.etree import ElementTree
 
 from resto.adapters.persistence.filesystem import artifact_ref
 from resto.application.ports.osm import ExternalServiceError, LocatedPlace, PlaceRejected
@@ -29,6 +31,13 @@ XII", 302, 125 m) joins 300 to 303. A lateral lane, also "Avinguda Diagonal" but
 (305, lat 41.3903), touches the main road only through the 33 m of Balmes between them. A footway
 named "Passeig de la Diagonal" (306) leaves the west end. Two cross streets (Muntaner 310, Balmes
 311) and a street north of the corridor (Carrer de Dalt 320) close a loop away from it."""
+
+OPEN_RINGS_OSM = Path(__file__).parent / "fixtures" / "open_rings.osm"
+"""A main road along lat 41.39 (lon 2.10 to 2.2995) with 45 roundabouts of 8 nodes beside it, each
+left open (the way that closes it is missing) and joined to the road and to four spokes. Built
+as it is, `netconvert` 1.27.1 gives several different networks (4 in 12 builds); sealed, one."""
+
+OPEN_RINGS = BBox(south=41.38, west=2.09, north=41.40, east=2.40)
 
 CORRIDOR = BBox(south=41.384, west=2.099, north=41.396, east=2.151)
 
@@ -79,12 +88,19 @@ class FakeOsmSource:
     line of any road; like the real source, what was already fetched is returned from disk and
     `downloads` does not grow."""
 
-    def __init__(self, source: Path = DISTRICT_OSM, road: Path = CORRIDOR_OSM) -> None:
+    def __init__(
+        self,
+        source: Path = DISTRICT_OSM,
+        road: Path = CORRIDOR_OSM,
+        roundabouts: Path | None = None,
+    ) -> None:
         self.calls: list[BBox | Polygon] = []
+        self.roundabout_calls: list[tuple[int, ...]] = []
         self.road_calls: list[tuple[str, BBox]] = []
         self.downloads = 0
         self._source = source
         self._road = road
+        self._roundabouts = roundabouts
 
     def fetch(self, area: BBox | Polygon, out_dir: Path) -> ArtifactRef:
         self.calls.append(area)
@@ -93,6 +109,30 @@ class FakeOsmSource:
     def fetch_road(self, ref: str, area: BBox, out_dir: Path) -> ArtifactRef:
         self.road_calls.append((ref, area))
         return self._serve(self._road, out_dir / f"road-{_key((ref, area))}.osm")
+
+    def fetch_roundabouts(self, nodes: Sequence[int], out_dir: Path) -> ArtifactRef:
+        """The roundabout ways of `roundabouts` that pass through any of `nodes`, with their nodes
+        (an empty map when the double was given no file)."""
+        self.roundabout_calls.append(tuple(nodes))
+        target = out_dir / f"roundabouts-{_key(tuple(nodes))}.osm"
+        if self._roundabouts is not None and not target.exists():
+            root = ElementTree.parse(self._roundabouts).getroot()
+            keep = [
+                w
+                for w in root.iter("way")
+                if {int(nd.get("ref", "0")) for nd in w.iter("nd")} & set(nodes)
+            ]
+            used = {nd.get("ref") for w in keep for nd in w.iter("nd")}
+            answer = ElementTree.Element("osm", {"version": "0.6"})
+            answer.extend(n for n in root.iter("node") if n.get("id") in used)
+            answer.extend(keep)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(ElementTree.tostring(answer, encoding="UTF-8"))
+            self.downloads += 1
+        elif self._roundabouts is None:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text('<osm version="0.6"/>')
+        return artifact_ref(target, "osm")
 
     def _serve(self, source: Path, target: Path) -> ArtifactRef:
         if not target.exists():

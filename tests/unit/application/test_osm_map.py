@@ -6,6 +6,7 @@ that a corridor is drawn around (E6.1/15). The tools around them are tested in
 from __future__ import annotations
 
 import math
+from collections.abc import Mapping
 from typing import Any
 from xml.etree import ElementTree
 
@@ -23,6 +24,7 @@ from resto.application.osm_map import (
     Unreached,
 )
 from resto.domain.services.geo import distance_m
+from resto.domain.value_objects.network_source import BBox
 from tests.unit.application.tools._osm_doubles import (
     CORRIDOR_OSM,
     DIAGONAL_B23_OSM,
@@ -540,3 +542,76 @@ def test_a_selection_with_only_drop_rules_keeps_every_other_road() -> None:
 def test_a_selection_with_nothing_to_keep_or_drop_is_an_error() -> None:
     with pytest.raises(ValueError, match="drop"):
         OsmMap.read(CORRIDOR_OSM).select([], [], "none")
+
+
+# -- open roundabouts are stripped before netconvert (E6.1/16) ---------------------------------
+
+
+def rings_map(ways: Mapping[int, tuple[tuple[int, ...], Mapping[str, str]]]) -> OsmMap:
+    """Roundabout ways given as id -> (nodes, extra tags). A node's place follows from its id: the
+    hundreds pick the ring (0.01 degrees of longitude apart), the rest the point on it."""
+    used = sorted({n for nodes, _ in ways.values() for n in nodes})
+    body = "".join(
+        f'<node id="{n}" lat="{41.39 + 0.0003 * math.sin(n)}" '
+        f'lon="{2.1 + 0.001 * (n // 100) + 0.0004 * math.cos(n)}"/>'
+        for n in used
+    )
+    return OsmMap(
+        ElementTree.fromstring(
+            "<osm>"
+            + body
+            + "".join(
+                way(i, nodes, highway="primary", junction="roundabout", **tags)
+                for i, (nodes, tags) in ways.items()
+            )
+            + "</osm>"
+        )
+    )
+
+
+Ring = dict[int, tuple[tuple[int, ...], dict[str, str]]]
+CLOSED: Ring = {10: ((100, 101, 102, 103), {}), 11: ((103, 104, 105, 100), {})}
+OPEN: Ring = {20: ((200, 201, 202, 203), {}), 21: ((203, 204, 205), {"oneway": "-1"})}
+TOUCHING: Ring = {
+    30: ((300, 301, 302, 303), {}),
+    31: ((303, 304, 305, 300), {}),
+    40: ((300, 401, 402, 403), {}),  # node 300 belongs to both rings
+    41: ((403, 404, 405, 300), {}),
+}
+
+
+def tags_of(osm: OsmMap, way_id: int) -> dict[str, str]:
+    element = next(w for w in osm._root.iter("way") if w.get("id") == str(way_id))
+    return {t.get("k", ""): t.get("v", "") for t in element.iter("tag")}
+
+
+def test_only_open_rings_and_rings_that_share_a_node_lose_their_roundabout_tag() -> None:
+    osm = rings_map({**CLOSED, **OPEN, **TOUCHING})
+
+    sealed, stripped = osm.sealed()
+
+    assert stripped == (20, 21, 30, 31, 40, 41)
+    for kept in (10, 11):
+        assert tags_of(sealed, kept) == {"highway": "primary", "junction": "roundabout"}
+    assert tags_of(sealed, 20) == {"highway": "primary", "oneway": "yes"}
+    assert tags_of(sealed, 21)["oneway"] == "-1"  # a sense that was there stays
+    assert "junction" not in tags_of(sealed, 21)
+    assert tags_of(sealed, 41) == {"highway": "primary", "oneway": "yes"}
+
+
+def test_a_snapshot_with_only_closed_rings_is_returned_as_it_is() -> None:
+    osm = rings_map(CLOSED)
+
+    sealed, stripped = osm.sealed()
+
+    assert stripped == ()
+    assert sealed is osm
+
+
+def test_a_closed_ring_with_a_node_outside_the_area_is_treated_as_open() -> None:
+    osm = rings_map(CLOSED)
+    around = BBox(south=41.389, west=2.100, north=41.391, east=2.102)
+    short = BBox(south=41.389, west=2.100, north=41.3900, east=2.102)
+
+    assert osm.sealed(around)[1] == ()
+    assert osm.sealed(short)[1] == (10, 11)

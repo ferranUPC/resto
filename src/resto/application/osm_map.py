@@ -25,6 +25,9 @@ counts the edges of a `.net.xml`; no port stands in front of them.
   (`OsmMap.road_line`), shortest by length and in either direction: only its shape matters, for the
   band a stretch of road is downloaded as (E6.1/15). A ref matches whatever its case, hyphens
   and spaces ("A2" is "A-2", not "A-21").
+- **A sealed map** has no open roundabout (`OsmMap.sealed`): the roundabout tag is taken off the
+  rings that are open, that meet another, or that the cut to the area leaves open, because
+  `netconvert` 1.27.1 builds those differently from one run to the next (E6.1/16, ADR-0051).
 """
 
 from __future__ import annotations
@@ -34,7 +37,7 @@ import hashlib
 import heapq
 import math
 import re
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Callable, Hashable, Iterable, Sequence, Set
 from dataclasses import dataclass
 from itertools import combinations, groupby, pairwise
@@ -43,8 +46,9 @@ from typing import Any, Generic, Literal, TypeVar
 from xml.etree import ElementTree
 
 from resto.application.ports.osm import LocatedPlace
-from resto.domain.services.geo import distance_m, path_m
+from resto.domain.services.geo import distance_m, inside_by_m, path_m
 from resto.domain.value_objects.artifact_ref import ArtifactRef
+from resto.domain.value_objects.network_source import BBox, Polygon
 
 Point = tuple[float, float]  # (lat, lon)
 StreetKey = tuple[str, str, str]  # (name, ref, class); the class only when name and ref are empty
@@ -716,6 +720,87 @@ class OsmMap:
         partial.write_bytes(body)
         partial.replace(target)
         return ArtifactRef(target.resolve(), hashlib.sha256(body).hexdigest(), "osm")
+
+    # -- open roundabouts ---------------------------------------------------------------------
+
+    def _ring_groups(self) -> list[list[OsmWay]]:
+        """The roundabout ways joined by shared nodes: a group for each ring, or tangle of rings."""
+        joined: _Joined[int] = _Joined()
+        for way in self.ways.values():
+            if way.roundabout:
+                for node in way.nodes:
+                    joined.join(way.id, -node)  # nodes are negative keys, ways positive
+        groups: dict[int, list[OsmWay]] = defaultdict(list)
+        for way in self.ways.values():
+            if way.roundabout:
+                groups[joined.root(way.id)].append(way)
+        return [sorted(group, key=lambda w: w.id) for group in groups.values()]
+
+    @staticmethod
+    def _degrees(group: Sequence[OsmWay]) -> Counter[int]:
+        """How many ring segments end at each node: 2 all round a ring, 1 at an open end, more
+        where two rings meet."""
+        degree: Counter[int] = Counter()
+        for way in group:
+            for a, b in pairwise(way.nodes):
+                degree[a] += 1
+                degree[b] += 1
+        return degree
+
+    def open_ring_ends(self) -> list[int]:
+        """The nodes where a roundabout stops short: the ends of the rings that are open, in
+        order, for asking the source for the ways that close them."""
+        return sorted(
+            node
+            for group in self._ring_groups()
+            for node, count in self._degrees(group).items()
+            if count == 1
+        )
+
+    def open_rings(self, area: BBox | Polygon | None = None) -> set[int]:
+        """The ids of the roundabout ways that `netconvert` cannot take as a roundabout: a ring
+        left open, one that shares a node with another, or (with `area`) one with a node outside
+        the area it cuts to, which the cut leaves open (E6.1/16, ADR-0051)."""
+        loose: set[int] = set()
+        for group in self._ring_groups():
+            nodes = {n for way in group for n in way.nodes}
+            closed = all(count == 2 for count in self._degrees(group).values())
+            if closed and area is not None:
+                closed = all(
+                    n in self.nodes and inside_by_m(area, self.nodes[n]) >= 0 for n in nodes
+                )
+            if not closed:
+                loose.update(way.id for way in group)
+        return loose
+
+    def sealed(self, area: BBox | Polygon | None = None) -> tuple[OsmMap, tuple[int, ...]]:
+        """The map without the roundabout tag on its open rings (`open_rings`), and the ids of the
+        ways that lost it. `junction` goes, and `oneway=yes` is added where the way says nothing
+        about its direction, so the ring is still driven one way. `netconvert` 1.27.1 is not
+        deterministic with an open ring: it cuts it into false roundabouts where the heap order
+        says. With none open the map itself comes back."""
+        loose = self.open_rings(area)
+        if not loose:
+            return self, ()
+        root = copy.deepcopy(self._root)
+        for element in root.iter("way"):
+            if int(element.get("id", "0")) not in loose:
+                continue
+            tags = {t.get("k"): t for t in element.iter("tag")}
+            element.remove(tags["junction"])
+            if "oneway" not in tags:
+                ElementTree.SubElement(element, "tag", {"k": "oneway", "v": "yes"})
+        return OsmMap(root), tuple(sorted(loose))
+
+    def with_ways_of(self, other: OsmMap) -> OsmMap:
+        """This map with the nodes and ways of `other` it does not have, after its own."""
+        root = copy.deepcopy(self._root)
+        for kind in ("node", "way"):
+            known = {int(e.get("id", "0")) for e in root.iter(kind)}
+            for element in other._root.iter(kind):
+                if int(element.get("id", "0")) not in known:
+                    root.append(copy.deepcopy(element))
+        return OsmMap(root)
 
     # -- tracing ----------------------------------------------------------------------------
 

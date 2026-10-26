@@ -4,6 +4,7 @@ network and no LLM."""
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
 from dataclasses import asdict, replace
 from pathlib import Path
@@ -56,6 +57,8 @@ from tests.unit.application.tools._osm_doubles import (
     INTERCHANGE_OSM,
     INTERCHANGE_ZONE,
     MACIA,
+    OPEN_RINGS,
+    OPEN_RINGS_OSM,
     WEST_END,
     FakeGeocoder,
     FakeOsmSource,
@@ -1082,3 +1085,114 @@ def test_the_band_of_a_road_loses_its_town_streets_with_drop_alone(tmp_path: Pat
 
     assert {300, 301, 303} <= osm_ways_of(built)
     assert not {310, 311} & osm_ways_of(built), "Muntaner and Balmes are residential"
+
+
+# -- the roundabouts a band touches come whole (E6.1/16, ADR-0051) -------------------------------
+
+
+def with_half_a_roundabout(tmp_path: Path) -> tuple[Path, Path]:
+    """The corridor plus a ring of six nodes at (41.3903, 2.125), above the road, of which the
+    band download holds only way 900 (the other half, way 901, lies in the second file)."""
+    ring = "".join(
+        f'<node id="{900 + i}" lat="{41.3903 + 0.0001 * math.sin(i)}" '
+        f'lon="{2.125 + 0.0001 * math.cos(i)}"/>'
+        for i in range(1, 7)
+    )
+    tags = '<tag k="highway" v="primary"/><tag k="junction" v="roundabout"/>'
+    first = f'<way id="900"><nd ref="901"/><nd ref="902"/><nd ref="903"/>{tags}</way>'
+    second = (
+        '<way id="901"><nd ref="903"/><nd ref="904"/><nd ref="905"/><nd ref="906"/>'
+        f'<nd ref="901"/>{tags}</way>'
+    )
+    corridor = CORRIDOR_OSM.read_text().replace("</osm>", ring + first + "</osm>")
+    band, rest = tmp_path / "band.osm", tmp_path / "rest.osm"
+    band.write_text(corridor)
+    rest.write_text(f'<osm version="0.6">{ring}{first}{second}</osm>')
+    return band, rest
+
+
+def test_a_roundabout_the_band_only_partly_holds_comes_whole_in_the_snapshot(
+    tmp_path: Path,
+) -> None:
+    band, rest = with_half_a_roundabout(tmp_path)
+    osm = FakeOsmSource(band, road=CORRIDOR_OSM, roundabouts=rest)
+    run = run_in(tmp_path / "run", osm)
+
+    result = fetch_road(run, ref="N-340", from_point=WEST, to_point=EAST, half_width_m=100)
+
+    snapshot = OsmMap.read(Path(result["osm_snapshot"]["path"]))
+    assert {900, 901} <= set(snapshot.ways)
+    assert snapshot.open_rings() == set()
+    assert set(OsmMap.read(CORRIDOR_OSM).ways) <= set(snapshot.ways)
+    assert result["osm_snapshot"]["content_hash"] in run.imports
+    assert osm.roundabout_calls == [(901, 903)], "asked once, for the two open ends"
+
+
+def test_a_band_with_no_open_roundabout_is_not_asked_for_more(tmp_path: Path) -> None:
+    run, osm = road_run(tmp_path)
+
+    result = fetch_road(run, ref="N-340", from_point=WEST, to_point=EAST, half_width_m=100)
+
+    assert osm.roundabout_calls == []
+    assert Path(result["osm_snapshot"]["path"]).name.startswith("osm-"), "the download itself"
+
+
+def test_a_ring_left_open_is_sealed_in_the_snapshot_a_network_is_built_from(
+    tmp_path: Path,
+) -> None:
+    band, _ = with_half_a_roundabout(tmp_path)
+    run = run_in(tmp_path / "run", FakeOsmSource(band))
+    fetched = fetch_osm(run, bbox=[CORRIDOR.south, CORRIDOR.west, CORRIDOR.north, CORRIDOR.east])
+    raw = fetched["osm_snapshot"]
+
+    built = netconvert(run, osm_snapshot=raw["content_hash"])
+
+    sealed = built["osm_snapshot"]
+    assert sealed["content_hash"] != raw["content_hash"]
+    osm = OsmMap.read(Path(sealed["path"]))
+    assert osm.open_rings(CORRIDOR) == set()
+    assert not osm.ways[900].roundabout and osm.ways[900].oneway == 1
+    assert OsmMap.read(Path(raw["path"])).ways[900].roundabout, "the download is kept as it came"
+    assert built["net_artifact"]["kind"] == "net"
+    # the cleanups rebuild from the same sealed snapshot
+    again = keep_largest_component(run, osm_snapshot=raw["content_hash"])
+    assert again["osm_snapshot"] == sealed
+    assert again["net_artifact"] == built["net_artifact"]
+
+
+def test_a_snapshot_with_no_open_ring_is_built_as_it_came(tmp_path: Path) -> None:
+    run = run_in(tmp_path)
+    fetched = fetch_osm(run, bbox=[41.389, 2.149, 41.399, 2.161])
+
+    built = netconvert(run, osm_snapshot=fetched["osm_snapshot"]["content_hash"])
+
+    assert built["osm_snapshot"] == fetched["osm_snapshot"]
+
+
+def test_a_snapshot_with_open_rings_builds_to_the_same_network_every_time(tmp_path: Path) -> None:
+    """`netconvert` 1.27.1 cuts an open ring into false roundabouts where the heap order says."""
+    hashes = set()
+    for i in range(10):
+        run = run_in(
+            tmp_path / str(i), FakeOsmSource(OPEN_RINGS_OSM), limits=OsmLimits(max_area_km2=100)
+        )
+        fetched = fetch_osm(
+            run,
+            bbox=[OPEN_RINGS.south, OPEN_RINGS.west, OPEN_RINGS.north, OPEN_RINGS.east],
+            margin_pct=0,
+        )
+        built = netconvert(run, osm_snapshot=fetched["osm_snapshot"]["content_hash"])
+        hashes.add(built["net_artifact"]["content_hash"])
+        replayed = SubprocessNetconvertRunner().build(
+            ArtifactRef(
+                Path(built["osm_snapshot"]["path"]),
+                built["osm_snapshot"]["content_hash"],
+                "osm",
+            ),
+            None,
+            tuple(built["netconvert_options"]),
+            tmp_path / f"replay{i}",
+        )
+        hashes.add(replayed.content_hash)
+
+    assert len(hashes) == 1

@@ -228,6 +228,31 @@ def fetch_osm(
     return {"source": asdict(area), "osm_snapshot": artifact_json(snapshot)}
 
 
+MAX_RING_ROUNDS = 3
+"""How many times `fetch_road` asks for the ways that close the roundabouts a band holds only in
+part: a ring of many ways may need more than one ask, and one that never closes is left to
+`OsmMap.sealed`."""
+
+
+def _with_whole_roundabouts(ctx: ImportRun, snapshot: ArtifactRef) -> ArtifactRef:
+    """`snapshot`, or a new snapshot with the ways that close the roundabouts it holds only in
+    part (ADR-0051), as `select_streets` does for a selection."""
+    osm = whole = OsmMap.read(snapshot.path)
+    for _ in range(MAX_RING_ROUNDS):
+        ends = whole.open_ring_ends()
+        if not ends:
+            break
+        more = OsmMap.read(ctx.osm.fetch_roundabouts(ends, ctx.out_dir / "osm").path)
+        grown = whole.with_ways_of(more)
+        if len(grown.ways) == len(whole.ways):
+            break
+        whole = grown
+    if whole is osm:
+        return snapshot
+    key = work_key(json.dumps([snapshot.content_hash, "roundabouts"]))
+    return whole.write(ctx.out_dir / "osm" / f"completed-{key}.osm")
+
+
 _POINT = Field(min_length=2, max_length=2, description="[lat, lon], e.g. from `locate_place`.")
 
 
@@ -294,7 +319,7 @@ def fetch_road(
     area = resolve_area(road_band(line, half_width_m), (), ctx.geocoder, ctx.limits, margin_pct=0)
     if isinstance(area, NeedsUser):
         return _needs_user(area)
-    snapshot = ctx.osm.fetch(area, ctx.out_dir / "osm")
+    snapshot = _with_whole_roundabouts(ctx, ctx.osm.fetch(area, ctx.out_dir / "osm"))
     ctx.imports[snapshot.content_hash] = _Import(area, snapshot)
     return {
         "source": asdict(area),
@@ -577,9 +602,8 @@ def _build(ctx: ImportRun, key: str, state: _Import) -> Mapping[str, Any]:
     options = netconvert_options(
         profile_named(state.profile), state.area, ctx.typemap_dir, state.cleanups
     )
-    net = ctx.runner.build(
-        state.snapshot, None, options, ctx.out_dir / "imported" / short_hash(key)
-    )
+    snapshot = _sealed(ctx, state)
+    net = ctx.runner.build(snapshot, None, options, ctx.out_dir / "imported" / short_hash(key))
     state = replace(state, net=net)
     ctx.imports[key] = state
     # the edges are only known once the network is built, so the limit is checked here, for the
@@ -602,10 +626,25 @@ def _build(ctx: ImportRun, key: str, state: _Import) -> Mapping[str, Any]:
         )
     return {
         "source": asdict(state.area),
-        "osm_snapshot": artifact_json(state.snapshot),
+        "osm_snapshot": artifact_json(snapshot),
         "netconvert_options": list(options),
         "net_artifact": artifact_json(net),
     }
+
+
+def _sealed(ctx: ImportRun, state: _Import) -> ArtifactRef:
+    """The snapshot a network is built from: `state.snapshot`, or the same with the roundabout tag
+    taken off the rings `netconvert` would not build the same way twice (`OsmMap.sealed`, ADR-0051).
+    The sealed one is a snapshot of its own, written once and known to the run, so the recipe
+    replays from the very bytes that were built."""
+    osm = OsmMap.read(state.snapshot.path)
+    sealed, stripped = osm.sealed(state.area)
+    if not stripped:
+        return state.snapshot
+    key = work_key(json.dumps([state.snapshot.content_hash, "sealed", stripped]))
+    snapshot = sealed.write(ctx.out_dir / "osm" / f"sealed-{key}.osm")
+    ctx.imports.setdefault(snapshot.content_hash, _Import(state.area, snapshot))
+    return snapshot
 
 
 def _edge_count(net_xml: Path) -> int:

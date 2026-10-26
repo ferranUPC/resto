@@ -6,12 +6,15 @@ railways are both downloaded: the snapshot is keyed by the polygon alone and the
 (`rail` needs the railways) is chosen afterwards.
 
 The line of a road (`fetch_road`, ADR-0050) is a lighter query: only the highways whose `ref` is
-that road's, inside a box, so the band around it can be drawn before the area is downloaded."""
+that road's, inside a box, so the band around it can be drawn before the area is downloaded.
+`fetch_roundabouts` asks for the roundabout ways through some nodes, to close the rings a download
+left open (ADR-0051)."""
 
 from __future__ import annotations
 
 import json
 import re
+from collections.abc import Sequence
 from pathlib import Path
 from urllib.parse import urlencode
 
@@ -60,6 +63,14 @@ class OverpassOsmSource:
         box = ",".join(format_coordinate(v) for v in (area.south, area.west, area.north, area.east))
         query = f'{self._header()}way["highway"]["ref"~"{pattern}",i]({box});(._;>;);out;'
         return self._download(query, out_dir / f"road-{work_key(json.dumps([pattern, box]))}.osm")
+
+    def fetch_roundabouts(self, nodes: Sequence[int], out_dir: Path) -> ArtifactRef:
+        ids = ",".join(str(n) for n in sorted(set(nodes)))
+        query = (
+            f"{self._header()}node(id:{ids})->.ends;"
+            'way(bn.ends)["junction"~"^(roundabout|circular)$"];(._;>;);out;'
+        )
+        return self._download(query, out_dir / f"roundabouts-{work_key(ids)}.osm")
 
     def _download(self, query: str, target: Path) -> ArtifactRef:
         if target.exists():

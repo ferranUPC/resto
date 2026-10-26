@@ -227,3 +227,22 @@ def test_a_failing_road_download_names_overpass_and_stores_nothing(tmp_path: Pat
             _source(service).fetch_road("A-2", ROAD_BOX, tmp_path)
 
     assert list(tmp_path.iterdir()) == []
+
+
+def test_the_ways_that_close_a_roundabout_are_asked_for_by_the_nodes_it_stops_at(
+    tmp_path: Path,
+) -> None:
+    with fake_service() as service:
+        service.answer(OSM)
+        source = _source(service)
+
+        first = source.fetch_roundabouts([903, 901], tmp_path)
+        again = source.fetch_roundabouts([901, 903], tmp_path)
+        other = source.fetch_roundabouts([5], tmp_path)
+
+    query = _query(service)
+    assert "node(id:901,903)->.ends;" in query
+    assert 'way(bn.ends)["junction"~"^(roundabout|circular)$"];' in query
+    assert "(._;>;)" in query
+    assert again == first and len(service.received) == 2
+    assert first.path != other.path

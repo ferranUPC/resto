@@ -4,6 +4,7 @@ polygon once, or the line of one road by its ref."""
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
@@ -91,4 +92,11 @@ class OsmSource(Protocol):
         case, hyphens and spaces), with their nodes: the line a road band is drawn around
         (ADR-0050). Stored once per ref and box, like `fetch`. Raises `ExternalServiceError`
         when the service fails."""
+        ...
+
+    def fetch_roundabouts(self, nodes: Sequence[int], out_dir: Path) -> ArtifactRef:
+        """The `.osm` snapshot of the roundabout ways (`junction=roundabout` or `circular`) that
+        pass through any of the nodes `nodes`, with all their nodes: what closes the rings a
+        download left open (ADR-0051). Stored once per set of nodes, like `fetch`. Raises
+        `ExternalServiceError` when the service fails."""
         ...
