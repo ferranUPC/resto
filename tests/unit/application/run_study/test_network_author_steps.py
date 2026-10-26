@@ -192,6 +192,7 @@ def sanity_of(tools: Sequence[Tool], artifact: Mapping[str, Any]) -> SanityRepor
         report["largest_scc_ratio"],
         report["zero_length_edges"],
         report["all_reachable_from_fringe"],
+        report["through_traffic_ratio"],
     )
 
 
@@ -278,7 +279,7 @@ def stored_grid(tmp_path: Path, size: int, label: str) -> Network:
         network_id=built.content_hash,
         net_xml=built,
         recipe=NetworkRecipe(source=GridNetwork(size, size)),
-        sanity_report=SanityReport(1.0, 0, True),
+        sanity_report=SanityReport(1.0, 0, True, 1.0),
         label=label,
     )
 
@@ -519,8 +520,9 @@ def test_a_corridor_is_located_selected_verified_and_promoted_from_its_selection
     assert ways == {300, 301, 302, 303, 304, 305, 311}, "road, lateral, link, square, crossing"
     assert osm.downloads == 1
     assert isinstance(promoted.recipe.source, BBox), "the box drawn from the located places"
-    assert promoted.recipe.source.west == pytest.approx(WEST_END.lon - 0.005)
-    assert promoted.recipe.source.east == pytest.approx(EAST_END.lon + 0.005)
+    # the drawn box, grown by the default margin (ADR-0049)
+    assert promoted.recipe.source.west < WEST_END.lon - 0.005
+    assert promoted.recipe.source.east > EAST_END.lon + 0.005
 
 
 class DownOsm:

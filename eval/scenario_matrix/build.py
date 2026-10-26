@@ -90,7 +90,10 @@ def _dev_net_network() -> Network:
             source=GridNetwork(x_number=5, y_number=5, x_length=200.0, y_length=200.0)
         ),
         sanity_report=SanityReport(
-            largest_scc_ratio=1.0, zero_length_edges=0, all_reachable_from_fringe=True
+            largest_scc_ratio=1.0,
+            zero_length_edges=0,
+            all_reachable_from_fringe=True,
+            through_traffic_ratio=1.0,
         ),
         label="dev-net",
     )

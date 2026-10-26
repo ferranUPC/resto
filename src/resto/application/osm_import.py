@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Literal, get_args
 
 from resto.application.ports.osm import Geocoder, OsmLimits, PlaceRejected
-from resto.domain.services.geo import area_km2, ring_of
+from resto.domain.services.geo import area_km2, expand_area, format_coordinate, ring_of
 from resto.domain.value_objects.network_source import AreaOfInterest, BBox, PlaceName, Polygon
 from resto.domain.value_objects.outcomes import (
     AreaTooLarge,
@@ -140,8 +140,14 @@ def netconvert_options(
 
 
 def _boundary(area: BBox | Polygon) -> str:
-    return " ".join(f"{lon:g},{lat:g}" for lat, lon in ring_of(area))
+    return " ".join(
+        f"{format_coordinate(lon)},{format_coordinate(lat)}" for lat, lon in ring_of(area)
+    )
 
+
+DEFAULT_MARGIN_PCT = 5.0
+"""Margin of an import when the caller names none (ADR-0049): a boundary often runs along the axis
+of a street, and the street must not sit on the edge of the cut."""
 
 _TRANSIT = re.compile(
     r"\b(public[ -]transport|transit|bus(es)?[ -](stops?|lines?|routes?)|tram[ -](stops?|lines?)"
@@ -156,8 +162,11 @@ def resolve_area(
     requirements: tuple[str, ...],
     geocoder: Geocoder,
     limits: OsmLimits,
+    margin_pct: float = DEFAULT_MARGIN_PCT,
 ) -> BBox | Polygon | NeedsUser:
-    """The area to import, or the `NeedsUser` that says why it cannot be. Never downloads.
+    """The area to import grown by `margin_pct` (see `expand_area`), or the `NeedsUser` that says
+    why it cannot be. The size limit is checked on the grown area, the one that is downloaded.
+    Never downloads.
 
     Raises `ExternalServiceError` when the geocoder fails: the user cannot fix that."""
     for requirement in requirements:
@@ -177,6 +186,7 @@ def resolve_area(
                 reason=PlaceNotBoundary(rejected.query),
                 message=f"The place {rejected.query!r} cannot be imported: {rejected.reason}.",
             )
+    area = expand_area(area, margin_pct)
     size = area_km2(area)
     if size > limits.max_area_km2:
         return NeedsUser(

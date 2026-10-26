@@ -12,7 +12,9 @@ pydantic) and, on success, end the run with `StopReason.OUTPUT`. A validation fa
 to the model as that tool's result, so it gets another turn to fix it — still inside
 `budget.max_steps`, which is where ADR-0001's "retry-on-validation-failure, implemented once at
 the port" lives. Running out of `max_steps`/`max_seconds` without a valid `submit_output` call
-ends the run with `StopReason.BUDGET`, never a partially-guessed output.
+ends the run with `StopReason.BUDGET`, never a partially-guessed output. A submission rejected
+with the same message `MAX_SAME_REJECTIONS` times in a row ends it with `StopReason.ERROR`: the
+model is repeating itself and more turns only cost input tokens.
 
 Never logs or prints `LlmConfig.api_key` — the OpenAI SDK client holds it in memory only. The
 adapter does not write to the study trace; the run's `usage` carries what the recorder needs.
@@ -20,6 +22,11 @@ adapter does not write to the study trace; the run's `usage` carries what the re
 Every call asks OpenRouter for `usage.cost` (`extra_body={"usage": {"include": True}}`) and sums
 it into the returned `Usage.cost_usd`; a step whose response doesn't carry it makes the whole run's
 total `None` rather than an understated partial sum.
+
+It also caps the model's reasoning at `REASONING_SHARE` of `budget.max_tokens`
+(`extra_body={"reasoning": {"max_tokens": ...}}`). OpenRouter counts reasoning inside the output
+limit, so without a cap the model can think until `finish_reason="length"` with no tool call.
+The rest of the limit is left for the answer. Each `StepTrace` keeps the reasoning it got back.
 """
 
 from __future__ import annotations
@@ -51,6 +58,8 @@ T = TypeVar("T")
 SUBMIT_TOOL_NAME = "submit_output"
 UNION_FIELD = "outcome"
 _RESULT_SUMMARY_MAX_LEN = 500
+REASONING_SHARE = 0.8
+MAX_SAME_REJECTIONS = 3
 
 CompletionFn = Callable[..., Any]
 
@@ -98,6 +107,8 @@ class OpenRouterToolAgent:
         output_tokens = 0
         cost_usd: float | None = 0.0
         started = time.monotonic()
+        last_rejection = ""
+        same_rejections = 0
 
         for _ in range(budget.max_steps):
             if time.monotonic() - started > budget.max_seconds:
@@ -109,7 +120,10 @@ class OpenRouterToolAgent:
                 tools=tools_schema,
                 tool_choice="auto",
                 max_tokens=budget.max_tokens,
-                extra_body={"usage": {"include": True}},
+                extra_body={
+                    "usage": {"include": True},
+                    "reasoning": {"max_tokens": int(budget.max_tokens * REASONING_SHARE)},
+                },
             )
             usage = getattr(response, "usage", None)
             step_input = getattr(usage, "prompt_tokens", 0) or 0
@@ -129,6 +143,8 @@ class OpenRouterToolAgent:
                     finish_reason=getattr(choice, "finish_reason", None),
                     input_tokens=step_input,
                     output_tokens=step_output,
+                    reasoning_tokens=_reasoning_tokens(usage),
+                    reasoning=str(getattr(message, "reasoning", None) or ""),
                 )
             )
             if not calls:
@@ -162,6 +178,20 @@ class OpenRouterToolAgent:
                                 result_summary=feedback[:_RESULT_SUMMARY_MAX_LEN],
                             )
                         )
+                        same_rejections = same_rejections + 1 if feedback == last_rejection else 1
+                        last_rejection = feedback
+                        if same_rejections >= MAX_SAME_REJECTIONS:
+                            return AgentRun(
+                                output=None,
+                                tool_calls=tuple(tool_calls),
+                                usage=Usage(
+                                    input_tokens=input_tokens,
+                                    output_tokens=output_tokens,
+                                    cost_usd=cost_usd,
+                                ),
+                                stop_reason=StopReason.ERROR,
+                                steps=tuple(steps),
+                            )
                         continue
                     tool_calls.append(
                         ToolCall(name=name, arguments=arguments, result_summary="submitted")
@@ -258,6 +288,11 @@ def _submit_tool_schema(output: type[Any], parameters: dict[str, Any]) -> dict[s
             "parameters": parameters,
         },
     }
+
+
+def _reasoning_tokens(usage: Any) -> int:
+    details = getattr(usage, "completion_tokens_details", None)
+    return getattr(details, "reasoning_tokens", 0) or 0
 
 
 def _assistant_message(message: Any, calls: Sequence[Any]) -> dict[str, Any]:

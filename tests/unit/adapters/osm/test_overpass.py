@@ -50,6 +50,25 @@ def test_the_query_filters_by_poly_in_lat_lon_and_takes_whole_ways(tmp_path: Pat
     assert "(._;>;)" in query
 
 
+def test_a_seven_decimal_coordinate_reaches_the_query_intact(tmp_path: Path) -> None:
+    area = Polygon(
+        (
+            (41.3896127, 2.1494837),
+            (41.3896127, 2.1605163),
+            (41.3983873, 2.1605163),
+            (41.3896127, 2.1494837),
+        )
+    )
+    with fake_service() as service:
+        service.answer(OSM)
+
+        _source(service).fetch(area, tmp_path)
+
+    assert 'poly:"41.3896127 2.1494837 41.3896127 2.1605163 41.3983873 2.1605163"' in _query(
+        service
+    )
+
+
 def test_a_second_fetch_of_the_same_polygon_does_not_download_again(tmp_path: Path) -> None:
     with fake_service() as service:
         service.answer(OSM)

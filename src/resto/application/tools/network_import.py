@@ -33,6 +33,7 @@ from xml.etree import ElementTree
 from pydantic import Field
 
 from resto.application.osm_import import (
+    DEFAULT_MARGIN_PCT,
     DEFAULT_PROFILE,
     PROFILES,
     VCLASSES,
@@ -63,7 +64,13 @@ from resto.application.ports.osm import Geocoder, LocatedPlace, OsmLimits, OsmSo
 from resto.application.ports.sumo import NetconvertRunner
 from resto.application.tools.declaration import artifact_json, tool
 from resto.domain.services.content_hash import short_hash, work_key
-from resto.domain.services.geo import area_km2, bbox_around, inside_by_m, ring_of
+from resto.domain.services.geo import (
+    MAX_MARGIN_PCT,
+    area_km2,
+    bbox_around,
+    inside_by_m,
+    ring_of,
+)
 from resto.domain.value_objects.artifact_ref import ArtifactRef
 from resto.domain.value_objects.network_source import BBox, PlaceName, Polygon
 from resto.domain.value_objects.outcomes import AreaTooLarge, NeedsUser
@@ -136,7 +143,10 @@ def list_import_profiles(ctx: ImportRun) -> Mapping[str, Any]:
     description=(
         "Download the OpenStreetMap data of an area of interest, once per polygon (a second call "
         "for the same area reuses the stored snapshot). Name the area with exactly one of `bbox`, "
-        "`polygon` or `place_name` (an administrative boundary, resolved to a polygon). Put any "
+        "`polygon` or `place_name` (an administrative boundary, resolved to a polygon). The area "
+        "is widened by `margin_pct` (5 % by default) before it is downloaded and cut, so the "
+        "streets along its edge come whole; prune what is left over afterwards, and pass a "
+        "larger `margin_pct` when the user asks for the surroundings. Put any "
         "extra thing the user asked for in `requirements`, for example 'bus stops'. Returns the "
         "`source` and the `osm_snapshot` for the recipe, or `needs_user` when the area is above "
         "the size limit, the place is not a boundary, or a requirement is unsupported (public "
@@ -164,6 +174,17 @@ def fetch_osm(
         list[str],
         Field(description="What else the user asked for, in their words, e.g. ['bus stops']."),
     ] = [],  # noqa: B006 - never mutated; pydantic copies the default
+    margin_pct: Annotated[
+        float,
+        Field(
+            ge=0,
+            le=MAX_MARGIN_PCT,
+            description=(
+                "How much to widen the area before downloading and cutting, in percent of the "
+                "side of a square of its surface (5 is about 30 m for a district)."
+            ),
+        ),
+    ] = DEFAULT_MARGIN_PCT,
 ) -> Mapping[str, Any]:
     named = [x for x in (bbox, polygon, place_name) if x is not None]
     if len(named) != 1:
@@ -175,7 +196,7 @@ def fetch_osm(
         request = Polygon(tuple((lat, lon) for lat, lon in polygon))
     else:
         request = PlaceName(cast("str", place_name))
-    area = resolve_area(request, tuple(requirements), ctx.geocoder, ctx.limits)
+    area = resolve_area(request, tuple(requirements), ctx.geocoder, ctx.limits, margin_pct)
     if isinstance(area, NeedsUser):
         return _needs_user(area)
     snapshot = ctx.osm.fetch(area, ctx.out_dir / "osm")

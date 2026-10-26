@@ -96,14 +96,17 @@ def inspect_edge(
 @tool(
     name="sanity_check",
     description=(
-        "Is the network sound? Returns the share of edges in the largest strongly connected "
-        "component, the number of zero-length edges, whether every edge can be reached from the "
-        "border, and whether the three together pass."
+        "Is the network sound? Returns the share of edges that lie on a path from an entry to an "
+        "exit (`through_traffic_ratio`, what the check is judged on), the share in the largest "
+        "strongly connected component (reported only: a road with one carriageway per direction "
+        "is not one loop), the number of zero-length edges, whether every edge can be reached "
+        "from the border, and whether they pass together."
     ),
 )
 def sanity_check(ctx: InspectionRun, net_path: _NetPath) -> Mapping[str, Any]:
     report = sanity_report(ctx.open_network(_inside(ctx, net_path)))
     return {
+        "through_traffic_ratio": report.through_traffic_ratio,
         "largest_scc_ratio": report.largest_scc_ratio,
         "zero_length_edges": report.zero_length_edges,
         "all_reachable_from_fringe": report.all_reachable_from_fringe,

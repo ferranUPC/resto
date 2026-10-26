@@ -103,7 +103,12 @@ def area_recipe() -> NetworkRecipe:
 
 
 def good_sanity() -> SanityReport:
-    return SanityReport(largest_scc_ratio=0.98, zero_length_edges=0, all_reachable_from_fringe=True)
+    return SanityReport(
+        largest_scc_ratio=0.98,
+        zero_length_edges=0,
+        all_reachable_from_fringe=True,
+        through_traffic_ratio=0.98,
+    )
 
 
 def unlinted_script() -> TraciScript:
@@ -112,7 +117,10 @@ def unlinted_script() -> TraciScript:
 
 def bad_sanity() -> SanityReport:
     return SanityReport(
-        largest_scc_ratio=0.80, zero_length_edges=3, all_reachable_from_fringe=False
+        largest_scc_ratio=0.80,
+        zero_length_edges=3,
+        all_reachable_from_fringe=False,
+        through_traffic_ratio=0.80,
     )
 
 

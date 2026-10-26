@@ -390,6 +390,10 @@
           "title": "Largest Scc Ratio",
           "type": "number"
         },
+        "through_traffic_ratio": {
+          "title": "Through Traffic Ratio",
+          "type": "number"
+        },
         "zero_length_edges": {
           "title": "Zero Length Edges",
           "type": "integer"
@@ -398,7 +402,8 @@
       "required": [
         "largest_scc_ratio",
         "zero_length_edges",
-        "all_reachable_from_fringe"
+        "all_reachable_from_fringe",
+        "through_traffic_ratio"
       ],
       "title": "SanityReport",
       "type": "object"

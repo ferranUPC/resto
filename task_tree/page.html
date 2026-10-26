@@ -989,7 +989,10 @@ function fit() {
   scale = Math.max(scale, 0.25);
   tx = 20; ty = 30; apply();
 }
-canvas.addEventListener("wheel", ev => {
+window.addEventListener("wheel", ev => {
+  // The canvas shrinks when the panel or the queue is open, and the toolbar and legend float over it,
+  // so listen on the window. The overlays that scroll on their own keep their wheel.
+  if (!canvas.contains(ev.target) && ev.target.closest("#panel, #queue, #md-backdrop, #results")) return;
   ev.preventDefault();
   // Zoom in proportion to how far the wheel moved, in pixels whatever the browser's delta unit:
   // a mouse notch is ~100 px (Firefox reports 3 lines), a trackpad sends many tiny deltas.
@@ -998,7 +1001,11 @@ canvas.addEventListener("wheel", ev => {
   const f = Math.exp(-Math.max(-120, Math.min(120, pixels)) * speed);
   const next = Math.min(2.5, Math.max(0.15, scale * f));
   const k = next / scale;
-  tx = ev.clientX - (ev.clientX - tx) * k; ty = ev.clientY - (ev.clientY - ty) * k; scale = next; apply();
+  tx = ev.clientX - (ev.clientX - tx) * k; ty = ev.clientY - (ev.clientY - ty) * k; scale = next;
+  // A drag in progress holds the pointer-to-origin offset from mousedown; the zoom moved the origin,
+  // so take the offset again or the next mousemove snaps the view back to the old position.
+  if (drag) drag = [ev.clientX - tx, ev.clientY - ty];
+  apply();
 }, { passive: false });
 canvas.addEventListener("mousedown", ev => {
   ev.preventDefault();

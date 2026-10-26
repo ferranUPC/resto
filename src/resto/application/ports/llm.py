@@ -51,13 +51,17 @@ class ToolCall:
 @dataclass(frozen=True, slots=True)
 class StepTrace:
     """One model call of a run: which tools it asked for (empty for a plain-text reply), how long
-    its text was, and why it stopped (`"length"` = cut at the output-token limit)."""
+    its text was, and why it stopped (`"length"` = cut at the output-token limit).
+    `reasoning_tokens` is the part of `output_tokens` spent thinking and `reasoning` the text the
+    provider returned for it, both empty when the provider reports none."""
 
     tool_calls: tuple[str, ...]
     text_chars: int
     finish_reason: str | None
     input_tokens: int
     output_tokens: int
+    reasoning_tokens: int = 0
+    reasoning: str = ""
 
 
 @dataclass(frozen=True, slots=True)

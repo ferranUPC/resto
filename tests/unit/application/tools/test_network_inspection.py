@@ -52,6 +52,7 @@ def test_sanity_check_passes_on_a_healthy_network(tmp_path: Path) -> None:
     report = tools_in(tmp_path)["sanity_check"](net_path=str(net))
 
     assert report == {
+        "through_traffic_ratio": 1.0,
         "largest_scc_ratio": 1.0,
         "zero_length_edges": 0,
         "all_reachable_from_fringe": True,
@@ -59,13 +60,16 @@ def test_sanity_check_passes_on_a_healthy_network(tmp_path: Path) -> None:
     }
 
 
-def test_sanity_check_fails_on_a_network_that_cannot_be_driven_around(tmp_path: Path) -> None:
+def test_sanity_check_passes_a_one_way_road_that_is_not_a_loop(tmp_path: Path) -> None:
+    """ADR-0048: a road cut at the edge of the selection has an entry and an exit, and no way
+    round. Judged on the loop (0.25) it failed; judged on through traffic it is sound."""
     net = one_way_chain(tmp_path, length=4)
 
     report = tools_in(tmp_path)["sanity_check"](net_path=str(net))
 
     assert report["largest_scc_ratio"] == pytest.approx(0.25)
-    assert report["passes"] is False
+    assert report["through_traffic_ratio"] == 1.0
+    assert report["passes"] is True
 
 
 def test_sanity_check_finds_the_part_that_no_vehicle_can_reach(tmp_path: Path) -> None:
@@ -98,8 +102,26 @@ def test_the_sanity_report_counts_zero_length_edges() -> None:
     report = sanity_report(StubNetwork())  # type: ignore[arg-type]
 
     assert report == SanityReport(
-        largest_scc_ratio=1.0, zero_length_edges=2, all_reachable_from_fringe=True
+        largest_scc_ratio=1.0,
+        zero_length_edges=2,
+        all_reachable_from_fringe=True,
+        through_traffic_ratio=1.0,
     )
+    assert not report.passes()
+
+
+class TrapNetwork(StubNetwork):
+    """A loop of three edges, and a one-way entry into a second loop of two that leads nowhere."""
+
+    LENGTHS = {"x": 50.0, "y": 50.0, "z": 50.0, "in": 50.0, "p": 50.0, "q": 50.0}
+    NEXT = {"x": ["y"], "y": ["z"], "z": ["x"], "in": ["p"], "p": ["q"], "q": ["p"]}
+
+
+def test_an_edge_entered_and_never_left_does_not_carry_through_traffic() -> None:
+    report = sanity_report(TrapNetwork())  # type: ignore[arg-type]
+
+    assert report.all_reachable_from_fringe is True
+    assert report.through_traffic_ratio == pytest.approx(0.5)
     assert not report.passes()
 
 

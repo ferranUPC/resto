@@ -16,7 +16,7 @@ from resto.adapters.osm.http import DEFAULT_USER_AGENT, request
 from resto.adapters.persistence.filesystem import artifact_ref
 from resto.application.ports.osm import ExternalServiceError, OsmLimits
 from resto.domain.services.content_hash import work_key
-from resto.domain.services.geo import ring_of
+from resto.domain.services.geo import format_coordinate, ring_of
 from resto.domain.value_objects.artifact_ref import ArtifactRef
 from resto.domain.value_objects.network_source import BBox, Polygon
 
@@ -68,7 +68,9 @@ class OverpassOsmSource:
         return artifact_ref(target, SNAPSHOT_KIND)
 
     def _query(self, ring: tuple[tuple[float, float], ...]) -> str:
-        poly = " ".join(f"{lat:g} {lon:g}" for lat, lon in ring[:-1])
+        poly = " ".join(
+            f"{format_coordinate(lat)} {format_coordinate(lon)}" for lat, lon in ring[:-1]
+        )
         return (
             f"[out:xml][timeout:{self._limits.overpass_timeout_s}]"
             f"[maxsize:{self._limits.overpass_maxsize_bytes}];"

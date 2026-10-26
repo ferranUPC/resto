@@ -92,14 +92,22 @@ def test_recipe_stores_the_resolved_polygon_never_the_place_name() -> None:
         )
 
 
+def test_the_rejected_snapshot_names_the_source_kind_the_recipe_has() -> None:
+    with pytest.raises(ValueError, match=r"bbox or polygon.*source of kind 'grid'"):
+        NetworkRecipe(source=GridNetwork(), osm_snapshot=artifact("area.osm", "s1", "osm"))
+
+
 def test_derivation_forbids_osm_snapshot() -> None:
     with pytest.raises(ValueError, match="osm_snapshot"):
         NetworkRecipe(base_network_id="base1", osm_snapshot=artifact("a.osm", "s1", "osm"))
 
 
-def test_sanity_report_fails_below_scc_threshold() -> None:
+def test_sanity_report_fails_below_the_through_traffic_threshold() -> None:
     report = SanityReport(
-        largest_scc_ratio=0.90, zero_length_edges=0, all_reachable_from_fringe=True
+        largest_scc_ratio=0.40,
+        zero_length_edges=0,
+        all_reachable_from_fringe=True,
+        through_traffic_ratio=0.90,
     )
     assert not report.passes()
     assert report.passes(min_scc_ratio=0.85)

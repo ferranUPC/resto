@@ -10,7 +10,11 @@ Two figures need a definition the report does not carry:
   (`netconvert` raises anything shorter to it), so a shorter edge never reaches a built network;
 - the border is every edge nothing leads into, plus the largest strongly connected component. An
   edge counts as reachable from the border when a vehicle entering there can get to it. Closed
-  networks such as a grid have no entry edge, which is why their core stands in for the border.
+  networks such as a grid have no entry edge, which is why their core stands in for the border;
+- the exits are every edge that leads nowhere, plus the core. An edge carries through traffic when
+  it is reachable from the border and can reach an exit (ADR-0048). A road cut at the edge of the
+  selection has entries and exits that are not defects, so the share of such edges, not of the
+  core, is what the report is judged on.
 """
 
 from __future__ import annotations
@@ -31,14 +35,21 @@ def sanity_report(query: EnumerableNetworkQuery) -> SanityReport:
     successors = {e: list(query.get_neighbours(e)) for e in edges}
     zero_length = sum(1 for e in edges if query.get_edge(e)["length"] <= ZERO_LENGTH_M)
     if not edges:
-        return SanityReport(0.0, zero_length, False)
+        return SanityReport(0.0, zero_length, False, 0.0)
     core = max(_strong_components(successors), key=len)
-    has_predecessor = {t for targets in successors.values() for t in targets}
-    border = {e for e in edges if e not in has_predecessor} | set(core)
+    predecessors: dict[str, set[str]] = defaultdict(set)
+    for edge, targets in successors.items():
+        for target in targets:
+            predecessors[target].add(edge)
+    border = {e for e in edges if not predecessors[e]} | set(core)
+    exits = {e for e in edges if not successors[e]} | set(core)
+    reached = _reachable(successors, border)
+    through = reached & _reachable(predecessors, exits)
     return SanityReport(
         largest_scc_ratio=len(core) / len(edges),
         zero_length_edges=zero_length,
-        all_reachable_from_fringe=_reachable(successors, border) == set(edges),
+        all_reachable_from_fringe=reached == set(edges),
+        through_traffic_ratio=len(through) / len(edges),
     )
 
 

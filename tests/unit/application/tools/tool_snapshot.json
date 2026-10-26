@@ -1246,7 +1246,7 @@
       "name": "list_import_profiles"
     },
     {
-      "description": "Download the OpenStreetMap data of an area of interest, once per polygon (a second call for the same area reuses the stored snapshot). Name the area with exactly one of `bbox`, `polygon` or `place_name` (an administrative boundary, resolved to a polygon). Put any extra thing the user asked for in `requirements`, for example 'bus stops'. Returns the `source` and the `osm_snapshot` for the recipe, or `needs_user` when the area is above the size limit, the place is not a boundary, or a requirement is unsupported (public transport stops and lines); then nothing was downloaded.",
+      "description": "Download the OpenStreetMap data of an area of interest, once per polygon (a second call for the same area reuses the stored snapshot). Name the area with exactly one of `bbox`, `polygon` or `place_name` (an administrative boundary, resolved to a polygon). The area is widened by `margin_pct` (5 % by default) before it is downloaded and cut, so the streets along its edge come whole; prune what is left over afterwards, and pass a larger `margin_pct` when the user asks for the surroundings. Put any extra thing the user asked for in `requirements`, for example 'bus stops'. Returns the `source` and the `osm_snapshot` for the recipe, or `needs_user` when the area is above the size limit, the place is not a boundary, or a requirement is unsupported (public transport stops and lines); then nothing was downloaded.",
       "input_schema": {
         "properties": {
           "bbox": {
@@ -1257,6 +1257,12 @@
             "maxItems": 4,
             "minItems": 4,
             "type": "array"
+          },
+          "margin_pct": {
+            "description": "How much to widen the area before downloading and cutting, in percent of the side of a square of its surface (5 is about 30 m for a district).",
+            "maximum": 50.0,
+            "minimum": 0,
+            "type": "number"
           },
           "place_name": {
             "description": "Name of an administrative area, e.g. 'Sant Antoni'.",
@@ -1628,7 +1634,7 @@
       "name": "inspect_edge"
     },
     {
-      "description": "Is the network sound? Returns the share of edges in the largest strongly connected component, the number of zero-length edges, whether every edge can be reached from the border, and whether the three together pass.",
+      "description": "Is the network sound? Returns the share of edges that lie on a path from an entry to an exit (`through_traffic_ratio`, what the check is judged on), the share in the largest strongly connected component (reported only: a road with one carriageway per direction is not one loop), the number of zero-length edges, whether every edge can be reached from the border, and whether they pass together.",
       "input_schema": {
         "properties": {
           "net_path": {

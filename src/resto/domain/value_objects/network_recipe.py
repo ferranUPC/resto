@@ -31,7 +31,14 @@ class NetworkRecipe:
             if self.osm_snapshot is None:
                 raise ValueError("an area of interest requires an osm_snapshot artifact")
         elif self.osm_snapshot is not None:
-            raise ValueError("only an area of interest has an osm_snapshot")
+            got = (
+                "a derivation" if self.source is None else f"a source of kind {self.source.kind!r}"
+            )
+            raise ValueError(
+                f"an osm_snapshot goes only with a bbox or polygon source, but this recipe has "
+                f"{got}. Copy `source` and `osm_snapshot` exactly as the tool that built the "
+                "network returned them"
+            )
 
     @property
     def source_key(self) -> str | None:

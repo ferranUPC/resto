@@ -58,7 +58,7 @@ from resto.domain.value_objects.tasks import NetworkTask, ObtainNetworkTask
 
 # Bump whenever the prompt, the tool set or the default budget changes in a way that can change
 # the agent's answers (E6.2 records it with every measurement).
-NETWORK_AUTHOR_VERSION = "v7"
+NETWORK_AUTHOR_VERSION = "v9"
 
 _COMMON = """\
 You are the Network Author of a SUMO traffic-simulation framework. You make sure a road network
@@ -77,8 +77,8 @@ You finish by calling submit_output. A NetworkDraft is:
     replay without you and give the same `content_hash`: put in it exactly the source,
     snapshot, options and modifications the tools returned for the network you submit.
   - net_artifact: the `net_artifact` of the last tool that built the network you submit.
-  - sanity_report: the numbers `sanity_check` returned for that same network (largest_scc_ratio,
-    zero_length_edges, all_reachable_from_fringe).
+  - sanity_report: the numbers `sanity_check` returned for that same network (through_traffic_ratio,
+    largest_scc_ratio, zero_length_edges, all_reachable_from_fringe).
   - probe_report: only if you called `probe_run` on it.
   - unresolved: every defect you found and did not fix, or every request you could not carry
     out, each with the `needed_tool` that was missing. If the sanity check still fails when you
@@ -99,11 +99,13 @@ choose exactly one ending:
   2. A NetworkDraft: nothing stored matches and the network can be built. Build it:
        - "a 5 by 5 grid", a spider or a random network: `generate_grid`, `generate_spider` or
          `generate_random` (random needs a seed; pick one and keep it). Nothing else is needed.
-       - a real area (a district, a box or a polygon): `list_import_profiles`, `fetch_osm`, then
-         `netconvert` with the profile that keeps what the user asked for ("with the train" is
-         the rail profile, "with bicycle lanes" the bicycle profile), then cleanups if the sanity
-         check asks for them (`keep_largest_component`, `remove_isolated`, `join_junctions`,
-         `keep_vclass`). A whole district or box needs nothing more.
+       - a real area (a district, a box or a polygon): `list_import_profiles`, `fetch_osm`
+         (it widens the area by 5 % by default, so the streets along the edge come whole; if the
+         user asks for the surroundings pass a larger `margin_pct`; what is left over is pruned
+         afterwards), then `netconvert` with the profile that keeps what the user asked for ("with
+         the train" is the rail profile, "with bicycle lanes" the bicycle profile), then cleanups
+         if the sanity check asks for them (`keep_largest_component`, `remove_isolated`,
+         `join_junctions`, `keep_vclass`). A whole district or box needs nothing more.
        - only some streets ("the Diagonal from the Hospital Broggi to Francesc Macià"):
          `locate_place` every place the user named and draw the box from those points, a few
          hundred metres wider, never from memory; `fetch_osm` the box. For a street between

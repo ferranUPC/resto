@@ -481,3 +481,117 @@ Same selection and snapshot as above:
 - **The SCC falls** from 0.790 to 0.742 and there is one zero-length edge. More roundabouts of the Diagonal (48 ways
   of 258 in the snapshot) now come whole, and their one-way rings add edges that the rest of the network does not
   let a vehicle leave. Not investigated; the next step is to look at which edges stay out of the largest component.
+
+## 2026-10-21, the Diagonal with prompt `v7`, reasoning capped (first run with `reasoning` in the transcript)
+
+Same request. `~/resto-runs/adl-01`, `RESTO_LLM_MAX_OUTPUT_TOKENS=8196`, 3 rounds, `--online --gui`. The client now sends
+`reasoning.max_tokens` = 0.8 of the output limit and `transcript.json` keeps `reasoning_tokens` and `reasoning` per step.
+
+- **Cost:** $0.0298 (798,435 input and 16,820 output tokens), 36 steps. The run of `v6` cost about $0.055 in 23 steps.
+- **No step ended in `length`.** The largest step spent 960 output tokens; the `v6` run had five steps of about 12,500.
+  The provider returns `reasoning_tokens` and the text, so the cap and the capture work with this model.
+- **Result:** one network, `largest_scc_ratio` 0.573, one zero-length edge, `all_reachable_from_fringe` true. The agent
+  listed four `unresolved` items (SCC, the zero-length edge, two stretches of the Ronda de Dalt, 39 m of the Diagonal).
+  The maintainer's capture: the result is good, the B-10 came in, one lane is cut.
+- **The cut lane** is the lateral lane on the mountain side: the ways 862748474 (ends at node 1856466592) and
+  24794193 (starts at node 269386319) are both in the selection and 98 m apart. OSM has no road way between them, only
+  pedestrian areas. Not a selection defect. Joining them lifts the ratio only from 0.573 to 0.613.
+- **Why 0.573 and not more:** 239 of 560 edges are outside the largest SCC, and every edge lies on a path from an
+  entry to an exit (19 entries, 19 exits). Decided in [ADR-0048](../adr/0048-sanity-judges-through-traffic-not-the-loop.md):
+  `passes` now reads `through_traffic_ratio`, which is 1.0 on this network (checked on its `network.net.xml`, no model).
+  It still fails for the zero-length edge.
+- **21 rejected `submit_output` calls** (steps 15 to 35), all with `source: {"kind": "grid"}` next to an
+  `osm_snapshot`. `{"kind": "grid"}` is a valid source (a 5 by 5 grid, every field has a default), so pydantic accepted
+  it and `NetworkRecipe` rejected the pair with a message about `osm_snapshot`. The `reasoning` of those steps says
+  every time that the source must be the bbox, and the next call repeats the grid. Two changes: the recipe's message
+  names the source kind it got and says to copy `source` and `osm_snapshot` from the tool, and a rejection repeated
+  three times in a row ends the run with `StopReason.ERROR`.
+- **Open:** the first run of `v8` (the field `through_traffic_ratio` in the prompt) is the maintainer's. Note whether
+  the agent still spends rounds on the SCC, and whether the `grid` source comes back.
+
+## 2026-10-21, Hostafrancs with prompt `v8` (written after the fact, 2026-10-22)
+
+"Me gustaría obtener el barrio de Hostafrancs en Barcelona". Work directory `~/resto-runs/adl-03`, 3 rounds,
+`--online --gui`. The cost was not recorded: 11 steps, 207,480 input and 8,130 output tokens. Written from
+`transcript.json` and rebuilds of its recipe with `netconvert` (no model, $0).
+
+- **Path:** `find_network` (nothing), `fetch_osm("Hostafrancs")` (relation 4130114), `netconvert` with `roads`,
+  then `join_junctions` and `remove_isolated` in parallel, then `keep_vclass passenger`. The fourth build was refused
+  (rounds spent). The first `sanity_check` counts as a round, so only two repair rounds were left.
+- **Sanity:** the first import had `through_traffic_ratio` 0.993 and 17 zero-length edges. After the join: 1.0 and 8.
+  After `keep_vclass`: 0.934, 0 zero-length, `all_reachable_from_fringe` false. `passes` was false every time, always for
+  the zero-length edges. The 8 that remain are 0.1 m edges (SUMO's minimum length) on footways, a cycleway, pedestrian
+  ways, a driveway and one residential street. They come from the OSM data: a build without the cut has the same 8.
+  No tool removes them.
+- **Submitted:** the join plus `remove_isolated` network (`8091644e`), with the zero-length edges and the SCC in
+  `unresolved`. The recipe replays to that hash.
+- **What `--gui` showed is a different network.** Every build writes to `imported/<snapshot>/network.net.xml`, so the
+  file the draft names holds the last build, `keep_vclass` (`d97f8588`, edges from 138 OSM ways against 673). The script
+  printed `DIFFERENT` and opened that file.
+- **Carrer de Tarragona.** In OSM its road is one chain of `primary` `oneway=yes` ways, from Plaça dels Països
+  Catalans towards Plaça d'Espanya, and the boundary of the relation runs on it (its nodes lie 0.00 to 0.05 m from the
+  ring). Two causes cut it, one in code and one in the agent's cleanups:
+  - **The download.** `overpass.py` writes the polygon with `:g`, so latitudes keep 4 decimals (up to 5.6 m off). The
+    way 1395746250 (53 m, in the middle of the street) lies 0.3 to 3.2 m outside the rounded polygon, so `poly:` does
+    not return it. It touches the exact ring. The gap exists before the agent acts; no tool can recover it.
+  - **`--junctions.join`** (10 m), from `join_junctions` in call 6, absorbs into joined junctions (they appear in
+    `origEdgeIds`) the `primary` ways 768101885, 1227777119, 1395746249 and the `service` ways 208708601, 542836619. In
+    the `keep_vclass` build (call 9, the one `--gui` showed) it also takes 853255411 (100 m); without the join that build
+    keeps all four. The cut of `netconvert` keeps all of them. The ring passed to `netconvert` is also written with `:g`,
+    and that changes the clusters: with the exact ring and the join, 4 of the 5 stay.
+
+| Build (cut, `--keep-edges.components 1`, then) | ring | zero-length edges | Tarragona ways kept (of 6) |
+| --- | --- | --- | --- |
+| nothing | rounded / exact | 17 / 17 | 6 / 6 |
+| `--junctions.join` | rounded / exact | 8 / 8 | 1 / 5 |
+| `--junctions.join --junctions.join-dist 1` | rounded / exact | 8 / 8 | 6 / 6 |
+| `--junctions.join --junctions.join-dist 2` | rounded / exact | 8 / 8 | 6 / 6 |
+
+  The 6 are the 5 above and `primary` 853255411, which the `keep_vclass` network also loses.
+- **Open:** whether `passes` should require zero zero-length edges, the join distance of `join_junctions`, the
+  precision of the ring (Overpass query and `netconvert`), and one output file per build.
+
+## 2026-10-22, Hostafrancs with a 5 % margin (E6.1 ticket 14, no model, $0)
+
+Real Overpass and Nominatim (the geocoder cache of `adl-03`), `netconvert` with the `roads` profile and the default
+cleanup (largest component), through `scripts/manual_network_import_run.py` with the new default `margin_pct` 5. The
+baseline is the `adl-03` snapshot (exact area, rounded polygon) rebuilt with the polygon written with `:g`, which
+reproduces the figures of the log entry of 2026-10-21 (17 zero-length edges, `through_traffic_ratio` 0.993).
+
+| Build | Area | Edges | km | Zero-length edges | `through_traffic_ratio` | Way 1395746250 |
+|---|---|---|---|---|---|---|
+| Baseline, `adl-03` | exact, 0.41 km² | 1,579 | 32.5 | 17 | 0.993 | missing |
+| Margin 5 %, 7 decimals | 0.54 km² | 2,117 | 46.5 | 20 | 1.000 | in the network |
+
+- The 13 `primary` ways named Carrer de Tarragona of the `adl-03` snapshot are all in both networks, and the way
+  1395746250 (53 m, the gap of that run) is in the new one. The new download returns it because the polygon is no
+  longer rounded and has a margin of about 32 m.
+- The grown area holds 34 % more edges and 43 % more km, as expected: the agent now has to prune what is outside the
+  district. `sanity_check` passes the through-traffic test (1.0) and still fails `passes` on the zero-length edges (20,
+  0.1 m edges as in the log entry above), which is the open finding on ADR-0048 and not part of this ticket.
+- Prompt `v9` is not run with a model; the first run is the maintainer's.
+
+## 2026-10-26, the A-2 between km 8 and km 56 with prompt `v9` (first corridor request)
+
+"Quiero la red del tráfico interurbano de la A2, comprendido entre los kilómetros 8 y 56 de Madrid. Quiero también
+contar con las vias de servicio para poder simular posibles detours. No necesito las calles que conforman la ciudad
+alrededor." `~/resto-runs/adl-06`, `RESTO_LLM_MAX_OUTPUT_TOKENS=8196`, 3 rounds, `--online --gui`.
+
+- **Cost:** $0.0232 (55,009 input and 13,298 output tokens, 12,205 of them reasoning), 5 steps, stop `output`.
+- **Path:** `find_network` ("A2", "Autovía del Nordeste", nothing), `list_import_profiles`, four `locate_place`
+  (Canillejas, Azuqueca de Henares, Guadalajara, San Fernando de Henares), two `fetch_osm` by bbox, both refused before
+  the download (2,639.4 km² and 1,261.4 km² against 25 km²), then `NeedsUser(AreaTooLarge)`. Nothing was downloaded.
+- **"Guadalajara" resolved to (40.740, -2.506)**, about 55 km east of the city (40.63, -3.17); the province, judging by
+  the place. The first box reached -3.02 with it. The `reasoning` of step 3 notices the error and the second box uses
+  the city from memory.
+- **The refusal is right for the tools there are:** no `fetch_osm` call can hold a 48 km diagonal stretch in 25 km², and
+  there is no tool that joins two snapshots. The `reasoning` of step 4 says both, and that a thin polygon along the
+  road would be drawn from memory, which the prompt forbids. A polygon would not help either: `expand_area` turns it
+  into its convex hull, which for a road that bends is close to the box again.
+- **Two advice items promise what the tools do not do.** "I can then build and, if you wish, stitch them": no tool
+  stitches networks, and step 4 says so. "A road-only import is smaller per km": a profile does not change the area, and
+  the limit is on the area. The second one comes from the recommendation of `AreaTooLarge`
+  (`outcomes.py`, "or an import profile with fewer road classes"), which is also in ADR-0045.
+- **The message is in English** although the request is in Spanish; step 4 drafted it in Spanish.
+- **Open:** whether a corridor (a road by `ref` between two points, with its service roads) is in scope for E6.1, and
+  with which limit: the area of a box measures a district, not a road.

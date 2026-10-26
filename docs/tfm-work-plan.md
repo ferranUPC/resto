@@ -81,6 +81,11 @@ r19 (2026-10-08) names the optional packages. **M51** is the old MUI (the UI, E1
 holds the work that has points but no date: E12.2 to E12.5, E3.13, E3.14 and E11.10. Both are optional and the first things §5
 cuts, M52 before M51, so if only one gets built it is M51. Later packages are M53, M54 and so on. No points move (1071). No ADR.
 
+r20 (2026-10-14) changes how golden paths are judged: they assert the outcome, not the route (ADR-0043). It is a refactor of
+`golden/` (§7, row r20), not a task, and it blocks E9.2 and E9.8, which write their golden paths in the new type. It adds one task,
+**E9.9** (5 pts, optional package M52): full graph isomorphism for network equivalence, which E9.8's `NetworkTopology` leaves out
+on purpose. The plan goes from 1071 to **1076 pts**; the slack does not change.
+
 The notes v0.2 accumulated in its §0 (ADR-0023/0025/0026 scope, E3.4 split,
 estimates for E4.11 and E5.9–E5.12) are absorbed into the task rows; the old text is in
 [`_old/tfm-work-plan-v0.2.md`](_old/tfm-work-plan-v0.2.md). Task status lives in
@@ -101,12 +106,12 @@ estimates for E4.11 and E5.9–E5.12) are absorbed into the task rows; the old t
 | Capacity to 18 Feb | ≈ **745 pts** |
 | Remaining work | ≈ **651 pts**: 465 build (incl. E3.8, E3.11, E3.12, E5.13, E5.14, E5.15, E7.2, E7.3, E7.5, E7.6, E11's 61 and E12.1's 5) + ≈ 47 measurement-only + ≈ 120 writing + 12 E9.6 + 7 (E3.9, E3.10) |
 | Slack | ≈ **+93 pts** (+98 before r17, which adds E12.1's 5; +159 before r16, which adds E11's 61; v0.2: −95 h; +170 before E3.11; −26 for E7.2, E7.3, E7.5, E7.6; −11 net for ADR-0037, tentative; +12 net for ADR-0039; +18 for r14; +8 for r15). Conservative: it still counts the writing that sits in the M9 window (second half of E10.7, E10.8, ≈ 18 pts) |
-| Plan total (every row of §1) | **1071 pts**: 1058 before r18 (E3.13, E3.14 +13), 1026 before r17 (E12 +32), 965 before r16 (E11 +61), 973 before r15, 991 before r14 and 1003 before r13 (v0.2's 935 + E3.8 (10) + E3.9 (5) + E3.10 (2) + E3.11 (12) + E5.13 (2) + E7.2, E7.3, E7.5, E7.6 (26) + ADR-0037 net (+11: E5.14 +5, E3.12 +8, E6.1 +2, E7.1 +3, E3.7 −3, E5.2 −4) − 12 for ADR-0039 (E5.2 −5, E5.5 −7, E5.8 −3, E5.15 +3)); r14 takes 18 more (E5.2 −3 cancelled, E5.5 −11 cancelled, E5.15 −2, E3.7 −2); r15 takes 8 more (E5.3 14 → 6) |
+| Plan total (every row of §1) | **1076 pts**: 1071 before r20 (E9.9 +5), 1058 before r18 (E3.13, E3.14 +13), 1026 before r17 (E12 +32), 965 before r16 (E11 +61), 973 before r15, 991 before r14 and 1003 before r13 (v0.2's 935 + E3.8 (10) + E3.9 (5) + E3.10 (2) + E3.11 (12) + E5.13 (2) + E7.2, E7.3, E7.5, E7.6 (26) + ADR-0037 net (+11: E5.14 +5, E3.12 +8, E6.1 +2, E7.1 +3, E3.7 −3, E5.2 −4) − 12 for ADR-0039 (E5.2 −5, E5.5 −7, E5.8 −3, E5.15 +3)); r14 takes 18 more (E5.2 −3 cancelled, E5.5 −11 cancelled, E5.15 −2, E3.7 −2); r15 takes 8 more (E5.3 14 → 6) |
 | After 18 Feb | ~7 h/week from about March (the maintainer likely has a job), reserved for revisions, the thesis and the defense: M9 window, not planned here |
 
 The slack is not a licence for Stretch work: it is the January buffer (§3) and the first step of the
 fallback order (§5). Do not add Stretch work before M7. E11 (r16) is the one planned use of that slack, and
-it gives it back first: it is the first thing §5 cuts. E12.1 (r17) takes 5 pts of it; E12.2 to E12.5 take none until E12.2 sets their window. E3.13 and E3.14 (r18) take none.
+it gives it back first: it is the first thing §5 cuts. E12.1 (r17) takes 5 pts of it; E12.2 to E12.5 take none until E12.2 sets their window. E3.13 and E3.14 (r18) and E9.9 (r20) take none.
 
 ### 0.2 Cross-cutting rules
 
@@ -287,7 +292,7 @@ measurement suite is left (built; ⏳ once the tracker syncs) · `F` final stret
 | E8.4 | Question bank REAL-NET (40+) | question bank | 6 | 4 | 18 Jan |
 | E8.5 | Port to REAL-NET and tune on development runs (build). **Measured in V2:** full benchmark, 3 reps (descriptive ≥85 %, Jaccard ≥0.5, direction ≥65 %) | report | 24 | 4 | 22 Jan |
 
-### E9 — Integration (62) · DoD §5
+### E9 — Integration (67) · DoD §5
 
 | ID | Task | Output | pts | Wave | Latest due |
 |---|---|---|---|---|---|
@@ -299,6 +304,7 @@ measurement suite is left (built; ⏳ once the tracker syncs) · `F` final stret
 | E9.6 | Release packaging only (no behaviour change after the feature freeze): tag, README, reproducibility package (one command per experiment in the thesis) | release | 12 | F | **Wed 10 Feb** |
 | E9.7 | *(moved to E11.10 by r16)* | — | — | — | — |
 | E9.8 | GP-8 (full pipeline from a new place name) and GP-11 (add an edge, a `run` request per ADR-0025: derive → reroute → baseline vs treatment) passing | tests | 8 | 3 | 15 Jan |
+| E9.9 | *(new 2026-10-14, r20, ADR-0043)* Full graph isomorphism for network equivalence: E9.8's `NetworkTopology` matches an edge by its endpoints and its index among parallel edges, which covers the v1 Network Author catalogue because none of its operations creates a junction. This task covers the operation that does (a junction with an arbitrary id): matching two topologies up to renaming of junctions and edges, its cost on DEV-NET and REAL-NET sizes (300 to 800 edges), and a test that shows the v1 limit and the case this task lifts. It may close as "not worth building" if no operation of the catalogue needs it | check in `golden/` | 5 | M52 | — |
 
 ### E10 — Thesis document (120) · rolling from now, concentrated 1 → 18 Feb
 
@@ -384,7 +390,7 @@ planning rate, not carried over.
 | **M6** | **Tue 8 Dec** | Fri 22 Jan | **REAL-NET ready (built)** | REAL-NET frozen with fix log (E8.1); profiles, matrix and question bank stored (E8.2, E8.3, E8.4 ✅); E8.5 ⏳ (ported and tuned on REAL-NET, development evidence stated). The figures come from V2 → E4.10 → E10.5 |
 | **M7** | **Fri 15 Jan** (~~Fri 11 Dec~~) | ~~Fri 5 Feb~~ Fri 29 Jan | **All modules built** | E5.6, E5.7 (checker), E9.3 ✅ or ⏳ (E5.5 cancelled, r14: the Executor's failure behaviour is E9.3's and its zero-redundant-simulations counter is E5.3's); E7.5, E7.6 ✅ or ⏳; E12.1 ✅ (the user sets model and limits per agent, defaults unchanged); E4.9 ⏳ (learning-effect setup on DEV-NET ready to run); 11 golden paths pass as tests; failure injection green |
 | **M51** | **Fri 22 Jan** | Fri 29 Jan | **UI built**, optional package 1 (r16, renamed r19) | E11.1–E11.9 and E11.11 ✅: a request runs from the browser in fake mode and in real mode, the plan and messages are visible, a report opens with its evidence links, a result exports to VTK, and the image starts. Not in any DoD criterion; not met means not built (§5, step 0) |
-| **M52** | no date | — | **Optional package 2** (r19) | E12.2–E12.5 (cost study), E3.13 and E3.14 (judge for free text), E11.10 (usability session). Not scheduled, not in any DoD criterion; they start only when M51 is met and time is left, and they are cut before M51 (§5, step 0). Not met means not built |
+| **M52** | no date | — | **Optional package 2** (r19) | E12.2–E12.5 (cost study), E3.13 and E3.14 (judge for free text), E9.9 (network isomorphism, r20), E11.10 (usability session). Not scheduled, not in any DoD criterion; they start only when M51 is met and time is left, and they are cut before M51 (§5, step 0). Not met means not built |
 | **V1** | Mon 14 → Fri 18 Dec | Fri 18 Dec | Validation 1 | Reduced checkpoints of every module built by 11 Dec (M2–M6) on dev splits, figures recorded as interim. Wave 5 is not in V1. If a milestone slips, V1 covers what is built on 14 Dec and does not move |
 | **FF** | **Fri 22 Jan** | Fri 29 Jan | Feature freeze | No behaviour change after it; V1 fixes and slips absorbed by the buffer of 18 → 22 Jan and the margin days |
 | **V2** | Mon 25 → Fri 29 Jan | Fri 5 Feb | Validation 2 | Every measurement suite run once at its definitive size (under the $30 cap), held-out included; a missed threshold is a result |
@@ -414,7 +420,7 @@ by the DAG (§4), not by the week.
 | 5 | 4 → 15 Jan | E5.6, E9.3, E7.5 → E4.9, E5.7 (checker), E7.6, E12.1 | 404 | **M7 = all built: Fri 15 Jan** | 29 Jan |
 | 6 | 4 → 22 Jan, plus gaps in wave 4 | E11.1, E11.2 in the gaps before V1; then E11.3 → E11.4, E11.5 → E11.6 → E11.7 → E11.8 → E11.9 → E11.11 (E11.10 optional) | 465 | **M51: Fri 22 Jan** | 29 Jan |
 
-| 7 | after M7, no date | E12.2 → E12.3 → E12.4 → E12.5, E3.13 → E3.14 and E11.10 (the M52 package; E12 is 27 pts, outside the cumulative count) | — | **M52** (no date) | — |
+| 7 | after M7, no date | E12.2 → E12.3 → E12.4 → E12.5, E3.13 → E3.14, E9.9 and E11.10 (the M52 package; E12 is 27 pts, outside the cumulative count) | — | **M52** (no date) | — |
 
 Cumulative points leave out E3.9 and E3.10 (7 pts, counted apart in §0.1). Wave 6 (E11, 61 pts) shares the
 January weeks with wave 5 and the buffer below: 4 → 22 Jan holds ≈ 90 build pts and wave 5 takes 65 (E12.1 included), so E11 only
@@ -519,6 +525,8 @@ flowchart LR
     E76["E7.6 flows · 4"]:::pending
   end
 
+  R20["r20 golden paths assert the outcome · refactor, 0 pts"]:::pending
+
   M2(("M2<br/>20 Oct / 13 Nov")):::ms
   M3(("M3 Planner loop<br/>26 Oct / 27 Nov")):::ms
   M4(("M4 Builder, Runner<br/>6 Nov / 11 Dec")):::ms
@@ -534,6 +542,8 @@ flowchart LR
   %% Planner spine (critical for M3, M4, M5, M7)
   E38 ==> E311 ==> E514 ==> E37 ==> E515 ==> E53 ==> E91 ==> E92
   E91 ==> E98 ==> E93
+  E91 --> R20
+  R20 --> E92 & E98
   %% E5.2 and E5.5 are cancelled (r14): no edges, their dependents inherited their blockers
   E45 --> E53
   E51 --> E91
@@ -710,13 +720,27 @@ runs only in development rounds and, if E3.14 is built, in V2's golden-path run.
 
 The chain is E3.13 → E3.14 (13 pts). E3.13 can close as "not worth building", and then E3.14 is cancelled.
 
+### 4.8 Golden-path outcomes and network equivalence (r20, E9.9)
+
+r20 is a refactor (§7), not a task, so it has no points; it appears in the build DAG above as a node that sits between E9.1 and the
+golden-path tasks that write in its type. E9.9 is not in the build DAG and sits in no milestone but M52.
+
+| Item | Blocked by |
+|---|---|
+| r20 | E9.1 (done) |
+| E9.2 | r20, E9.1, E2.6 |
+| E9.8 | r20, E9.1, E6.1, E7.1 |
+| E9.9 | E9.8 |
+
+E9.3, E9.4 and E9.5 inherit the block from E9.2 and E9.8. E9.9 may close as "not worth building"; nothing depends on it.
+
 ---
 
 ## 5. Fallback order if a milestone slips
 
 Apply one step at a time, in order. Record every downgrade in the thesis as a stated limitation.
 
-0. **M52 goes first, then M51** (r19; before r19: E3.13, E3.14, E12.2 to E12.5 and E11, r18, r17, r16). M52 holds E3.13, E3.14, E12.2 to E12.5 and E11.10; M51 holds the rest of E11. M51 has priority: if time is left for one package, it is M51. E3.13 and E3.14 have no date and are not started before E9.1 is done. E12.2 to E12.5 have no date and are not started without the
+0. **M52 goes first, then M51** (r19; before r19: E3.13, E3.14, E12.2 to E12.5 and E11, r18, r17, r16). M52 holds E3.13, E3.14, E9.9 (r20), E12.2 to E12.5 and E11.10; M51 holds the rest of E11. M51 has priority: if time is left for one package, it is M51. E3.13 and E3.14 have no date and are not started before E9.1 is done. E12.2 to E12.5 have no date and are not started without the
    money E12.2 finds; they are cut before anything else, and the thesis says what was left out. E12.1 is small
    build work and stays. **E11 (the UI)** (r16): build its tasks in the order of §1 and stop when the January buffer is
    needed. A task not built is closed `wontfix`, not carried over. No threshold depends on it; the thesis
@@ -784,6 +808,7 @@ the numbering.
 | r17 | New epic E12, cost optimization (32 pts) | The cost policy fixes one default model and a $30 cap, but nothing studies how far the cost per study can fall or what it costs in quality, and `LlmConfig` has one model and one pair of limits for every agent. E12.1 (5 pts, wave 5, M7) makes them configurable per agent; E12.2 to E12.5 (27 pts) are a study with its own money, so they carry points and no wave, due date or milestone. 1026 → 1058 pts; slack +98 → +93; no existing date moves. No ADR. | — | E12.1–E12.5 |
 | r18 | New tasks E3.13 and E3.14, a judge for free text (13 pts) | Golden paths compare typed values, but the Composer's prose, the Expert's prose and demand descriptions have none, so nothing checks them. ADR-0019, ADR-0029 and `eval/README.md` rejected a judge as the first choice and left it for text without a typed value. E3.13 designs and calibrates it against a human, and E3.14 builds it. No wave, no date, no milestone. 1058 → 1071 pts; slack unchanged. No ADR yet. | — | E3.13, E3.14, E9.1 |
 | r19 | Optional packages M51 and M52 | MUI is renamed M51 and becomes optional package 1. The undated work (E12.2 to E12.5, E3.13, E3.14, E11.10) goes into M52, optional package 2. M51 has priority over M52, and both are cut before any other work. 1071 pts, no date moves. No ADR. | — | E11, E12.2–E12.5, E3.13, E3.14 |
+| r20 | Golden paths assert the outcome, not the route | `ExpectedTrace` compares the exact sequence of (tool, status) per phase, which fails runs of a real model that reached the right result another way (the `gp3` case: two phases only because the script forces `describe`). `ExpectedOutcome` states resolution, network, essential simulations with an upper bound, KPIs with a relative tolerance and demand; phases are not counted; the trace of every run is written to JSONL by default. Rebuilds `golden/` in a pull request of its own (E9.1 is closed). Not a work-plan task. Adds E9.9 (5 pts, M52), no date moves. ADR-0043. | ADR-0043 | E9.2, E9.5, E9.8, E9.9, E3.14, E12.1 |
 | r21 | Use cases become classes with a constructor and `execute` | Every use function (`run_study`, `build_scenario`, `run_simulation`, ...) mixed request values with collaborators in one signature, and wiring was spread over the CLI, the Executor, the Builder tools, `scripts/` and `golden/`. Each use case becomes a class named by its verb, collaborators go in the constructor, and `interface/dependencies.py` builds the graph. Not a work-plan task. No points, no date moves. ADR-0040. | ADR-0040 | E6.1, E7.1, E9.1 |
 | r23 | The `Study` owns its lifecycle | The `Study` validated every state but built none: six Executor modules built its states with `replace`, so each lifecycle rule was written twice and the loop drifted (phase 1 planned while the study read `running`). The Input Parser ran outside the Executor, so its usage crossed in as `parse_usage` and the flow had two entry points. The study is created at the request with parsing as its first stage, stores its stage and resolution, and its transitions return domain events that a synchronous bus carries to the trace and to note verification; `ExpertNote` verifies itself. Not a work-plan task. No points, no date moves. | [0041](adr/0041-study-owns-its-lifecycle.md) | E5.3, E9.1, E11.2 |
 | r24 | One hierarchy for the application layer; promoters | A use case was spread over `RunStudy`, the `executor/` functions and inner classes (`AskExpert`, `WriteNote`, `ComposeReport`, `UpdateNoteStatus`) that only it calls, phase functions mixed collaborators with request values through `StudyDeps`, adding a plan step meant editing four `match`es, and `StudyRecorder` held the study as state. `RunStudy` becomes one package (`application/run_study/`) whose stages and step executors are classes built by the composition root; each action yields one transition that `RunStudy` stores and publishes; promotion becomes pure promoters; the rules in `closing.py` and `steps.py` move to the domain; event handlers get their own module and return events instead of publishing. Not a work-plan task. No points, no date moves. | [0042](adr/0042-one-hierarchy-for-the-application-layer.md) | E6.1, E7.1 |

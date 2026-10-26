@@ -50,12 +50,22 @@ def completion(
     completion_tokens: int = 5,
     cost: float | None = 0.0,
     finish_reason: str | None = None,
+    reasoning: str | None = None,
+    reasoning_tokens: int | None = None,
 ) -> SimpleNamespace:
-    message = SimpleNamespace(content=content, tool_calls=list(tool_calls) or None)
+    message = SimpleNamespace(
+        content=content, tool_calls=list(tool_calls) or None, reasoning=reasoning
+    )
+    details = (
+        None if reasoning_tokens is None else SimpleNamespace(reasoning_tokens=reasoning_tokens)
+    )
     return SimpleNamespace(
         choices=[SimpleNamespace(message=message, finish_reason=finish_reason)],
         usage=SimpleNamespace(
-            prompt_tokens=prompt_tokens, completion_tokens=completion_tokens, cost=cost
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            cost=cost,
+            completion_tokens_details=details,
         ),
     )
 
@@ -245,6 +255,37 @@ def test_every_step_is_traced_including_plain_text_replies_cut_at_the_token_limi
     assert second.tool_calls == ("submit_output",)
 
 
+def test_the_same_rejection_three_times_in_a_row_ends_the_run_with_an_error() -> None:
+    bad = {"text": " "}
+    complete = ScriptedCompletions(
+        *(completion(tool_calls=(tool_call(f"c{i}", "submit_output", bad),)) for i in range(5))
+    )
+    agent = OpenRouterToolAgent(CONFIG, complete=complete)
+
+    run = agent.run(DUMMY_TASK, tools=(), output=Answer, budget=DUMMY_BUDGET)
+
+    assert run.stop_reason is StopReason.ERROR
+    assert run.output is None
+    assert len(run.steps) == 3
+    assert len(complete.calls) == 3
+
+
+def test_a_different_rejection_in_between_resets_the_count() -> None:
+    blank: dict[str, Any] = {"text": " "}
+    missing: dict[str, Any] = {}
+    complete = ScriptedCompletions(
+        completion(tool_calls=(tool_call("c1", "submit_output", blank),)),
+        completion(tool_calls=(tool_call("c2", "submit_output", blank),)),
+        completion(tool_calls=(tool_call("c3", "submit_output", missing),)),
+        completion(tool_calls=(tool_call("c4", "submit_output", {"text": "ok"}),)),
+    )
+    agent = OpenRouterToolAgent(CONFIG, complete=complete)
+
+    run = agent.run(DUMMY_TASK, tools=(), output=Answer, budget=DUMMY_BUDGET)
+
+    assert run.stop_reason is StopReason.OUTPUT
+
+
 def test_a_budget_stop_keeps_the_step_trace() -> None:
     complete = ScriptedCompletions(*(completion(content="thinking") for _ in range(2)))
     agent = OpenRouterToolAgent(CONFIG, complete=complete)
@@ -316,7 +357,42 @@ def test_asks_openrouter_to_include_real_usage_cost() -> None:
 
     agent.run(DUMMY_TASK, tools=(), output=Answer, budget=DUMMY_BUDGET)
 
-    assert complete.calls[0]["extra_body"] == {"usage": {"include": True}}
+    assert complete.calls[0]["extra_body"]["usage"] == {"include": True}
+
+
+def test_caps_the_reasoning_at_four_fifths_of_the_output_limit() -> None:
+    complete = ScriptedCompletions(
+        completion(tool_calls=(tool_call("c1", "submit_output", {"text": "ok"}),))
+    )
+    agent = OpenRouterToolAgent(CONFIG, complete=complete)
+
+    agent.run(DUMMY_TASK, tools=(), output=Answer, budget=DUMMY_BUDGET)
+
+    assert complete.calls[0]["max_tokens"] == 256
+    assert complete.calls[0]["extra_body"]["reasoning"] == {"max_tokens": 204}
+
+
+def test_a_step_keeps_the_reasoning_text_and_tokens_the_provider_reports() -> None:
+    complete = ScriptedCompletions(
+        completion(
+            content="",
+            completion_tokens=256,
+            finish_reason="length",
+            reasoning="the network is not strongly connected",
+            reasoning_tokens=250,
+        ),
+        completion(tool_calls=(tool_call("c1", "submit_output", {"text": "ok"}),)),
+    )
+    agent = OpenRouterToolAgent(CONFIG, complete=complete)
+
+    run = agent.run(DUMMY_TASK, tools=(), output=Answer, budget=DUMMY_BUDGET)
+
+    first, second = run.steps
+    assert (first.reasoning, first.reasoning_tokens) == (
+        "the network is not strongly connected",
+        250,
+    )
+    assert (second.reasoning, second.reasoning_tokens) == ("", 0)
 
 
 def test_sums_the_real_cost_reported_across_steps() -> None:

@@ -108,7 +108,10 @@ def test_a_failed_sanity_check_is_promoted_when_the_issue_is_reported(tmp_path: 
 
 def test_the_task_threshold_decides_whether_the_sanity_check_failed(tmp_path: Path) -> None:
     middling = SanityReport(
-        largest_scc_ratio=0.9, zero_length_edges=0, all_reachable_from_fringe=True
+        largest_scc_ratio=1.0,
+        zero_length_edges=0,
+        all_reachable_from_fringe=True,
+        through_traffic_ratio=0.9,
     )
     draft = grid_draft(tmp_path, sanity_report=middling)
 

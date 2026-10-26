@@ -5,7 +5,7 @@ network and no LLM."""
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import replace
+from dataclasses import asdict, replace
 from pathlib import Path
 from typing import Any, cast
 
@@ -37,8 +37,9 @@ from resto.application.tools.network_import import (
     trace_corridor,
     verify_coverage,
 )
-from resto.domain.services.geo import distance_m
+from resto.domain.services.geo import area_km2, distance_m, expand_area
 from resto.domain.value_objects.artifact_ref import ArtifactRef
+from resto.domain.value_objects.network_source import Polygon
 from tests.unit.adapters.osm._server import FakeService, Reply, fake_service
 from tests.unit.application.tools._osm_doubles import (
     CAMPUS_OSM,
@@ -84,7 +85,7 @@ def edges_of(result: Mapping[str, Any]) -> set[str]:
 
 
 def imported(run: ImportRun, profile: str = "roads") -> tuple[Mapping[str, Any], str]:
-    fetched = fetch_osm(run, polygon=RING)
+    fetched = fetch_osm(run, polygon=RING, margin_pct=0)
     snapshot = fetched["osm_snapshot"]["content_hash"]
     return netconvert(run, osm_snapshot=snapshot, profile=profile), snapshot
 
@@ -281,6 +282,42 @@ def test_an_area_above_the_limit_needs_the_user_and_nothing_is_downloaded(
     assert osm.calls == []
 
 
+def test_fetch_osm_downloads_the_area_grown_five_percent_unless_told_otherwise(
+    tmp_path: Path,
+) -> None:
+    osm = FakeOsmSource()
+
+    result = fetch_osm(run_in(tmp_path, osm), polygon=RING)
+
+    grown = expand_area(Polygon(DISTRICT.ring), 5)
+    assert osm.calls == [grown]
+    assert result["source"] == asdict(grown)
+    assert area_km2(grown) > area_km2(DISTRICT)
+
+
+def test_margin_pct_widens_the_area_by_that_much(tmp_path: Path) -> None:
+    osm = FakeOsmSource()
+
+    fetch_osm(run_in(tmp_path, osm), polygon=RING, margin_pct=12)
+
+    assert osm.calls == [expand_area(Polygon(DISTRICT.ring), 12)]
+
+
+def test_an_area_that_fits_the_limit_but_not_with_its_margin_needs_the_user(
+    tmp_path: Path,
+) -> None:
+    osm = FakeOsmSource()
+    exact = area_km2(DISTRICT)
+    run = run_in(tmp_path, osm, limits=OsmLimits(max_area_km2=exact * 1.01))
+
+    result = fetch_osm(run, polygon=RING)
+
+    assert result["needs_user"]["reason"]["kind"] == "area_too_large"
+    assert result["needs_user"]["reason"]["area_km2"] > exact * 1.01
+    assert osm.calls == []
+    assert "needs_user" not in fetch_osm(run, polygon=RING, margin_pct=0)
+
+
 def test_a_place_that_is_not_a_boundary_needs_the_user_with_the_geocoders_reason(
     tmp_path: Path,
 ) -> None:
@@ -346,7 +383,7 @@ def test_exactly_one_way_to_name_the_area(tmp_path: Path) -> None:
 
 
 def test_a_bbox_is_the_south_west_north_east_of_the_source(tmp_path: Path) -> None:
-    result = fetch_osm(run_in(tmp_path), bbox=[41.390, 2.150, 41.398, 2.160])
+    result = fetch_osm(run_in(tmp_path), bbox=[41.390, 2.150, 41.398, 2.160], margin_pct=0)
 
     assert result["source"] == {
         "south": 41.39,
@@ -594,7 +631,7 @@ def test_coverage_before_anything_was_built_says_what_to_call(tmp_path: Path) ->
 def b23_run(tmp_path: Path) -> tuple[ImportRun, str]:
     run = run_in(tmp_path, FakeOsmSource(DIAGONAL_B23_OSM), FakeGeocoder(places=(HOSPITAL, MACIA)))
     area = DIAGONAL_AREA
-    fetched = fetch_osm(run, bbox=[area.south, area.west, area.north, area.east])
+    fetched = fetch_osm(run, bbox=[area.south, area.west, area.north, area.east], margin_pct=0)
     return run, fetched["osm_snapshot"]["content_hash"]
 
 
@@ -705,7 +742,9 @@ def test_the_box_a_point_outside_asks_for_holds_it_once_fetched(tmp_path: Path) 
     box = trace_corridor(
         run, osm_snapshot=snapshot, from_point=near_the_edge, to_point=[MACIA.lat, MACIA.lon]
     )["not_reached"]["fetch"]
-    wider = fetch_osm(run, bbox=[box["south"], box["west"], box["north"], box["east"]])
+    wider = fetch_osm(
+        run, bbox=[box["south"], box["west"], box["north"], box["east"]], margin_pct=0
+    )
     again = trace_corridor(
         run,
         osm_snapshot=wider["osm_snapshot"]["content_hash"],
@@ -731,7 +770,7 @@ NO_SMALL_STREETS = ["residential", "service", "living_street", "unclassified"]
 def interchange_run(tmp_path: Path) -> tuple[ImportRun, str]:
     run = run_in(tmp_path, FakeOsmSource(INTERCHANGE_OSM))
     box = INTERCHANGE_BOX
-    fetched = fetch_osm(run, bbox=[box.south, box.west, box.north, box.east])
+    fetched = fetch_osm(run, bbox=[box.south, box.west, box.north, box.east], margin_pct=0)
     return run, fetched["osm_snapshot"]["content_hash"]
 
 
