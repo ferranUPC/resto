@@ -14,7 +14,8 @@ from __future__ import annotations
 
 import json
 import re
-from collections.abc import Sequence
+import time
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from urllib.parse import urlencode
 
@@ -40,12 +41,14 @@ class OverpassOsmSource:
     def __init__(
         self,
         *,
-        base_url: str = DEFAULT_BASE_URL,
+        base_url: str | Sequence[str] = DEFAULT_BASE_URL,
         limits: OsmLimits | None = None,
         user_agent: str = DEFAULT_USER_AGENT,
         client_timeout_s: float | None = None,
+        sleep: Callable[[float], None] = time.sleep,
     ) -> None:
         self._base_url = base_url
+        self._sleep = sleep
         self._limits = limits or OsmLimits()
         self._user_agent = user_agent
         self._client_timeout_s = (
@@ -81,6 +84,7 @@ class OverpassOsmSource:
             user_agent=self._user_agent,
             timeout_s=self._client_timeout_s,
             data=urlencode({"data": query}).encode(),
+            sleep=self._sleep,
         )
         _check_answer(body)
         target.parent.mkdir(parents=True, exist_ok=True)

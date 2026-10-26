@@ -11,6 +11,7 @@ import json
 import math
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
@@ -40,7 +41,9 @@ class NominatimGeocoder:
         user_agent: str = DEFAULT_USER_AGENT,
         min_interval_s: float = DEFAULT_MIN_INTERVAL_S,
         timeout_s: float = DEFAULT_TIMEOUT_S,
+        sleep: Callable[[float], None] = time.sleep,
     ) -> None:
+        self._sleep = sleep
         self._cache_dir = cache_dir
         self._base_url = base_url.rstrip("/")
         self._user_agent = user_agent
@@ -103,6 +106,7 @@ class NominatimGeocoder:
                     f"{self._base_url}/search?{query}",
                     user_agent=self._user_agent,
                     timeout_s=self._timeout_s,
+                    sleep=self._sleep,
                 )
             finally:
                 self._last_request_at = time.monotonic()
