@@ -6,8 +6,10 @@ from __future__ import annotations
 from pathlib import Path
 
 from resto.adapters.persistence.filesystem import artifact_ref
+from resto.adapters.sumo.netconvert import SubprocessNetconvertRunner
 from resto.adapters.sumo.network_probe import SumoNetworkProber, _draw_trips
 from resto.adapters.sumo.netxml import SumolibNetworkQuery
+from resto.adapters.sumo.runner import SubprocessSumoRunner
 from resto.application.ports.sumo import RunOutput
 from resto.domain.value_objects.artifact_ref import ArtifactRef
 from resto.domain.value_objects.kpis import Kpis
@@ -80,3 +82,32 @@ class _TwoEdgeQuery:
 
 def test_a_pair_whose_only_path_crosses_an_edge_closed_to_passenger_is_not_drawn() -> None:
     assert _draw_trips(_TwoEdgeQuery(), seed=0, vehicles=3, spread_s=100.0) == []  # type: ignore[arg-type]
+
+
+class _PermissiveQuery(SumolibNetworkQuery):
+    """A router that does not see the closed edge, as sumolib and SUMO may disagree (ticket 17)."""
+
+    def shortest_path(self, from_edge: str, to_edge: str, vclass: str | None = None) -> list[str]:
+        return super().shortest_path(from_edge, to_edge, None)  # type: ignore[return-value]
+
+
+def test_a_trip_sumo_cannot_route_gives_a_report_instead_of_aborting(tmp_path: Path) -> None:
+    plain = tmp_path / "plain"
+    plain.mkdir()
+    nodes = "".join(f'<node id="n{i}" x="{100.0 * i}" y="0"/>' for i in range(4))
+    (plain / "n.nod.xml").write_text(f"<nodes>{nodes}</nodes>")
+    (plain / "n.edg.xml").write_text(
+        "<edges>"
+        '<edge id="a" from="n0" to="n1"/>'
+        '<edge id="service" from="n1" to="n2" disallow="passenger"/>'
+        '<edge id="c" from="n2" to="n3"/>'
+        "</edges>"
+    )
+    net = SubprocessNetconvertRunner().build(None, plain, [], tmp_path / "closed")
+    prober = SumoNetworkProber(SubprocessSumoRunner(), _PermissiveQuery)
+
+    report = prober.probe(net, seed=0, vehicles=2, duration_s=300.0, out_dir=tmp_path / "probe")
+
+    # SUMO either drops the trip (not arrived) or lets it through and teleports it past the closed
+    # edge; what matters is the report, and that both trips show up as trouble.
+    assert report.not_arrived + report.teleports == 2

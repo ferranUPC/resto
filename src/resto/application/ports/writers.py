@@ -37,6 +37,7 @@ class SimulationSettings:
     end: float | None = None
     step_length: float = 1.0
     time_to_teleport: float = 300.0
+    ignore_route_errors: bool = False  # drop a vehicle with no valid route instead of aborting
 
     def __post_init__(self) -> None:
         if not self.route_files:

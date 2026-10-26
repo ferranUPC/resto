@@ -2,7 +2,8 @@
 
 The demand is `vehicles` trips between random pairs of passenger edges that a route joins, drawn
 from the seed and departing in the first third of the run, so the same seed gives the same demand.
-SUMO routes each trip itself. The run uses a short teleport time (`PROBE_TIME_TO_TELEPORT_S`), so a
+SUMO routes each trip itself; a trip it cannot route is dropped (`ignore_route_errors`), not fatal,
+so one bad pair never leaves the caller without a report. The run uses a short teleport time (`PROBE_TIME_TO_TELEPORT_S`), so a
 vehicle stuck for two minutes counts: a probe is a smoke test, not a study scenario.
 """
 
@@ -53,6 +54,7 @@ class SumoNetworkProber:
                 route_files=(routes,),
                 end=duration_s,
                 time_to_teleport=PROBE_TIME_TO_TELEPORT_S,
+                ignore_route_errors=True,
             ),
             out_dir,
             "probe.sumocfg",

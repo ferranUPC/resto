@@ -31,7 +31,7 @@ _INPUT_OPTIONS = ("net-file", "route-files", "additional-files")
 _KNOWN_OPTIONS: Mapping[str, tuple[str, ...]] = {
     "input": _INPUT_OPTIONS,
     "time": ("begin", "end", "step-length"),
-    "processing": ("time-to-teleport",),
+    "processing": ("time-to-teleport", "ignore-route-errors"),
 }
 
 
@@ -82,6 +82,8 @@ def render_sumocfg(
 
     processing_el = ET.SubElement(root, "processing")
     ET.SubElement(processing_el, "time-to-teleport", value=_num(settings.time_to_teleport))
+    if settings.ignore_route_errors:
+        ET.SubElement(processing_el, "ignore-route-errors", value="true")
 
     if seed is not None:
         random_el = ET.SubElement(root, "random_number")
@@ -137,6 +139,7 @@ def parse_settings(cfg_path: Path) -> SimulationSettings:
         end=float(values["end"]) if "end" in values else None,
         step_length=float(values.get("step-length", 1.0)),
         time_to_teleport=float(values.get("time-to-teleport", 300.0)),
+        ignore_route_errors=values.get("ignore-route-errors") == "true",
     )
 
 
