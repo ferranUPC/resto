@@ -19,7 +19,10 @@ NO_WAIT = 0.0
 
 def _geocoder(service: FakeService, tmp_path: Path, **kwargs: float) -> NominatimGeocoder:
     return NominatimGeocoder(
-        tmp_path / "cache", base_url=service.url, min_interval_s=kwargs.get("interval", NO_WAIT)
+        tmp_path / "cache",
+        base_url=service.url,
+        min_interval_s=kwargs.get("interval", NO_WAIT),
+        sleep=lambda _s: None,  # the retry waits of `request`, not the spacing of requests
     )
 
 

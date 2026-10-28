@@ -9,8 +9,10 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any, get_args
 
+from resto.adapters.osm.overpass import DEFAULT_BASE_URL
 from resto.adapters.persistence.sqlite.repositories import SqliteDatabase
 from resto.application.ports.llm import AgentRun, AgentTask, Budget, StopReason, Tool
+from resto.application.ports.osm import OsmLimits
 from resto.application.run_study import RunStudy
 from resto.domain.entities.study import StudyResolution
 from resto.domain.value_objects.answer_value import Measure, Quantity
@@ -20,13 +22,15 @@ from resto.domain.value_objects.drafts import (
     ReportDraft,
 )
 from resto.domain.value_objects.expert_answer import Basis, Evidence, EvidenceKind, ExpertAnswer
+from resto.domain.value_objects.network_source import BBox
 from resto.domain.value_objects.outcomes import Found, NetworkOutcome
 from resto.domain.value_objects.question import Intent, Question
 from resto.domain.value_objects.step_record import Usage
 from resto.domain.value_objects.study_plan import PlanStep
-from resto.interface.dependencies import build_run_study
+from resto.interface.dependencies import build_overpass_source, build_run_study, overpass_urls
 from tests.unit._paths import DEV_NET
 from tests.unit.adapters.llm._fakes import call_tool
+from tests.unit.adapters.osm._server import Reply, fake_service
 from tests.unit.domain._samples import network as sample_network
 
 QUESTION = Question(
@@ -105,3 +109,24 @@ def _build(db: SqliteDatabase, agent: ScriptedAgent, tmp_path: Path, **agents: A
     return build_run_study(
         db=db, agent=agent, budget=budget, tracer=NullTracer(), out_dir=tmp_path, **agents
     )
+
+
+def test_the_overpass_endpoints_come_from_the_environment() -> None:
+    assert overpass_urls({}) == [DEFAULT_BASE_URL]
+    assert overpass_urls({"RESTO_OVERPASS_URLS": " "}) == [DEFAULT_BASE_URL]
+    assert overpass_urls({"RESTO_OVERPASS_URLS": "http://a/x, http://b/y"}) == [
+        "http://a/x",
+        "http://b/y",
+    ]
+
+
+def test_the_overpass_source_downloads_from_the_endpoint_the_environment_names(
+    tmp_path: Path,
+) -> None:
+    with fake_service() as service:
+        service.answer(Reply.fixture("overpass_small.osm", content_type="application/osm3s+xml"))
+        source = build_overpass_source(OsmLimits(), {"RESTO_OVERPASS_URLS": service.url})
+
+        source.fetch(BBox(south=41.39, west=2.15, north=41.398, east=2.16), tmp_path)
+
+    assert len(service.received) == 1

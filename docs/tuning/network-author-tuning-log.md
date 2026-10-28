@@ -677,3 +677,17 @@ rebuilds with `netconvert` (no model, $0).
 - **Open:** complete the roundabouts a band touches in `fetch_road`, strip the roundabout tag from rings still open
   after the cut, `vClass` in the probe's path check and SUMO's `--ignore-route-errors` in the probe run, a tool that
   locates a kilometre point of a road (`highway=milestone` in OSM), and why the reasoning cap does not hold.
+
+## 2026-10-26, Overpass retry and endpoints (E6.1 ticket 18, no model, $0)
+
+`request` now retries 429, 502, 503, 504 and connection errors or timeouts: three attempts in all, waiting 5 s, then
+10 s (or `Retry-After`, at most 60 s). Endpoints come from `RESTO_OVERPASS_URLS` (comma-separated, one per attempt in
+turn; default `https://overpass-api.de/api/interpreter`).
+
+- **Real check:** `OverpassOsmSource().fetch` of a 0.0002 x 0.0003 degree box in Barcelona against `overpass-api.de`
+  waited 5 s and 10 s (two transient failures) and then downloaded 72,982 bytes, 53 s in all. `/api/status` of
+  `overpass-api.de` did not answer from curl at the time (no HTTP status).
+- **Mirrors:** `gall.openstreetmap.de` did not answer (no HTTP status) and `lambert.openstreetmap.de/api/status` answered
+  "502 ... at capacity". Neither is a safe default, so the default stays one endpoint and the list is configuration only.
+- **Timeout and maxsize by area (point 3) not done:** the snapshots in `~/resto-runs/*/author/osm/` (32 files, 0.4 to
+  15.2 MB, median 12.1 MB) carry no download time and no area, so there is nothing to fit a formula to.

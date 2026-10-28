@@ -21,6 +21,7 @@ class Reply:
     status: int = 200
     content_type: str = "application/json"
     delay_s: float = 0.0
+    headers: dict[str, str] = field(default_factory=dict)
 
     @staticmethod
     def fixture(name: str, **kwargs: Any) -> Reply:
@@ -71,6 +72,8 @@ def fake_service() -> Iterator[FakeService]:
                 self.send_response(reply.status)
                 self.send_header("Content-Type", reply.content_type)
                 self.send_header("Content-Length", str(len(reply.body)))
+                for name, value in reply.headers.items():
+                    self.send_header(name, value)
                 self.end_headers()
                 self.wfile.write(reply.body)
             except (BrokenPipeError, ConnectionResetError):

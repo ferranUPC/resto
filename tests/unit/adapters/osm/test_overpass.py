@@ -20,7 +20,9 @@ OSM = Reply.fixture("overpass_small.osm", content_type="application/osm3s+xml")
 
 
 def _source(service: FakeService, limits: OsmLimits | None = None) -> OverpassOsmSource:
-    return OverpassOsmSource(base_url=service.url, limits=limits or OsmLimits())
+    return OverpassOsmSource(
+        base_url=service.url, limits=limits or OsmLimits(), sleep=lambda _s: None
+    )
 
 
 def _query(service: FakeService, index: int = 0) -> str:
@@ -120,7 +122,7 @@ def test_the_user_agent_is_sent_and_is_our_own(tmp_path: Path) -> None:
 @pytest.mark.parametrize(
     "reply",
     [
-        Reply(b"too busy", status=429, content_type="text/plain"),
+        Reply(b"bad query", status=400, content_type="text/plain"),
         Reply(b"gateway timeout", status=504, content_type="text/plain"),
         Reply.fixture("overpass_runtime_error.osm", content_type="application/osm3s+xml"),
         Reply(b"not xml at all", content_type="text/plain"),
@@ -140,7 +142,7 @@ def test_a_failing_service_names_overpass_and_stores_nothing(tmp_path: Path, rep
 
 def test_a_failed_download_is_retried_by_the_next_fetch(tmp_path: Path) -> None:
     with fake_service() as service:
-        service.answer(Reply(b"busy", status=429, content_type="text/plain"), OSM)
+        service.answer(Reply(b"bad", status=400, content_type="text/plain"), OSM)
         source = _source(service)
 
         with pytest.raises(ExternalServiceError):
@@ -153,7 +155,12 @@ def test_a_failed_download_is_retried_by_the_next_fetch(tmp_path: Path) -> None:
 def test_a_service_slower_than_the_timeout_names_overpass(tmp_path: Path) -> None:
     with fake_service() as service:
         service.answer(Reply(OSM.body, delay_s=1.5))
-        source = OverpassOsmSource(base_url=service.url, limits=OsmLimits(), client_timeout_s=0.3)
+        source = OverpassOsmSource(
+            base_url=service.url,
+            limits=OsmLimits(),
+            client_timeout_s=0.3,
+            sleep=lambda _s: None,
+        )
 
         with pytest.raises(ExternalServiceError) as raised:
             source.fetch(AREA, tmp_path)
@@ -167,7 +174,9 @@ def test_the_overpass_timeout_of_the_limits_bounds_the_client_wait_too(
     monkeypatch.setattr("resto.adapters.osm.overpass._CLIENT_MARGIN_S", 0.2)
     with fake_service() as service:
         service.answer(Reply(OSM.body, delay_s=2.0))
-        source = OverpassOsmSource(base_url=service.url, limits=OsmLimits(overpass_timeout_s=1))
+        source = OverpassOsmSource(
+            base_url=service.url, limits=OsmLimits(overpass_timeout_s=1), sleep=lambda _s: None
+        )
 
         with pytest.raises(ExternalServiceError) as raised:
             source.fetch(AREA, tmp_path)
@@ -246,3 +255,88 @@ def test_the_ways_that_close_a_roundabout_are_asked_for_by_the_nodes_it_stops_at
     assert "(._;>;)" in query
     assert again == first and len(service.received) == 2
     assert first.path != other.path
+
+
+BAD_GATEWAY = Reply(b"bad gateway", status=502, content_type="text/plain")
+
+
+def test_two_502_then_a_200_return_the_body_after_three_requests(tmp_path: Path) -> None:
+    with fake_service() as service:
+        service.answer(BAD_GATEWAY, BAD_GATEWAY, OSM)
+
+        snapshot = _source(service).fetch(AREA, tmp_path)
+
+    assert len(service.received) == 3
+    assert snapshot.path.read_bytes() == (FIXTURES / "overpass_small.osm").read_bytes()
+    assert [p.name for p in tmp_path.iterdir()] == [snapshot.path.name]  # no .part left
+
+
+def test_three_502_end_in_an_error_that_names_the_three_attempts(tmp_path: Path) -> None:
+    with fake_service() as service:
+        service.answer(BAD_GATEWAY)
+
+        with pytest.raises(ExternalServiceError) as raised:
+            _source(service).fetch(AREA, tmp_path)
+
+    assert len(service.received) == 3
+    assert "3 attempts" in str(raised.value) and "502" in str(raised.value)
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_a_400_is_not_retried(tmp_path: Path) -> None:
+    with fake_service() as service:
+        service.answer(Reply(b"bad query", status=400, content_type="text/plain"))
+
+        with pytest.raises(ExternalServiceError):
+            _source(service).fetch(AREA, tmp_path)
+
+    assert len(service.received) == 1
+
+
+def test_a_429_waits_for_its_retry_after_before_the_next_attempt(tmp_path: Path) -> None:
+    waits: list[float] = []
+    with fake_service() as service:
+        service.answer(
+            Reply(b"busy", status=429, content_type="text/plain", headers={"Retry-After": "7"}),
+            OSM,
+        )
+        source = OverpassOsmSource(base_url=service.url, sleep=waits.append)
+
+        source.fetch(AREA, tmp_path)
+
+    assert waits == [7.0]
+
+
+def test_without_retry_after_the_wait_grows_from_five_seconds(tmp_path: Path) -> None:
+    waits: list[float] = []
+    with fake_service() as service:
+        service.answer(BAD_GATEWAY, BAD_GATEWAY, OSM)
+
+        OverpassOsmSource(base_url=service.url, sleep=waits.append).fetch(AREA, tmp_path)
+
+    assert waits == [5.0, 10.0]
+
+
+def test_a_retry_after_longer_than_the_maximum_wait_is_capped(tmp_path: Path) -> None:
+    waits: list[float] = []
+    with fake_service() as service:
+        service.answer(
+            Reply(b"busy", status=429, content_type="text/plain", headers={"Retry-After": "900"}),
+            OSM,
+        )
+
+        OverpassOsmSource(base_url=service.url, sleep=waits.append).fetch(AREA, tmp_path)
+
+    assert waits == [60.0]
+
+
+def test_a_502_on_the_first_endpoint_is_retried_on_the_second(tmp_path: Path) -> None:
+    with fake_service() as first, fake_service() as second:
+        first.answer(BAD_GATEWAY)
+        second.answer(OSM)
+        source = OverpassOsmSource(base_url=[first.url, second.url], sleep=lambda _s: None)
+
+        snapshot = source.fetch(AREA, tmp_path)
+
+    assert len(first.received) == 1 and len(second.received) == 1
+    assert snapshot.path.exists()
