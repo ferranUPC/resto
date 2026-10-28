@@ -622,3 +622,58 @@ España" (40.6327, -3.1646), the city and not the province of the `adl-06` run.
   without a `fetch_osm` box first, which places it takes for km 8 and km 56, the language of a `NeedsUser`, and
   whether the `service` ways it keeps are the A-2's service roads or the industrial parks beside it (no class tells
   them apart).
+
+## 2026-10-26, the A-2 between km 15 and km 25 with prompt `v10` (first `fetch_road` run)
+
+"Quiero la red del tráfico interurbano de la A2, comprendido entre los kilómetros 15 y 25 de Madrid sentido
+creciente. Quiero también contar con las vias de servicio para poder simular posibles detours. No necesito las calles
+que conforman la ciudad alrededor." `~/resto-runs/adl-06`, `RESTO_LLM_MAX_OUTPUT_TOKENS=8196`, 3 rounds,
+`--online --gui`. The run ended in `NetworkDraft`, and the script then crashed in `NetworkPromoter.promote` with
+`DraftRejected` (replay hash `cc38aa20...`, draft `5c5714d2...`). Analysed afterwards from `transcript.json` and
+rebuilds with `netconvert` (no model, $0).
+
+- **Cost:** $0.0508 (564,214 input and 85,694 output tokens, 79,837 of them reasoning), 28 steps, stop `output`.
+- **Path:** `find_network` (nothing), seven `locate_place`, `fetch_road("A-2")` from Canillejas to Torrejón de Ardoz,
+  `list_streets`, two more `fetch_road` (San Fernando to Torrejón, San Fernando to Alcalá) that were not used,
+  `select_streets` dropping `residential`, `living_street`, `pedestrian`, `footway`, `path` and `cycleway`,
+  `netconvert`, then `join_junctions` and `remove_isolated`. The agent went to `fetch_road` without a `fetch_osm` box.
+- **Five steps ended in `length`** (6, 7, 10, 11, 18), each with `reasoning_tokens` 8,196, the whole output limit.
+  The client asks for `reasoning.max_tokens` = 0.8 of the limit (6,557), so the provider does not apply the cap to this
+  model. The `v7` run never reached it (largest step 960). Those five steps are 40,980 output tokens, 48 % of the run.
+  Four of them try to place km 15 and km 25 from memory: no tool returns a kilometre point.
+- **The ends.** The rationale says km 15 to 25 lie between Canillejas and Torrejón. The `reasoning` of steps 7 and 18
+  puts km 15 near lon -3.56 and km 25 near lon -3.43 to -3.44, and step 18 still keeps the first band. The network
+  runs from lon -3.615 to -3.476. "Sentido creciente" was not applied: both carriageways are in the network.
+- **Sanity:** `largest_scc_ratio` 0.229, `through_traffic_ratio` 1.0, no zero-length edge, `passes` true.
+  `verify_coverage` shows the M-50 (8.4 km), M-14, M-40 and M-22 stretches missing; the agent lists them in
+  `unresolved` as the detour alternatives the request asked for.
+- **Every `probe_run` failed** with "Vehicle 'probeN' has no valid route". `_draw_trips` keeps a pair when
+  `sumolib`'s `getShortestPath` finds a path, and it calls it without a vClass. On two of the three probe files, the
+  only path of `probe0` crosses edge 539697996 (`highway.service`), which does not allow `passenger`; with
+  `vClass="passenger"` there is no path. SUMO then stops the whole run at the first such trip.
+- **`submit_output` with `source: {"kind": "grid"}` twice**, then a correct one. The message added after the `v7` run
+  works within three tries.
+- **The replay is not deterministic.** Built from the same snapshot with the same options as the recipe, 7 builds
+  gave 4 different hashes (`5c5714d2`, `a941e42d`, `bf5fad3a`, `cc38aa20`). Two of them have the same 2,242 edges and
+  differ in 34 diff lines: `request` foes and responses at junctions `1536935012` and `1117941997`, and the `M`/`m`
+  state of the connections at `1536935012`. So the promoter rejects a network that is correct.
+- **The cause is in SUMO, at import, for any option set.** `NBEdgeCont::extractRoundabouts`
+  (`src/netbuild/NBEdgeCont.cpp:1457-1500`, v1_27_1) walks the `junction=roundabout` edges from a
+  `std::set<NBEdge*>`, ordered by pointer, and registers a roundabout whenever a walk reaches an edge an earlier walk
+  visited. A closed ring gives the same set every time; an open chain is cut into false roundabouts where the heap
+  order says. The snapshot has two open rings. In one build the false one-edge roundabout is at `1117941997`, in the
+  other at `1536935012`, where it gives `ROUNDABOUT` priority to `670937176`, tied with `140267481` (priority 12,
+  2 lanes, 13.89 m/s). Over 20 parallel builds each (a subagent, no model): the cleanups alone give 4 outputs each,
+  both together 6, and 10 builds with no cleanup give 3, so the 2- and 5-build samples above were too small.
+  Upstream: [eclipse-sumo/sumo#18375](https://github.com/eclipse-sumo/sumo/issues/18375), open, no fix.
+- **Why a ring is open.** Way 1113049291 (`primary`, `junction=roundabout`, `ref` N-II, 3 nodes) lies on the edge of
+  the band at (40.4528, -3.5073). It is in the `fetch_osm` snapshot `osm-b859dc32` and in no `road-*` snapshot, so
+  `fetch_road` dropped it, and nothing completes the roundabouts a band touches as `select_streets` does for a zone.
+  The way that would close the second ring is in none of the run's files.
+- **Workaround tested by the subagent:** removing `junction=roundabout` (and adding `oneway=yes` where there is no
+  oneway tag) from the 8 ways of open rings gives 20 identical builds of 20, with both cleanups and with none, and keeps
+  the 7 real roundabouts. No `netconvert` option avoids it: `--keep-edges.in-geo-boundary` prunes while loading,
+  before the extraction.
+- **Open:** complete the roundabouts a band touches in `fetch_road`, strip the roundabout tag from rings still open
+  after the cut, `vClass` in the probe's path check and SUMO's `--ignore-route-errors` in the probe run, a tool that
+  locates a kilometre point of a road (`highway=milestone` in OSM), and why the reasoning cap does not hold.
