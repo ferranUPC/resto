@@ -31,10 +31,11 @@ import json
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
-from typing import Annotated, Any, NotRequired, TypedDict, cast
+from typing import Annotated, Any, NotRequired, cast
 from xml.etree import ElementTree
 
 from pydantic import Field
+from typing_extensions import TypedDict  # pydantic needs it on Python < 3.12
 
 from resto.application.osm_import import (
     DEFAULT_MARGIN_PCT,
