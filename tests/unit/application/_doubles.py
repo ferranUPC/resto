@@ -8,9 +8,10 @@ from collections.abc import Set as AbstractSet
 from pathlib import Path
 from typing import Any
 
-from resto.application.ports.sumo import RunOutput
+from resto.application.ports.sumo import DryRunOutcome, RunOutput
 from resto.domain.constants import SUMO_VERSION
 from resto.domain.value_objects.artifact_ref import ArtifactRef
+from resto.domain.value_objects.traci_script import TraciScript
 
 
 class StubNetworkQuery:
@@ -18,9 +19,11 @@ class StubNetworkQuery:
         self,
         edges: AbstractSet[str] = frozenset(),
         lanes: AbstractSet[tuple[str, int]] = frozenset(),
+        tls: AbstractSet[str] = frozenset(),
     ) -> None:
         self._edges = edges
         self._lanes = lanes
+        self._tls = tls
 
     def has_edge(self, edge_id: str) -> bool:
         return edge_id in self._edges
@@ -29,7 +32,7 @@ class StubNetworkQuery:
         return (edge_id, lane_index) in self._lanes
 
     def has_tls(self, tls_id: str) -> bool:
-        raise AssertionError("not used by this intervention")
+        return tls_id in self._tls
 
     def get_edge(self, edge_id: str) -> Mapping[str, Any]:
         raise AssertionError("not used")
@@ -69,17 +72,30 @@ class FakeRunner:
         self._default = default
         self._version = version
         self.calls: list[tuple[ArtifactRef, int, Path]] = []
+        self.dry_run_outcome = DryRunOutcome(ok=True, error=None)
+        # (sumocfg, script, out_dir, number of run_batch calls made before it)
+        self.dry_runs: list[tuple[ArtifactRef, TraciScript, Path, int]] = []
+        self.online_calls: list[tuple[ArtifactRef, TraciScript, int]] = []
 
     def sumo_version(self) -> str:
         return self._version
 
     def run_batch(self, sumocfg: ArtifactRef, seed: int, out_dir: Path) -> RunOutput:
         self.calls.append((sumocfg, seed, out_dir))
+        return self._next()
+
+    def _next(self) -> RunOutput:
         if not self._outputs and self._default is not None:
             return self._default
         return self._outputs.pop(0)
 
     def run_online(
-        self, sumocfg: ArtifactRef, script: ArtifactRef, seed: int, out_dir: Path
+        self, sumocfg: ArtifactRef, script: TraciScript, seed: int, out_dir: Path
     ) -> RunOutput:
-        raise AssertionError("not used")
+        self.calls.append((sumocfg, seed, out_dir))
+        self.online_calls.append((sumocfg, script, seed))
+        return self._next()
+
+    def dry_run(self, sumocfg: ArtifactRef, script: TraciScript, out_dir: Path) -> DryRunOutcome:
+        self.dry_runs.append((sumocfg, script, out_dir, len(self.calls)))
+        return self.dry_run_outcome

@@ -1,6 +1,6 @@
 # ADR-0005: `resto.traci_api` scripts as the single dynamic mechanism
 
-- Status: Accepted
+- Status: Accepted — who writes a script, the lint and the sandbox superseded by [ADR-0044](0044-scripts-are-typed-data-code-writes-the-python.md)
 - Date: 2026-09-11
 - Architecture reference: [`tfm-architecture-and-dod.md`](../tfm-architecture-and-dod.md) §2.4 (Scenario Builder, Simulation Runner, TraciMCP)
 

@@ -7,8 +7,8 @@ bound to the scenario's network — the same port NetworkMCP wraps, ADR-0009); `
 the intervention's target type, the tool wrapper does not need to know which. `scale_demand`
 (E2.3) wraps the `ScaleDemand` use case the same way, for the network-wide `demand_scale` case.
 Each tool is declared once with `tool` (ADR-0033); the ones that write files take a
-`BuilderRun` as `ctx`. `write_taz` and the script tools (`write_traci_script`, `lint_script`,
-`dry_run`) arrive with E2.6. Each function is the one implementation, offered in-process to the
+`BuilderRun` as `ctx`. `write_taz` and the script blocks (rules for the typed `TraciScript`)
+arrive with E2.6. Each function is the one implementation, offered in-process to the
 Builder or wrapped by an MCP server (ADR-0009).
 """
 

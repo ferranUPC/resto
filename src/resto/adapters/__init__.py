@@ -1,1 +1,1 @@
-"""Driven adapters: LLM client, SUMO tools, sandbox, web, persistence, tracing."""
+"""Driven adapters: LLM client, SUMO tools, web, persistence, tracing."""

@@ -92,8 +92,8 @@ from tests.unit.domain._fixtures import (
     network_draft,
     plan_network,
     run_step,
-    runnable_script,
     static_intervention,
+    traci_script,
 )
 from tests.unit.domain._samples import demand as sample_demand
 from tests.unit.domain._samples import network as sample_network
@@ -263,7 +263,7 @@ def echo_draft(task: Any) -> AgentRun[ScenarioDraft]:
         else StaticFileMechanism(file_kind="rerouter", path=Path(f"{n}.add.xml"))
         for n, i in enumerate(task.interventions)
     )
-    script = runnable_script() if any(i.condition for i in task.interventions) else None
+    script = traci_script() if any(i.condition for i in task.interventions) else None
     draft = ScenarioDraft(
         interventions=task.interventions,
         mechanisms=mechanisms,

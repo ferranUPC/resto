@@ -3,6 +3,7 @@ from typing import Any
 import pytest
 
 from resto.domain.entities.scenario import Scenario
+from resto.domain.entities.simulation_result import RunMode
 from resto.domain.services.ids import scenario_id_for
 from resto.domain.value_objects.intervention import Intervention, InterventionType
 from resto.domain.value_objects.mechanism import (
@@ -14,8 +15,8 @@ from resto.domain.value_objects.time_window import TimeWindow
 from tests.unit.domain._fixtures import (
     artifact,
     dynamic_intervention,
-    runnable_script,
     static_intervention,
+    traci_script,
 )
 
 STATIC_MECH = StaticFileMechanism(file_kind="rerouter", path=artifact("r.add.xml").path)
@@ -47,20 +48,19 @@ def test_dynamic_intervention_requires_script_mechanism_and_script() -> None:
     s = _scenario(
         interventions=(dynamic_intervention(),),
         mechanisms=(ScriptMechanism(),),
-        traci_script=runnable_script(),
+        traci_script=traci_script(),
     )
     assert s.is_online
 
 
-def test_script_must_pass_lint_and_dry_run() -> None:
-    from dataclasses import replace
-
-    with pytest.raises(ValueError):
-        _scenario(
-            interventions=(dynamic_intervention(),),
-            mechanisms=(ScriptMechanism(),),
-            traci_script=replace(runnable_script(), dry_run_ok=False),
-        )
+def test_run_mode_follows_the_script() -> None:
+    assert _scenario().run_mode is RunMode.BATCH
+    online = _scenario(
+        interventions=(dynamic_intervention(),),
+        mechanisms=(ScriptMechanism(),),
+        traci_script=traci_script(),
+    )
+    assert online.run_mode is RunMode.ONLINE
 
 
 def test_demand_scale_must_regenerate_demand() -> None:

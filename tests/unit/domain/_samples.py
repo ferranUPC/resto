@@ -158,7 +158,16 @@ from resto.domain.value_objects.topology_modification import (
     SetLanes,
     SetSpeed,
 )
-from resto.domain.value_objects.traci_script import DeclaredRule, TraciScript
+from resto.domain.value_objects.traci_script import (
+    AtTime,
+    CloseLane,
+    OpenLane,
+    Rule,
+    SetTlsProgram,
+    TraciScript,
+    When,
+)
+from resto.domain.value_objects.traci_script import SetSpeed as ScriptSetSpeed
 from tests.unit.domain._fixtures import (
     area_recipe,
     artifact,
@@ -172,10 +181,10 @@ from tests.unit.domain._fixtures import (
     network_draft,
     parsed_step,
     probe,
-    runnable_script,
     scenario_draft,
     square_ring,
     static_intervention,
+    traci_script,
 )
 
 
@@ -282,7 +291,7 @@ def scenario() -> Scenario:
         content_hash="c1",
         additional_files=(artifact("r.add.xml", "a1", "additional"),),
         context_tags=frozenset({"peak"}),
-        traci_script=runnable_script(),
+        traci_script=traci_script(),
     )
 
 
@@ -498,8 +507,14 @@ SAMPLES: dict[type, Callable[[], object]] = {
     ),
     ScriptMechanism: ScriptMechanism,
     RegenerateDemandMechanism: lambda: RegenerateDemandMechanism(demand_id="d2"),
-    TraciScript: runnable_script,
-    DeclaredRule: lambda: DeclaredRule(trigger="at_time(3600)", action="close_lane(E12_1)"),
+    TraciScript: traci_script,
+    Rule: lambda: Rule(trigger=AtTime(t=3600.0), action=CloseLane(edge_id="E12", lane_index=1)),
+    AtTime: lambda: AtTime(t=3600.0),
+    When: lambda: When(Condition(metric=Metric.OCCUPANCY, target="E12", op=Operator.GT, value=0.8)),
+    CloseLane: lambda: CloseLane(edge_id="E12", lane_index=1),
+    OpenLane: lambda: OpenLane(edge_id="E12", lane_index=1),
+    ScriptSetSpeed: lambda: ScriptSetSpeed(edge_id="E12", speed=8.33),
+    SetTlsProgram: lambda: SetTlsProgram(tls_id="J4", program_id="night"),
     # results
     Kpis: lambda: Kpis(
         mean_delay=42.0, mean_travel_time=300.0, teleports=1, departed=500, arrived=498

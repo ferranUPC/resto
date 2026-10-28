@@ -124,8 +124,8 @@ class DemandDraft:
 
 @dataclass(frozen=True, slots=True)
 class ScenarioDraft:
-    """Scenario Builder output. `script` may still be failing lint or dry_run here: that is
-    information the promotion step acts on, whereas a promoted Scenario requires it runnable."""
+    """Scenario Builder output. `script` is the typed rules the Builder composed; promotion checks
+    every id they name against the network."""
 
     interventions: tuple[Intervention, ...]
     mechanisms: tuple[Mechanism, ...]
