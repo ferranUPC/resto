@@ -86,7 +86,10 @@ def test_silent_failure_honours_the_threshold_the_task_asked_for() -> None:
     """A task may loosen min_scc_ratio; the draft must be judged against that, not the default."""
     draft = network_draft(
         sanity_report=type(good_sanity())(
-            largest_scc_ratio=0.90, zero_length_edges=0, all_reachable_from_fringe=True
+            largest_scc_ratio=0.90,
+            zero_length_edges=0,
+            all_reachable_from_fringe=True,
+            through_traffic_ratio=0.90,
         )
     )
     assert draft.is_silent_failure()

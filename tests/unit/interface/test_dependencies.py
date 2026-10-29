@@ -1,6 +1,6 @@
 """The composition root: `build_run_study` wires the real object graph, and one scripted study runs
-through `RunStudy.execute` on a temporary SQLite database. Only the `ToolAgent` and the Network
-Author (not implemented yet, E6.1) are fake; the network guard of `conftest.py` stays on."""
+through `RunStudy.execute` on a temporary SQLite database. Only the `ToolAgent` is fake (the Network
+Author's model included); the network guard of `conftest.py` stays on."""
 
 from __future__ import annotations
 
@@ -9,26 +9,28 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any, get_args
 
+from resto.adapters.osm.overpass import DEFAULT_BASE_URL
 from resto.adapters.persistence.sqlite.repositories import SqliteDatabase
 from resto.application.ports.llm import AgentRun, AgentTask, Budget, StopReason, Tool
+from resto.application.ports.osm import OsmLimits
 from resto.application.run_study import RunStudy
 from resto.domain.entities.study import StudyResolution
 from resto.domain.value_objects.answer_value import Measure, Quantity
 from resto.domain.value_objects.drafts import (
     ClaimDraft,
     ExpertNoteDrafts,
-    NetworkDraft,
     ReportDraft,
 )
 from resto.domain.value_objects.expert_answer import Basis, Evidence, EvidenceKind, ExpertAnswer
+from resto.domain.value_objects.network_source import BBox
 from resto.domain.value_objects.outcomes import Found, NetworkOutcome
 from resto.domain.value_objects.question import Intent, Question
 from resto.domain.value_objects.step_record import Usage
 from resto.domain.value_objects.study_plan import PlanStep
-from resto.domain.value_objects.tasks import NetworkTask, ObtainNetworkTask
-from resto.interface.dependencies import build_run_study
+from resto.interface.dependencies import build_overpass_source, build_run_study, overpass_urls
 from tests.unit._paths import DEV_NET
 from tests.unit.adapters.llm._fakes import call_tool
+from tests.unit.adapters.osm._server import Reply, fake_service
 from tests.unit.domain._samples import network as sample_network
 
 QUESTION = Question(
@@ -62,21 +64,14 @@ class ScriptedAgent:
         self.asked.append(output)
         if output is ExpertAnswer:
             call_tool(tools, "list_results", scenario_id="none")  # leaves q1 in the ledger
-        scripted: dict[type, Any] = {
+        scripted: dict[Any, Any] = {
             Question: QUESTION,
             ExpertAnswer: ANSWER,
             ExpertNoteDrafts: ExpertNoteDrafts(),
             ReportDraft: REPORT,
+            NetworkOutcome: Found(sample_network().network_id),
         }
         return AgentRun(scripted[output], (), Usage(), StopReason.OUTPUT)
-
-
-class NetworkAuthorStub:
-    def obtain(self, task: ObtainNetworkTask) -> AgentRun[NetworkOutcome]:
-        return AgentRun(Found(sample_network().network_id), (), Usage(), StopReason.OUTPUT)
-
-    def author(self, task: NetworkTask) -> AgentRun[NetworkDraft]:
-        raise NotImplementedError
 
 
 class NullTracer:
@@ -90,8 +85,8 @@ def test_the_real_graph_runs_one_scripted_study(tmp_path: Path) -> None:
         replace(sample_network(), net_xml=replace(sample_network().net_xml, path=DEV_NET))
     )
     agent = ScriptedAgent()
-    # The Network Author is a placeholder until E6.1; the rest of the graph is the real one.
-    run_study = _build(db, agent, tmp_path, network_author=NetworkAuthorStub())
+    # the whole graph is the real one: the Network Author runs on the same scripted model
+    run_study = _build(db, agent, tmp_path)
 
     study = run_study.execute("how many lanes does the network have?")
 
@@ -114,3 +109,24 @@ def _build(db: SqliteDatabase, agent: ScriptedAgent, tmp_path: Path, **agents: A
     return build_run_study(
         db=db, agent=agent, budget=budget, tracer=NullTracer(), out_dir=tmp_path, **agents
     )
+
+
+def test_the_overpass_endpoints_come_from_the_environment() -> None:
+    assert overpass_urls({}) == [DEFAULT_BASE_URL]
+    assert overpass_urls({"RESTO_OVERPASS_URLS": " "}) == [DEFAULT_BASE_URL]
+    assert overpass_urls({"RESTO_OVERPASS_URLS": "http://a/x, http://b/y"}) == [
+        "http://a/x",
+        "http://b/y",
+    ]
+
+
+def test_the_overpass_source_downloads_from_the_endpoint_the_environment_names(
+    tmp_path: Path,
+) -> None:
+    with fake_service() as service:
+        service.answer(Reply.fixture("overpass_small.osm", content_type="application/osm3s+xml"))
+        source = build_overpass_source(OsmLimits(), {"RESTO_OVERPASS_URLS": service.url})
+
+        source.fetch(BBox(south=41.39, west=2.15, north=41.398, east=2.16), tmp_path)
+
+    assert len(service.received) == 1

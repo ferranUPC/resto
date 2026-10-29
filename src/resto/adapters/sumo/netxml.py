@@ -35,6 +35,12 @@ class SumolibNetworkQuery:
     def __init__(self, net_xml_path: Path) -> None:
         self._net = sumolib.net.readNet(str(net_xml_path), withPrograms=True)
 
+    def edge_ids(self) -> Sequence[str]:
+        return sorted(edge.getID() for edge in self._net.getEdges())
+
+    def tls_ids(self) -> Sequence[str]:
+        return sorted(tls.getID() for tls in self._net.getTrafficLights())
+
     def has_edge(self, edge_id: str) -> bool:
         return self._net.hasEdge(edge_id)
 
@@ -84,10 +90,12 @@ class SumolibNetworkQuery:
         edge = self._net.getEdge(edge_id)  # raises KeyError on an unknown id
         return sorted({out.getID() for out in edge.getOutgoing()})
 
-    def shortest_path(self, from_edge: str, to_edge: str) -> Sequence[str]:
+    def shortest_path(
+        self, from_edge: str, to_edge: str, vclass: str | None = None
+    ) -> Sequence[str]:
         from_e = self._net.getEdge(from_edge)  # raises KeyError on an unknown id
         to_e = self._net.getEdge(to_edge)  # raises KeyError on an unknown id
-        edges, _cost = self._net.getShortestPath(from_e, to_e)
+        edges, _cost = self._net.getShortestPath(from_e, to_e, vClass=vclass)
         if edges is None:
             return []
         return [e.getID() for e in edges]

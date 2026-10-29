@@ -46,7 +46,7 @@ from resto.domain.value_objects.intervention import Intervention, InterventionTy
 from resto.domain.value_objects.intervention_target import LaneTarget
 from resto.domain.value_objects.mechanism import StaticFileMechanism
 from resto.domain.value_objects.network_recipe import NetworkRecipe
-from resto.domain.value_objects.network_source import NetworkSource
+from resto.domain.value_objects.network_source import GridNetwork
 from resto.domain.value_objects.time_window import TimeWindow
 from tests.unit.domain._fixtures import artifact
 from tests.unit.domain._samples import demand, expert_note, network, scenario, simulation_result
@@ -83,13 +83,13 @@ def db(request: pytest.FixtureRequest) -> Iterator[Backend]:
     conn.close()
 
 
-def _network_named(network_id: str, source: str = "dev-net.osm") -> Network:
+def _network_named(network_id: str, source: GridNetwork | None = None) -> Network:
     base = network()
     return replace(
         base,
         network_id=network_id,
         net_xml=artifact(f"{network_id}.net.xml", network_id, "net"),
-        recipe=replace(base.recipe, source=NetworkSource(kind="file", value=source)),
+        recipe=NetworkRecipe(source=source or GridNetwork()),
         label=None,
     )
 
@@ -158,10 +158,11 @@ def test_network_list_orders_by_id_not_by_insertion(db: Backend) -> None:
 
 
 def test_network_find_by_source_excludes_other_sources(db: Backend) -> None:
-    db.networks.store(_network_named("a", source="one.osm"))
-    db.networks.store(_network_named("b", source="two.osm"))
+    one, two = GridNetwork(x_number=3), GridNetwork(x_number=4)
+    db.networks.store(_network_named("a", source=one))
+    db.networks.store(_network_named("b", source=two))
 
-    found = db.networks.find(source="two.osm")
+    found = db.networks.find(source=NetworkRecipe(source=two).source_key)
 
     assert [n.network_id for n in found] == ["b"]
 

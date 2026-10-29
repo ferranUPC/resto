@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<osm version="0.6" generator="hand-made for the E6.1 service-road tests">
+  <node id="1" lat="41.3920" lon="2.1510"/>
+  <node id="2" lat="41.3920" lon="2.1550"/>
+  <node id="3" lat="41.3920" lon="2.1590"/>
+  <node id="4" lat="41.3950" lon="2.1550"/>
+  <node id="5" lat="41.3970" lon="2.1550"/>
+  <node id="6" lat="41.3945" lon="2.1590"/>
+  <node id="7" lat="41.3920" lon="2.1570"/>
+  <node id="8" lat="41.3910" lon="2.1570"/>
+  <way id="200">
+    <nd ref="1"/><nd ref="2"/><nd ref="3"/>
+    <tag k="highway" v="residential"/>
+  </way>
+  <way id="201">
+    <nd ref="2"/><nd ref="4"/><nd ref="5"/>
+    <tag k="highway" v="service"/>
+    <tag k="name" v="Campusstrasse"/>
+  </way>
+  <way id="202">
+    <nd ref="3"/><nd ref="6"/>
+    <tag k="highway" v="service"/>
+    <tag k="service" v="driveway"/>
+  </way>
+  <way id="203">
+    <nd ref="7"/><nd ref="8"/>
+    <tag k="highway" v="service"/>
+    <tag k="service" v="parking_aisle"/>
+  </way>
+</osm>

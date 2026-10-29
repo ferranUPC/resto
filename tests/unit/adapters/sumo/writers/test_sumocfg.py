@@ -163,3 +163,14 @@ def test_edgedata_additional_declares_the_period_and_output_file(tmp_path: Path)
         '    <edgeData id="resto_edgedata" freq="300" file="edgedata.xml" />\n'
         "</additional>\n"
     )
+
+
+def test_ignore_route_errors_round_trips_and_is_absent_by_default(tmp_path: Path) -> None:
+    default = SumocfgFileWriter().write(settings(), tmp_path / "a", "s.sumocfg")
+    lenient = SumocfgFileWriter().write(
+        settings(ignore_route_errors=True), tmp_path / "b", "s.sumocfg"
+    )
+
+    assert "ignore-route-errors" not in default.path.read_text()
+    assert parse_settings(default.path).ignore_route_errors is False
+    assert parse_settings(lenient.path).ignore_route_errors is True

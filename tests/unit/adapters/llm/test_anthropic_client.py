@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from eval.fixed_network_query_loader import FixedNetworkQueryLoader
@@ -19,6 +19,7 @@ from resto.adapters.llm.pricing import UnknownModelError
 from resto.adapters.persistence.memory import InMemoryResultRepository, InMemoryScenarioRepository
 from resto.application.ports.llm import AgentTask, Budget, StopReason, Tool
 from resto.application.tools.expert import EvidenceLedger, build_expert_tools, expert_context
+from resto.domain.value_objects.outcomes import Found, NetworkOutcome
 from resto.domain.value_objects.question import Mode
 from resto.domain.value_objects.tasks import ExpertTask
 from tests.unit.application._doubles import StubNetworkQuery
@@ -49,12 +50,22 @@ def completion(
     completion_tokens: int = 5,
     cost: float | None = 0.0,
     finish_reason: str | None = None,
+    reasoning: str | None = None,
+    reasoning_tokens: int | None = None,
 ) -> SimpleNamespace:
-    message = SimpleNamespace(content=content, tool_calls=list(tool_calls) or None)
+    message = SimpleNamespace(
+        content=content, tool_calls=list(tool_calls) or None, reasoning=reasoning
+    )
+    details = (
+        None if reasoning_tokens is None else SimpleNamespace(reasoning_tokens=reasoning_tokens)
+    )
     return SimpleNamespace(
         choices=[SimpleNamespace(message=message, finish_reason=finish_reason)],
         usage=SimpleNamespace(
-            prompt_tokens=prompt_tokens, completion_tokens=completion_tokens, cost=cost
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            cost=cost,
+            completion_tokens_details=details,
         ),
     )
 
@@ -71,6 +82,7 @@ class ScriptedCompletions:
         return self._responses.pop(0)
 
 
+OUTCOME = cast("type[Any]", NetworkOutcome)  # a union is not a `type[T]` for mypy
 DUMMY_BUDGET = Budget(max_steps=5, max_tokens=256, max_seconds=30.0)
 DUMMY_TASK = AgentTask(system_prompt="be helpful", input={"goal": "test"})
 
@@ -87,6 +99,46 @@ def test_submits_a_valid_output_directly() -> None:
     assert run.output == Answer(text="done")
     assert run.usage.input_tokens == 10
     assert run.usage.output_tokens == 5
+
+
+def test_a_union_output_is_offered_under_an_object_root_and_comes_back_unwrapped() -> None:
+    complete = ScriptedCompletions(
+        completion(tool_calls=(tool_call("c1", "submit_output", {"outcome": {"id": "n1"}}),))
+    )
+    agent = OpenRouterToolAgent(CONFIG, complete=complete)
+
+    run = agent.run(DUMMY_TASK, tools=(), output=OUTCOME, budget=DUMMY_BUDGET)
+
+    parameters = complete.calls[0]["tools"][-1]["function"]["parameters"]
+    assert parameters["type"] == "object" and "anyOf" not in parameters
+    assert "anyOf" in parameters["properties"]["outcome"] and "$defs" in parameters
+    assert run.stop_reason is StopReason.OUTPUT
+    assert run.output == Found("n1")
+
+
+def test_a_union_submission_without_the_wrapper_field_gets_another_turn() -> None:
+    complete = ScriptedCompletions(
+        completion(tool_calls=(tool_call("c1", "submit_output", {"id": "n1"}),)),
+        completion(tool_calls=(tool_call("c2", "submit_output", {"outcome": {"id": "n1"}}),)),
+    )
+    agent = OpenRouterToolAgent(CONFIG, complete=complete)
+
+    run = agent.run(DUMMY_TASK, tools=(), output=OUTCOME, budget=DUMMY_BUDGET)
+
+    assert run.output == Found("n1")
+    assert [c.name for c in run.tool_calls] == ["submit_output", "submit_output"]
+
+
+def test_an_object_output_keeps_its_own_root_schema() -> None:
+    complete = ScriptedCompletions(
+        completion(tool_calls=(tool_call("c1", "submit_output", {"text": "ok"}),))
+    )
+    OpenRouterToolAgent(CONFIG, complete=complete).run(
+        DUMMY_TASK, tools=(), output=Answer, budget=DUMMY_BUDGET
+    )
+
+    parameters = complete.calls[0]["tools"][-1]["function"]["parameters"]
+    assert parameters["type"] == "object" and "text" in parameters["properties"]
 
 
 def test_calls_an_offered_tool_before_submitting() -> None:
@@ -203,6 +255,37 @@ def test_every_step_is_traced_including_plain_text_replies_cut_at_the_token_limi
     assert second.tool_calls == ("submit_output",)
 
 
+def test_the_same_rejection_three_times_in_a_row_ends_the_run_with_an_error() -> None:
+    bad = {"text": " "}
+    complete = ScriptedCompletions(
+        *(completion(tool_calls=(tool_call(f"c{i}", "submit_output", bad),)) for i in range(5))
+    )
+    agent = OpenRouterToolAgent(CONFIG, complete=complete)
+
+    run = agent.run(DUMMY_TASK, tools=(), output=Answer, budget=DUMMY_BUDGET)
+
+    assert run.stop_reason is StopReason.ERROR
+    assert run.output is None
+    assert len(run.steps) == 3
+    assert len(complete.calls) == 3
+
+
+def test_a_different_rejection_in_between_resets_the_count() -> None:
+    blank: dict[str, Any] = {"text": " "}
+    missing: dict[str, Any] = {}
+    complete = ScriptedCompletions(
+        completion(tool_calls=(tool_call("c1", "submit_output", blank),)),
+        completion(tool_calls=(tool_call("c2", "submit_output", blank),)),
+        completion(tool_calls=(tool_call("c3", "submit_output", missing),)),
+        completion(tool_calls=(tool_call("c4", "submit_output", {"text": "ok"}),)),
+    )
+    agent = OpenRouterToolAgent(CONFIG, complete=complete)
+
+    run = agent.run(DUMMY_TASK, tools=(), output=Answer, budget=DUMMY_BUDGET)
+
+    assert run.stop_reason is StopReason.OUTPUT
+
+
 def test_a_budget_stop_keeps_the_step_trace() -> None:
     complete = ScriptedCompletions(*(completion(content="thinking") for _ in range(2)))
     agent = OpenRouterToolAgent(CONFIG, complete=complete)
@@ -274,7 +357,42 @@ def test_asks_openrouter_to_include_real_usage_cost() -> None:
 
     agent.run(DUMMY_TASK, tools=(), output=Answer, budget=DUMMY_BUDGET)
 
-    assert complete.calls[0]["extra_body"] == {"usage": {"include": True}}
+    assert complete.calls[0]["extra_body"]["usage"] == {"include": True}
+
+
+def test_caps_the_reasoning_at_four_fifths_of_the_output_limit() -> None:
+    complete = ScriptedCompletions(
+        completion(tool_calls=(tool_call("c1", "submit_output", {"text": "ok"}),))
+    )
+    agent = OpenRouterToolAgent(CONFIG, complete=complete)
+
+    agent.run(DUMMY_TASK, tools=(), output=Answer, budget=DUMMY_BUDGET)
+
+    assert complete.calls[0]["max_tokens"] == 256
+    assert complete.calls[0]["extra_body"]["reasoning"] == {"max_tokens": 204}
+
+
+def test_a_step_keeps_the_reasoning_text_and_tokens_the_provider_reports() -> None:
+    complete = ScriptedCompletions(
+        completion(
+            content="",
+            completion_tokens=256,
+            finish_reason="length",
+            reasoning="the network is not strongly connected",
+            reasoning_tokens=250,
+        ),
+        completion(tool_calls=(tool_call("c1", "submit_output", {"text": "ok"}),)),
+    )
+    agent = OpenRouterToolAgent(CONFIG, complete=complete)
+
+    run = agent.run(DUMMY_TASK, tools=(), output=Answer, budget=DUMMY_BUDGET)
+
+    first, second = run.steps
+    assert (first.reasoning, first.reasoning_tokens) == (
+        "the network is not strongly connected",
+        250,
+    )
+    assert (second.reasoning, second.reasoning_tokens) == ("", 0)
 
 
 def test_sums_the_real_cost_reported_across_steps() -> None:

@@ -78,8 +78,84 @@ class SeveralCandidates:
         return "Ask again, naming the one you mean."
 
 
+@dataclass(frozen=True, slots=True)
+class AreaTooLarge:
+    """The area to import is too large for one import (ADR-0045 §6): either its size is above the
+    limit, refused before any download, or the network built from it has more edges than the limit
+    (`edges` and `limit_edges` are then set, and the area itself may be within its limit)."""
+
+    area_km2: float
+    limit_km2: float
+    edges: int | None = None
+    limit_edges: int | None = None
+    kind: Literal["area_too_large"] = "area_too_large"
+
+    def __post_init__(self) -> None:
+        if self.limit_km2 <= 0:
+            raise ValueError("limit_km2 must be positive")
+        if (self.edges is None) != (self.limit_edges is None):
+            raise ValueError("edges and limit_edges go together")
+        if self.edges is None or self.limit_edges is None:
+            if self.area_km2 <= self.limit_km2:
+                raise ValueError("area_km2 must be above limit_km2")
+        elif self.edges <= self.limit_edges:
+            raise ValueError("edges must be above limit_edges")
+
+    @property
+    def recommendation(self) -> str:
+        if self.edges is not None:
+            return (
+                "Split the area into smaller ones, or import only the road classes the study needs."
+            )
+        return (
+            "Pick a smaller area; for a stretch of a road, download only a band along it "
+            "(`fetch_road`). The import profile does not change the area."
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class PlaceNotBoundary:
+    """The place name does not resolve to an administrative boundary, so it has no area to import
+    (ADR-0045 §2). The geocoder's own words are in `NeedsUser.message`."""
+
+    place: str
+    kind: Literal["place_not_boundary"] = "place_not_boundary"
+
+    def __post_init__(self) -> None:
+        if not self.place.strip():
+            raise ValueError("PlaceNotBoundary requires the place it names")
+
+    @property
+    def recommendation(self) -> str:
+        return "Give a bounding box or a polygon for the area; this place has no boundary."
+
+
+@dataclass(frozen=True, slots=True)
+class UnsupportedRequirement:
+    """The request needs something the network cannot hold, such as public transport stops
+    (ADR-0045 §5)."""
+
+    requirement: str
+    kind: Literal["unsupported_requirement"] = "unsupported_requirement"
+
+    def __post_init__(self) -> None:
+        if not self.requirement.strip():
+            raise ValueError("UnsupportedRequirement requires the requirement it names")
+
+    @property
+    def recommendation(self) -> str:
+        return "Ask again without that requirement; the network does not hold it."
+
+
 NeedsUserReason = (
-    WindowMissing | DemandNotNamed | DemandNotObtainable | NetworkNotFound | SeveralCandidates
+    WindowMissing
+    | DemandNotNamed
+    | DemandNotObtainable
+    | NetworkNotFound
+    | SeveralCandidates
+    | AreaTooLarge
+    | PlaceNotBoundary
+    | UnsupportedRequirement
 )
 
 

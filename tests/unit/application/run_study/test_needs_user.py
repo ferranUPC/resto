@@ -15,6 +15,7 @@ from resto.domain.value_objects.outcomes import (
     NeedsUser,
     NeedsUserReason,
     NetworkNotFound,
+    PlaceNotBoundary,
     SeveralCandidates,
     WindowMissing,
 )
@@ -27,6 +28,7 @@ from tests.unit.domain._fixtures import NET, demand_draft, network_draft
 NETWORK_SIDE: tuple[tuple[NeedsUserReason, tuple[str, ...]], ...] = (
     (NetworkNotFound("Gran Via"), ()),
     (SeveralCandidates(), ("BCN-1347", "BCN-1211")),
+    (PlaceNotBoundary("Plaça Catalunya"), ()),
 )
 DEMAND_SIDE: tuple[tuple[NeedsUserReason, tuple[str, ...]], ...] = (
     (WindowMissing(), ()),

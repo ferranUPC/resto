@@ -72,8 +72,75 @@
       "title": "ArtifactRef",
       "type": "object"
     },
+    "BBox": {
+      "properties": {
+        "east": {
+          "title": "East",
+          "type": "number"
+        },
+        "kind": {
+          "const": "bbox",
+          "default": "bbox",
+          "title": "Kind",
+          "type": "string"
+        },
+        "north": {
+          "title": "North",
+          "type": "number"
+        },
+        "south": {
+          "title": "South",
+          "type": "number"
+        },
+        "west": {
+          "title": "West",
+          "type": "number"
+        }
+      },
+      "required": [
+        "south",
+        "west",
+        "north",
+        "east"
+      ],
+      "title": "BBox",
+      "type": "object"
+    },
+    "GridNetwork": {
+      "description": "`netgenerate --grid`; defaults and ranges follow SUMO's.",
+      "properties": {
+        "kind": {
+          "const": "grid",
+          "default": "grid",
+          "title": "Kind",
+          "type": "string"
+        },
+        "x_length": {
+          "default": 100.0,
+          "title": "X Length",
+          "type": "number"
+        },
+        "x_number": {
+          "default": 5,
+          "title": "X Number",
+          "type": "integer"
+        },
+        "y_length": {
+          "default": 100.0,
+          "title": "Y Length",
+          "type": "number"
+        },
+        "y_number": {
+          "default": 5,
+          "title": "Y Number",
+          "type": "integer"
+        }
+      },
+      "title": "GridNetwork",
+      "type": "object"
+    },
     "NetworkRecipe": {
-      "description": "Everything needed to rebuild a network without an LLM: OSM snapshot + netconvert\noptions + plain-XML edits. Exactly one of `source` / `base_network_id`.",
+      "description": "Everything needed to rebuild a network without an LLM: OSM snapshot + netconvert\noptions + plain-XML edits. Exactly one of `source` / `base_network_id`.\n\nAn area of interest (box or polygon) requires the `osm_snapshot` it was imported from; a\ngenerated network and a derivation forbid it. A `PlaceName` is a request: the recipe stores\nthe polygon it resolved to (ADR-0045).",
       "properties": {
         "base_network_id": {
           "anyOf": [
@@ -130,39 +197,97 @@
         "source": {
           "anyOf": [
             {
-              "$ref": "#/$defs/NetworkSource"
+              "$ref": "#/$defs/BBox"
+            },
+            {
+              "$ref": "#/$defs/Polygon"
+            },
+            {
+              "$ref": "#/$defs/PlaceName"
+            },
+            {
+              "$ref": "#/$defs/GridNetwork"
+            },
+            {
+              "$ref": "#/$defs/SpiderNetwork"
+            },
+            {
+              "$ref": "#/$defs/RandomNetwork"
             },
             {
               "type": "null"
             }
           ],
-          "default": null
+          "default": null,
+          "title": "Source"
         }
       },
       "title": "NetworkRecipe",
       "type": "object"
     },
-    "NetworkSource": {
+    "PlaceName": {
+      "description": "A name for the geocoder to resolve to a `Polygon`. Never stored in a recipe.",
       "properties": {
         "kind": {
-          "enum": [
-            "place",
-            "bbox",
-            "file"
-          ],
+          "const": "place_name",
+          "default": "place_name",
           "title": "Kind",
           "type": "string"
         },
-        "value": {
-          "title": "Value",
+        "query": {
+          "title": "Query",
           "type": "string"
         }
       },
       "required": [
-        "kind",
-        "value"
+        "query"
       ],
-      "title": "NetworkSource",
+      "title": "PlaceName",
+      "type": "object"
+    },
+    "Polygon": {
+      "description": "A closed ring of (lat, lon) points. `osm_id` is the OpenStreetMap relation it was resolved\nfrom, when a geocoder produced it.",
+      "properties": {
+        "kind": {
+          "const": "polygon",
+          "default": "polygon",
+          "title": "Kind",
+          "type": "string"
+        },
+        "osm_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Osm Id"
+        },
+        "ring": {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Ring",
+          "type": "array"
+        }
+      },
+      "required": [
+        "ring"
+      ],
+      "title": "Polygon",
       "type": "object"
     },
     "ProbeReport": {
@@ -201,6 +326,41 @@
       "title": "ProbeReport",
       "type": "object"
     },
+    "RandomNetwork": {
+      "description": "`netgenerate --rand`. The seed is required: asking again gives the same network.",
+      "properties": {
+        "iterations": {
+          "default": 200,
+          "title": "Iterations",
+          "type": "integer"
+        },
+        "kind": {
+          "const": "rand",
+          "default": "rand",
+          "title": "Kind",
+          "type": "string"
+        },
+        "max_distance": {
+          "default": 250.0,
+          "title": "Max Distance",
+          "type": "number"
+        },
+        "min_distance": {
+          "default": 100.0,
+          "title": "Min Distance",
+          "type": "number"
+        },
+        "seed": {
+          "title": "Seed",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "seed"
+      ],
+      "title": "RandomNetwork",
+      "type": "object"
+    },
     "RemoveEdge": {
       "properties": {
         "edge_id": {
@@ -230,6 +390,10 @@
           "title": "Largest Scc Ratio",
           "type": "number"
         },
+        "through_traffic_ratio": {
+          "title": "Through Traffic Ratio",
+          "type": "number"
+        },
         "zero_length_edges": {
           "title": "Zero Length Edges",
           "type": "integer"
@@ -238,7 +402,8 @@
       "required": [
         "largest_scc_ratio",
         "zero_length_edges",
-        "all_reachable_from_fringe"
+        "all_reachable_from_fringe",
+        "through_traffic_ratio"
       ],
       "title": "SanityReport",
       "type": "object"
@@ -289,6 +454,39 @@
         "speed"
       ],
       "title": "SetSpeed",
+      "type": "object"
+    },
+    "SpiderNetwork": {
+      "description": "`netgenerate --spider`; defaults and ranges follow SUMO's.",
+      "properties": {
+        "arm_number": {
+          "default": 13,
+          "title": "Arm Number",
+          "type": "integer"
+        },
+        "circle_number": {
+          "default": 20,
+          "title": "Circle Number",
+          "type": "integer"
+        },
+        "kind": {
+          "const": "spider",
+          "default": "spider",
+          "title": "Kind",
+          "type": "string"
+        },
+        "omit_center": {
+          "default": false,
+          "title": "Omit Center",
+          "type": "boolean"
+        },
+        "space_radius": {
+          "default": 100.0,
+          "title": "Space Radius",
+          "type": "number"
+        }
+      },
+      "title": "SpiderNetwork",
       "type": "object"
     },
     "UnresolvedIssue": {

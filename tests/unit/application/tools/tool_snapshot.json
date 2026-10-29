@@ -966,6 +966,772 @@
       "name": "get_tls"
     }
   ],
+  "network_author": [
+    {
+      "description": "Build a rectangular grid network with `netgenerate`, no OpenStreetMap. Returns the source to put in the recipe and the built .net.xml artifact.",
+      "input_schema": {
+        "properties": {
+          "x_length": {
+            "description": "Length in metres of an x-direction edge. SUMO: 100.",
+            "exclusiveMinimum": 0,
+            "type": "number"
+          },
+          "x_number": {
+            "description": "Junctions along x, at least 2. SUMO: 5.",
+            "minimum": 2,
+            "type": "integer"
+          },
+          "y_length": {
+            "description": "Length in metres of a y-direction edge. SUMO: 100.",
+            "exclusiveMinimum": 0,
+            "type": "number"
+          },
+          "y_number": {
+            "description": "Junctions along y, at least 2. SUMO: 5.",
+            "minimum": 2,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "name": "generate_grid"
+    },
+    {
+      "description": "Build a spider-web network (arms crossed by concentric circles) with `netgenerate`, no OpenStreetMap. Returns the source to put in the recipe and the built .net.xml artifact.",
+      "input_schema": {
+        "properties": {
+          "arm_number": {
+            "description": "Number of arms, at least 3. SUMO: 13.",
+            "minimum": 3,
+            "type": "integer"
+          },
+          "circle_number": {
+            "description": "Number of circles, at least 1. SUMO: 20.",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "omit_center": {
+            "description": "Leave out the central junction. SUMO: false.",
+            "type": "boolean"
+          },
+          "space_radius": {
+            "description": "Distance in metres between circles. SUMO: 100.",
+            "exclusiveMinimum": 0,
+            "type": "number"
+          }
+        },
+        "type": "object"
+      },
+      "name": "generate_spider"
+    },
+    {
+      "description": "Build a random network with `netgenerate`, no OpenStreetMap. The seed is required: the same seed and parameters give the same network. Returns the source to put in the recipe and the built .net.xml artifact.",
+      "input_schema": {
+        "properties": {
+          "iterations": {
+            "description": "Number of random growth steps, at least 1. SUMO: 200.",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "max_distance": {
+            "description": "Maximum distance in metres, at least min_distance. SUMO: 250.",
+            "exclusiveMinimum": 0,
+            "type": "number"
+          },
+          "min_distance": {
+            "description": "Minimum distance in metres between nodes. SUMO: 100.",
+            "exclusiveMinimum": 0,
+            "type": "number"
+          },
+          "seed": {
+            "description": "Seed of the generator, at least 0.",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "seed"
+        ],
+        "type": "object"
+      },
+      "name": "generate_random"
+    }
+  ],
+  "network_edit": [
+    {
+      "description": "Remove an edge, and every connection that starts or ends on it, from a network and recompile. Returns the new net_artifact and the modification to put in the recipe, or `unresolved` when the edge does not exist.",
+      "input_schema": {
+        "properties": {
+          "edge_id": {
+            "description": "Id of an existing edge.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "net_hash": {
+            "description": "`net_artifact.content_hash` of that same .net.xml.",
+            "type": "string"
+          },
+          "net_path": {
+            "description": "`net_artifact.path` of the .net.xml to edit, from an earlier tool.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "net_path",
+          "net_hash",
+          "edge_id"
+        ],
+        "type": "object"
+      },
+      "name": "remove_edge"
+    },
+    {
+      "description": "Add an edge between two junctions that already exist and recompile; SUMO guesses its connections. A junction that does not exist is not created: the result is `unresolved` with needed_tool `add_node`. Returns the new net_artifact and the modification to put in the recipe.",
+      "input_schema": {
+        "properties": {
+          "edge_id": {
+            "description": "Id the new edge gets; by default the two junction ids joined.",
+            "type": "string"
+          },
+          "from_junction": {
+            "description": "Id of the junction it leaves.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "lanes": {
+            "description": "Number of lanes, at least 1.",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "net_hash": {
+            "description": "`net_artifact.content_hash` of that same .net.xml.",
+            "type": "string"
+          },
+          "net_path": {
+            "description": "`net_artifact.path` of the .net.xml to edit, from an earlier tool.",
+            "type": "string"
+          },
+          "speed": {
+            "description": "Speed limit in m/s, above 0.",
+            "exclusiveMinimum": 0,
+            "type": "number"
+          },
+          "to_junction": {
+            "description": "Id of the junction it enters.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "net_path",
+          "net_hash",
+          "from_junction",
+          "to_junction",
+          "lanes",
+          "speed"
+        ],
+        "type": "object"
+      },
+      "name": "add_edge"
+    },
+    {
+      "description": "Set the number of lanes of an existing edge and recompile. Connections on a lane that no longer exists move to the outermost remaining lane. Returns the new net_artifact and the modification to put in the recipe, or `unresolved` when the edge does not exist.",
+      "input_schema": {
+        "properties": {
+          "edge_id": {
+            "description": "Id of an existing edge.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "lanes": {
+            "description": "New number of lanes, at least 1.",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "net_hash": {
+            "description": "`net_artifact.content_hash` of that same .net.xml.",
+            "type": "string"
+          },
+          "net_path": {
+            "description": "`net_artifact.path` of the .net.xml to edit, from an earlier tool.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "net_path",
+          "net_hash",
+          "edge_id",
+          "lanes"
+        ],
+        "type": "object"
+      },
+      "name": "set_lanes"
+    },
+    {
+      "description": "Set the speed limit of an existing edge, all its lanes included, and recompile. Returns the new net_artifact and the modification to put in the recipe, or `unresolved` when the edge does not exist.",
+      "input_schema": {
+        "properties": {
+          "edge_id": {
+            "description": "Id of an existing edge.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "net_hash": {
+            "description": "`net_artifact.content_hash` of that same .net.xml.",
+            "type": "string"
+          },
+          "net_path": {
+            "description": "`net_artifact.path` of the .net.xml to edit, from an earlier tool.",
+            "type": "string"
+          },
+          "speed": {
+            "description": "New speed limit in m/s, above 0.",
+            "exclusiveMinimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "net_path",
+          "net_hash",
+          "edge_id",
+          "speed"
+        ],
+        "type": "object"
+      },
+      "name": "set_speed"
+    }
+  ],
+  "network_find": [
+    {
+      "description": "List the stored networks whose label is exactly the name, case ignored. Returns `candidates`, each with its `network_id`, `label` and the network it `derived_from`. One candidate that is what the user means: answer Found with its id. None: build the network, or ask the user when it cannot be built. Several: ask the user which one.",
+      "input_schema": {
+        "properties": {
+          "name": {
+            "description": "The network reference, as the user wrote it.",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "name": "find_network"
+    }
+  ],
+  "network_import": [
+    {
+      "description": "Find where a place or point of interest is (a hospital, a square, a station, an address), so the area you download is drawn from data and not from memory. Returns its `lat`, `lon` and what it is (`category`, `type`, `name`), or `not_found` when the geocoder does not know it: then try another wording (the official name, with the city, in Catalan or Spanish). `verify_coverage` reports how far the network ends from every place located in this run.",
+      "input_schema": {
+        "properties": {
+          "query": {
+            "description": "The place, with the city, e.g. 'Hospital Mois\u00e8s Broggi, Sant Joan Desp\u00ed' or 'Pla\u00e7a de Francesc Maci\u00e0, Barcelona'.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "type": "object"
+      },
+      "name": "locate_place"
+    },
+    {
+      "description": "List the import profiles `netconvert` can use (what the imported network keeps: roads, rail, bicycle lanes, pedestrian paths) and the vehicle classes `keep_vclass` accepts. Public transport stops and lines and polygons are not part of any profile.",
+      "input_schema": {
+        "properties": {},
+        "type": "object"
+      },
+      "name": "list_import_profiles"
+    },
+    {
+      "description": "Download the OpenStreetMap data of an area of interest, once per polygon (a second call for the same area reuses the stored snapshot). Name the area with exactly one of `bbox`, `polygon` or `place_name` (an administrative boundary, resolved to a polygon). The area is widened by `margin_pct` (5 % by default) before it is downloaded and cut, so the streets along its edge come whole; prune what is left over afterwards, and pass a larger `margin_pct` when the user asks for the surroundings. Put any extra thing the user asked for in `requirements`, for example 'bus stops'. Returns the `source` and the `osm_snapshot` for the recipe, or `needs_user` when the area is above the size limit, the place is not a boundary, or a requirement is unsupported (public transport stops and lines); then nothing was downloaded.",
+      "input_schema": {
+        "properties": {
+          "bbox": {
+            "description": "[south, west, north, east] in degrees.",
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 4,
+            "minItems": 4,
+            "type": "array"
+          },
+          "margin_pct": {
+            "description": "How much to widen the area before downloading and cutting, in percent of the side of a square of its surface (5 is about 30 m for a district).",
+            "maximum": 50.0,
+            "minimum": 0,
+            "type": "number"
+          },
+          "place_name": {
+            "description": "Name of an administrative area, e.g. 'Sant Antoni'.",
+            "type": "string"
+          },
+          "polygon": {
+            "description": "Closed ring of [lat, lon] points, at most about 200 vertices.",
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "type": "array"
+          },
+          "requirements": {
+            "description": "What else the user asked for, in their words, e.g. ['bus stops'].",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "name": "fetch_osm"
+    },
+    {
+      "description": "Download a stretch of a road between two points, by its `ref` (e.g. 'A-2'), as a band of `half_width_m` on each side of the road, its ends lengthened by as much: the area is the band, not the box of the two points, so a long interurban stretch fits the size limit. Each point is moved onto the road (at most 5000 m), so the towns at the ends of the stretch will do. The default band keeps both carriageways and the service roads beside them; what else falls inside (town streets) is pruned afterwards with `select_streets` and `drop`. Returns the `source` and the `osm_snapshot` for the recipe and the `road` it followed (`length_m`, `snapped`, `area_km2`), `not_reached` with its reason when no road there has that ref, a point is too far from it or no stretch of it joins the two, or `needs_user` like `fetch_osm`; then no area was downloaded.",
+      "input_schema": {
+        "properties": {
+          "from_point": {
+            "description": "[lat, lon], e.g. from `locate_place`.",
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          },
+          "half_width_m": {
+            "description": "Metres of the band on each side of the road. Default 200.",
+            "maximum": 1000.0,
+            "minimum": 25.0,
+            "type": "number"
+          },
+          "ref": {
+            "description": "The road's ref, e.g. 'A-2' ('A2' finds it too).",
+            "type": "string"
+          },
+          "requirements": {
+            "description": "What else the user asked for, in their words, e.g. ['bus stops'].",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "to_point": {
+            "description": "[lat, lon], e.g. from `locate_place`.",
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          }
+        },
+        "required": [
+          "ref",
+          "from_point",
+          "to_point"
+        ],
+        "type": "object"
+      },
+      "name": "fetch_road"
+    },
+    {
+      "description": "The streets of a fetched snapshot, longest first: name, ref (e.g. 'N-340'), road classes, total length and extent. Highways with no name and no ref are grouped by class. Use it before `select_streets` to see how the streets the user named are spelled, and whether the road changes name along the stretch. With `near`, only the streets that pass within `radius_m` of that point, each counted only for the stretch inside that circle (what a zone of `select_streets` keeps): the unnamed rows show what is there, not what the whole snapshot holds; selecting a zone also completes the ramps it touches, and a selection the roundabouts it touches. At most 40 rows.",
+      "input_schema": {
+        "properties": {
+          "near": {
+            "description": "[lat, lon] of a point, e.g. one `locate_place` returned.",
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          },
+          "osm_snapshot": {
+            "description": "`content_hash` of a snapshot `fetch_osm`, `fetch_road` or `select_streets` returned.",
+            "type": "string"
+          },
+          "radius_m": {
+            "description": "Radius around `near`, in metres. Default 300.",
+            "maximum": 5000.0,
+            "minimum": 10.0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "osm_snapshot"
+        ],
+        "type": "object"
+      },
+      "name": "list_streets"
+    },
+    {
+      "description": "Find the road a car takes between two points of a fetched snapshot (the quickest, from the speed limits), and which streets to select to keep it. A road often changes name on the way, or has only a ref (a motorway): the trace follows it anyway. Returns its stretches (`route`), `total_m`, `minutes`, where each point was put on a road (`snapped`), the first and last point on the suggested streets (`joins_at`, `leaves_at`) and `suggested_selection`, to pass as it is to `select_streets`: besides names and refs it has `areas`, one zone for each stretch of the route on roads with neither (ramps, roundabouts), which a name or a ref does not keep. Returns `not_reached` with the box to `fetch_osm` instead when a point is outside the fetched area or less than 300 m from its edge, or when no road joins the two points (a point more than 500 m from any road that does).",
+      "input_schema": {
+        "properties": {
+          "from_point": {
+            "description": "[lat, lon], e.g. from `locate_place`.",
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          },
+          "osm_snapshot": {
+            "description": "`content_hash` of a snapshot `fetch_osm`, `fetch_road` or `select_streets` returned.",
+            "type": "string"
+          },
+          "prefer": {
+            "description": "Streets the user named, as names or parts of names (any case) or refs, e.g. ['Avinguda Diagonal', 'B-23']: when two roads take about as long, the trace keeps to these, and the suggested selection includes the ones it touches.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "to_point": {
+            "description": "[lat, lon], e.g. from `locate_place`.",
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          }
+        },
+        "required": [
+          "osm_snapshot",
+          "from_point",
+          "to_point"
+        ],
+        "type": "object"
+      },
+      "name": "trace_corridor"
+    },
+    {
+      "description": "Keep only some streets of a fetched snapshot, before `netconvert`: every highway whose name contains one of `names`, or whose ref is one of `refs` (a road that changes name keeps its ref), plus every road in the `areas` you give (cut to the stretch inside the zone; the ramps it touches are kept whole, and `areas[].completed` counts what that added outside the circle; any roundabout a selected road touches is kept whole too), plus the `connectors` you ask for, minus what the `drop` rules remove (a removed road never comes back as a connector). Use names and refs for a stretch you know; use an area for a place you want in full detail (a motorway junction, a roundabout, a municipality's accesses), then drop the classes or streets you do not want. With no names, refs or areas, every road is kept and `drop` alone prunes (the band of `fetch_road` without its town streets: drop `residential` and `living_street`). Writes a new snapshot and returns its `osm_snapshot` and `source` for the recipe; build it with `netconvert` like any other. Also returns what was kept, what each area added, what each rule removed (0 when nothing) and in how many `pieces`: more than one means gaps a vehicle cannot cross. Fails when nothing matches; then check the names with `list_streets`. Trying another selection downloads nothing.",
+      "input_schema": {
+        "properties": {
+          "areas": {
+            "description": "Zones to keep whole: every road with a node inside, cut to the stretch inside. The same `near` and `radius_m` as `list_streets`.",
+            "items": {
+              "description": "A zone: every road with a node within `radius_m` of `near`.",
+              "properties": {
+                "near": {
+                  "description": "[lat, lon] of the centre of the zone.",
+                  "items": {
+                    "type": "number"
+                  },
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "type": "array"
+                },
+                "radius_m": {
+                  "description": "Radius of the zone in metres. Default 300.",
+                  "maximum": 5000.0,
+                  "minimum": 10.0,
+                  "type": "number"
+                }
+              },
+              "required": [
+                "near"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "connectors": {
+            "description": "Which other ways join the pieces of the selection: 'none'; 'links', only `*_link` ramps; 'all', any road (links, squares and crossings with another name), at most 300 m long. Default 'all'.",
+            "enum": [
+              "none",
+              "links",
+              "all"
+            ],
+            "type": "string"
+          },
+          "drop": {
+            "description": "Rules that remove roads from the selection. With `near` (and `radius_m`) a rule removes only inside that zone. A rule with no name, ref or class is an error.",
+            "items": {
+              "description": "A rule: removes the roads that match any of its criteria, inside its zone when it has one.",
+              "properties": {
+                "classes": {
+                  "description": "Highway classes, e.g. ['residential', 'service'].",
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "names": {
+                  "description": "Names or parts of names.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "near": {
+                  "description": "[lat, lon] of the centre of the zone.",
+                  "items": {
+                    "type": "number"
+                  },
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "type": "array"
+                },
+                "radius_m": {
+                  "description": "Radius of the zone in metres. Default 300.",
+                  "maximum": 5000.0,
+                  "minimum": 10.0,
+                  "type": "number"
+                },
+                "refs": {
+                  "description": "Road refs.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              },
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "names": {
+            "description": "Names or parts of names, any case, e.g. ['Avinguda Diagonal'].",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "osm_snapshot": {
+            "description": "`content_hash` of a snapshot `fetch_osm`, `fetch_road` or `select_streets` returned.",
+            "type": "string"
+          },
+          "refs": {
+            "description": "Road refs, any case, e.g. ['N-340'].",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "osm_snapshot"
+        ],
+        "type": "object"
+      },
+      "name": "select_streets"
+    },
+    {
+      "description": "Build the network from a fetched snapshot with `netconvert`: the chosen import profile, cut to the area's polygon, keeping the largest connected component. Starts the cleanups again. Returns the `netconvert_options` and `net_artifact` for the recipe, or `needs_user` when the network has more edges than one import allows.",
+      "input_schema": {
+        "properties": {
+          "osm_snapshot": {
+            "description": "`content_hash` of a snapshot `fetch_osm`, `fetch_road` or `select_streets` returned.",
+            "type": "string"
+          },
+          "profile": {
+            "description": "Profile name from `list_import_profiles`. Default 'roads'.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "osm_snapshot"
+        ],
+        "type": "object"
+      },
+      "name": "netconvert"
+    },
+    {
+      "description": "Rebuild keeping only the largest connected component, so no piece of road is cut off from the rest. `netconvert` already does it; this makes the choice explicit after other cleanups. Returns the updated options.",
+      "input_schema": {
+        "properties": {
+          "osm_snapshot": {
+            "description": "`content_hash` of a snapshot `fetch_osm`, `fetch_road` or `select_streets` returned.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "osm_snapshot"
+        ],
+        "type": "object"
+      },
+      "name": "keep_largest_component"
+    },
+    {
+      "description": "Rebuild removing isolated edges (edges that connect to nothing at either end).",
+      "input_schema": {
+        "properties": {
+          "osm_snapshot": {
+            "description": "`content_hash` of a snapshot `fetch_osm`, `fetch_road` or `select_streets` returned.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "osm_snapshot"
+        ],
+        "type": "object"
+      },
+      "name": "remove_isolated"
+    },
+    {
+      "description": "Rebuild joining junctions that are close together (a big crossing mapped as several nodes) into one.",
+      "input_schema": {
+        "properties": {
+          "osm_snapshot": {
+            "description": "`content_hash` of a snapshot `fetch_osm`, `fetch_road` or `select_streets` returned.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "osm_snapshot"
+        ],
+        "type": "object"
+      },
+      "name": "join_junctions"
+    },
+    {
+      "description": "Rebuild keeping only the edges that allow a vehicle class, for example 'passenger' to drop rail and pedestrian-only paths.",
+      "input_schema": {
+        "properties": {
+          "osm_snapshot": {
+            "description": "`content_hash` of a snapshot `fetch_osm`, `fetch_road` or `select_streets` returned.",
+            "type": "string"
+          },
+          "vclass": {
+            "description": "Vehicle class to keep.",
+            "enum": [
+              "passenger",
+              "bus",
+              "truck",
+              "delivery",
+              "taxi",
+              "motorcycle",
+              "bicycle",
+              "pedestrian",
+              "tram",
+              "rail"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "osm_snapshot",
+          "vclass"
+        ],
+        "type": "object"
+      },
+      "name": "keep_vclass"
+    },
+    {
+      "description": "Is the network you last built from a snapshot the one the user asked for? Returns its extent; its connected components with their ends; the streets of the snapshot with stretches that did not make it into the network (where they are and how long); and, for every place `locate_place` found in this run, how far the network and its nearest end are from it. Call it before you submit a network of selected streets; what it shows and you cannot fix goes to unresolved[] with its numbers.",
+      "input_schema": {
+        "properties": {
+          "osm_snapshot": {
+            "description": "`content_hash` of a snapshot `fetch_osm`, `fetch_road` or `select_streets` returned.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "osm_snapshot"
+        ],
+        "type": "object"
+      },
+      "name": "verify_coverage"
+    }
+  ],
+  "network_inspection": [
+    {
+      "description": "A bounded summary of a network: edge, junction and traffic light counts, total length, speed range, road types, vehicle classes, connected components and a short list of suspect edges (zero length, isolated, with no outgoing connection).",
+      "input_schema": {
+        "properties": {
+          "net_path": {
+            "description": "Path of the .net.xml to look at, as a tool that built it returned it.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "net_path"
+        ],
+        "type": "object"
+      },
+      "name": "inspect_network"
+    },
+    {
+      "description": "One edge of a network: endpoints, length, speed, lanes, road type, allowed vehicle classes and the edges it leads to.",
+      "input_schema": {
+        "properties": {
+          "edge_id": {
+            "description": "Edge id, e.g. 'A0A1'.",
+            "type": "string"
+          },
+          "net_path": {
+            "description": "Path of the .net.xml to look at, as a tool that built it returned it.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "net_path",
+          "edge_id"
+        ],
+        "type": "object"
+      },
+      "name": "inspect_edge"
+    },
+    {
+      "description": "Is the network sound? Returns the share of edges that lie on a path from an entry to an exit (`through_traffic_ratio`, what the check is judged on), the share in the largest strongly connected component (reported only: a road with one carriageway per direction is not one loop), the number of zero-length edges, whether every edge can be reached from the border, and whether they pass together.",
+      "input_schema": {
+        "properties": {
+          "net_path": {
+            "description": "Path of the .net.xml to look at, as a tool that built it returned it.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "net_path"
+        ],
+        "type": "object"
+      },
+      "name": "sanity_check"
+    },
+    {
+      "description": "Simulate light random demand on a network with SUMO to see whether it jams. Returns teleports, collisions, vehicles that did not arrive, the edges where vehicles waited most and the SUMO statistics file as evidence. Nothing is stored as a result.",
+      "input_schema": {
+        "properties": {
+          "duration_s": {
+            "description": "Simulated seconds, 60 to 7200. Default 900.",
+            "maximum": 7200,
+            "minimum": 60,
+            "type": "number"
+          },
+          "net_path": {
+            "description": "Path of the .net.xml to look at, as a tool that built it returned it.",
+            "type": "string"
+          },
+          "seed": {
+            "description": "Seed of the demand and of SUMO. Default 0.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "vehicles": {
+            "description": "Number of random trips, 1 to 2000. Default 100.",
+            "maximum": 2000,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "net_path"
+        ],
+        "type": "object"
+      },
+      "name": "probe_run"
+    }
+  ],
   "scenario_builder": [
     {
       "description": "Whether `edge_id` exists on the scenario's network.",
